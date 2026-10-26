@@ -1,6 +1,6 @@
 # PicoNIX
 
-**PicoNIX** は，Raspberry Pi Pico（RP2040）で動作する，UNIXの基本的な仕組みを学ぶための小さな実験用OSです．TAKAGO_LAB. で開発しています．
+**PicoNIX** は，Raspberry Pi Pico（RP2040）で動作する，UNIXの基本的な仕組みを学ぶための実験用OSです(ChatGPTで作成)．
 
 > リリース表示：`PicoNIX-2026-10-26 (TAKAGO_LAB.)`  
 > 開発段階：Stage 30  
