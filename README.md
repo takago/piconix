@@ -1,4 +1,5 @@
 # PicoNIX
+PicoNIX is a compact UNIX-like educational operating system for the Raspberry Pi Pico (RP2040)
 
 - [日本語の説明（README-JP.md）](README-JP.md)
 - [English documentation (README-EN.md)](README-EN.md)
