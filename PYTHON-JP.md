@@ -1,47 +1,53 @@
-# Tiny Python風インタプリタ（スロット3）
+# Python風インタプリタ
 
-[English](PYTHON-EN.md)
+[English](PYTHON-EN.md) | [概要へ戻る](README-JP.md)
 
-PicoNIXには，`ram_apps/python.c`に実装された小型のPython風インタプリタがあります．`omikuji`と同じRAMスロット3（`0x20030000`）を使用するため，両者を同時には実行できません．
+`ram_apps/python.c`はPicoNIX独自の**小型Python風言語**です．CPythonやMicroPythonではありません．OmikujiとRAMスロット3を共有し，両者は同時実行できません．
 
-引数なしの`python`は対話モード（REPL）を起動します．終了するには`exit()`を入力します．
+## 1．対話モード
 
 ```text
 piconix# python
-PicoNIX Tiny Python (Python subset)
-Type exit() to quit.
->>> x=10
->>> print(x+5)
+>>> x = 10
+>>> print(x + 5)
 15
 >>> exit()
 piconix#
 ```
 
-`python /tmp/test.py`はバナーを出さずにスクリプトを実行します．`cat > /tmp/test.py`でファイルを作成し，Ctrl+Dで入力を終えてください．カレントディレクトリが`/tmp`なら`python test.py`とも書けます．引数なしでは必ずREPLを起動し，既定のスクリプトファイルは読みません．
+引数なしの`python`で対話モードに入り，`exit()`でShellへ戻ります．入力は行単位です．`if`や`while`のブロックはインデントして入力し，空行で確定します．
 
-```python
-n = int(input("Count: "))
-i = 0
-while i < n:
-    if i % 2 == 0:
-        print(i)
-    i = i + 1
-print("done")
+## 2．ファイルを実行する
+
+```text
+piconix# cat > /tmp/test.py
+print(1 + 2)
 ```
 
-## 対応する構文・機能
+最後に空行で`Ctrl+D`を入力し，ファイル保存を終えます．続いて実行します．
 
-- 32ビット符号付き整数の変数（最大16個），四則演算・剰余（`+ - * / %`），括弧，比較演算．
-- 代入，`if`／`else`，`while`，`#`コメント，空白インデントによるブロック．
-- `print(整数式)`，`print("文字列リテラル")`，整数入力用の`input("プロンプト")`と`int(input(...))`．
-- `sleep(ミリ秒)`（0～60000ミリ秒）．
-- `gpio(pin, value)`，`gpio_read(pin)`，`gpio_mode(pin, mode)`，`gpio_pull(pin, mode)`．GPIOの操作には`/dev/gpio/N`，`/dev/gpio/N.dir`，`/dev/gpio/N.pull`を使用します．
-- GPIOのモードは入力が0，出力が1です．プル設定は無効が0，プルアップが1，プルダウンが2です．GPIO 0，1，4，5と範囲外のピンは使用できません．
-- ソースは最大512バイト，空行以外の64行まで，入れ子は8段までです．`while`の繰り返しは各文につき最大10000回です．
+```text
+piconix# python /tmp/test.py
+3
+```
 
-CPythonやMicroPythonとの互換性はありません．リスト，変数としての文字列，`for`，関数定義，`import`，浮動小数点などは実装されていません．入力はカーネルの行単位入力を使用します．`/tmp`のファイルは再起動で消去されます．
+`cd /tmp`したShellからは`python test.py`でも実行できます．スクリプトは`/tmp`のRAMファイルに限られ，電源を切ると消えます．ファイル実行時には対話バナーを表示しません．
 
-## 実行例と注意事項
+## 3．対応する機能
+
+| 分類 | 内容 |
+|---|---|
+| 値と計算 | 符号付き32ビット整数，`+ - * / %`，比較，括弧 |
+| 制御 | 代入，`if`／`else`，`while`，スペースによるインデント，`#`コメント |
+| 入出力 | `print(...)`，整数入力の`input(...)`，`int(input(...))` |
+| 待機 | `sleep(ミリ秒)`（0～60000） |
+| GPIO | `gpio`，`gpio_read`，`gpio_mode`，`gpio_pull` |
+
+変数は最大16個，ソースは512バイト／非空行64行，ブロックは8段までです．`while`は1文につき最大10000回の反復に制限されています．浮動小数点，リスト，ユーザ定義関数，`for`，`import`，文字列変数はありません．
+
+## 4．GPIOの例
+
+`/tmp/led.py`に次の内容を保存し，`python /tmp/led.py`で実行します．
 
 ```python
 i = 0
@@ -53,13 +59,13 @@ while i < 5:
     i = i + 1
 ```
 
-GPIO16をプルアップ入力に設定する場合は`gpio_mode(16,0)`，`gpio_pull(16,1)`を実行し，`gpio_read(16)`で読み取ります．GPIOピンから外部負荷を直接駆動しないでください．対話モードでは式を入力すると値が表示されますが，スクリプト中では`print(...)`を使用します．
+`gpio_mode(pin, 0)`が入力，`gpio_mode(pin, 1)`が出力です．`gpio_pull(pin, 0/1/2)`はそれぞれ無効／プルアップ／プルダウンです．UART用のGPIO 0，1，4，5は操作できません．ボードや接続回路の電気的制約にも注意してください．
 
-## バックグラウンド実行
+## 5．バックグラウンド実行
 
-```sh
-python /tmp/test.py &
-python /tmp/test.py > /tmp/out.txt &
+```text
+piconix# python /tmp/led.py &
+piconix# python /tmp/led.py > /tmp/output.txt &
 ```
 
-`python &`は対話入力がShellと競合するため使用できません．標準入力を必要とするバックグラウンドプログラムは，コンソールのフォアグラウンド制御によって入力を拒否される場合があります．
+`python &`は使えません．対話モードがShellとコンソール入力を取り合うためです．背景スクリプトからのコンソール入力にも制約があります．

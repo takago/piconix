@@ -1,21 +1,18 @@
-# PicoNIX Setup Guide
+# Setup
 
-[日本語](SETUP-JP.md) | [English](SETUP-EN.md)
+[日本語](SETUP-JP.md) | [Back to overview](README-EN.md)
 
 ## 1. Requirements
 
-- Raspberry Pi Pico (RP2040) and a USB data cable.
-- Pico SDK 2.1.1, including its submodules.
-- ARM GCC toolchain (for example, `~/.pico-sdk/toolchain/14_2_Rel1`).
-- CMake, Make, Python 3, Git, and a USB serial terminal.
+- Raspberry Pi Pico (RP2040) and a USB data cable
+- Linux, Pico SDK 2.1.1, ARM GCC, CMake, and Python 3
+- A USB connection for UF2 flashing and a serial terminal (such as `picocom`)
 
-These instructions assume an Ubuntu-family Linux environment. Install the SDK and compiler before building.
+Install the SDK and toolchain first. The command below uses example installation paths.
 
-## 2. Obtain the sources
+## 2. Build
 
-Clone your PicoNIX repository or extract the source archive, then change into its root directory (the directory containing `CMakeLists.txt`).
-
-## 3. Build
+From the PicoNIX project root:
 
 ```sh
 PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
@@ -24,30 +21,43 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 ./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-`build_sdk.sh` first runs host-side audit and RAM-image tests, then configures and builds the SDK firmware. `MinSizeRel` is the standard build type and optimizes for code size (`-Os`). Other CMake options can be supplied at the end of the command.
+The script runs host checks, then configures and builds for `PICO_BOARD=pico` and `PICONIX_KERNEL_RAM=ON`. `MinSizeRel` (normally `-Os`) is the default; passing it explicitly avoids confusion with a previously configured `build/` directory.
 
-The host LLVM RAM-image test validates Shell and Blink. Omikuji and Python must additionally be validated with the ARM GCC SDK build; a successful host test alone does not establish that all four applications link.
+Typical artifacts are `build/piconix.uf2` and `build/piconix.elf`. The build script does not automatically remove `build/`.
 
-## 4. Firmware output and flashing
+## 3. Flash the Pico
 
-Find the generated `piconix.uf2` in `build/`. Hold BOOTSEL when connecting the Pico, then copy the UF2 to its mounted drive. The board reboots automatically.
-
-## 5. Serial console and smoke test
-
-Open the USB CDC serial interface with your preferred terminal. After enumeration, the PicoNIX startup banner and `piconix#` prompt should appear.
+1. Connect the Pico while holding BOOTSEL.
+2. Copy `build/piconix.uf2` to the `RPI-RP2` drive.
+3. After reboot, open its USB CDC serial port (for example `/dev/ttyACM0` on Linux).
 
 ```sh
-help
-ps
-ls /dev
-cat /sys/proc/tasks
-blink
+picocom -b 115200 /dev/ttyACM0
 ```
 
-The default console is USB CDC. An alternative UART0 console build is selected by `-DPICONIX_CONSOLE_USB=OFF`.
+For USB CDC, `115200` is a terminal setting, not the physical UART bitrate. The device name depends on your system.
 
-## 6. Troubleshooting
+## 4. Smoke test
 
-If the banner does not appear, check that your serial terminal is connected to the correct USB CDC device and that enumeration has finished. Reconnect or reset the Pico if necessary. If configuration fails, verify `PICO_SDK_PATH`, the ARM compiler path, SDK submodules, and that the build type is `MinSizeRel`.
+```text
+piconix# help
+piconix# ps
+piconix# cat /sys/proc/uptime
+piconix# blink &
+piconix# ps
+piconix# kill 2
+```
 
-For the RAM layout and application startup process, read [Internal Architecture](INTERNAL-EN.md).
+PIDs are not fixed; use the PID shown by `ps`. Foreground `blink` can be stopped with `Ctrl+C`.
+
+## 5. Troubleshooting
+
+| Symptom | Check |
+|---|---|
+| SDK not found | `PICO_SDK_PATH` and SDK submodules |
+| ARM toolchain not found | `PICO_TOOLCHAIN_PATH` and GCC installation |
+| RAM overflow or link failure | Explicit `MinSizeRel` and fixed memory limits |
+| No USB terminal output | Reopen the terminal after Pico re-enumerates |
+| GPIO25 LED not blinking | Confirm you are using a standard Raspberry Pi Pico |
+
+To choose a UART0 console, pass `-DPICONIX_CONSOLE_USB=OFF`. USB CDC is recommended by default. See [Internals](INTERNAL-EN.md) for the memory layout.

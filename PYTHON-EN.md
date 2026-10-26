@@ -1,70 +1,55 @@
-# PicoNIX Tiny Python-style Interpreter (Slot 3)
+# Python-like interpreter
 
-PicoNIX includes a small, freestanding interpreter in `ram_apps/python.c`.
-It shares the **third physical task slot** (`0x20030000`) with `omikuji`:
-they cannot run simultaneously, but both commands remain available.
+[日本語](PYTHON-JP.md) | [Back to overview](README-EN.md)
 
-Run `python` with no arguments for an interactive REPL. The banner is shown
-only in REPL mode:
+`ram_apps/python.c` implements a **small PicoNIX-specific Python-like language**. It is neither CPython nor MicroPython. It shares RAM slot 3 with Omikuji, so they cannot run together.
+
+## 1. Interactive mode
 
 ```text
 piconix# python
-PicoNIX Tiny Python (Python subset)
-Type exit() to quit.
->>> x=10
->>> print(x+5)
+>>> x = 10
+>>> print(x + 5)
 15
 >>> exit()
 piconix#
 ```
 
-Type `exit()` to return to the Shell. Running `python /tmp/test.py` executes
-the script **without a banner**, so redirected program output is not polluted. An expression such as `1+2+3` prints its value. A control block
-(`if` or `while`) is entered with the `...` prompt and terminated by an empty
-line. The REPL uses the existing line-based console input.
+Run `python` without arguments to enter the REPL; type `exit()` to return to Shell. Input is line-based. Indent `if` and `while` bodies, and finish a block with an empty line.
 
-Create a script with `cat > /tmp/test.py` (Ctrl+D to finish), then run
-`python /tmp/test.py`. From `/tmp`, `python test.py` also works. Only `/tmp`
-regular files are supported (512 bytes per file). No arguments means REPL;
-there is no longer an implicit `/tmp/python.py` default.
+## 2. Run a script
 
-Example (keep under the 512-byte per-file limit):
+Create `/tmp/test.py` using:
 
-```python
-n = int(input("Count: "))
-i = 0
-while i < n:
-    if i % 2 == 0:
-        print(i)
-    i = i + 1
-print("done")
+```text
+piconix# cat > /tmp/test.py
+print(1 + 2)
 ```
 
-## Supported Subset
+Finish by pressing `Ctrl+D` on an empty line, then run:
 
-- Signed 32-bit integer variables (16 maximum), integer constants, arithmetic
-  (`+ - * / %`), parentheses and six comparisons.
-- Assignment, `if`/`else`, `while`, `#` comments and space-indented blocks.
-- `print(integer expression)` and `print("literal")`; `input("prompt")`
-  accepts an integer (not a Python string); `int(input(...))` also works.
-- `sleep(milliseconds)` pauses the current Python task (0–60000 ms).
-- `gpio(pin, value)` selects output mode then writes 0/1 to GPIO; `gpio_read(pin)`
-  reads the pin's current level. Uses `/dev/gpio/N` and `/dev/gpio/N.dir`.
-- `gpio_mode(pin, mode)` chooses input (0) or output (1) using `/dev/gpio/N.dir`.
-- `gpio_pull(pin, mode)` chooses none (0), pull-up (1), pull-down (2) using
-  `/dev/gpio/N.pull`.
-  Pins 0, 1, 4, 5 (reserved by console/UART) and pins outside 0–28 are rejected.
-- Up to 64 nonempty source lines, 512 bytes total, and eight nested blocks.
-  Infinite loops are limited to 10,000 iterations per `while` statement.
+```text
+piconix# python /tmp/test.py
+3
+```
 
-This is a deliberately constrained Python-like language, **not CPython or MicroPython**.
-It has no lists, strings as variables, `for`, functions, imports, floating point,
-Python's complete expression/indentation semantics.
-Input is line-based through the existing canonical console interface.
+After `cd /tmp`, `python test.py` also works. Only RAM scripts under `/tmp` are supported, and they disappear on reboot. Script mode suppresses the interactive banner.
 
-The existing GETARG syscall can now copy a spawned Python script pathname; its number is unchanged. RAM files disappear on reboot.
+## 3. Supported features
 
-GPIO example (save as `/tmp/led.py`):
+| Category | Features |
+|---|---|
+| Values and math | Signed 32-bit integers, `+ - * / %`, comparisons, parentheses |
+| Control | Assignment, `if`/`else`, `while`, space indentation, `#` comments |
+| I/O | `print(...)`, integer-valued `input(...)`, `int(input(...))` |
+| Delays | `sleep(milliseconds)` (0–60000) |
+| GPIO | `gpio`, `gpio_read`, `gpio_mode`, `gpio_pull` |
+
+Limits: 16 variables, 512 source bytes, 64 nonempty lines, and eight nested blocks. Each `while` statement is capped at 10,000 iterations. There are no floats, lists, user-defined functions, `for`, imports, or string variables.
+
+## 4. GPIO example
+
+Save the following as `/tmp/led.py` and run `python /tmp/led.py`:
 
 ```python
 i = 0
@@ -76,36 +61,13 @@ while i < 5:
     i = i + 1
 ```
 
-`gpio_read(N)` returns 0 or 1, e.g. `print(gpio_read(16))`.
+`gpio_mode(pin, 0)` selects input and `gpio_mode(pin, 1)` output. `gpio_pull(pin, 0/1/2)` selects none/pull-up/pull-down. GPIO 0, 1, 4, and 5 are reserved for UART connections. Observe electrical limits for the board and attached circuits.
 
-## Examples and Practical Notes
+## 5. Background mode
 
-The following scripts may be pasted into `cat > /tmp/name.py`; press Ctrl+D on an empty line to finish. Scripts are limited to 512 bytes. REPL expressions print their values, but for file scripts use `print(...)` to display a result.
-
-```python
-n = int(input("Blink count: "))
-i = 0
-while i < n:
-    gpio(25,1)
-    sleep(200)
-    gpio(25,0)
-    sleep(200)
-    i = i + 1
-print("done")
+```text
+piconix# python /tmp/led.py &
+piconix# python /tmp/led.py > /tmp/output.txt &
 ```
 
-For an input with pull-up enabled, `gpio_mode(16,0)` and `gpio_pull(16,1)` configure GPIO16 as an input with pull-up; `gpio_read(16)` reads the current level. Avoid driving external loads directly from a GPIO pin.
-
-There is no package loader, general-purpose string handling or filesystem beyond `/tmp`. The `python` command launches the interpreter in the shared slot 3 and cannot run at the same time as `omikuji`. A background program using standard console input may be refused by the console's foreground-task check.
-
-## Background Execution
-
-A script may run in the background with `&`, including with output redirection:
-
-```sh
-python /tmp/test3.py &
-python /tmp/test3.py > /tmp/out.txt &
-```
-
-`python &` is not supported because an interactive REPL would compete with the shell for console input.
-
+`python &` is unsupported because an interactive interpreter would compete with Shell for console input. Background scripts also have restrictions on console reads.

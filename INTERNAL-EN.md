@@ -1,58 +1,71 @@
-# PicoNIX Internal Architecture (Stage 30)
+# Internal architecture
 
-[日本語](INTERNAL-JP.md) | [English](INTERNAL-EN.md)
+[日本語](INTERNAL-JP.md) | [Back to overview](README-EN.md)
 
-This document describes the implementation and intentional simplifications. It is not a specification of full UNIX compatibility.
+This guide explains **what runs where and which component is responsible**. See the [overview](README-EN.md) for commands and [Setup](SETUP-EN.md) for building.
 
-## 1. Overview and memory map
+## 1. Memory layout
 
-PicoNIX combines a Pico SDK-based kernel image with standalone fixed-address RAM applications embedded in flash.
+| Start address | Region | Notes |
+|---|---|---|
+| `0x20000000` | Kernel | 64 KiB including SDK support |
+| `0x20010000` | Slot 1 | Shell, 64 KiB |
+| `0x20020000` | Slot 2 | Blink, 64 KiB |
+| `0x20030000` | Slot 3 | Omikuji or Python, 64 KiB |
 
-| Region | Base address | Size | Role |
-|---|---|---|---|
-| Kernel | `0x20000000` | 64 KiB | Pico SDK support, kernel and scheduler |
-| Slot 1 | `0x20010000` | 64 KiB | Shell |
-| Slot 2 | `0x20020000` | 64 KiB | Blink |
-| Slot 3 | `0x20030000` | 64 KiB | Omikuji **or** Python |
+The last 4 KiB in each application slot is reserved for a stack. Applications are linked to fixed addresses by `ram_apps/slot.ld`, embedded into flash, and copied into RAM. There is no ELF loader, dynamic linking, or address-space isolation.
 
-The top 4 KiB of each application slot is reserved for its stack. Applications use statically assigned addresses; they are not loaded from arbitrary filenames and are not relocated.
+## 2. Boot and task switching
 
-## 2. Boot sequence and linking
+`src/main.c` initializes the kernel, registers applications, and starts Shell. `src/kernel.c` manages task state and scheduling. SysTick and PendSV provide preemptive switching, with exception handling in `src/context.S`.
 
-The Pico SDK provides startup initialization. The kernel initializes devices, registers built-in program images, starts the shell, and schedules tasks. Flash-embedded application images are copied into their fixed RAM slots for execution. The custom linker configuration restricts kernel RAM occupancy to 64 KiB; `tools/` checks flash and RAM placement.
+Task states include `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn` starts an application in an assigned slot, and `waitpid` waits for or collects its exit status. Omikuji and Python share a physical slot and cannot run concurrently.
 
-## 3. Scheduling and task lifecycle
+## 3. Kernel and Shell responsibilities
 
-SysTick drives periodic scheduling and PendSV saves/restores task contexts. Tasks use SVC for kernel services. The shell launches known applications through `spawn`, optionally waits for foreground completion, and may manage a background child. Termination status is recorded for `waitpid`. The wait primitive in the kernel is nonblocking; user-side wrappers can supply blocking waits.
+| Operation | Primary owner |
+|---|---|
+| Scheduling, creating and terminating tasks | Kernel |
+| I/O, devices, descriptors, and RAM files | Kernel |
+| Parsing commands, `cd`, resolving relative paths | Shell |
+| Parsing `&`, selecting the foreground task | Shell |
+| Detecting `Ctrl+C` and terminating its target | Kernel |
 
-## 4. Foreground versus background
+The current directory is Shell-local. The kernel generally handles absolute virtual paths.
 
-The console tracks the foreground task. `Ctrl+C` is interpreted in the kernel's input path. A background task should not consume foreground console input. The Shell recognizes a final `&` before handling redirection and periodically reaps completed children without displaying completion messages.
+## 4. System calls
 
-Omikuji has a special no-console-input behavior when launched in the background without an explicit countdown. The Python interpreter supports background **script** execution, but not a background interactive REPL.
+RAM applications do not link directly against kernel functions. They invoke **SVC** with a syscall number in `r0`, arguments in `r1`–`r3`, and the result in `r0`. Numbers must agree between `SYS_*` definitions in `src/kernel.c` and the applications.
 
-## 5. System-call boundary
+Operations include `spawn`/`kill`/`waitpid`, `sleep`/`yield`, `open`/`read`/`write`/`close`/`dup2`, and `ioctl`. Avoid changing syscall numbers without preserving compatibility.
 
-System calls are performed through `svc #0`. The kernel validates pointers and descriptor arguments where required. Keep syscall numbers stable when modifying applications; standalone RAM images do not link to kernel C symbols.
+## 5. Foreground/background jobs and signals
 
-`dup2` duplicates descriptor values and positions, not an underlying POSIX open-file object; offsets are not shared. Descriptor slots 0, 1, and 2 represent standard input, output, and error. Descriptor inheritance is intentionally minimal.
+For foreground `blink`, Shell registers its PID with the kernel through `SYS_SET_FG`, then waits with `waitpid`. With `blink &`, Shell returns to its prompt without waiting. This is not general background execution for every Shell built-in.
 
-## 6. Devices and virtual files
+**There is no generic signal mechanism.** Kernel console input handles `Ctrl+C` by terminating the registered foreground task directly. `kill PID` invokes `SYS_KILL` for direct task termination. There is no `SIGINT`/`SIGTERM` delivery, handler registration, or UNIX process-group support. UNIX-like status numbers do not imply POSIX signal semantics.
 
-The device registry includes `/dev/console`, `/dev/uart1`, and `/dev/rand`. GPIO is accessed through `/dev/gpio/N` and associated `.dir` and `.pull` nodes. The virtual `/sys/proc` tree provides runtime information such as tasks, uptime, ticks, memory, devices, interrupts, and context-switch counts.
+## 6. Files and devices
 
-Files under `/tmp` are limited, volatile RAM-backed regular files. The Shell resolves relative paths using its current directory; the kernel does not implement general-purpose filesystem pathname traversal. Opening a device for redirection does not require `O_CREAT` or `O_TRUNC`; those flags belong to regular files.
+| Path | Purpose |
+|---|---|
+| `/dev/console` | Console I/O |
+| `/dev/uart1` | UART1 I/O |
+| `/dev/rand` | Pseudorandom input |
+| `/dev/gpio/N`, `N.dir`, `N.pull` | GPIO value, direction, and pull configuration |
+| `/sys/proc/tasks` | Task listing (used by `ps`) |
+| `/sys/proc/uptime` and related paths | Uptime, interrupts, and other counters |
+| `/tmp/name` | Simple volatile RAM files |
 
-## 7. Input/output redirection
+Descriptors belong to individual tasks. `dup2` copies descriptor state; **it does not implement POSIX shared file offsets**. Shell implements `<`, `>`, and `>>`. Redirection to devices does not use regular-file create/truncate flags. Pipes, shell quoting, and `2>` are not available.
 
-Shell redirection uses `open` and `dup2` on per-task descriptor tables and restores the original standard descriptors after command execution. File append and truncation are simplified. Pipes, quoted paths and standard-error redirection are not implemented.
+## 7. Source map
 
-## 8. Boundaries and future changes
+- `src/kernel.c`: scheduler, SVC, descriptors, devices, RAM files
+- `src/context.S`: exceptions and context switching
+- `src/main.c`: boot and registration
+- `ram_apps/shell.c`: parsing and redirection
+- `ram_apps/slot.ld`: fixed RAM layout
+- `CMakeLists.txt`: embedded application images and 64 KiB constraints
 
-There is no general executable loader, MMU, POSIX-compatible file-offset sharing, advanced terminal driver, or simultaneous execution of Omikuji and Python. Preserve the compact source organization, 64 KiB kernel RAM constraint, application ABI and existing functionality before adding abstractions.
-
-## 9. Main files
-
-`src/kernel.c`: kernel and devices; `src/context.S`: context switching; `src/main.c`: startup; `include/piconix.h`: kernel API; `ram_apps/*.c`: freestanding applications; `ram_apps/slot.ld`: slot linking; `tools/`: build and audits.
-
-See [Programming](PROGRAMMING-EN.md) and [Setup](SETUP-EN.md).
+Next: [Application programming](PROGRAMMING-EN.md).

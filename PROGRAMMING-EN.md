@@ -1,53 +1,46 @@
-# Writing a PicoNIX Application
+# Developing C applications
 
-[日本語](PROGRAMMING-JP.md) | [English](PROGRAMMING-EN.md)
+[日本語](PROGRAMMING-JP.md) | [Back to overview](README-EN.md)
 
-PicoNIX applications are freestanding binaries linked to a fixed RAM address, not ordinary desktop executables. Start by modifying Blink before adding a new command.
+PicoNIX applications are not ordinary Linux executables. They are **small standalone programs linked to fixed RAM addresses**. Start by modifying Blink to understand the workflow.
 
-## 1. The fixed RAM slots
+## 1. First exercise: Blink
 
-| Slot | Start address | Application |
-|---|---|---|
-| 1 | `0x20010000` | Shell |
-| 2 | `0x20020000` | Blink |
-| 3 | `0x20030000` | Omikuji or Python |
+Change the millisecond values passed to `SYS_SLEEP` in `ram_apps/blink.c`. For example, use `250` instead of `500` for faster blinking. Build using [Setup](SETUP-EN.md), flash the UF2, and run `blink`.
 
-Each slot spans 64 KiB, including a 4 KiB reserved stack area. All application images are embedded in flash. PicoNIX has no dynamic linker, relocation support, or file-to-executable loader.
+## 2. RAM application rules
 
-## 2. First experiment: change Blink
+| Item | Requirement |
+|---|---|
+| Entry point | `app_entry` |
+| RAM addresses | Shell `0x20010000`, Blink `0x20020000`, others `0x20030000` |
+| Size | 64 KiB each (last 4 KiB reserved for stack) |
+| Kernel interface | SVC (`r0` number, `r1`–`r3` arguments, return in `r0`) |
+| Avoid | Direct kernel linking and ordinary libc/SDK dependencies |
 
-Edit `ram_apps/blink.c`, for example by changing the duration passed to `SYS_SLEEP` to `250`. Rebuild with the command in [Setup](SETUP-EN.md), flash the UF2, and enter `blink` in the Shell.
+See `ram_apps/blink.c` for a working minimal example. Keep the SVC convention and numbers consistent with `src/kernel.c`.
 
-## 3. System calls
+## 3. Adding a command
 
-RAM applications do not call kernel C functions directly. They execute SVC with the syscall number and up to three arguments in registers `r0` through `r3`; the result is returned in `r0`.
+1. Create a C source under `ram_apps/` using the existing application pattern.
+2. Add its fixed-address image build and embedding in `CMakeLists.txt`.
+3. Register the program in `src/main.c`.
+4. Add command dispatch in `ram_apps/shell.c`.
+5. Prevent simultaneous use of the same physical RAM slot.
 
-Typical calls include `SYS_EXIT`, `SYS_SLEEP`, `SYS_OPEN`, `SYS_CLOSE`, `SYS_READ`, and `SYS_WRITE`. Use the enumerations and register conventions in existing `ram_apps/*.c` as your starting point. Kernel-visible syscall numbers must remain consistent with `src/kernel.c` and `include/piconix.h`.
+The fixed-slot design does not support loading executable files from `/tmp`.
 
-Do not assume a C runtime, standard library, or libc-compatible I/O. The RAM-image checker rejects unresolved symbols and relocation dependencies. Some compiler optimizations introduce helpers such as `__aeabi_*`, which a freestanding image cannot use unless explicitly provided.
+## 4. Files and standard I/O
 
-## 4. Adding a new application
+Use `SYS_OPEN`, `SYS_READ`, `SYS_WRITE`, and `SYS_CLOSE` to access devices and `/tmp` files. Shell handles `<`, `>`, and `>>` and passes descriptors to launched tasks. `dup2` does not provide POSIX shared offsets. Do not pass regular-file `O_CREAT`/`O_TRUNC` flags when opening devices.
 
-Create a freestanding `ram_apps/<name>.c` using an `app_entry` entry point and SVC calls. Allocate an available fixed task slot, add its image to the CMake application list, register it in kernel startup, and add command dispatch in `ram_apps/shell.c`. Respect exclusive ownership of shared physical slots. Keep additions small and avoid altering the syscall ABI unnecessarily.
-
-## 5. Building and validating
+## 5. Checks and pitfalls
 
 ```sh
 python3 tools/test_audit.py
 python3 tools/test_ram_pipeline.py
-PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
-LC_ALL=C LANG=C PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
-./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-The host RAM pipeline currently tests Shell and Blink with LLVM. The SDK build with ARM GCC is still required to validate all four application images.
+These are host checks. The host RAM-image pipeline checks Shell and Blink; **building with ARM GCC and Pico SDK is still required for all application images**. Watch for unresolved helpers such as `__aeabi_*`, slot overflows, and mismatched syscall numbers.
 
-## 6. Files and standard I/O
-
-Applications can use `/dev` and `/sys/proc` pseudo-files, and limited RAM-backed files in `/tmp`. File-descriptor inheritance and `dup2` are simplified: duplicated descriptors do not share file offsets like POSIX descriptors. Shell redirection supports `<`, `>`, `>>` with unquoted single-word paths. There are no pipes or generic file-based program launches.
-
-Shell resolves relative file names using its current directory; applications should pass valid paths to the kernel. Opening `/dev/uart1` for output uses write-only mode, not regular-file `O_CREAT` or `O_TRUNC` flags.
-
-## 7. Common pitfalls
-
-Watch for RAM-slot overflows, unresolved ARM helper functions, incorrect syscall numbers, conflicting applications in slot 3, and background processes attempting console input. Consult [Internal Architecture](INTERNAL-EN.md) for task layout and file-descriptor details.
+For job control and the absence of UNIX signals, see [Internals](INTERNAL-EN.md).
