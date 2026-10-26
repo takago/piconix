@@ -18,8 +18,8 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_GETARG, SYS_CONSOLE_READY };
-typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint16_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; } task_t;
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2 };
+typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint16_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; } task_t;
 // Fixed physical SRAM slots, not a 192-KiB .bss reservation.
 // The linker must restrict the kernel to SRAM bank 0 (0x20000000..0x2000ffff).
 _Static_assert(OS_MAX_TASKS == 3 && OS_TASK_BYTES == 65536u,
@@ -61,15 +61,15 @@ static void finish_task(int slot, int status) {
     if(foreground_pid==t->pid) foreground_pid=0;
 }
 
-static const uint8_t program_slot[4] = {0, 1, 0, 2}; /* shell=1, blink=2, omikuji=3 */
+static const uint8_t program_slot[5] = {0, 1, 0, 2, 2}; /* slot 3 shared by omikuji/python */
 static int program_for_slot[OS_MAX_TASKS];
-static struct { os_entry_t entry; const char *name; int slot; } programs[4];
+static struct { os_entry_t entry; const char *name; int slot; } programs[5];
 // Optional prelinked RAM image. A nonzero image size means the caller must
 // provide the exact slot-linked binary and entry address.
-static struct { const uint8_t *image; size_t size; size_t zero_start; size_t zero_size; } images[4];
+static struct { const uint8_t *image; size_t size; size_t zero_start; size_t zero_size; } images[5];
 int os_register_ram_image(int id, const void *image, size_t size,
                           size_t zero_start, size_t zero_size) {
-    if (started || id < 1 || id >= 4 || !image || !size) return OS_EINVAL;
+    if (started || id < 1 || id >= 5 || !image || !size) return OS_EINVAL;
     if (size > OS_TASK_BYTES - 4096u || zero_start > OS_TASK_BYTES - 4096u ||
         zero_size > OS_TASK_BYTES - 4096u - zero_start ||
         (zero_size && zero_start < size)) return OS_EINVAL;
@@ -81,10 +81,30 @@ int os_register_ram_image(int id, const void *image, size_t size,
 }
 #define RX_CAP 256
 static struct { uint8_t buf[RX_CAP]; volatile uint16_t head, tail; } rx[2];
+/* Keep completed lines separate from the line currently being edited.
+ * Stop polling USB when the FIFO fills, allowing USB backpressure. */
+#define TTY_LINES 8u
 static char tty_line[128];
 static unsigned tty_len;
-static volatile int tty_ready;
-static int tty_count;
+static struct { char text[128]; uint8_t len; } tty_lines[TTY_LINES];
+static unsigned tty_head, tty_tail, tty_used;
+static void tty_enqueue(void) {
+    if (tty_used == TTY_LINES) return;
+    memcpy(tty_lines[tty_head].text, tty_line, tty_len);
+    tty_lines[tty_head].len = (uint8_t)tty_len;
+    tty_head = (tty_head + 1u) % TTY_LINES;
+    tty_used++;
+    tty_len = 0;
+}
+static int tty_dequeue(void *p, size_t n) {
+    if (!tty_used) return -1;
+    unsigned count = tty_lines[tty_tail].len;
+    if (count > n) count = (unsigned)n;
+    if (count) memcpy(p, tty_lines[tty_tail].text, count);
+    tty_tail = (tty_tail + 1u) % TTY_LINES;
+    tty_used--;
+    return (int)count;
+}
 #if !PICONIX_CONSOLE_USB
 static void uart0_irq_handler(void);
 #endif
@@ -142,7 +162,7 @@ static void tty_put(uint8_t c) {
 }
 static void console_input_char(uint8_t c) {
     if(c==3) {
-        tty_len=0; tty_ready=0; tty_count=0;
+        tty_len=0; tty_head=tty_tail=tty_used=0; 
         if(foreground_pid) {
             for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==foreground_pid) {
                 finish_task(i,130); break;
@@ -151,7 +171,12 @@ static void console_input_char(uint8_t c) {
         tty_put('^');tty_put('C');tty_put('\r');tty_put('\n');
     }
     else if(c==8 || c==127) {if(tty_len) {tty_len--;tty_put(8);tty_put(' ');tty_put(8);}}
-    else if(c=='\r'||c=='\n') { if(!tty_ready) {if(tty_len<sizeof(tty_line)) tty_line[tty_len++]='\n';tty_count=tty_len;tty_ready=1;tty_len=0;} tty_put('\r');tty_put('\n'); }
+    else if(c==4) { tty_enqueue(); }
+    else if(c=='\r'||c=='\n') {
+        if(tty_len<sizeof(tty_line)) tty_line[tty_len++]='\n';
+        tty_enqueue();
+        tty_put('\r');tty_put('\n');
+    }
     else if(c>=32 && c<=126 && tty_len<sizeof(tty_line)-2) {tty_line[tty_len++]=(char)c;tty_put(c);}
 }
 // pico_stdio_usb owns the TinyUSB CDC interface and its callbacks.
@@ -162,7 +187,7 @@ void os_console_poll(void) {
     console_tx_poll();
     int ch;
     int received = 0;
-    while ((ch = getchar_timeout_us(0)) >= 0) {
+    while (tty_used < TTY_LINES && (ch = getchar_timeout_us(0)) >= 0) {
         console_input_char((uint8_t)ch);
         received = 1;
     }
@@ -175,10 +200,8 @@ static void wake_readers(int dev) {
         if(t->state!=BLOCKED || t->wait_dev!=dev || !t->wait_frame_ready) continue;
         int n=0;
         if(dev==0) {
-            if(!tty_ready || t->pid!=tty_owner_pid()) continue;
-            n=tty_count < (int)t->wait_size ? tty_count : (int)t->wait_size;
-            memcpy(t->wait_buf,tty_line,n);
-            tty_ready=0;tty_count=0;
+            if(!tty_used || t->pid!=tty_owner_pid()) continue;
+            n=tty_dequeue(t->wait_buf, t->wait_size);
         } else {
             uint8_t *b=t->wait_buf;
             while((size_t)n<t->wait_size && uart_pop(1,&b[n])) n++;
@@ -208,7 +231,7 @@ static void task_return(void) { os_exit(); }
 
 void os_init(void) {
     memset(tasks, 0, sizeof(tasks));
-    current=-1; ticks=0; svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid=0; memset(exited,0,sizeof exited); tty_len=0; tty_ready=0; tty_count=0;
+    current=-1; ticks=0; svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid=0; memset(exited,0,sizeof exited); tty_len=0; tty_head=tty_tail=tty_used=0; 
     memset(rx, 0, sizeof(rx));
 #if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
@@ -241,14 +264,13 @@ void os_init(void) {
 }
 // A fixed slot belongs to one program.  Never migrate a program to another
 // slot: this is the foundation for future slot-local .data/.bss/.text linking.
-static int spawn_in_slot(int slot, os_entry_t entry, const char *name) {
+static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char *name) {
     if (!entry || slot<0 || slot>=OS_MAX_TASKS) return OS_EINVAL;
     uint32_t irq_state = save_and_disable_interrupts();
     task_t *t=&tasks[slot];
     if (t->state!=UNUSED && t->state!=DEAD) { restore_interrupts(irq_state); return OS_EAGAIN; }
     // Reset the fixed slot on every spawn before restoring the flash image.
     memset(task_ram[slot], 0, OS_TASK_BYTES);
-    int program_id = program_for_slot[slot];
     if (program_id && images[program_id].image) {
         // Slot-linked image: the entry must be inside the loaded code image.
         uintptr_t pc=(uintptr_t)entry & ~(uintptr_t)1u;
@@ -268,10 +290,18 @@ static int spawn_in_slot(int slot, os_entry_t entry, const char *name) {
     for(int k=0;k<5;k++) *(--s)=0; // r12,r3,r2,r1,r0
     for(int k=0;k<8;k++) *(--s)=0; // r4-r11 saved by PendSV
     t->sp=s; t->entry=entry; t->name=name?name:"task";
-    t->pid=next_pid++; t->startup_seconds=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0;
+    t->pid=next_pid++; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0;
     t->wait_buf=NULL; t->wait_size=0;
     for(int j=0;j<8;j++) { t->fd[j]=-1; t->fd_pos[j]=0; t->fd_flags[j]=0; }
     t->fd[0]=0; t->fd[1]=0; t->fd[2]=0;
+    /* A spawned process inherits the parent's standard streams. */
+    if(started && current>=0 && current<OS_MAX_TASKS) {
+        for(int j=0;j<3;j++) {
+            t->fd[j]=tasks[current].fd[j];
+            t->fd_pos[j]=tasks[current].fd_pos[j];
+            t->fd_flags[j]=tasks[current].fd_flags[j];
+        }
+    }
     t->state=READY;
     int pid=t->pid;
     restore_interrupts(irq_state);
@@ -293,19 +323,19 @@ int os_spawn_named(os_entry_t entry, const char *name) {
     if (started) return OS_EINVAL;
     // Three application slots; the idle task has a separate kernel-owned stack.
     for(int i=0;i<OS_MAX_TASKS;i++)
-        if(tasks[i].state==UNUSED && !program_for_slot[i]) return spawn_in_slot(i,entry,name);
+        if(tasks[i].state==UNUSED && !program_for_slot[i]) return spawn_in_slot(i,0,entry,name);
     return OS_EAGAIN;
 }
 void os_register_program(int id,os_entry_t entry,const char *name) {
-    if(started || id<1 || id>=4) return;
+    if(started || id<1 || id>=5) return;
     int slot=program_slot[id];
-    if (program_for_slot[slot] && program_for_slot[slot]!=id) return;
+    /* Multiple images may share one physical slot; only one runs at a time. */
     programs[id].entry=entry;programs[id].name=name;programs[id].slot=slot;
     program_for_slot[slot] = id;
 }
 int os_start_program(int id) {
-    if (started || id<1 || id>=4 || !programs[id].entry) return OS_EINVAL;
-    return spawn_in_slot(programs[id].slot, programs[id].entry, programs[id].name);
+    if (started || id<1 || id>=5 || !programs[id].entry) return OS_EINVAL;
+    return spawn_in_slot(programs[id].slot, id, programs[id].entry, programs[id].name);
 }
 int os_spawn(os_entry_t entry) { return os_spawn_named(entry, "task"); }
 void isr_systick(void) {
@@ -400,15 +430,122 @@ enum {
     DEV_RAND = 94,
     DEV_PROC_DEVICES = 95,
     DEV_PROC_TASKS = 96,
+    DEV_TMP_LIST = 97,
+    DEV_TMP_FIRST = 100,
     DEV_GPIO_MAX_PIN = 28
 };
+/* Small volatile regular-file store; IDs are disjoint from devices. */
+#define TMP_FILES 4
+/* Keep the RAM filesystem within the 64-KiB kernel SRAM slot. */
+#define TMP_BYTES 512
+static struct { char name[16]; uint16_t size; uint8_t used; uint8_t data[TMP_BYTES]; } tmp_files[TMP_FILES];
+/* Check a user path without reading outside the caller's address range. */
+static int tmp_name(const char *p, char name[16]) {
+    static const char dir[]="/tmp/";
+    for(unsigned i=0;i<sizeof(dir)-1;i++) {
+        if(!in_task_range(p+i,1) || p[i]!=dir[i]) return 0;
+    }
+    unsigned len=0;
+    for(;len<16;len++) {
+        if(!in_task_range(p+5+len,1)) return 0;
+        char c=p[5+len];
+        if(!c) { if(!len) return 0; name[len]=0; return 1; }
+        if(c=='/') return 0;
+        if(len==15) return 0;
+        name[len]=c;
+    }
+    return 0;
+}
+static int tmp_lookup(const char *name) {
+    for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used && !strcmp(name,tmp_files[i].name)) return i;
+    return -1;
+}
+static int tmp_open(const char *p,int flags) {
+    char name[16];
+    if(!tmp_name(p,name)) return OS_ENOENT;
+    int index=tmp_lookup(name);
+    if(index<0) {
+        if(!(flags & OS_O_CREAT)) return OS_ENOENT;
+        for(int i=0;i<TMP_FILES;i++) if(!tmp_files[i].used) { index=i; break; }
+        if(index<0) return OS_ENOSPC;
+    }
+    int fd=3;
+    while(fd<8 && tasks[current].fd[fd]>=0) fd++;
+    if(fd==8) return OS_EMFILE;
+    if(!tmp_files[index].used) {
+        memset(&tmp_files[index],0,sizeof(tmp_files[index]));
+        strcpy(tmp_files[index].name,name);
+        tmp_files[index].used=1;
+    }
+    if((flags & OS_O_TRUNC) && (flags & 3)!=OS_O_RDONLY) tmp_files[index].size=0;
+    tasks[current].fd[fd]=DEV_TMP_FIRST+index;
+    tasks[current].fd_pos[fd]=(flags & OS_O_APPEND)?tmp_files[index].size:0;
+    tasks[current].fd_flags[fd]=(uint8_t)flags;
+    return fd;
+}
+static int tmp_unlink(const char *p) {
+    char name[16];
+    if(!tmp_name(p,name)) return OS_ENOENT;
+    int index=tmp_lookup(name);
+    if(index<0) return OS_ENOENT;
+    /* Do not recycle a slot while an open descriptor still refers to it. */
+    for(int t=0;t<OS_MAX_TASKS;t++) if(tasks[t].state!=UNUSED && tasks[t].state!=DEAD)
+        for(int fd=0;fd<8;fd++) if(tasks[t].fd[fd]==DEV_TMP_FIRST+index) return OS_EBUSY;
+    tmp_files[index].used=0;
+    return 0;
+}
+static int tmp_rw(int fd,void *p,size_t n,int writing) {
+    int id=tasks[current].fd[fd]-DEV_TMP_FIRST;
+    if(id<0 || id>=TMP_FILES || !tmp_files[id].used) return OS_EBADF;
+    int mode=tasks[current].fd_flags[fd] & 3;
+    if((writing && mode==OS_O_RDONLY) || (!writing && mode==OS_O_WRONLY)) return OS_EBADF;
+    size_t pos=tasks[current].fd_pos[fd];
+    if(writing && (tasks[current].fd_flags[fd] & OS_O_APPEND)) pos=tmp_files[id].size;
+    size_t end=writing?TMP_BYTES:tmp_files[id].size;
+    size_t count=pos<end?end-pos:0;
+    if(count>n) count=n;
+    if(writing) {
+        if(!count && n) return OS_ENOSPC;
+        memcpy(tmp_files[id].data+pos,p,count);
+        if(pos+count>tmp_files[id].size) tmp_files[id].size=(uint16_t)(pos+count);
+    } else if(count) memcpy(p,tmp_files[id].data+pos,count);
+    tasks[current].fd_pos[fd]=(uint16_t)(pos+count);
+    return (int)count;
+}
+static int tmp_list_read(int fd,void *p,size_t n) {
+    size_t offset=0,pos=tasks[current].fd_pos[fd],done=0;
+    for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) {
+        size_t len=strlen(tmp_files[i].name)+1;
+        if(pos<offset+len && done<n) {
+            size_t start=pos>offset?pos-offset:0;
+            size_t count=len-start;
+            if(count>n-done) count=n-done;
+            for(size_t j=0;j<count;j++) ((char*)p)[done+j]=start+j==len-1?'\n':tmp_files[i].name[start+j];
+            done+=count;pos+=count;
+        }
+        offset+=len;
+        if(done==n) break;
+    }
+    tasks[current].fd_pos[fd]=(uint16_t)pos;
+    return (int)done;
+}
 /* Fixed device registry shared by open() and /sys/proc/devices listing. */
 static const struct { const char *path; int id; } dev_registry[] = {
     {"/dev/console",DEV_CONSOLE}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}
 };
 #define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
 static int device_open(const char *p, int flags) {
-    if(flags<0 || (flags & ~(OS_O_WRONLY | OS_O_RDWR | OS_O_NONBLOCK)) != 0) return OS_EINVAL;
+    if(flags<0 || (flags & ~(OS_O_WRONLY | OS_O_RDWR | OS_O_NONBLOCK | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) != 0 || (flags & 3)==3) return OS_EINVAL;
+    if(path_match(p,"/tmp")) {
+        if(flags!=OS_O_RDONLY) return OS_EINVAL;
+        for(int fd=3;fd<8;fd++) if(tasks[current].fd[fd]<0) {
+            tasks[current].fd[fd]=DEV_TMP_LIST;tasks[current].fd_pos[fd]=0;tasks[current].fd_flags[fd]=0;return fd;
+        }
+        return OS_EMFILE;
+    }
+    if(path_match(p,"/tmp/") || (in_task_range(p,5) && p[0]=='/' && p[1]=='t' && p[2]=='m' && p[3]=='p' && p[4]=='/'))
+        return tmp_open(p,flags);
+    if(flags & (OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) return OS_EINVAL;
     int dev=-1;
     for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
         if(path_match(p,dev_registry[i].path)) { dev=dev_registry[i].id; break; }
@@ -557,9 +694,10 @@ static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
     if(uartdev==DEV_CONSOLE && tasks[current].pid!=tty_owner_pid()) return OS_EIO;
     uint32_t irq_state=save_and_disable_interrupts();
     int count=0;
-    if(uartdev==DEV_CONSOLE && tty_ready) {
-        count=tty_count<(int)n?tty_count:(int)n;
-        memcpy(b,tty_line,count);tty_ready=0;tty_count=0;
+    if(uartdev==DEV_CONSOLE && tty_used) {
+        count=tty_dequeue(b,n);
+        restore_interrupts(irq_state);
+        return count; /* Zero is EOF from Ctrl+D on an empty line. */
     } else if(uartdev==1) {
         while((size_t)count<n && uart_pop(1,&b[count])) count++;
     }
@@ -621,6 +759,8 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
     if(n>0 && !in_task_range(p,n)) return OS_EINVAL;
     int dev=tasks[current].fd[fd];
+    if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) return tmp_rw(fd,p,n,writing);
+    if(dev==DEV_TMP_LIST) return writing?OS_EBADF:tmp_list_read(fd,p,n);
     if(dev==DEV_RAND) return device_rw_rand(p,n,writing);
     if((dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS)
         return device_rw_proc(fd,dev,p,n,writing);
@@ -682,20 +822,63 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_SPAWN:
-            if(a<1 || a>=4 || !programs[a].entry) result=OS_ENOENT;
+            if(a<1 || a>=5 || !programs[a].entry) result=OS_ENOENT;
             else if(b<0 || b>31 || (a!=3 && b!=0)) result=OS_EINVAL;
+            else if(a==4 && c) {
+                const char *path=(const char *)(uintptr_t)c;
+                unsigned i=0;
+                while(i<31 && in_task_range(path+i,1) && path[i]) i++;
+                if(i==31 || !in_task_range(path+i,1)) result=OS_EINVAL;
+                else result=0;
+                if(result<0) break;
+                result=spawn_in_slot(programs[a].slot,a,programs[a].entry,programs[a].name);
+                if(result>0) {
+                    task_t *child=&tasks[programs[a].slot];
+                    for(unsigned j=0;j<=i;j++) child->script_path[j]=path[j];
+                }
+                break;
+            }
             else {
-                result=spawn_in_slot(programs[a].slot,programs[a].entry,programs[a].name);
-                if(result>0) tasks[programs[a].slot].startup_seconds=b;
+                result=spawn_in_slot(programs[a].slot,a,programs[a].entry,programs[a].name);
+                if(result>0) {
+                    task_t *child=&tasks[programs[a].slot];
+                    child->startup_seconds=b;
+                    if(a==4 && c) {
+                        const char *path=(const char *)(uintptr_t)c;
+                        unsigned i=0;
+                        while(i<sizeof(child->script_path)-1 && path[i]) {
+                            child->script_path[i]=path[i]; i++;
+                        }
+                        child->script_path[i]=0;
+                    }
+                }
             }
             break;
-        case SYS_GETARG: result=tasks[current].startup_seconds; break;
+        case SYS_GETARG:
+            if(a && b && tasks[current].script_path[0]) {
+                char *dest=(char *)(uintptr_t)a;
+                unsigned n=0;
+                while(tasks[current].script_path[n]) n++;
+                if((unsigned)b<=n || !in_task_range(dest,n+1)) result=OS_EINVAL;
+                else { memcpy(dest,tasks[current].script_path,n+1); result=(int)n; }
+            } else result=tasks[current].startup_seconds;
+            break;
         case SYS_CONSOLE_READY:
 #if PICONIX_CONSOLE_USB
             result=stdio_usb_connected() ? 1 : 0;
 #else
             result=1;
 #endif
+            break;
+        case SYS_UNLINK: result=tmp_unlink((const char *)(uintptr_t)a); break;
+        case SYS_DUP2:
+            if(a<0 || a>=8 || b<0 || b>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
+            else {
+                tasks[current].fd[b]=tasks[current].fd[a];
+                tasks[current].fd_pos[b]=tasks[current].fd_pos[a];
+                tasks[current].fd_flags[b]=tasks[current].fd_flags[a];
+                result=b;
+            }
             break;
         case SYS_OPEN: result=device_open((const char *)(uintptr_t)a,b); break;
         case SYS_CLOSE: if(a<3 || a>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
@@ -735,3 +918,6 @@ int os_close(int fd) { return call(SYS_CLOSE,fd,0,0); }
 int os_read(int fd,void *p,size_t n) { return call(SYS_READ,fd,(uintptr_t)p,n); }
 int os_write(int fd,const void *p,size_t n) { return call(SYS_WRITE,fd,(uintptr_t)p,n); }
 int os_ioctl(int fd,int cmd,int v) { return call(SYS_IOCTL,fd,cmd,v); }
+
+int os_dup2(int oldfd,int newfd) { return call(SYS_DUP2,oldfd,newfd,0); }
+int os_unlink(const char *p) { return call(SYS_UNLINK,(uintptr_t)p,0,0); }

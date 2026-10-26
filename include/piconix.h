@@ -8,6 +8,11 @@
 #define OS_O_WRONLY 1
 #define OS_O_RDWR 2
 #define OS_O_NONBLOCK 4
+#define OS_O_CREAT 8
+#define OS_O_TRUNC 16
+#define OS_O_APPEND 32
+#define OS_ENOSPC (-28)
+#define OS_EBUSY (-16)
 #define OS_GPIO_INPUT 1
 #define OS_GPIO_OUTPUT 2
 #define OS_GPIO_PULL_UP 3
@@ -52,6 +57,8 @@ void os_sleep(uint32_t milliseconds);
 void os_yield(void);
 int os_open(const char *path, int flags);
 int os_close(int fd);
+int os_unlink(const char *path);
+int os_dup2(int oldfd,int newfd);
 int os_read(int fd, void *buf, size_t n);
 int os_write(int fd, const void *buf, size_t n);
 int os_ioctl(int fd, int cmd, int value);

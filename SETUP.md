@@ -40,7 +40,9 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 
 `~`はシェルの展開規則に依存するため，環境変数の値には`$HOME`を使うと確実です．`PICO_SDK_PATH`はSDKの実際のインストール先に合わせて変更してください．
 
-スクリプトは，ホスト側の検査を実行してから，`cmake -S . -B build -DPICO_BOARD=pico -DPICONIX_KERNEL_RAM=ON`で構成し，ビルドします．`build/`を毎回削除する処理は含まれていません．
+スクリプトは，ホスト側の検査を実行してから，`cmake -S . -B build -DPICO_BOARD=pico -DPICONIX_KERNEL_RAM=ON`で構成し，ビルドします．`MinSizeRel`（通常は `-Os`）がデフォルトのビルド構成です．明示的に `-DCMAKE_BUILD_TYPE=Release` などを指定した場合は，その指定を優先します．既存の `build/` にビルド構成が保存されている場合は `-DCMAKE_BUILD_TYPE=MinSizeRel` を明示するか，新しいビルドディレクトリを使用してください．
+
+`build/`を毎回削除する処理は含まれていません．
 
 ## 4．生成物
 

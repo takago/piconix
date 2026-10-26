@@ -6,6 +6,10 @@ elseif(DEFINED ENV{PICO_SDK_PATH})
 else()
   message(FATAL_ERROR "Set PICO_SDK_PATH to your pico-sdk checkout")
 endif()
+# Keep the RAM-resident kernel small by default. Explicit build types win.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE MinSizeRel CACHE STRING "Build type" FORCE)
+endif()
 project(piconix C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
@@ -16,7 +20,7 @@ if(NOT CMAKE_READELF)
 endif()
 # Freestanding slot-linked images. Both are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
-foreach(APP IN ITEMS shell blink omikuji)
+foreach(APP IN ITEMS shell blink omikuji python)
   if(APP STREQUAL "shell")
     set(APP_ORIGIN 0x20010000)
   elseif(APP STREQUAL "blink")
@@ -31,10 +35,17 @@ foreach(APP IN ITEMS shell blink omikuji)
   set(APP_OBJ "${APP_DIR}/${APP}.o")
   set(APP_ELF "${APP_DIR}/${APP}.elf")
   set(APP_BIN "${APP_DIR}/${APP}.bin")
+  # GCC may turn dense if/else comparisons into Thumb-1 switch tables.
+  # Freestanding RAM images do not link libgcc (__gnu_thumb1_case_uqi).
+  set(APP_EXTRA_CFLAGS "")
+  if(APP STREQUAL "python")
+    set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
+  endif()
   add_custom_command(OUTPUT "${APP_BIN}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
+            ${APP_EXTRA_CFLAGS}
             -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/${APP}.c" -o "${APP_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -nostdlib
             -Wl,--gc-sections "-Wl,-T,${APP_LD}"

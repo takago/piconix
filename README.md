@@ -10,12 +10,12 @@ Pico SDKを利用したカーネルと，固定RAMスロットに配置する独
 
 ## 特徴
 
-- **固定RAMスロット**：カーネル，Shell，Blink，Omikujiを別々の64 KiB領域に配置します．
+- **固定RAMスロット**：カーネル，Shell，Blink，Omikuji／Tiny Pythonを固定の64 KiB領域に配置します．OmikujiとTiny Pythonは同じスロット3を共有し，同時実行できません．
 - **マルチタスク**：SysTick，PendSV，SVCを利用したタスク切り替えとシステムコール．
 - **タスク管理**：PID，`ps`，`kill`，`exit`，`waitpid`相当の機能．
 - **簡易ジョブ制御**：コマンド末尾の`&`でバックグラウンド起動．フォアグラウンドでは終了待ちし，Ctrl+Cで中断できます．
 - **USB CDCコンソール**：PicoのUSB端子を通じてShellを操作します．
-- **ファイル風インターフェース**：`/dev`と`/sys/proc`からGPIO，UART，カーネル統計を操作・参照できます．
+- **ファイル風インターフェース**：`/dev`と`/sys/proc`に加え，`/tmp`のRAM上の通常ファイルを操作できます．
 - **教育用サンプル**：LED点滅の`blink`と，標準入力・カウントダウン・正常終了を確認できる`omikuji`．
 
 ## 起動画面
@@ -56,8 +56,12 @@ piconix# kill 2
 | `omikuji &` | 既定の10秒で背景実行 |
 | `kill PID` | タスクを終了 |
 | `ls /dev` / `ls /sys/proc` | デバイス／統計項目を一覧表示 |
-| `cat PATH` | ファイル風インターフェースを読み取り |
-| `echo TEXT` / `echo TEXT > PATH` | 表示／デバイスへの書き込み |
+| `cat PATH` / `cat > PATH` | 読み取り／標準入力からファイルを作成（Ctrl+Dで終了） |
+| `echo TEXT` / `echo TEXT > PATH` / `echo TEXT >> PATH` | 表示／上書き／追記 |
+| `rm PATH` | `/tmp` のファイルを削除 |
+| `python` / `python PATH` | Tiny Pythonの対話モード／指定スクリプト実行 |
+| `COMMAND < FILE` | 標準入力をファイルに切り替え |
+| `COMMAND > FILE` / `COMMAND >> FILE` | 標準出力の上書き／追記 |
 
 `run`コマンドは廃止されています．前景実行中のCtrl+Cは対象タスクを中断します．背景タスクはUSBコンソールの標準入力を取得できず，コンソールからの読み取りはエラーになります．背景タスクの出力はShellの入力表示と混ざることがあります．
 
@@ -96,7 +100,7 @@ RP2040 SRAM
   0x20000000–0x2000FFFF  Kernel（64 KiB）
   0x20010000–0x2001FFFF  Shell（64 KiB）
   0x20020000–0x2002FFFF  Blink（64 KiB）
-  0x20030000–0x2003FFFF  Omikuji（64 KiB）
+  0x20030000–0x2003FFFF  Omikuji / Tiny Python（共有64 KiB）
 ```
 
 各外部プログラムは固定アドレスにリンクされます．ELFローダや再配置機能はありません．実装の詳しい説明は **[INTERNAL.md](INTERNAL.md)** にまとめています．
@@ -107,7 +111,7 @@ RP2040 SRAM
 |---|---|
 | `src/` | カーネル，起動処理，コンテキスト切り替え |
 | `include/` | カーネルAPI，定数，データ型 |
-| `ram_apps/` | Shell，Blink，Omikujiと固定スロット用リンカスクリプト |
+| `ram_apps/` | Shell，Blink，Omikuji，Tiny Pythonと固定スロット用リンカスクリプト |
 | `tools/` | SDKビルド，配置監査，回帰テスト |
 | `.github/workflows/` | CI用ビルドワークフロー |
 
@@ -120,7 +124,7 @@ RP2040 SRAM
 - 対象はRP2040搭載の通常のRaspberry Pi Picoです．Pico WやRP2350での動作は保証していません．
 - タスクスロットは固定で，同じスロットに複数のプログラムを同時配置できません．
 - `waitpid`は終了記録を利用する簡易実装です．Shell側の待機はスリープを挟むポーリングであり，完全なUNIX互換ではありません．
-- プロセスグループ，シグナル，パイプ，ファイルシステムの永続化，ユーザ権限管理は未実装です．
+- プロセスグループ，シグナル，パイプ，ファイルシステムの永続化，ユーザ権限管理は未実装です．標準入出力のリダイレクトは簡易実装です．
 - Omikujiの秒数引数は専用の簡易機構であり，一般的な`argc/argv`ではありません．
 - 学習・実験用の実装であり，製品用途や安全性を要する用途を想定していません．
 
@@ -167,6 +171,7 @@ Shellは起動時に`/`をカレントディレクトリとします．`pwd`で�
 piconix# ls
 dev/
 sys/
+tmp/
 piconix# cd /sys/proc
 piconix# pwd
 /sys/proc
@@ -175,4 +180,45 @@ piconix# cd ../../dev
 piconix# ls
 ```
 
-カレントディレクトリはShell内部だけで保持します．カーネルの`open()`は引き続き絶対パスを受け取り，子タスクへカレントディレクトリは継承されません．`cd`できるのは既存の仮想ディレクトリ（`/`，`/dev`，`/dev/gpio`，`/sys`，`/sys/proc`）のみです．
+カレントディレクトリはShell内部だけで保持します．カーネルの`open()`は引き続き絶対パスを受け取り，子タスクへカレントディレクトリは継承されません．`cd`できるのは既存の仮想ディレクトリ（`/`，`/dev`，`/dev/gpio`，`/sys`，`/sys/proc`，`/tmp`）のみです．
+
+### RAMファイル（`/tmp`）
+
+`/tmp` は再起動で消える固定容量のRAMファイル領域です．最大4ファイル，各512バイト，ファイル名は最大15文字（階層構造なし）です．
+
+```text
+piconix# echo hello > /tmp/test.txt
+piconix# echo world >> /tmp/test.txt
+piconix# cat /tmp/test.txt
+hello
+world
+piconix# ls /tmp
+test.txt
+piconix# rm /tmp/test.txt
+```
+
+`cat > /tmp/hello.py` では複数行を入力でき，空行でのCtrl+Dで終了します．通常の行入力ではEnterを使用します．途中まで入力した行でCtrl+Dを押すと，その行を確定して返します．終了にはもう一度，空行でCtrl+Dを入力してください．開いたままのファイルを削除しようとするとエラーを返します．
+
+`open()` は `O_CREAT`（8），`O_TRUNC`（16），`O_APPEND`（32）を追加しています．`unlink()` はSVC番号17です．
+
+### 入出力リダイレクト
+
+Shellの組み込みコマンドにも，`spawn()`で起動する外部プログラムにも `<`，`>`，`>>` を指定できます．ファイル名の前後の空白・タブは無視します．
+
+```sh
+ps > /tmp/tasks.txt
+cat /dev/uart1 > /tmp/capture.txt
+cat < /tmp/tasks.txt > /tmp/copy.txt
+omikuji 5 > /tmp/result.txt &
+```
+
+タスクにはFD 0（標準入力），FD 1（標準出力），FD 2（標準エラー出力）があり，リダイレクトは`dup2`（システムコール番号18）を使って実現します．`spawn()`では標準FDを引き継ぎます．終了後，Shellの入出力先は元に戻ります．FDの継承・複製はLinuxと完全互換ではありません（ファイル位置を共有しません）．パイプ，引用符付きパス，`2>` は未対応です．詳しくは[PROGRAMMING.md](PROGRAMMING.md)を参照してください．
+
+### Tiny Python
+
+`python` はREPLを起動し，`python /tmp/name.py` は指定したスクリプトを実行します．REPLでのみPythonサブセットであることを示すバナーを表示します．GPIO操作，整数演算，`if`，`while`，`input()` 等に対応します．本家PythonやMicroPythonとは互換ではありません．詳細は **[PYTHON.md](PYTHON.md)** を参照してください．
+
+Background execution (`&`) is parsed once by the shell before `<`, `>`,
+and `>>`, for all commands. It is supported for spawned applications
+(`blink`, `omikuji`, and script-based `python`); shell builtins and
+interactive `python &` cannot run in the background.

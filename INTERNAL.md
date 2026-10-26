@@ -14,7 +14,7 @@ Flash: カーネル起動イメージ + 埋め込み済みRAMプログラム
                     │ SVCシステムコール
        ┌────────────┼────────────┐
        ▼            ▼            ▼
-   Shell         Blink        Omikuji
+   Shell         Blink     Omikuji/Python
    Bank 1        Bank 2        Bank 3
 ```
 
@@ -25,7 +25,7 @@ Flash: カーネル起動イメージ + 埋め込み済みRAMプログラム
 | Bank 0 | `0x20000000–0x2000FFFF` | 64 KiB | カーネル（SDKのRAM実行領域） |
 | Bank 1 | `0x20010000–0x2001FFFF` | 64 KiB | Shell |
 | Bank 2 | `0x20020000–0x2002FFFF` | 64 KiB | Blink |
-| Bank 3 | `0x20030000–0x2003FFFF` | 64 KiB | Omikuji |
+| Bank 3 | `0x20030000–0x2003FFFF` | 64 KiB | Omikuji／Tiny Python（共有） |
 
 RP2040の全SRAMは264 KiBですが，上記の固定スロット設計は主に256 KiBを対象としています．RAMプログラムは`ram_apps/slot.ld`を利用して**スロットごとの固定アドレス**にリンクされます．スタック用に各スロット末尾の領域を予約し，`tools/check_slot_image.py`等で検査します．
 
@@ -74,7 +74,10 @@ SDKの`copy_to_ram`実行形式を使用し，カーネル用RAMをBank 0に制�
 | 12 | `SPAWN` | 登録済みプログラムから新しいタスクを生成して起動する |
 | 13 | `WAITPID` | 子タスクの終了記録を取得 |
 | 14 | `SET_FG` | フォアグラウンドPIDの指定 |
-| 15 | `GETARG` | Omikuji向けの簡易起動引数 |
+| 15 | `GETARG` | Omikujiの整数引数，Pythonのスクリプトパスの取得 |
+| 16 | `CONSOLE_READY` | USB CDC接続確認 |
+| 17 | `UNLINK` | `/tmp` 内のファイル削除 |
+| 18 | `DUP2` | タスク内のFDの付け替え |
 
 プログラム起動用システムコールは`SYS_SPAWN`（番号12）です．C APIは`os_spawn_program(program_id)`で，既存のエントリ関数指定型`os_spawn(entry)`／`os_spawn_named(entry, name)`とは区別します．Shellの`blink`や`omikuji`コマンドは`SYS_SPAWN`を呼び出します．
 
@@ -99,7 +102,7 @@ piconix# omikuji 5 & ← 背景：標準入力不要
 
 `omikuji`は前景では`read(0, ...)`で1〜30秒の入力を受け取ります．`omikuji N`は引数相当の値を`GETARG`から取得します．`omikuji &`は標準入力を読まず既定の10秒で動作します．
 
-一般的な`argc/argv`はまだありません．乱数も暗号学的な乱数ではなく，カーネルのtick値から作る簡易的な疑似乱数です．
+一般的な`argc/argv`はまだありません．Pythonには`GETARG`でスクリプトのパスを渡します．乱数も暗号学的な乱数ではなく，カーネルのtick値から作る簡易的な疑似乱数です．
 
 ## 8．デバイスと仮想ファイル
 
@@ -118,13 +121,13 @@ piconix# omikuji 5 & ← 背景：標準入力不要
 | `/sys/proc/memory` | メモリ・スロット配置情報 |
 | `/sys/proc/tasks` | 実行中タスクのPID・状態・スロット・保存SP（`ps`の情報源） |
 
-通常のディスク上のファイルシステムではなく，カーネルがパスを解釈する仮想的な入出力インターフェースです．UART1の`cat`には約200 msの無通信終了条件があります．
+`/dev`と`/sys/proc`はカーネルが提供する仮想的な入出力インターフェースです．`/tmp`にはRAM上の通常ファイルを作成できます．UART1の`cat`には約200 msの無通信終了条件があります．
 
 ## 9．現在の限界と今後の拡張候補
 
 - 真のブロッキング`waitpid`と終了イベントによるShellの起床
 - 汎用`argc/argv`と外部コマンドローダ
-- 標準入出力のリダイレクト，パイプ，端末の行再描画
+- パイプ，端末の行再描画，POSIX互換のオープンファイル記述管理
 - プロセスグループ，シグナル，`fg`／`bg`コマンド
 - システムコールABIの整理とユーザ空間保護
 
@@ -158,4 +161,28 @@ when the queue is full. Output is discarded on USB disconnection.
 
 ### Shellのカレントディレクトリ
 
-`pwd`，`cd`，`ls`の引数省略，および`cat`と`echo`の相対パスは`ram_apps/shell.c`で実装しています．Shellはローカル変数としてカレントディレクトリを保持し，`.`・`..`を正規化した絶対パスを既存のシステムコールへ渡します．カーネルやほかのタスクにカレントディレクトリ状態は追加していません．実ファイルシステムではなく，既存の仮想ディレクトリに限定した簡易仕様です．
+`pwd`，`cd`，`ls`の引数省略，およびShellのファイル指定で使用する相対パスは`ram_apps/shell.c`で実装しています．Shellはローカル変数としてカレントディレクトリを保持し，`.`・`..`を正規化した絶対パスを既存のシステムコールへ渡します．カーネルやほかのタスクにカレントディレクトリ状態は追加していません．実ファイルシステムではなく，既存の仮想ディレクトリに限定した簡易仕様です．
+
+### /tmp regular files
+
+The kernel implements a volatile fixed-size store: 4 files, 512 bytes each, and 15-character filenames. File descriptors have per-open read/write offsets and support `O_CREAT`, `O_TRUNC`, and `O_APPEND`. `/tmp` itself is a readable virtual directory listing. `SYS_UNLINK` uses syscall number 17, without renumbering existing calls. Unlinking a file with a live open descriptor fails with `OS_EBUSY`, rather than providing POSIX deferred deletion. `Ctrl+D` in the console canonical input routine completes the current line (or delivers a zero-length read if empty), enabling `cat > /tmp/name`. No persistence or nested directories are provided.
+
+## 標準入出力のリダイレクト（簡易実装）
+
+Each task has 8 file descriptor slots. Descriptors 0, 1 and 2 default to
+`/dev/console`. `SYS_DUP2` (number 18) maps one task-local descriptor to
+another; children inherit descriptors 0, 1 and 2 on spawn. The shell applies
+`<`, `>` or `>>` to built-ins and child tasks, restoring its own standard
+streams after the command completes. For example:
+
+```
+ps > /tmp/tasks.txt
+cat /dev/uart1 > /tmp/capture.txt
+cat < /tmp/tasks.txt > /tmp/copy.txt
+```
+
+Whitespace before/after a redirect filename is ignored. Filename quoting,
+pipelines and `2>` are not implemented. This small FD implementation copies
+per-descriptor state on duplication/inheritance (not Unix shared open-file
+descriptions), so independent offsets for duplicated descriptors are a known
+limitation. The existing RAM filesystem size limits remain in effect.

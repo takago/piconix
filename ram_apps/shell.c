@@ -7,7 +7,8 @@
 #include <stddef.h>
 
 enum { SYS_GETPID=1, SYS_KILL=2, SYS_OPEN=6, SYS_CLOSE=7,
-       SYS_READ=8, SYS_WRITE=9, SYS_SPAWN=12, SYS_SLEEP=4, SYS_WAITPID=13, SYS_SET_FG=14, SYS_CONSOLE_READY=16 };
+       SYS_READ=8, SYS_WRITE=9, SYS_SPAWN=12, SYS_SLEEP=4, SYS_WAITPID=13, SYS_SET_FG=14, SYS_CONSOLE_READY=16, SYS_UNLINK=17, SYS_DUP2=18 };
+enum { O_CREAT=8, O_TRUNC=16, O_APPEND=32 };
 static inline int svc(int n, uintptr_t a, uintptr_t b, uintptr_t c) {
     register uintptr_t r0 __asm("r0") = (uintptr_t)n;
     register uintptr_t r1 __asm("r1") = a;
@@ -80,7 +81,7 @@ static void ps(void) {
 /* Shell-local cwd: the kernel still accepts absolute virtual paths only. */
 static int directory(const char *p) {
     return eq(p,"/") || eq(p,"/dev") || eq(p,"/dev/gpio") ||
-           eq(p,"/sys") || eq(p,"/sys/proc");
+           eq(p,"/sys") || eq(p,"/sys/proc") || eq(p,"/tmp");
 }
 /* Resolve '.', '..', repeated '/' and relative names without libc. */
 static int resolve(const char *cwd, const char *input, char out[128]) {
@@ -113,28 +114,94 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
     return 0;
 }
 static void ls(const char *path) {
-    if(eq(path,"/")) { put("dev/\r\nsys/\r\n"); return; }
-    if(eq(path,"/dev") || eq(path,"/dev/")) {
-        int fd=svc(SYS_OPEN,(uintptr_t)"/sys/proc/devices",0,0);
-        if(fd<0) { put("ls: device list unavailable\r\n"); return; }
+    if(eq(path,"/")) { put("dev/\r\nsys/\r\ntmp/\r\n"); return; }
+    if(eq(path,"/dev") || eq(path,"/dev/") ||
+       eq(path,"/tmp") || eq(path,"/tmp/")) {
+        const char *listing=eq(path,"/dev") || eq(path,"/dev/") ?
+            "/sys/proc/devices" : "/tmp";
+        int fd=svc(SYS_OPEN,(uintptr_t)listing,0,0);
+        if(fd<0) { put("ls: cannot open directory\r\n"); return; }
         char b[32]; int n;
         while((n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b))>0)
             write_all(1,b,(size_t)n);
+        if(n<0) put("ls: read error\r\n");
         svc(SYS_CLOSE,fd,0,0);
     }
     else if(eq(path,"/dev/gpio") || eq(path,"/dev/gpio/")) {
         for(int i=0;i<=28;i++) {
-            number(i); put("  ");
-            number(i); put(".dir  ");
+            number(i); put("\r\n");
+            number(i); put(".dir\r\n");
             number(i); put(".pull\r\n");
         }
     } else if(eq(path,"/sys") || eq(path,"/sys/")) put("proc/\r\n");
-    else if(eq(path,"/sys/proc") || eq(path,"/sys/proc/")) put("uptime  ticks  interrupts  context_switches  memory  devices  tasks\r\n");
-    else put("ls: supported: /dev /dev/gpio /sys /sys/proc\r\n");
+    else if(eq(path,"/sys/proc") || eq(path,"/sys/proc/"))
+        put("uptime\r\nticks\r\ninterrupts\r\ncontext_switches\r\nmemory\r\ndevices\r\ntasks\r\n");
+    else put("ls: supported: /dev /dev/gpio /sys /sys/proc /tmp\r\n");
 }
-static void command(char *s, char cwd[128]) {
+/* Whitespace is syntax around redirection paths, not part of names. */
+static char *trim(char *s) {
+    while(*s==' ' || *s=='\t') s++;
+    char *end=s+slen(s);
+    while(end>s && (end[-1]==' ' || end[-1]=='\t')) *--end=0;
+    return s;
+}
+/* Redirection applies to builtins and spawned processes alike.  Return the
+ * temporary descriptor so that the caller can restore the standard stream. */
+static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
+    char *first=0, *last=0;
+    for(char *q=s;*q;q++) if(*q=='<' || *q=='>') {
+        if(!first) first=q;
+        last=q;
+        if(*q=='>' && q[1]=='>') q++;
+    }
+    if(!first) return 0;
+    /* A file name must be one unquoted word.  Two redirects are allowed. */
+    char *q=first;
+    int seen=0;
+    while(*q) {
+        if(*q!='<' && *q!='>') return -1;
+        int output=*q=='>';
+        q++;
+        int append=output && *q=='>';
+        if(append) q++;
+        while(*q==' ' || *q=='\t') q++;
+        char *name=q;
+        while(*q && *q!=' ' && *q!='\t' && *q!='<' && *q!='>') q++;
+        if(name==q) return -1;
+        char terminator=*q;
+        *q=0;
+        char path[128];
+        int valid=resolve(cwd,name,path);
+        *q=terminator;
+        if(valid<0) return -1;
+        int flag=output?(1|O_CREAT|(append?O_APPEND:O_TRUNC)):0;
+        int target=output?1:0, saved=output?7:6;
+        if(seen & (1<<target)) return -1;
+        seen|=1<<target;
+        int fd=svc(SYS_OPEN,(uintptr_t)path,flag,0);
+        if(fd<0) return -1;
+        if(fd==saved || svc(SYS_DUP2,target,saved,0)<0 ||
+           svc(SYS_DUP2,fd,target,0)<0) {
+            svc(SYS_CLOSE,fd,0,0); return -1;
+        }
+        svc(SYS_CLOSE,fd,0,0);
+        if(output) *save_out=saved; else *save_in=saved;
+        while(*q==' ' || *q=='\t') q++;
+        if(*q && *q!='<' && *q!='>') return -1;
+    }
+    *first=0;
+    return 0;
+}
+static void command(char *s, char cwd[128], int redirect_out, int requested_bg, int *bg_pid, const char **bg_name) {
     while(*s==' ') s++;
     if(!*s) return;
+    /* Background execution is meaningful only for spawned programs. */
+    if(requested_bg && !(eq(s,"blink") || prefix(s,"blink ") ||
+                         eq(s,"omikuji") || prefix(s,"omikuji ") ||
+                         eq(s,"python") || prefix(s,"python "))) {
+        put("background: requires an external program\r\n");
+        return;
+    }
     if(eq(s,"help")) {
         put("PicoNIX command help\r\n"
             "\r\nTask management:\r\n"
@@ -145,6 +212,7 @@ static void command(char *s, char cwd[128]) {
             "  omikuji          Prompt for countdown seconds (foreground)\r\n"
             "  omikuji N [&]    Countdown 1-30 seconds; & = background\r\n"
             "  omikuji &        Background with default 10 seconds\r\n"
+            "  python [file] [&] REPL or run a /tmp script\r\n"
             "  &                Return to shell without waiting\r\n"
             "  Ctrl+C           Interrupt foreground task\r\n"
             "  kill PID         Terminate a task\r\n"
@@ -156,9 +224,15 @@ static void command(char *s, char cwd[128]) {
             "  ls /dev/gpio     List GPIO pins (N, N.dir, N.pull)\r\n"
             "  ls /sys/proc     List kernel statistics\r\n"
             "  cat PATH         Read file or device (UART1: 200ms idle exit)\r\n"
+            "  cat > PATH       Enter file contents; Ctrl+D ends input\r\n"
+            "  rm PATH          Delete /tmp file\r\n"
             "  Relative paths, . and .. are supported\r\n"
             "  echo TEXT        Print text\r\n"
-            "  echo TEXT > PATH Write to a device\r\n"
+            "  echo TEXT > PATH Write or create file/device\r\n"
+            "  COMMAND < PATH  Redirect input\r\n"
+            "  COMMAND > PATH  Redirect output\r\n"
+            "  COMMAND >> PATH Append output\r\n"
+            "  omikuji N > PATH &  Redirect background output\r\n"
             "\r\nExamples:\r\n"
             "  ps\r\n  blink &\r\n  omikuji\r\n  omikuji 5\r\n  omikuji 5 &\r\n  kill 2\r\n"
             "  cat /sys/proc/ticks\r\n"
@@ -189,7 +263,7 @@ static void command(char *s, char cwd[128]) {
         int omikuji=prefix(s,"omikuji");
         const char *tail=s+(omikuji?7:5);
         while(*tail==' ') tail++;
-        int seconds=0, background=0;
+        int seconds=0, background=requested_bg;
         if(omikuji && *tail>='0' && *tail<='9') {
             while(*tail>='0' && *tail<='9') {
                 seconds=seconds*10+(*tail++-'0');
@@ -198,11 +272,10 @@ static void command(char *s, char cwd[128]) {
             while(*tail==' ') tail++;
             if(seconds<1 || seconds>30) { put("usage: omikuji [1-30] [&]\r\n"); return; }
         }
-        if(*tail=='&') { background=1; tail++; while(*tail==' ') tail++; }
         if(*tail) { put(omikuji?"usage: omikuji [1-30] [&]\r\n":"usage: blink [&]\r\n"); return; }
         int pid=svc(SYS_SPAWN,omikuji?3:1,(uintptr_t)(omikuji && background && !seconds ? 31 : seconds),0);
         if(pid<0) { put("cannot start program (slot busy or invalid argument)\r\n"); return; }
-        if(background) { put("["); number(pid); put(omikuji?"] omikuji started\r\n":"] blink started\r\n"); }
+        if(background) { *bg_pid=pid; *bg_name=omikuji?"omikuji":"blink"; }
         else {
             int status=0;
             svc(SYS_SET_FG,pid,0,0);
@@ -210,6 +283,32 @@ static void command(char *s, char cwd[128]) {
                 int rc=svc(SYS_WAITPID,pid,(uintptr_t)&status,0);
                 if(rc==pid) break;
                 if(rc<0) { put("waitpid: error\r\n"); break; }
+                svc(SYS_SLEEP,10,0,0);
+            }
+            svc(SYS_SET_FG,0,0,0);
+        }
+    } else if(eq(s,"python") || prefix(s,"python ")) {
+        char path[128];
+        const char *arg=eq(s,"python")?0:s+7;
+        if(arg) {
+            while(*arg==' ') arg++;
+            if(!*arg || resolve(cwd,arg,path)<0 || !prefix(path,"/tmp/") ||
+               !path[5]) { put("python: invalid script path\r\n"); return; }
+            if(slen(path)>=32) { put("python: path too long\r\n"); return; }
+        }
+        if(requested_bg && !arg) {
+            put("python: background REPL needs a script\r\n");
+            return;
+        }
+        int pid=svc(SYS_SPAWN,4,0,(uintptr_t)(arg?path:0));
+        if(pid<0) { put("python: slot 3 busy\r\n"); return; }
+        if(requested_bg) { *bg_pid=pid; *bg_name="python"; }
+        else {
+            int status=0;
+            svc(SYS_SET_FG,pid,0,0);
+            for(;;) {
+                int rc=svc(SYS_WAITPID,pid,(uintptr_t)&status,0);
+                if(rc==pid || rc<0) break;
                 svc(SYS_SLEEP,10,0,0);
             }
             svc(SYS_SET_FG,0,0,0);
@@ -222,22 +321,28 @@ static void command(char *s, char cwd[128]) {
         if(resolve(cwd,arg,path)<0) put("ls: path too long\r\n");
         else ls(path);
     }
-    else if(prefix(s,"cat ")) {
+    else if(prefix(s,"rm ")) {
         char path[128];
-        if(resolve(cwd,s+4,path)<0) { put("cat: path too long\r\n"); return; }
-        if(eq(path,"/dev/console")) { put("cat: console reserved for shell\r\n"); return; }
-        int uart=eq(path,"/dev/uart1");
-        int fd=svc(SYS_OPEN,(uintptr_t)path,uart?4:0,0);
+        if(resolve(cwd,s+3,path)<0) { put("rm: path too long\r\n"); return; }
+        if(svc(SYS_UNLINK,(uintptr_t)path,0,0)<0) put("rm: cannot remove\r\n");
+    }
+    else if(eq(s,"cat") || prefix(s,"cat ")) {
+        char path[128];
+        int from_stdin=eq(s,"cat");
+        if(!from_stdin && resolve(cwd,trim(s+4),path)<0) { put("cat: path too long\r\n"); return; }
+        if(!from_stdin && eq(path,"/dev/console")) { put("cat: console reserved for shell\r\n"); return; }
+        int uart=!from_stdin && eq(path,"/dev/uart1");
+        int fd=from_stdin?0:svc(SYS_OPEN,(uintptr_t)path,uart?4:0,0);
         if(fd<0) { put("cat: cannot open\r\n"); return; }
         // Proc reports can exceed one read. Read until EOF, using small
         // transfers to avoid overflowing the nonblocking USB console FIFO.
-        if(prefix(path,"/sys/proc/")) {
+        if(from_stdin || prefix(path,"/sys/proc/") || prefix(path,"/tmp/")) {
             char b[32]; int n;
             while((n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b))>0) {
                 write_all(1,b,(size_t)n);
             }
             if(n<0) put("cat: read error\r\n");
-            else put("\r\n");
+            else if(!from_stdin && !redirect_out) put("\r\n");
         } else if(uart) {
             /* UART is a byte stream without EOF. Poll in 10ms intervals,
                stop after 200ms of inactivity, including before first byte. */
@@ -251,21 +356,12 @@ static void command(char *s, char cwd[128]) {
             put("\r\n");
         } else {
             char b[32]; int n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b);
-            if(n>0) { write_all(1,b,(size_t)n); put("\r\n"); }
+            if(n>0) { write_all(1,b,(size_t)n); if(!redirect_out) put("\r\n"); }
             else if(n<0) put("cat: read error\r\n");
         }
-        svc(SYS_CLOSE,fd,0,0);
+        if(!from_stdin) svc(SYS_CLOSE,fd,0,0);
     } else if(prefix(s,"echo ")) {
-        char *v=s+5,*redir=0;
-        for(char *p=v;*p;p++) if(p[0]==' '&&p[1]=='>'&&p[2]==' ') { redir=p; break; }
-        if(!redir) { put(v); put("\r\n"); return; }
-        *redir=0;
-        char path[128];
-        if(resolve(cwd,redir+3,path)<0) { put("echo: path too long\r\n"); return; }
-        int fd=svc(SYS_OPEN,(uintptr_t)path,1,0);
-        if(fd<0) { put("echo: cannot open\r\n"); return; }
-        if(svc(SYS_WRITE,fd,(uintptr_t)v,slen(v))<0) put("echo: write error\r\n");
-        svc(SYS_CLOSE,fd,0,0);
+        put(s+5); put(redirect_out?"\n":"\r\n");
     } else put("unknown command (help)\r\n");
 }
 __attribute__((used,noreturn,section(".text.app_entry")))
@@ -289,7 +385,27 @@ void app_entry(void) {
         /* Reap completed background children (no status display yet). */
         int bg_status;
         while(svc(SYS_WAITPID,(uintptr_t)-1,(uintptr_t)&bg_status,0)>0) {}
-        command(line,cwd);
+        /* Parse '&' once for every command, before redirection. */
+        char *cmd=trim(line);
+        int requested_bg=0;
+        size_t len=slen(cmd);
+        if(len && cmd[len-1]=='&') {
+            cmd[len-1]=0;
+            cmd=trim(cmd);
+            requested_bg=1;
+        }
+        int saved_in=-1,saved_out=-1, bg_pid=0;
+        const char *bg_name=0;
+        int redir_ok=redirect(cmd,cwd,&saved_in,&saved_out);
+        if(redir_ok==0) command(trim(cmd),cwd,saved_out>=0,requested_bg,&bg_pid,&bg_name);
+        if(saved_in>=0) { svc(SYS_DUP2,saved_in,0,0); svc(SYS_CLOSE,saved_in,0,0); }
+        if(saved_out>=0) { svc(SYS_DUP2,saved_out,1,0); svc(SYS_CLOSE,saved_out,0,0); }
+        if(redir_ok<0) put("redirect: invalid path or cannot open file\r\n");
+        /* Background notification must go to the console, not the file. */
+        if(bg_pid>0) {
+            put("["); number(bg_pid);
+            put("] "); put(bg_name?bg_name:"program"); put(" started\r\n");
+        }
         put("piconix# ");
     }
 }
