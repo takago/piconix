@@ -1,0 +1,10 @@
+/* Standalone RAM image, retained in firmware Flash. */
+.section .rodata.piconix_@EMBED_APP@_image,"a",%progbits
+.balign 4
+.global piconix_@EMBED_APP@_image_start
+.global piconix_@EMBED_APP@_image_end
+piconix_@EMBED_APP@_image_start:
+.incbin "@EMBED_BIN@"
+piconix_@EMBED_APP@_image_end:
+.balign 4
+.section .note.GNU-stack,"",%progbits
