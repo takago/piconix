@@ -174,7 +174,8 @@ static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
         int valid=resolve(cwd,name,path);
         *q=terminator;
         if(valid<0) return -1;
-        int flag=output?(1|O_CREAT|(append?O_APPEND:O_TRUNC)):0;
+        /* Device nodes are not regular files: creation/truncation is invalid. */
+        int flag=output?(1|(prefix(path,"/dev/")?0:O_CREAT|(append?O_APPEND:O_TRUNC))):0;
         int target=output?1:0, saved=output?7:6;
         if(seen & (1<<target)) return -1;
         seen|=1<<target;

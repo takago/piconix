@@ -18,7 +18,7 @@ if(NOT CMAKE_READELF)
   get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
   set(CMAKE_READELF "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-readelf")
 endif()
-# Freestanding slot-linked images. Both are embedded in the firmware Flash.
+# Freestanding slot-linked images. All four are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
 foreach(APP IN ITEMS shell blink omikuji python)
   if(APP STREQUAL "shell")

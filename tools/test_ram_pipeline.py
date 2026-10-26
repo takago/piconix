@@ -26,7 +26,7 @@ def test_app(tmp, name, base):
     elf = tmp / f'{name}.elf'
     binary = tmp / f'{name}.bin'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb',
-        '-Os', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
+        '-Os', '-fno-jump-tables', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
         '-fdata-sections', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
         '-c', ROOT / 'ram_apps' / f'{name}.c', '-o', obj)
     linker_script = tmp / f'{name}.ld'
@@ -57,7 +57,8 @@ def main():
         tmp = pathlib.Path(directory)
         test_app(tmp, 'shell', 0x20010000)
         test_app(tmp, 'blink', 0x20020000)
-    print('PASS: both fixed-RAM images have no unresolved references or relocations')
+    print('PASS: Shell and Blink fixed-RAM images have no unresolved references or relocations')
+    print('NOTE: Omikuji and Python require the ARM GCC toolchain for equivalent SDK build checks')
 
 
 if __name__ == '__main__':
