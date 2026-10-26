@@ -70,11 +70,13 @@ SDKの`copy_to_ram`実行形式を使用し，カーネル用RAMをBank 0に制�
 | 4 | `SLEEP` | 指定時間の休止 |
 | 5 | `YIELD` | CPUを譲る |
 | 6–10 | `OPEN` / `CLOSE` / `READ` / `WRITE` / `IOCTL` | デバイス・ファイル風入出力 |
-| 11 | `TASK_INFO` | タスク情報の取得 |
-| 12 | `RUN` | 内部のプログラム起動機構（Shellの旧`run`コマンドとは別） |
+| 11 | （予約済み） | 旧`TASK_INFO`（廃止） |
+| 12 | `SPAWN` | 登録済みプログラムから新しいタスクを生成して起動する |
 | 13 | `WAITPID` | 子タスクの終了記録を取得 |
 | 14 | `SET_FG` | フォアグラウンドPIDの指定 |
 | 15 | `GETARG` | Omikuji向けの簡易起動引数 |
+
+プログラム起動用システムコールは`SYS_SPAWN`（番号12）です．C APIは`os_spawn_program(program_id)`で，既存のエントリ関数指定型`os_spawn(entry)`／`os_spawn_named(entry, name)`とは区別します．Shellの`blink`や`omikuji`コマンドは`SYS_SPAWN`を呼び出します．
 
 システムコール境界ではユーザ側のポインタがタスク領域に属するかなどを検査します．ただし，現時点で完全なメモリ保護機構があるわけではありません．
 
@@ -114,6 +116,7 @@ piconix# omikuji 5 & ← 背景：標準入力不要
 | `/sys/proc/interrupts` | 割り込み統計 |
 | `/sys/proc/context_switches` | コンテキスト切り替え統計 |
 | `/sys/proc/memory` | メモリ・スロット配置情報 |
+| `/sys/proc/tasks` | 実行中タスクのPID・状態・スロット・保存SP（`ps`の情報源） |
 
 通常のディスク上のファイルシステムではなく，カーネルがパスを解釈する仮想的な入出力インターフェースです．UART1の`cat`には約200 msの無通信終了条件があります．
 

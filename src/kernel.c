@@ -18,7 +18,7 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_TASK_INFO, SYS_RUN, SYS_WAITPID, SYS_SET_FG, SYS_GETARG, SYS_CONSOLE_READY };
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_GETARG, SYS_CONSOLE_READY };
 typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint16_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; } task_t;
 // Fixed physical SRAM slots, not a 192-KiB .bss reservation.
 // The linker must restrict the kernel to SRAM bank 0 (0x20000000..0x2000ffff).
@@ -246,7 +246,7 @@ static int spawn_in_slot(int slot, os_entry_t entry, const char *name) {
     uint32_t irq_state = save_and_disable_interrupts();
     task_t *t=&tasks[slot];
     if (t->state!=UNUSED && t->state!=DEAD) { restore_interrupts(irq_state); return OS_EAGAIN; }
-    // Reset the fixed slot on every run before restoring the flash image.
+    // Reset the fixed slot on every spawn before restoring the flash image.
     memset(task_ram[slot], 0, OS_TASK_BYTES);
     int program_id = program_for_slot[slot];
     if (program_id && images[program_id].image) {
@@ -367,9 +367,8 @@ static int in_task_range(const void *p, size_t n) {
     return a>=lo && a<=hi && n<=hi-a;
 }
 static int path_match(const char *p, const char *s) {
-    // The shell currently executes in kernel RAM (copy_to_ram), so its
-    // constant paths live in kernel RAM rather than XIP flash.
-    // Also permit the calling task's own slot and XIP flash literals.
+    // Validate NUL-terminated paths in the kernel RAM, caller RAM slot,
+    // or XIP flash. The shell itself executes from its own RAM slot.
     if(!p) return 0;
     uintptr_t a=(uintptr_t)p;
     if(!((a>=0x10000000u && a<0x11000000u) ||
@@ -383,9 +382,29 @@ static int path_match(const char *p, const char *s) {
     }
     return 0;
 }
+/* Stable internal device IDs; preserve the existing FD/device mapping. */
+enum {
+    DEV_CONSOLE = 0,
+    DEV_GPIO_VALUE_BASE = 1,
+    DEV_GPIO_VALUE_END = 29,
+    DEV_UART1 = 30,
+    DEV_PROC_UPTIME = 31,
+    DEV_PROC_TICKS = 32,
+    DEV_PROC_INTERRUPTS = 33,
+    DEV_PROC_SWITCHES = 34,
+    DEV_PROC_MEMORY = 35,
+    DEV_GPIO_DIR_BASE = 36,
+    DEV_GPIO_DIR_END = 64,
+    DEV_GPIO_PULL_BASE = 65,
+    DEV_GPIO_PULL_END = 93,
+    DEV_RAND = 94,
+    DEV_PROC_DEVICES = 95,
+    DEV_PROC_TASKS = 96,
+    DEV_GPIO_MAX_PIN = 28
+};
 /* Fixed device registry shared by open() and /sys/proc/devices listing. */
 static const struct { const char *path; int id; } dev_registry[] = {
-    {"/dev/console",0}, {"/dev/uart1",30}, {"/dev/rand",94}
+    {"/dev/console",DEV_CONSOLE}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}
 };
 #define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
 static int device_open(const char *p, int flags) {
@@ -393,141 +412,176 @@ static int device_open(const char *p, int flags) {
     int dev=-1;
     for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
         if(path_match(p,dev_registry[i].path)) { dev=dev_registry[i].id; break; }
-    if(dev<0 && path_match(p,"/sys/proc/uptime")) dev=31;
-    else if(dev<0 && path_match(p,"/sys/proc/ticks")) dev=32;
-    else if(dev<0 && path_match(p,"/sys/proc/interrupts")) dev=33;
-    else if(dev<0 && path_match(p,"/sys/proc/context_switches")) dev=34;
-    else if(dev<0 && path_match(p,"/sys/proc/memory")) dev=35;
-    else if(dev<0 && path_match(p,"/sys/proc/devices")) dev=95;
+    if(dev<0 && path_match(p,"/sys/proc/uptime")) dev=DEV_PROC_UPTIME;
+    else if(dev<0 && path_match(p,"/sys/proc/ticks")) dev=DEV_PROC_TICKS;
+    else if(dev<0 && path_match(p,"/sys/proc/interrupts")) dev=DEV_PROC_INTERRUPTS;
+    else if(dev<0 && path_match(p,"/sys/proc/context_switches")) dev=DEV_PROC_SWITCHES;
+    else if(dev<0 && path_match(p,"/sys/proc/memory")) dev=DEV_PROC_MEMORY;
+    else if(dev<0 && path_match(p,"/sys/proc/devices")) dev=DEV_PROC_DEVICES;
+    else if(dev<0 && path_match(p,"/sys/proc/tasks")) dev=DEV_PROC_TASKS;
     if(dev<0) {
         // Avoid unbounded parsing of an invalid pointer.
-        for(int pin=0;pin<=28;pin++) {
+        for(int pin=0;pin<=DEV_GPIO_MAX_PIN;pin++) {
             char name[20]; snprintf(name,sizeof(name),"/dev/gpio/%d",pin);
-            if(path_match(p,name)) { dev=pin+1; break; }
+            if(path_match(p,name)) { dev=pin+DEV_GPIO_VALUE_BASE; break; }
             snprintf(name,sizeof(name),"/dev/gpio/%d.dir",pin);
-            if(path_match(p,name)) { dev=36+pin; break; }
+            if(path_match(p,name)) { dev=DEV_GPIO_DIR_BASE+pin; break; }
             snprintf(name,sizeof(name),"/dev/gpio/%d.pull",pin);
-            if(path_match(p,name)) { dev=65+pin; break; }
+            if(path_match(p,name)) { dev=DEV_GPIO_PULL_BASE+pin; break; }
         }
     }
-    if(dev<0 || (((dev>=31 && dev<=35) || dev==94 || dev==95) && (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
-    if((flags & OS_O_NONBLOCK) && dev!=30) return OS_EINVAL;
+    if(dev<0 || (((dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_RAND || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS) && (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
+    if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1) return OS_EINVAL;
     for(int fd=3;fd<8;fd++) if(tasks[current].fd[fd]<0) {
         tasks[current].fd[fd]=dev; tasks[current].fd_pos[fd]=0; tasks[current].fd_flags[fd]=(uint8_t)flags; return fd;
     }
     return OS_EMFILE;
 }
-static int device_rw(int fd, void *p, size_t n, int writing) {
-    if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
-    if(n>0 && !in_task_range(p,n)) return OS_EINVAL;
-    int dev=tasks[current].fd[fd];
-    if(dev==94) {
-        if(writing) return OS_EBADF;
-        if(n==0) return 0;
-        uint32_t irq_state=save_and_disable_interrupts();
-        /* Mix the caller's timing into the initial PRNG state. */
-        static int seeded;
-        if(!seeded) {
-            rand_state ^= time_us_32() ^ ticks;
-            if(!rand_state) rand_state=0x9e3779b9u;
-            seeded=1;
-        }
-        uint32_t value=rand32();
-        restore_interrupts(irq_state);
-        size_t count=n<sizeof(value) ? n : sizeof(value);
-        memcpy(p,&value,count);
-        return (int)count;
+static int device_rw_rand(void *p, size_t n, int writing) {
+    if(writing) return OS_EBADF;
+    if(n==0) return 0;
+    uint32_t irq_state=save_and_disable_interrupts();
+    /* Mix the caller's timing into the initial PRNG state. */
+    static int seeded;
+    if(!seeded) {
+        rand_state ^= time_us_32() ^ ticks;
+        if(!rand_state) rand_state=0x9e3779b9u;
+        seeded=1;
     }
-    if((dev>=31 && dev<=35) || dev==95) {
-        if(writing) return OS_EBADF;
-        // Snapshot the counters before formatting; no extra interrupts or tasks.
-        uint32_t irq_state=save_and_disable_interrupts();
-        uint32_t t=ticks, svc=svc_count, psv=pendsv_count, switches=context_switch_count;
-        restore_interrupts(irq_state);
-        char text[160]; int len=0;
-        if(dev==95) {
-            /* Enumerate the same registry used by device_open(). */
-            for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++) {
-                const char *name=dev_registry[i].path+5; /* skip /dev/ */
-                int written=snprintf(text+len,sizeof(text)-(size_t)len,"%s\n",name);
-                if(written<0 || (size_t)written>=sizeof(text)-(size_t)len) return OS_EINVAL;
-                len+=written;
-            }
-            /* GPIO is a dynamically generated subtree, not a fixed device. */
-            int written=snprintf(text+len,sizeof(text)-(size_t)len,"gpio/\n");
+    uint32_t value=rand32();
+    restore_interrupts(irq_state);
+    size_t count=n<sizeof(value) ? n : sizeof(value);
+    memcpy(p,&value,count);
+    return (int)count;
+}
+/* Render one line at a time; proc/tasks can exceed the normal proc buffer.
+ * The per-open cursor supports arbitrarily small read() requests. */
+static int proc_tasks_read(int fd, void *p, size_t n) {
+    static const char header[] = "PID  NAME              STATE    SLOT  MEMORY             SP\n";
+    size_t pos=tasks[current].fd_pos[fd], offset=0, done=0;
+    for(int row=-1;row<OS_MAX_TASKS;row++) {
+        char line[112];
+        const char *src;
+        size_t len;
+        if(row<0) { src=header; len=sizeof(header)-1; }
+        else {
+            task_t *t=&tasks[row];
+            if(t->state==UNUSED || t->state==DEAD) continue;
+            const char *state=t->state==READY?"READY":
+                t->state==SLEEPING?"SLEEP":t->state==BLOCKED?"BLOCKED":"?";
+            uintptr_t base=(uintptr_t)task_ram[row];
+            int count=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%d     %08lX-%08lX  %08lX\n",
+                t->pid,t->name?t->name:"",state,row+1,
+                (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
+                (unsigned long)(uintptr_t)t->sp);
+            if(count<0 || (size_t)count>=sizeof line) return OS_EINVAL;
+            src=line; len=(size_t)count;
+        }
+        if(pos<offset+len && done<n) {
+            size_t start=pos>offset?pos-offset:0;
+            size_t count=len-start;
+            if(count>n-done) count=n-done;
+            memcpy((char *)p+done,src+start,count);
+            done+=count; pos+=count;
+        }
+        offset+=len;
+        if(done==n) break;
+    }
+    tasks[current].fd_pos[fd]=(uint16_t)pos;
+    return (int)done;
+}
+static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
+    if(writing) return OS_EBADF;
+    if(dev==DEV_PROC_TASKS) return proc_tasks_read(fd,p,n);
+    // Snapshot the counters before formatting; no extra interrupts or tasks.
+    uint32_t irq_state=save_and_disable_interrupts();
+    uint32_t t=ticks, svc=svc_count, psv=pendsv_count, switches=context_switch_count;
+    restore_interrupts(irq_state);
+    char text[160]; int len=0;
+    if(dev==DEV_PROC_DEVICES) {
+        /* Enumerate the same registry used by device_open(). */
+        for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++) {
+            const char *name=dev_registry[i].path+5; /* skip /dev/ */
+            int written=snprintf(text+len,sizeof(text)-(size_t)len,"%s\n",name);
             if(written<0 || (size_t)written>=sizeof(text)-(size_t)len) return OS_EINVAL;
             len+=written;
         }
-        switch(dev) {
-            case 31: len=snprintf(text,sizeof text,"%lu.%03lu s\n",(unsigned long)(t/1000u),(unsigned long)(t%1000u)); break;
-            case 32: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)t); break;
-            case 33: len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\n",(unsigned long)t,(unsigned long)psv,(unsigned long)svc); break;
-            case 34: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
-            case 35: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nshell  20010000-2001FFFF (slot#1)\n       20020000-2002FFFF (slot#2)\n       20030000-2003FFFF (slot#3)\n"); break;
-        }
-        if(len<0) return OS_EINVAL;
-        if((size_t)len>=sizeof text) len=sizeof text-1;
-        // Each open proc file has a read cursor, so long reports can be
-        // transferred in small chunks without truncation or repeated text.
-        size_t pos=tasks[current].fd_pos[fd];
-        if(pos>=(size_t)len) return 0;
-        size_t count=(size_t)len-pos;
-        if(count>n) count=n;
-        if(count) memcpy(p,text+pos,count);
-        tasks[current].fd_pos[fd]=(uint16_t)(pos+count);
-        return (int)count;
+        /* GPIO is a dynamically generated subtree, not a fixed device. */
+        int written=snprintf(text+len,sizeof(text)-(size_t)len,"gpio/\n");
+        if(written<0 || (size_t)written>=sizeof(text)-(size_t)len) return OS_EINVAL;
+        len+=written;
     }
-    if(dev==0 || dev==30) {
-        int uartdev=(dev==0)?0:1;
+    switch(dev) {
+        case DEV_PROC_UPTIME: len=snprintf(text,sizeof text,"%lu.%03lu s\n",(unsigned long)(t/1000u),(unsigned long)(t%1000u)); break;
+        case DEV_PROC_TICKS: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)t); break;
+        case DEV_PROC_INTERRUPTS: len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\n",(unsigned long)t,(unsigned long)psv,(unsigned long)svc); break;
+        case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
+        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nshell  20010000-2001FFFF (slot#1)\n       20020000-2002FFFF (slot#2)\n       20030000-2003FFFF (slot#3)\n"); break;
+    }
+    if(len<0) return OS_EINVAL;
+    if((size_t)len>=sizeof text) len=sizeof text-1;
+    // Each open proc file has a read cursor, so long reports can be
+    // transferred in small chunks without truncation or repeated text.
+    size_t pos=tasks[current].fd_pos[fd];
+    if(pos>=(size_t)len) return 0;
+    size_t count=(size_t)len-pos;
+    if(count>n) count=n;
+    if(count) memcpy(p,text+pos,count);
+    tasks[current].fd_pos[fd]=(uint16_t)(pos+count);
+    return (int)count;
+}
+static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
+    int uartdev=(dev==DEV_CONSOLE)?0:1;
 #if !PICONIX_CONSOLE_USB
-        uart_inst_t *u=(dev==0)?uart0:uart1;
+    uart_inst_t *u=(dev==DEV_CONSOLE)?uart0:uart1;
 #endif
-        uint8_t *b=p;
-        if(writing) {
-            if (dev==0) {
+    uint8_t *b=p;
+    if(writing) {
+        if (dev==DEV_CONSOLE) {
 #if PICONIX_CONSOLE_USB
-                if(!stdio_usb_connected()) return (int)n;
-                return (int)console_queue(b,n);
+            if(!stdio_usb_connected()) return (int)n;
+            return (int)console_queue(b,n);
 #else
-                for(size_t i=0;i<n;i++) tty_put(b[i]);
+            for(size_t i=0;i<n;i++) tty_put(b[i]);
 #endif
-            } else {
+        } else {
 #if PICONIX_CONSOLE_USB
-                for(size_t i=0;i<n;i++) uart_putc_raw(uart1,b[i]);
+            for(size_t i=0;i<n;i++) uart_putc_raw(uart1,b[i]);
 #else
-                for(size_t i=0;i<n;i++) uart_putc_raw(u,b[i]);
+            for(size_t i=0;i<n;i++) uart_putc_raw(u,b[i]);
 #endif
-            }
-            return (int)n;
         }
-        if(n==0) return 0;
-        if(uartdev==0 && tasks[current].pid!=tty_owner_pid()) return OS_EIO;
-        uint32_t irq_state=save_and_disable_interrupts();
-        int count=0;
-        if(uartdev==0 && tty_ready) {
-            count=tty_count<(int)n?tty_count:(int)n;
-            memcpy(b,tty_line,count);tty_ready=0;tty_count=0;
-        } else if(uartdev==1) {
-            while((size_t)count<n && uart_pop(1,&b[count])) count++;
-        }
-        if(count) { restore_interrupts(irq_state); return count; }
-        if(uartdev==1 && (tasks[current].fd_flags[fd] & OS_O_NONBLOCK)) {
-            restore_interrupts(irq_state); return 0;
-        }
-        task_t *t=&tasks[current];
-        t->wait_dev=uartdev;t->wait_buf=p;t->wait_size=n;
-        t->wait_frame_ready=0;
-        t->state=BLOCKED;
-        pend();
-        restore_interrupts(irq_state);
-        return 0; // completed later by IRQ; SVC frame initially holds 0
+        return (int)n;
     }
     if(n==0) return 0;
-    if(dev>=36 && dev<=93) {
-        int pin=(dev<=64)?dev-36:dev-65;
+    if(uartdev==DEV_CONSOLE && tasks[current].pid!=tty_owner_pid()) return OS_EIO;
+    uint32_t irq_state=save_and_disable_interrupts();
+    int count=0;
+    if(uartdev==DEV_CONSOLE && tty_ready) {
+        count=tty_count<(int)n?tty_count:(int)n;
+        memcpy(b,tty_line,count);tty_ready=0;tty_count=0;
+    } else if(uartdev==1) {
+        while((size_t)count<n && uart_pop(1,&b[count])) count++;
+    }
+    if(count) { restore_interrupts(irq_state); return count; }
+    if(uartdev==1 && (tasks[current].fd_flags[fd] & OS_O_NONBLOCK)) {
+        restore_interrupts(irq_state); return 0;
+    }
+    task_t *t=&tasks[current];
+    t->wait_dev=uartdev;t->wait_buf=p;t->wait_size=n;
+    t->wait_frame_ready=0;
+    t->state=BLOCKED;
+    pend();
+    restore_interrupts(irq_state);
+    return 0; // completed later by IRQ; SVC frame initially holds 0
+}
+static int device_rw_gpio(int dev, void *p, size_t n, int writing) {
+    if(n==0) return 0;
+    if(dev>=DEV_GPIO_DIR_BASE && dev<=DEV_GPIO_PULL_END) {
+        int pin=(dev<=DEV_GPIO_DIR_END)?dev-DEV_GPIO_DIR_BASE:dev-DEV_GPIO_PULL_BASE;
         // UART pins must not be silently reconfigured by GPIO settings.
         if(writing && (pin==0 || pin==1 || pin==4 || pin==5)) return OS_EINVAL;
-        if(dev<=64) {
+        if(dev<=DEV_GPIO_DIR_END) {
             if(writing) {
                 const uint8_t *b=p;
                 if(n==2 && b[0]=='i' && b[1]=='n') {gpio_init(pin);gpio_set_dir(pin,GPIO_IN);return (int)n;}
@@ -551,7 +605,7 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
         if(n<len) len=n;
         memcpy(p,v,len); return (int)len;
     }
-    int pin=dev-1;
+    int pin=dev-DEV_GPIO_VALUE_BASE;
     if(writing) {
         const uint8_t *b=p;
         if(n>=2 && b[0]=='i' && b[1]=='n') {if(pin==0||pin==1||pin==4||pin==5) return OS_EINVAL; gpio_init(pin);gpio_set_dir(pin,GPIO_IN);return (int)n;}
@@ -563,9 +617,19 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
     ((uint8_t*)p)[0]=gpio_get(pin)?'1':'0';
     return 1;
 }
+static int device_rw(int fd, void *p, size_t n, int writing) {
+    if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
+    if(n>0 && !in_task_range(p,n)) return OS_EINVAL;
+    int dev=tasks[current].fd[fd];
+    if(dev==DEV_RAND) return device_rw_rand(p,n,writing);
+    if((dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS)
+        return device_rw_proc(fd,dev,p,n,writing);
+    if(dev==DEV_CONSOLE || dev==DEV_UART1) return device_rw_tty(fd,dev,p,n,writing);
+    return device_rw_gpio(dev,p,n,writing);
+}
 static int device_ioctl(int fd,int cmd,int arg) {
-    if(fd<0 || fd>=8 || tasks[current].fd[fd]<1 || tasks[current].fd[fd]>29) return OS_EBADF;
-    int pin=tasks[current].fd[fd]-1;
+    if(fd<0 || fd>=8 || tasks[current].fd[fd]<DEV_GPIO_VALUE_BASE || tasks[current].fd[fd]>DEV_GPIO_VALUE_END) return OS_EBADF;
+    int pin=tasks[current].fd[fd]-DEV_GPIO_VALUE_BASE;
     (void)arg;
     switch(cmd) {
         case OS_GPIO_INPUT: gpio_init(pin); gpio_set_dir(pin,GPIO_IN); break;
@@ -585,29 +649,6 @@ void os_svc_dispatch(uint32_t *f) {
     if(current<0) { f[0]=OS_EINVAL; return; }
     switch(num) {
         case SYS_GETPID: result=tasks[current].pid; break;
-        case SYS_TASK_INFO: {
-            os_task_info_t *out=(os_task_info_t *)(uintptr_t)b;
-            if(a<1 || a>TOTAL_SLOTS || !in_task_range(out,sizeof(*out))) {
-                result=OS_EINVAL; break;
-            }
-            task_t *t=&tasks[a-1];
-            out->pid=t->pid;
-            out->state=t->state;
-            memset(out->name,0,sizeof(out->name));
-            if(t->name) {
-                strncpy(out->name,t->name,sizeof(out->name)-1);
-            }
-            if(a<=OS_MAX_TASKS) {
-                uintptr_t base=(uintptr_t)task_ram[a-1];
-                out->slot_base=(uint32_t)base;
-                out->slot_end=(uint32_t)(base+OS_TASK_BYTES-1u);
-            } else { out->slot_base=0; out->slot_end=0; }
-            out->entry=(uint32_t)(uintptr_t)t->entry;
-            // This is the saved SP, not necessarily the live PSP.
-            out->saved_sp=(uint32_t)(uintptr_t)t->sp;
-            result=0;
-            break;
-        }
         case SYS_KILL:
             {int slot=slot_from_pid(a);
             if(slot<0 || slot==current || slot==IDLE_SLOT) result=OS_ESRCH;
@@ -640,7 +681,7 @@ void os_svc_dispatch(uint32_t *f) {
             }
             break;
         }
-        case SYS_RUN:
+        case SYS_SPAWN:
             if(a<1 || a>=4 || !programs[a].entry) result=OS_ENOENT;
             else if(b<0 || b>31 || (a!=3 && b!=0)) result=OS_EINVAL;
             else {
@@ -683,8 +724,7 @@ int os_waitpid(int pid, int *status, int options) {
     }
 }
 int os_set_foreground(int pid) { return call(SYS_SET_FG,pid,0,0); }
-int os_run(int program_id) { return call(SYS_RUN,program_id,0,0); }
-int os_task_info(int pid, os_task_info_t *info) { return call(SYS_TASK_INFO,pid,(uintptr_t)info,0); }
+int os_spawn_program(int program_id) { return call(SYS_SPAWN,program_id,0,0); }
 int os_getpid(void) { return call(SYS_GETPID,0,0,0); }
 int os_kill(int pid) { return call(SYS_KILL,pid,0,0); }
 void os_exit(void) { call(SYS_EXIT,0,0,0); for(;;) __wfi(); }

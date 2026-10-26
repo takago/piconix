@@ -7,10 +7,7 @@
 #include <stddef.h>
 
 enum { SYS_GETPID=1, SYS_KILL=2, SYS_OPEN=6, SYS_CLOSE=7,
-       SYS_READ=8, SYS_WRITE=9, SYS_TASK_INFO=11, SYS_RUN=12, SYS_SLEEP=4, SYS_WAITPID=13, SYS_SET_FG=14, SYS_CONSOLE_READY=16 };
-enum { OS_TASK_UNUSED=0, OS_TASK_READY=1, OS_TASK_SLEEPING=2,
-       OS_TASK_DEAD=3, OS_TASK_BLOCKED=4 };
-typedef struct { int pid, state; char name[16]; uint32_t slot_base, slot_end, entry, saved_sp; } task_info_t;
+       SYS_READ=8, SYS_WRITE=9, SYS_SPAWN=12, SYS_SLEEP=4, SYS_WAITPID=13, SYS_SET_FG=14, SYS_CONSOLE_READY=16 };
 static inline int svc(int n, uintptr_t a, uintptr_t b, uintptr_t c) {
     register uintptr_t r0 __asm("r0") = (uintptr_t)n;
     register uintptr_t r1 __asm("r1") = a;
@@ -62,11 +59,6 @@ static void number(int v) {
     }
     write_all(1,out,n);
 }
-static void hex32(uint32_t x) {
-    char b[8];
-    for(int i=7;i>=0;i--) { unsigned d=x&15u; b[i]=(char)(d<10?'0'+d:'A'+d-10); x>>=4; }
-    write_all(1,b,sizeof b);
-}
 static int parse_pid(const char *s) {
     if(!*s) return -1;
     int n=0;
@@ -76,27 +68,14 @@ static int parse_pid(const char *s) {
     }
     return n>0?n:-1;
 }
-static void padded(const char *s, unsigned width) {
-    unsigned n=(unsigned)slen(s);
-    put(s);
-    while(n++<width) put(" ");
-}
 static void ps(void) {
-    put("PID  NAME              STATE    SLOT  MEMORY             SP\r\n");
-    for(int i=1;i<=3;i++) {
-        task_info_t t;
-        if(svc(SYS_TASK_INFO,i,(uintptr_t)&t,0)<0 ||
-           t.state==OS_TASK_UNUSED || t.state==OS_TASK_DEAD) continue;
-        put("  "); number(t.pid); put("  ");
-        padded(t.name,18);
-        padded(t.state==OS_TASK_READY?"READY":
-               t.state==OS_TASK_SLEEPING?"SLEEP":
-               t.state==OS_TASK_BLOCKED?"BLOCKED":"?",9);
-        number((int)((t.slot_base-0x20000000u)/0x10000u));
-        put("     ");
-        hex32(t.slot_base); put("-"); hex32(t.slot_end); put("  ");
-        hex32(t.saved_sp); put("\r\n");
-    }
+    int fd=svc(SYS_OPEN,(uintptr_t)"/sys/proc/tasks",0,0);
+    if(fd<0) { put("ps: cannot open tasks\r\n"); return; }
+    char b[32]; int n;
+    while((n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b))>0)
+        write_all(1,b,(size_t)n);
+    if(n<0) put("ps: read error\r\n");
+    svc(SYS_CLOSE,fd,0,0);
 }
 /* Shell-local cwd: the kernel still accepts absolute virtual paths only. */
 static int directory(const char *p) {
@@ -150,7 +129,7 @@ static void ls(const char *path) {
             number(i); put(".pull\r\n");
         }
     } else if(eq(path,"/sys") || eq(path,"/sys/")) put("proc/\r\n");
-    else if(eq(path,"/sys/proc") || eq(path,"/sys/proc/")) put("uptime  ticks  interrupts  context_switches  memory  devices\r\n");
+    else if(eq(path,"/sys/proc") || eq(path,"/sys/proc/")) put("uptime  ticks  interrupts  context_switches  memory  devices  tasks\r\n");
     else put("ls: supported: /dev /dev/gpio /sys /sys/proc\r\n");
 }
 static void command(char *s, char cwd[128]) {
@@ -221,7 +200,7 @@ static void command(char *s, char cwd[128]) {
         }
         if(*tail=='&') { background=1; tail++; while(*tail==' ') tail++; }
         if(*tail) { put(omikuji?"usage: omikuji [1-30] [&]\r\n":"usage: blink [&]\r\n"); return; }
-        int pid=svc(SYS_RUN,omikuji?3:1,(uintptr_t)(omikuji && background && !seconds ? 31 : seconds),0);
+        int pid=svc(SYS_SPAWN,omikuji?3:1,(uintptr_t)(omikuji && background && !seconds ? 31 : seconds),0);
         if(pid<0) { put("cannot start program (slot busy or invalid argument)\r\n"); return; }
         if(background) { put("["); number(pid); put(omikuji?"] omikuji started\r\n":"] blink started\r\n"); }
         else {

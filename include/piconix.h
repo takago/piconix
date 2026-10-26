@@ -29,27 +29,19 @@ typedef void (*os_entry_t)(void);
 #define OS_EINTR (-4)
 #define OS_EIO (-5)
 #define OS_ENOENT (-2)
-typedef struct {
-    int pid;
-    int state;
-    char name[16];
-    uint32_t slot_base, slot_end, entry, saved_sp;
-} os_task_info_t;
-
 void os_init(void);
 // Poll SDK USB stdio input from the idle task; UART builds are a no-op.
 void os_console_poll(void);
 void os_init_idle(os_entry_t entry);
 int os_spawn(os_entry_t entry);
 int os_spawn_named(os_entry_t entry, const char *name);
-int os_run(int program_id);
+int os_spawn_program(int program_id);
 int os_start_program(int program_id); // boot-time launch before scheduler starts
 void os_register_program(int program_id, os_entry_t entry, const char *name);
 // Experimental: copy a slot-linked image from flash into the assigned RAM slot.
 // Does NOT itself change the linked entry point or enable RAM execution.
 int os_register_ram_image(int program_id, const void *image, size_t size,
                           size_t zero_start, size_t zero_size);
-int os_task_info(int pid, os_task_info_t *info);
 void os_start(void) __attribute__((noreturn));
 int os_getpid(void);
 int os_kill(int pid);

@@ -37,7 +37,7 @@ int main(void) {
     register_image(3,0x20030000u,"omikuji",piconix_omikuji_image_start,piconix_omikuji_image_end);
     os_init_idle(idle_task);
     if(os_start_program(2)<0) panic("PicoNIX: shell start failed");
-    // Do not start Blink here: verify the actual `run blink` shell path.
+    // Do not start Blink here: verify the `blink` shell command path.
 #if !PICONIX_CONSOLE_USB
     uart_puts(uart0, "[PicoNIX] shell loaded; starting scheduler\r\n");
 #endif

@@ -86,7 +86,7 @@ void app_entry(void)
 1. **ソース**：`ram_apps/hello.c`を作り，`app_entry()`を定義する．
 2. **ビルド**：`CMakeLists.txt`の`foreach(APP IN ITEMS shell blink omikuji)`に`hello`を追加する．`APP_ORIGIN`の分岐では`hello`を配置するスロットを明示する．同じBank 3を使う場合は，Omikujiと同時には配置できない．
 3. **ファームウェア登録**：`src/main.c`で，既存の`piconix_omikuji_image_start/end`と`register_image(...)`を参考に，生成されたイメージを登録する．`ram_apps/embed_image.S.in`で生成されるシンボル名も確認する．
-4. **Shellコマンド**：`ram_apps/shell.c`のコマンド判定・起動処理に`hello`を追加し，`help`も更新する．`SYS_RUN`に渡すプログラムIDは`src/main.c`で登録したIDと一致させる．
+4. **Shellコマンド**：`ram_apps/shell.c`のコマンド判定・起動処理に`hello`を追加し，`help`も更新する．`SYS_SPAWN`に渡すプログラムIDは`src/main.c`で登録したIDと一致させる．
 
 **注意：** 現在の`register_image`とタスク管理は固定スロットを前提としています．新しいプログラムを既存のBank 3へ追加する場合，単純にプログラムIDを増やすだけで両方を独立に実行できるとは限りません．まずはOmikujiを`hello`に**置き換える**実験から始めるのが安全です．複数プログラムを同じスロットで切り替えるには，Flash上の複数イメージの選択・コピーとスロット占有管理の確認／拡張が必要です．
 
