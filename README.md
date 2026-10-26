@@ -1,6 +1,6 @@
 # PicoNIX
 
-**PicoNIX** は，Raspberry Pi Pico（RP2040）で動作する，UNIXの基本的な仕組みを学ぶための小さな実験用OSです（ChatGPTで作ってもらいました）．
+**PicoNIX** は，Raspberry Pi Pico（RP2040）で動作する，UNIXの基本的な仕組みを学ぶため実験用OSです（ChatGPTで作ってもらいました）．
 
 > リリース表示：`PicoNIX-2026-10-26 (TAKAGO_LAB.)`  
 > 開発段階：Stage 30  
@@ -9,13 +9,12 @@
 Pico SDKを利用したカーネルと，固定RAMスロットに配置する独立したShell・サンプルプログラムから構成されます．通常のLinuxディストリビューションではなく，OSの内部構造を観察し，改造することを目的とした教材・研究用の実装です．
 
 ## 特徴
-
-- **固定RAMスロット**：カーネル，Shell，Blink，Omikujiを別々の64 KiB領域に配置します．
+- **固定RAMスロット**：カーネル，Shell，Blink，Omikujiを別々の64 KiB領域に配置します． 　
 - **マルチタスク**：SysTick，PendSV，SVCを利用したタスク切り替えとシステムコール．
 - **タスク管理**：PID，`ps`，`kill`，`exit`，`waitpid`相当の機能．
 - **簡易ジョブ制御**：コマンド末尾の`&`でバックグラウンド起動．フォアグラウンドでは終了待ちし，Ctrl+Cで中断できます．
 - **USB CDCコンソール**：PicoのUSB端子を通じてShellを操作します．
-- **ファイル風インターフェース**：`/dev`と`/sys/proc`からGPIO，UART，カーネル統計を操作・参照できます．
+- **デバイスファイル風インターフェース**：`/dev`と`/sys/proc`からGPIO，UART，カーネル統計を操作・参照できます．
 - **教育用サンプル**：LED点滅の`blink`と，標準入力・カウントダウン・正常終了を確認できる`omikuji`．
 
 ## 起動画面
@@ -148,17 +147,14 @@ piconix#
 ### 疑似乱数デバイス `/dev/rand`
 
 `/dev/rand`は，1回の`read(fd, &value, 4)`で32ビットの疑似乱数を1個返します．
-繰り返し`read()`すると新しい値を返します．4バイト以外の読み取りはエラーです．
-書き込みはできません．暗号用途には使用できません．
+繰り返し`read()`すると新しい値を返します．書き込みはできません．暗号用途には使用できません．
 `omikuji`はこのデバイスから運勢決定用の値を取得します．
 通常のUNIXの`/dev/random`や`/dev/urandom`とは異なるPicoNIX独自の簡略仕様です．
 
-`ls /dev` obtains its fixed device list from the kernel's `/sys/proc/devices`
-virtual file, using the same device registry as `open()`.
+`ls /dev` は，カーネルが提供する仮想ファイル `/sys/proc/devices` から固定のデバイス一覧を取得します．この一覧には，`open()` と共通のデバイス登録情報が使用されます．
 
-USB console writes may return a partial count when the kernel transmit queue
-is full. User programs should retry the remaining bytes (and yield/sleep if
-zero bytes were accepted).
+USBコンソールへの書き込みでは，カーネルの送信キューがいっぱいになると，要求したバイト数の一部しか書き込まれず，実際に書き込まれたバイト数が返されることがあります．そのため，ユーザプログラムは残りのデータを再度書き込む必要があります．また，書き込み可能なバイト数が0の場合は，yield や sleep を利用して待機してから再試行してください．
+
 
 ### カレントディレクトリと相対パス
 
