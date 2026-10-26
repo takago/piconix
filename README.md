@@ -71,6 +71,10 @@ piconix# cat /dev/gpio/25.dir
 piconix# echo up > /dev/gpio/16.pull
 piconix# cat /sys/proc/uptime
 piconix# cat /sys/proc/memory
+
+(UART1をループバック接続している場合)
+piconix# echo Hello > /dev/uart1
+piconix# cat /dev/uart1
 ```
 
 RP2040搭載の通常のRaspberry Pi PicoではGPIO25がオンボードLEDです．UART1はGP4（TX）／GP5（RX）を使用します．`cat /dev/uart1`は受信が約200 ms途絶えると終了する簡略仕様です．配線には3.3 Vロジックを使用してください．
