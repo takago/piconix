@@ -1,69 +1,106 @@
 # Setup
 
-[日本語](SETUP-JP.md) | [Back to overview](README-EN.md)
+[日本語](SETUP-JP.md) | [Overview](README-EN.md)
 
-## 1. Requirements
+These instructions target Ubuntu/Debian-based Linux. Prepare a Raspberry Pi Pico (RP2040) and a data-capable USB cable.
 
-- Raspberry Pi Pico (RP2040) and a USB data cable
-- Linux, Pico SDK 2.1.1, ARM GCC, CMake, and Python 3
-- A USB connection for UF2 flashing and a serial terminal (such as `picocom`)
-
-Install the SDK and toolchain first. The command below uses example installation paths.
-
-## 2. Build
-
-From the PicoNIX project root:
+## 1. Install build tools
 
 ```sh
-PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
-LC_ALL=C LANG=C \
+sudo apt update
+sudo apt install git cmake ninja-build python3 unzip picocom \
+    gcc-arm-none-eabi libnewlib-arm-none-eabi
+sudo apt install clang lld llvm
+```
+
+ARM GCC builds the RP2040 firmware. Clang, LLD, and LLVM are used mainly for host-side PIC checks of RAM applications.
+
+## 2. Get Pico SDK 2.1.1
+
+```sh
+mkdir -p ~/.pico-sdk/sdk
+cd ~/.pico-sdk/sdk
+
+git clone --branch 2.1.1 \
+    https://github.com/raspberrypi/pico-sdk.git 2.1.1
+
+cd 2.1.1
+git submodule update --init --recursive
+```
+
+If you already have this checkout, update its submodules rather than cloning a second copy.
+
+## 3. Extract PicoNIX
+
+Run the following in the directory where you downloaded the archive. The filename is the one used for this distribution.
+
+```sh
+unzip PicoNIX-stage30-docs-clean.zip
+cd PicoNIX-stage30-docs-clean
+chmod +x ./tools/build_sdk.sh
+```
+
+If you are using Git, change to the root of the PicoNIX repository instead.
+
+## 4. Build with MinSizeRel
+
+To use the ARM GCC toolchain installed by the distribution packages:
+
+```sh
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-The script runs host checks, then configures and builds for `PICO_BOARD=pico` and `PICONIX_KERNEL_RAM=ON`. `MinSizeRel` (normally `-Os`) is the default; passing it explicitly avoids confusion with a previously configured `build/` directory.
-
-Typical artifacts are `build/piconix.uf2` and `build/piconix.elf`. The build script does not automatically remove `build/`.
-
-## 3. Flash the Pico
-
-1. Connect the Pico while holding BOOTSEL.
-2. Copy `build/piconix.uf2` to the `RPI-RP2` drive.
-3. After reboot, open its USB CDC serial port (for example `/dev/ttyACM0` on Linux).
+**If you have separately installed ARM GCC 14.2 at `~/.pico-sdk/toolchain/14_2_Rel1`**, select it explicitly as follows. The directory is *not* created by the SDK Git clone or the `apt install` commands above.
 
 ```sh
+PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+LC_ALL=C LANG=C \
+./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
+```
+
+Always specify `MinSizeRel` (normally `-Os`). The build script also runs host-side audits and PIC checks. If switching toolchains, delete `build/` first to avoid stale CMake configuration.
+
+Typical outputs are `build/piconix.uf2` and `build/piconix.elf`.
+
+## 5. Flash the Pico
+
+1. Hold BOOTSEL while connecting the Pico over USB.
+2. Copy `build/piconix.uf2` onto the `RPI-RP2` drive.
+3. After the Pico restarts, locate its USB CDC device on Linux.
+
+```sh
+ls -l /dev/ttyACM*
 picocom -b 115200 /dev/ttyACM0
 ```
 
-For USB CDC, `115200` is a terminal setting, not the physical UART bitrate. The device name depends on your system.
+`/dev/ttyACM0` is only an example; use the actual device name. On USB CDC, `115200` is a terminal setting, not the physical UART baud rate.
 
-## 4. Smoke test
+## 6. Smoke test
 
 ```text
 piconix# help
 piconix# ps
+piconix# tty
 piconix# cat /proc/uptime
 piconix# blink &
 piconix# ps
-piconix# kill 2
 ```
 
-PIDs are not fixed; use the PID shown by `ps`. Foreground `blink` can be stopped with `Ctrl+C`.
+Use Ctrl+C to interrupt a foreground program. When using `kill`, obtain the PID from `ps` rather than assuming a fixed number.
 
-## 5. Troubleshooting
+## 7. Troubleshooting
 
 | Symptom | Check |
 |---|---|
 | SDK not found | `PICO_SDK_PATH` and SDK submodules |
-| ARM toolchain not found | `PICO_TOOLCHAIN_PATH` and GCC installation |
-| RAM overflow or link failure | Explicit `MinSizeRel` and fixed memory limits |
-| No USB terminal output | Reopen the terminal after Pico re-enumerates |
-| GPIO25 LED not blinking | Confirm you are using a standard Raspberry Pi Pico |
+| ARM GCC not found | `arm-none-eabi-gcc --version` and the `PICO_TOOLCHAIN_PATH` directory |
+| Clang/LLD not found | `clang --version` and `ld.lld --version` |
+| RAM/link failure | `MinSizeRel`, stale build cache, and the 32 KiB application limit |
+| No `/dev/ttyACM0` | `sudo dmesg -w` for USB enumeration, cable and firmware upload |
+| Cannot open serial port | Device name, permissions, and other programs using the port |
+| GPIO25 does not work | Confirm the Raspberry Pi Pico board variant |
 
-To choose a UART0 console, pass `-DPICONIX_CONSOLE_USB=OFF`. USB CDC is recommended by default. See [Internals](INTERNAL-EN.md) for the memory layout.
-
-## Separate UART1 terminal
-
-Start `getty /dev/uart1 sh &` on the USB shell. UART1 uses 115200 baud, 8N1. See [internals](INTERNAL-EN.md).
-
-Verification: `tty` prints `/dev/console` in the USB shell and `/dev/uart1` in a shell started by UART1 `getty`. `ps` reports terminal affiliation in its `TTY` column.
+For a separate UART1 shell, run `getty /dev/uart1 sh &`. See [UART and terminals](UART-EN.md) for serial configuration and Ctrl+C/Ctrl+D behavior, and [Internals](INTERNAL-EN.md) for RAM layout.

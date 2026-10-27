@@ -39,7 +39,7 @@ piconix# python
 
 ## 2つの端末で使う
 
-USBコンソールのShellから`getty /dev/uart1 sh &`を実行すると，UART1に別のShellを起動できます．UART1側で起動したプログラムには同じ端末の標準入出力が継承されます．Python対話環境なら`getty /dev/uart1 python &`です．UART1は115200 bps，8N1で接続し，端末側のローカルエコーを利用してください．同一端末で複数の対話プログラムを競合させないため，占有中は新しい`getty`の起動に失敗します．これらの機能は実機未検証です．
+USBコンソールのShellから`getty /dev/uart1 sh &`を実行すると，UART1に別のShellを起動できます．UART1側で起動したプログラムには同じ端末の標準入出力が継承されます．Python対話環境なら`getty /dev/uart1 python &`です．UART1は115200 bps，8N1で接続し，端末側のローカルエコーを利用してください．同一端末で複数の対話プログラムを競合させないため，占有中は新しい`getty`の起動に失敗します．
 
 ## 設計の特徴と制限
 
@@ -60,9 +60,3 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 ## ライセンス
 
 GPL-3.0-or-later．詳細は`LICENSE`を参照してください．
-
-UART1経由のPython対話起動例：`python < /dev/uart1 > /dev/uart1 &`（実機未検証）．
-
-`tty`で現在の所属端末を確認できます．`ps`および`/proc/tasks`の`TTY`列には各タスクの所属端末（`console`，`uart1`）が表示されます．所属端末がUART1の場合は`/dev/uart1`と表示され，通常のリダイレクトでは所属端末は変わりません．
-
-UART1を`getty`で端末として割り当てた場合，Ctrl+Dは入力の終端（EOF）になります．UART1を通常のバイトストリームとして使う場合，`0x04`はそのまま読み取れます．UART1側の`sh`とPython対話モードはCtrl+Dでは終了しません．それぞれ`logout`／`exit`，`exit()`で終了します．

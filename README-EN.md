@@ -39,7 +39,7 @@ piconix# python
 
 ## Two-terminal operation
 
-Run `getty /dev/uart1 sh &` in the USB shell to start an independent UART1 shell. Its children inherit standard I/O on UART1. Use `getty /dev/uart1 python &` for a Python REPL. Configure UART1 for 115200 baud, 8N1 and local echo. Starting another `getty` on an occupied terminal is rejected. Hardware behavior remains unverified.
+Run `getty /dev/uart1 sh &` in the USB shell to start an independent UART1 shell. Its children inherit standard I/O on UART1. Use `getty /dev/uart1 python &` for a Python REPL. Configure UART1 for 115200 baud, 8N1 and local echo. Starting another `getty` on an occupied terminal is rejected. 
 
 ## Design and limitations
 
@@ -60,9 +60,3 @@ PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, si
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.
-
-Interactive Python over UART1: `python < /dev/uart1 > /dev/uart1 &` (hardware validation pending).
-
-Use `tty` to display the current controlling terminal. The `TTY` column of `ps` and `/proc/tasks` shows each task’s terminal (`console` or `uart1`). Ordinary I/O redirection does not change terminal affiliation.
-
-When UART1 is attached by `getty`, Ctrl+D signals end-of-file (EOF). With no terminal owner, UART1 remains a raw byte stream and delivers `0x04` unchanged. In the UART1 shell and Python REPL, Ctrl+D does not terminate the session. Use `logout` or `exit` for the shell and `exit()` for Python.
