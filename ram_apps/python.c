@@ -2,7 +2,7 @@
 /* Tiny Python-like subset for PicoNIX: file execution and simple REPL. */
 #include <stdint.h>
 #include <stddef.h>
-enum { SYS_EXIT=3, SYS_SLEEP=4, SYS_OPEN=6, SYS_CLOSE=7, SYS_READ=8, SYS_WRITE=9, SYS_GETARG=15 };
+enum { SYS_EXIT=3, SYS_SLEEP=4, SYS_OPEN=6, SYS_CLOSE=7, SYS_READ=8, SYS_WRITE=9, SYS_GETARG=15, SYS_GET_TTY=20 };
 static inline int svc(int n,uintptr_t a,uintptr_t b,uintptr_t c) {
     register uintptr_t r0 __asm("r0")=(uintptr_t)n;
     register uintptr_t r1 __asm("r1")=a,r2 __asm("r2")=b,r3 __asm("r3")=c;
@@ -90,6 +90,22 @@ static int32_t gpio_input(int32_t pin){
     if(n!=1||(c!='0'&&c!='1')){error=1;return 0;}
     return c-'0';
 }
+/* Build a line from byte-stream UART reads as well as console reads. */
+static int read_line(char *buf,unsigned cap){
+    static int skip_lf;
+    unsigned n=0;
+    for(;;){
+        char c;
+        int r=svc(SYS_READ,0,(uintptr_t)&c,1);
+        if(r<=0)return n?(int)n:-1;
+        if(skip_lf){skip_lf=0;if(c=='\n')continue;}
+        if(c=='\r'){skip_lf=1;break;}
+        if(c=='\n')break;
+        if(n+1<cap)buf[n++]=c;
+    }
+    buf[n]=0;
+    return (int)n;
+}
 static int32_t expr(void);
 static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=1;return x;}
     if(eat('-'))return (int32_t)(0u-(uint32_t)atom());
@@ -102,7 +118,7 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         ws();if(*cursor=='"'||*cursor=='\''){char quote=*cursor++;const char *start=cursor;
             while(*cursor&&*cursor!=quote)cursor++;outn(start,(unsigned)(cursor-start));if(!eat(quote))error=1;}
         if(!eat(')'))error=1;
-        char buf[32];int m=svc(SYS_READ,0,(uintptr_t)buf,sizeof(buf));int32_t v=0,sign=1;unsigned i=0;
+        char buf[32];int m=read_line(buf,sizeof(buf));int32_t v=0,sign=1;unsigned i=0;
         if(m<=0){error=1;return 0;}if(buf[0]=='-'){sign=-1;i++;}
         int digits=0;for(;i<(unsigned)m && buf[i]>='0'&&buf[i]<='9';i++){v=(int32_t)((uint32_t)v*10u+(unsigned)(buf[i]-'0'));digits++;}
         if(!digits)error=1;return sign<0?(int32_t)(0u-(uint32_t)v):v;
@@ -232,11 +248,14 @@ static void repl(void){
         for(;;){
             outs(block?"... ":">>> ");
             char line[128];
-            int m=svc(SYS_READ,0,(uintptr_t)line,sizeof(line)-1);
-            if(m<=0){if(!block)return;continue;}
+            int m=read_line(line,sizeof(line));
+            if(m<0){n=0;svc(SYS_SLEEP,10,0,0);break;} /* EOF discards pending input, not the REPL. */
             while(m>0&&(line[m-1]=='\n'||line[m-1]=='\r'))m--;
             line[m]=0;
-            if(!block && same(line,"exit()"))return;
+            if(!block && same(line,"exit()")){
+                if(svc(SYS_GET_TTY,0,0,0)==1)outs("PicoNIX: Session closed.\r\n");
+                return;
+            }
             if(!block && !m)break;
             if(block && !m)break;
             if(n+(unsigned)m+1>=sizeof(source)){

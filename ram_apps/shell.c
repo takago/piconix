@@ -6,8 +6,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-enum { SYS_GETPID=1, SYS_KILL=2, SYS_OPEN=6, SYS_CLOSE=7,
-       SYS_READ=8, SYS_WRITE=9, SYS_SPAWN=12, SYS_SLEEP=4, SYS_WAITPID=13, SYS_SET_FG=14, SYS_CONSOLE_READY=16, SYS_UNLINK=17, SYS_DUP2=18 };
+enum { SYS_GETPID=1, SYS_KILL=2, SYS_EXIT=3, SYS_OPEN=6, SYS_CLOSE=7,
+       SYS_READ=8, SYS_WRITE=9, SYS_SPAWN=12, SYS_SLEEP=4, SYS_WAITPID=13, SYS_SET_FG=14, SYS_CONSOLE_READY=16, SYS_UNLINK=17, SYS_DUP2=18, SYS_TTY_SPAWN=19, SYS_GET_TTY=20 };
 enum { O_CREAT=8, O_TRUNC=16, O_APPEND=32 };
 static inline int svc(int n, uintptr_t a, uintptr_t b, uintptr_t c) {
     register uintptr_t r0 __asm("r0") = (uintptr_t)n;
@@ -70,7 +70,7 @@ static int parse_pid(const char *s) {
     return n>0?n:-1;
 }
 static void ps(void) {
-    int fd=svc(SYS_OPEN,(uintptr_t)"/sys/proc/tasks",0,0);
+    int fd=svc(SYS_OPEN,(uintptr_t)"/proc/tasks",0,0);
     if(fd<0) { put("ps: cannot open tasks\r\n"); return; }
     char b[32]; int n;
     while((n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b))>0)
@@ -81,7 +81,7 @@ static void ps(void) {
 /* Shell-local cwd: the kernel still accepts absolute virtual paths only. */
 static int directory(const char *p) {
     return eq(p,"/") || eq(p,"/dev") || eq(p,"/dev/gpio") ||
-           eq(p,"/sys") || eq(p,"/sys/proc") || eq(p,"/tmp");
+           eq(p,"/proc") || eq(p,"/tmp");
 }
 /* Resolve '.', '..', repeated '/' and relative names without libc. */
 static int resolve(const char *cwd, const char *input, char out[128]) {
@@ -114,11 +114,11 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
     return 0;
 }
 static void ls(const char *path) {
-    if(eq(path,"/")) { put("dev/\r\nsys/\r\ntmp/\r\n"); return; }
+    if(eq(path,"/")) { put("dev/\r\nproc/\r\ntmp/\r\n"); return; }
     if(eq(path,"/dev") || eq(path,"/dev/") ||
        eq(path,"/tmp") || eq(path,"/tmp/")) {
         const char *listing=eq(path,"/dev") || eq(path,"/dev/") ?
-            "/sys/proc/devices" : "/tmp";
+            "/proc/devices" : "/tmp";
         int fd=svc(SYS_OPEN,(uintptr_t)listing,0,0);
         if(fd<0) { put("ls: cannot open directory\r\n"); return; }
         char b[32]; int n;
@@ -133,10 +133,9 @@ static void ls(const char *path) {
             number(i); put(".dir\r\n");
             number(i); put(".pull\r\n");
         }
-    } else if(eq(path,"/sys") || eq(path,"/sys/")) put("proc/\r\n");
-    else if(eq(path,"/sys/proc") || eq(path,"/sys/proc/"))
+    } else if(eq(path,"/proc") || eq(path,"/proc/"))
         put("uptime\r\nticks\r\ninterrupts\r\ncontext_switches\r\nmemory\r\ndevices\r\ntasks\r\n");
-    else put("ls: supported: /dev /dev/gpio /sys /sys/proc /tmp\r\n");
+    else put("ls: supported: /dev /dev/gpio /proc /tmp\r\n");
 }
 /* Whitespace is syntax around redirection paths, not part of names. */
 static char *trim(char *s) {
@@ -199,7 +198,7 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
     /* Background execution is meaningful only for spawned programs. */
     if(requested_bg && !(eq(s,"blink") || prefix(s,"blink ") ||
                          eq(s,"omikuji") || prefix(s,"omikuji ") ||
-                         eq(s,"python") || prefix(s,"python "))) {
+                         eq(s,"python") || prefix(s,"python ") || prefix(s,"getty "))) {
         put("background: requires an external program\r\n");
         return;
     }
@@ -209,11 +208,14 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             "  help             Show this help\r\n"
             "  ps               Show tasks and RAM layout\r\n"
             "  pid              Show current process ID\r\n"
+            "  tty              Show controlling terminal\r\n"
+            "  logout / exit    Close this shell session\r\n"
             "  blink [&]        Run blink (Ctrl+C to interrupt)\r\n"
             "  omikuji          Prompt for countdown seconds (foreground)\r\n"
             "  omikuji N [&]    Countdown 1-30 seconds; & = background\r\n"
             "  omikuji &        Background with default 10 seconds\r\n"
             "  python [file] [&] REPL or run a /tmp script\r\n"
+            "  getty /dev/uart1 sh|python [&]  Attach a terminal\r\n"
             "  &                Return to shell without waiting\r\n"
             "  Ctrl+C           Interrupt foreground task\r\n"
             "  kill PID         Terminate a task\r\n"
@@ -223,7 +225,7 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             "  ls [PATH]        List current or specified directory\r\n"
             "  ls /dev          List devices\r\n"
             "  ls /dev/gpio     List GPIO pins (N, N.dir, N.pull)\r\n"
-            "  ls /sys/proc     List kernel statistics\r\n"
+            "  ls /proc     List kernel statistics\r\n"
             "  cat PATH         Read file or device (UART1: 200ms idle exit)\r\n"
             "  cat > PATH       Enter file contents; Ctrl+D ends input\r\n"
             "  rm PATH          Delete /tmp file\r\n"
@@ -236,14 +238,19 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             "  omikuji N > PATH &  Redirect background output\r\n"
             "\r\nExamples:\r\n"
             "  ps\r\n  blink &\r\n  omikuji\r\n  omikuji 5\r\n  omikuji 5 &\r\n  kill 2\r\n"
-            "  cat /sys/proc/ticks\r\n"
-            "  cat /sys/proc/interrupts\r\n"
+            "  cat /proc/ticks\r\n"
+            "  cat /proc/interrupts\r\n"
             "  echo 1 > /dev/gpio/25\r\n"
             "  echo 0 > /dev/gpio/25\r\n"
             "  echo out > /dev/gpio/25.dir\r\n"
             "  cat /dev/gpio/25.dir\r\n"
             "  echo up > /dev/gpio/16.pull\r\n"
             "  cat /dev/gpio/16.pull\r\n");
+    }
+    else if(eq(s,"logout") || eq(s,"exit")) {
+        put("logout\r\nPicoNIX: Session closed.\r\n");
+        svc(SYS_EXIT,0,0,0);
+        for(;;) svc(SYS_SLEEP,100,0,0);
     }
     else if(eq(s,"pwd")) { put(cwd); put("\r\n"); }
     else if(eq(s,"cd") || prefix(s,"cd ")) {
@@ -256,6 +263,10 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
     }
     else if(eq(s,"ps")) ps();
     else if(eq(s,"pid")) { number(svc(SYS_GETPID,0,0,0)); put("\r\n"); }
+    else if(eq(s,"tty")) {
+        int tty=svc(SYS_GET_TTY,0,0,0);
+        put(tty==0?"/dev/console\r\n":tty==1?"/dev/uart1\r\n":"not a tty\r\n");
+    }
     else if(prefix(s,"kill ")) {
         int pid=parse_pid(s+5);
         if(pid<0 || pid==svc(SYS_GETPID,0,0,0)) put("usage: kill PID (not shell)\r\n");
@@ -288,6 +299,18 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             }
             svc(SYS_SET_FG,0,0,0);
         }
+    } else if(prefix(s,"getty ")) {
+        const char *arg=s+6;
+        int tty=0;
+        if(prefix(arg,"/dev/uart1 ")) {tty=2;arg+=11;}
+        else if(prefix(arg,"/dev/console ")) {tty=1;arg+=13;}
+        if(!tty || !(eq(arg,"sh") || eq(arg,"python"))) {
+            put("usage: getty /dev/uart1 sh|python [&]\r\n");return;
+        }
+        int pid=svc(SYS_TTY_SPAWN,tty,eq(arg,"sh")?2:4,0);
+        if(pid<0) {put("getty: terminal busy or no free slot\r\n");return;}
+        if(requested_bg) {*bg_pid=pid;*bg_name=eq(arg,"sh")?"sh":"python";}
+        else {int status=0;while(svc(SYS_WAITPID,pid,(uintptr_t)&status,0)==0)svc(SYS_SLEEP,10,0,0);}
     } else if(eq(s,"python") || prefix(s,"python ")) {
         char path[128];
         const char *arg=eq(s,"python")?0:s+7;
@@ -297,12 +320,8 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
                !path[5]) { put("python: invalid script path\r\n"); return; }
             if(slen(path)>=32) { put("python: path too long\r\n"); return; }
         }
-        if(requested_bg && !arg) {
-            put("python: background REPL needs a script\r\n");
-            return;
-        }
         int pid=svc(SYS_SPAWN,4,0,(uintptr_t)(arg?path:0));
-        if(pid<0) { put("python: slot 3 busy\r\n"); return; }
+        if(pid<0) { put("python: no free slot\r\n"); return; }
         if(requested_bg) { *bg_pid=pid; *bg_name="python"; }
         else {
             int status=0;
@@ -337,7 +356,7 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
         if(fd<0) { put("cat: cannot open\r\n"); return; }
         // Proc reports can exceed one read. Read until EOF, using small
         // transfers to avoid overflowing the nonblocking USB console FIFO.
-        if(from_stdin || prefix(path,"/sys/proc/") || prefix(path,"/tmp/")) {
+        if(from_stdin || prefix(path,"/proc/") || prefix(path,"/tmp/")) {
             char b[32]; int n;
             while((n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b))>0) {
                 write_all(1,b,(size_t)n);
@@ -378,11 +397,24 @@ void app_entry(void) {
         "Type 'help' for commands.\r\n"
         "--------------------------------------------------------\r\n"
         "piconix# ");
+    char chunk[128];
+    int used=0, offset=0, length=0, previous_cr=0;
     for(;;) {
-        int n=svc(SYS_READ,0,(uintptr_t)line,sizeof line-1);
-        if(n<=0) continue;
-        line[n]=0;
-        while(n>0 && (line[n-1]=='\r'||line[n-1]=='\n')) line[--n]=0;
+        int n=0;
+        while(!n) {
+            if(offset==length) {length=svc(SYS_READ,0,(uintptr_t)chunk,sizeof chunk);offset=0;
+                if(length==0 && svc(SYS_GET_TTY,0,0,0)==1) {
+                    /* Ctrl+D ends this input, not the shell session. */
+                    used=0; previous_cr=0; put("\r\npiconix# ");
+                    continue;
+                }
+                if(length<=0) {svc(SYS_SLEEP,1,0,0);continue;}}
+            char c=chunk[offset++];
+            if(c=='\n' && previous_cr) {previous_cr=0;continue;}
+            previous_cr=(c=='\r');
+            if(c=='\r' || c=='\n') {line[used]=0;n=1;used=0;break;}
+            if(used<sizeof line-1) line[used++]=c;
+        }
         /* Reap completed background children (no status display yet). */
         int bg_status;
         while(svc(SYS_WAITPID,(uintptr_t)-1,(uintptr_t)&bg_status,0)>0) {}

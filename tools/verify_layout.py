@@ -9,7 +9,7 @@ import sys
 
 MAIN_START = 0x20000000
 MAIN_END = 0x20040000
-SLOT_SIZE = 0x10000
+SLOT_SIZE = 0x8000
 
 
 def symbols(elf, nm):
@@ -37,12 +37,12 @@ def main():
     start = sym.get('task_ram')
     if start is None:
         sys.exit('ERROR: task_ram symbol not found; cannot verify layout')
-    end = start + 3 * SLOT_SIZE
-    print(f'task_ram: 0x{start:08x}..0x{end-1:08x} (3 x 64 KiB)')
+    end = start + 6 * SLOT_SIZE
+    print(f'task_ram: 0x{start:08x}..0x{end-1:08x} (6 x 32 KiB)')
     if start != 0x20010000:
-        sys.exit('ERROR: fixed image requires task_ram at 0x20010000 (Blink slot 1 at 0x20020000); SDK default linker may not satisfy this')
+        sys.exit('ERROR: fixed image requires task_ram at 0x20010000 ; SDK default linker may not satisfy this')
     if start % SLOT_SIZE:
-        sys.exit('ERROR: task_ram is not 64-KiB aligned')
+        sys.exit('ERROR: task_ram is not 32-KiB aligned')
     if start < MAIN_START or end > MAIN_END:
         sys.exit('ERROR: task slots do not fit into 256-KiB main SRAM')
     for key in ('tasks', 'idle_stack'):

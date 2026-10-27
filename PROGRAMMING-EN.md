@@ -2,7 +2,7 @@
 
 [日本語](PROGRAMMING-JP.md) | [Back to overview](README-EN.md)
 
-PicoNIX applications are not ordinary Linux executables. They are **small standalone programs linked to fixed RAM addresses**. Start by modifying Blink to understand the workflow.
+PicoNIX applications are not ordinary Linux executables. They are **small standalone programs built as position-independent code (PIC)**. Start by modifying Blink to understand the workflow.
 
 ## 1. First exercise: Blink
 
@@ -13,8 +13,8 @@ Change the millisecond values passed to `SYS_SLEEP` in `ram_apps/blink.c`. For e
 | Item | Requirement |
 |---|---|
 | Entry point | `app_entry` |
-| RAM addresses | Shell `0x20010000`, Blink `0x20020000`, others `0x20030000` |
-| Size | 64 KiB each (last 4 KiB reserved for stack) |
+| RAM addresses | Six dynamically allocated slots from `0x20010000`, spaced 32 KiB apart |
+| Size | 32 KiB each (last 4 KiB reserved for stack) |
 | Kernel interface | SVC (`r0` number, `r1`–`r3` arguments, return in `r0`) |
 | Avoid | Direct kernel linking and ordinary libc/SDK dependencies |
 
@@ -23,12 +23,12 @@ See `ram_apps/blink.c` for a working minimal example. Keep the SVC convention an
 ## 3. Adding a command
 
 1. Create a C source under `ram_apps/` using the existing application pattern.
-2. Add its fixed-address image build and embedding in `CMakeLists.txt`.
+2. Add its PIC image build and embedding in `CMakeLists.txt`.
 3. Register the program in `src/main.c`.
 4. Add command dispatch in `ram_apps/shell.c`.
-5. Prevent simultaneous use of the same physical RAM slot.
+5. Up to six application tasks can run; a spawn fails when no slot is free.
 
-The fixed-slot design does not support loading executable files from `/tmp`.
+The flash-embedded image design does not support loading executable files from `/tmp`.
 
 ## 4. Files and standard I/O
 

@@ -2,7 +2,7 @@
 
 [English](PYTHON-EN.md) | [概要へ戻る](README-JP.md)
 
-`ram_apps/python.c`はPicoNIX独自の**小型Python風言語**です．CPythonやMicroPythonではありません．OmikujiとRAMスロット3を共有し，両者は同時実行できません．
+`ram_apps/python.c`はPicoNIX独自の**小型Python風言語**です．CPythonやMicroPythonではありません．アプリケーションは起動時に空きRAMスロットへ配置されます．
 
 ## 1．対話モード
 
@@ -61,11 +61,18 @@ while i < 5:
 
 `gpio_mode(pin, 0)`が入力，`gpio_mode(pin, 1)`が出力です．`gpio_pull(pin, 0/1/2)`はそれぞれ無効／プルアップ／プルダウンです．UART用のGPIO 0，1，4，5は操作できません．ボードや接続回路の電気的制約にも注意してください．
 
-## 5．バックグラウンド実行
+## 5．バックグラウンド実行とUART1からの対話操作
 
 ```text
 piconix# python /tmp/led.py &
 piconix# python /tmp/led.py > /tmp/output.txt &
+piconix# python < /dev/uart1 > /dev/uart1 &
 ```
 
-`python &`は使えません．対話モードがShellとコンソール入力を取り合うためです．背景スクリプトからのコンソール入力にも制約があります．
+最後の例では，USB接続のShellを操作したまま，UART1に接続した端末からPythonのREPLを使用できます．UART1はバイトストリームですが，Pythonが改行まで入力を蓄積します．UART端末ではローカルエコーを有効にすると入力文字を確認できます．改行はCR，LF，CRLFを処理します．
+
+**注意：** `python &`のように入力をリダイレクトせずUSBコンソールを共有する使い方は避けてください．USBコンソールの入力所有権はフォアグラウンドタスクに制限されています．UART側ではCtrl+Cによるシグナル処理はありません．終了には`exit()`を使用してください．実機でのUART対話操作は未検証です．
+
+## UART1での対話実行
+
+`getty /dev/uart1 python &`でUART1にPythonを直接接続できます．標準入出力がUART1となり，Ctrl+Cはこの端末の前景タスクに作用します．対話モードではCtrl+Dを押しても終了せず，次の入力待ちに戻ります．`exit()`で終了すると，UART1側には`PicoNIX: Session closed.`が表示されます．スクリプト実行時のEOF処理は変更しません．

@@ -1,7 +1,9 @@
 # PicoNIX
-PicoNIX is a compact UNIX-like educational operating system for the Raspberry Pi Pico (RP2040)
 
-- [日本語の説明（README-JP.md）](README-JP.md)
-- [English documentation (README-EN.md)](README-EN.md)
+Choose a language / 言語を選択してください．
 
-See the corresponding `SETUP`, `INTERNAL`, `PROGRAMMING`, and `PYTHON` guides in your preferred language (`-JP.md` or `-EN.md`).
+- [日本語 — PicoNIXの概要](README-JP.md)
+- [English — PicoNIX overview](README-EN.md)
+
+- [UART1・端末操作（日本語）](UART-JP.md)
+- [UART1 and terminals (English)](UART-EN.md)

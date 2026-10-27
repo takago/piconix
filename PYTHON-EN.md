@@ -2,7 +2,7 @@
 
 [日本語](PYTHON-JP.md) | [Back to overview](README-EN.md)
 
-`ram_apps/python.c` implements a **small PicoNIX-specific Python-like language**. It is neither CPython nor MicroPython. It shares RAM slot 3 with Omikuji, so they cannot run together.
+`ram_apps/python.c` implements a **small PicoNIX-specific Python-like language**. It is neither CPython nor MicroPython. Applications are loaded into available RAM slots at startup.
 
 ## 1. Interactive mode
 
@@ -63,11 +63,18 @@ while i < 5:
 
 `gpio_mode(pin, 0)` selects input and `gpio_mode(pin, 1)` output. `gpio_pull(pin, 0/1/2)` selects none/pull-up/pull-down. GPIO 0, 1, 4, and 5 are reserved for UART connections. Observe electrical limits for the board and attached circuits.
 
-## 5. Background mode
+## 5. Background mode and interactive UART1 session
 
 ```text
 piconix# python /tmp/led.py &
 piconix# python /tmp/led.py > /tmp/output.txt &
+piconix# python < /dev/uart1 > /dev/uart1 &
 ```
 
-`python &` is unsupported because an interactive interpreter would compete with Shell for console input. Background scripts also have restrictions on console reads.
+The last example keeps the USB Shell available while providing a Python REPL to a terminal connected to UART1. UART1 is a byte stream; Python collects input until a line ending. Enable local echo in the UART terminal to see typed characters. CR, LF, and CRLF line endings are accepted.
+
+**Note:** Avoid `python &` without redirecting standard input, as that would share the USB console with Shell. The console restricts input to its foreground owner. UART input does not provide Ctrl+C signal handling; use `exit()` to quit. Interactive UART operation has not yet been verified on hardware.
+
+## Interactive use over UART1
+
+`getty /dev/uart1 python &` attaches the Python REPL to UART1; Ctrl+C on that terminal targets its foreground task. In interactive mode, Ctrl+D does not exit the REPL: it returns to the next prompt. Enter `exit()` to quit; the UART1 session prints `PicoNIX: Session closed.`. Script-file EOF handling is unchanged.

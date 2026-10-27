@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Bank 3 fixed-slot omikuji: 10-second countdown, result, then exit. */
+/* Omikuji: countdown, random fortune, then exit. */
 #include <stdint.h>
 #include <stddef.h>
 enum { SYS_EXIT=3, SYS_SLEEP=4, SYS_OPEN=6, SYS_CLOSE=7,
@@ -42,7 +42,8 @@ static unsigned mod6(uint32_t value) {
 }
 __attribute__((used,noreturn,section(".text.app_entry")))
 void app_entry(void) {
-    static const char *const fortunes[] = {
+    /* Fixed-width strings avoid absolute address entries in a pointer table. */
+    static const char fortunes[][9] = {
         "DAIKICHI", "CHUKICHI", "SHOKICHI", "KICHI", "SUEKICHI", "KYO"
     };
     int seconds=svc3(SYS_GETARG,0,0,0);

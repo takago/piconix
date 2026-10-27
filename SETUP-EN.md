@@ -42,7 +42,7 @@ For USB CDC, `115200` is a terminal setting, not the physical UART bitrate. The 
 ```text
 piconix# help
 piconix# ps
-piconix# cat /sys/proc/uptime
+piconix# cat /proc/uptime
 piconix# blink &
 piconix# ps
 piconix# kill 2
@@ -61,3 +61,9 @@ PIDs are not fixed; use the PID shown by `ps`. Foreground `blink` can be stopped
 | GPIO25 LED not blinking | Confirm you are using a standard Raspberry Pi Pico |
 
 To choose a UART0 console, pass `-DPICONIX_CONSOLE_USB=OFF`. USB CDC is recommended by default. See [Internals](INTERNAL-EN.md) for the memory layout.
+
+## Separate UART1 terminal
+
+Start `getty /dev/uart1 sh &` on the USB shell. UART1 uses 115200 baud, 8N1. See [internals](INTERNAL-EN.md).
+
+Verification: `tty` prints `/dev/console` in the USB shell and `/dev/uart1` in a shell started by UART1 `getty`. `ps` reports terminal affiliation in its `TTY` column.

@@ -8,9 +8,9 @@ PicoNIXは，**Raspberry Pi Pico（RP2040）向けの小型UNIX風OS**です．L
 
 - SysTick／PendSVによるプリエンプティブなタスク切り替え
 - SVCによるカーネルとRAMアプリケーションの呼び出し境界
-- `ps`，`kill`，`blink`，`omikuji`，`python`などのコマンド
+- `ps`，`kill`，`sh`，`getty`，`blink`，`omikuji`，`python`などのコマンド
 - `&`による簡易バックグラウンド実行，`Ctrl+C`による前景タスクの中断
-- `/dev`と`/sys/proc`の仮想ファイル，`/tmp`の揮発性ファイル
+- `/dev`と`/proc`の仮想ファイル，`/tmp`の揮発性ファイル
 - 標準入出力の簡易リダイレクト（`<`，`>`，`>>`）
 - 整数演算やGPIOを扱える小型のPython風インタプリタ
 
@@ -31,15 +31,19 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 piconix# help
 piconix# ps
 piconix# blink &
-piconix# cat /sys/proc/uptime
+piconix# cat /proc/uptime
 piconix# echo hello > /tmp/hello.txt
 piconix# cat /tmp/hello.txt
 piconix# python
 ```
 
+## 2つの端末で使う
+
+USBコンソールのShellから`getty /dev/uart1 sh &`を実行すると，UART1に別のShellを起動できます．UART1側で起動したプログラムには同じ端末の標準入出力が継承されます．Python対話環境なら`getty /dev/uart1 python &`です．UART1は115200 bps，8N1で接続し，端末側のローカルエコーを利用してください．同一端末で複数の対話プログラムを競合させないため，占有中は新しい`getty`の起動に失敗します．これらの機能は実機未検証です．
+
 ## 設計の特徴と制限
 
-RP2040のRAMを64 KiB単位で利用します．カーネル領域のほか，Shell，Blink，Omikuji／Python用の固定スロットがあります．アプリケーションはあらかじめFlashに埋め込まれ，起動時に所定のRAM領域で動作します．**OmikujiとPythonは同じスロットを使うため同時実行できません．**
+RP2040のRAMのうち，カーネルに64 KiB，アプリケーション用に32 KiBスロット6個を割り当てます．アプリケーションはPICとしてFlashに埋め込まれ，起動時に空きスロットで動作します．同時実行は最大6タスクです．
 
 PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送，シグナルハンドラ，パイプ，プロセスごとのメモリ保護，ELF実行ファイルの動的読み込みは実装していません．`Ctrl+C`と`kill`は，UNIXのシグナル送信ではなく，カーネルによるタスクの直接終了です．`/tmp`の内容は再起動すると消えます．
 
@@ -50,8 +54,15 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 | 必要な環境を準備し，書き込む | [セットアップ](SETUP-JP.md) |
 | RAM配置，タスク，システムコールを理解する | [内部構造](INTERNAL-JP.md) |
 | CでRAMアプリケーションを作る | [アプリ開発](PROGRAMMING-JP.md) |
+| UART1，`getty`，Ctrl+C／Ctrl+Dを理解する | [UARTと端末操作](UART-JP.md) |
 | `python`コマンドを使う | [Python風インタプリタ](PYTHON-JP.md) |
 
 ## ライセンス
 
 GPL-3.0-or-later．詳細は`LICENSE`を参照してください．
+
+UART1経由のPython対話起動例：`python < /dev/uart1 > /dev/uart1 &`（実機未検証）．
+
+`tty`で現在の所属端末を確認できます．`ps`および`/proc/tasks`の`TTY`列には各タスクの所属端末（`console`，`uart1`）が表示されます．所属端末がUART1の場合は`/dev/uart1`と表示され，通常のリダイレクトでは所属端末は変わりません．
+
+UART1を`getty`で端末として割り当てた場合，Ctrl+Dは入力の終端（EOF）になります．UART1を通常のバイトストリームとして使う場合，`0x04`はそのまま読み取れます．UART1側の`sh`とPython対話モードはCtrl+Dでは終了しません．それぞれ`logout`／`exit`，`exit()`で終了します．

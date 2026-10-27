@@ -9,17 +9,20 @@ This guide explains **what runs where and which component is responsible**. See 
 | Start address | Region | Notes |
 |---|---|---|
 | `0x20000000` | Kernel | 64 KiB including SDK support |
-| `0x20010000` | Slot 1 | Shell, 64 KiB |
-| `0x20020000` | Slot 2 | Blink, 64 KiB |
-| `0x20030000` | Slot 3 | Omikuji or Python, 64 KiB |
+| `0x20010000` | Slot 1 | 32 KiB |
+| `0x20018000` | Slot 2 | 32 KiB |
+| `0x20020000` | Slot 3 | 32 KiB |
+| `0x20028000` | Slot 4 | 32 KiB |
+| `0x20030000` | Slot 5 | 32 KiB |
+| `0x20038000` | Slot 6 | 32 KiB |
 
-The last 4 KiB in each application slot is reserved for a stack. Applications are linked to fixed addresses by `ram_apps/slot.ld`, embedded into flash, and copied into RAM. There is no ELF loader, dynamic linking, or address-space isolation.
+The last 4 KiB in each application slot is reserved for a stack. Applications are compiled as position-independent code (PIC); one image per program is embedded in flash and copied into a free RAM slot when started. There is no ELF loader, dynamic linking, or address-space isolation.
 
 ## 2. Boot and task switching
 
 `src/main.c` initializes the kernel, registers applications, and starts Shell. `src/kernel.c` manages task state and scheduling. SysTick and PendSV provide preemptive switching, with exception handling in `src/context.S`.
 
-Task states include `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn` starts an application in an assigned slot, and `waitpid` waits for or collects its exit status. Omikuji and Python share a physical slot and cannot run concurrently.
+Task states include `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn` chooses a free slot, and `waitpid` waits for or collects exit status. With all six slots occupied, no further application can start.
 
 ## 3. Kernel and Shell responsibilities
 
@@ -53,8 +56,8 @@ For foreground `blink`, Shell registers its PID with the kernel through `SYS_SET
 | `/dev/uart1` | UART1 I/O |
 | `/dev/rand` | Pseudorandom input |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | GPIO value, direction, and pull configuration |
-| `/sys/proc/tasks` | Task listing (used by `ps`) |
-| `/sys/proc/uptime` and related paths | Uptime, interrupts, and other counters |
+| `/proc/tasks` | Task listing (used by `ps`) |
+| `/proc/uptime` and related paths | Uptime, interrupts, and other counters |
 | `/tmp/name` | Simple volatile RAM files |
 
 Descriptors belong to individual tasks. `dup2` copies descriptor state; **it does not implement POSIX shared file offsets**. Shell implements `<`, `>`, and `>>`. Redirection to devices does not use regular-file create/truncate flags. Pipes, shell quoting, and `2>` are not available.
@@ -65,7 +68,25 @@ Descriptors belong to individual tasks. `dup2` copies descriptor state; **it doe
 - `src/context.S`: exceptions and context switching
 - `src/main.c`: boot and registration
 - `ram_apps/shell.c`: parsing and redirection
-- `ram_apps/slot.ld`: fixed RAM layout
-- `CMakeLists.txt`: embedded application images and 64 KiB constraints
+- `ram_apps/slot.ld`: PIC image test link layout
+- `CMakeLists.txt`: embedded application images and 32 KiB constraints
 
 Next: [Application programming](PROGRAMMING-EN.md).
+
+### PIC implementation
+
+All applications are compiled with `-fPIC -Os`. The build links the same object at both `0x20010000` and `0x20018000` and checks that the resulting raw binaries are identical. Unresolved symbols, GOT sections, or dynamic relocations cause a build failure. On spawn, the single image stored in flash is copied to a free slot. This check is essential; arbitrary C code is not automatically relocatable.
+
+**Note**: A full ARM GCC/Pico SDK build and RP2040 hardware run are still required. A self-launching Shell command and a second UART-connected Shell are not implemented merely by enabling PIC.
+
+## Simplified terminal assignment (`getty`)
+
+`getty /dev/uart1 sh &` launches a second shell attached to UART1. The kernel keeps shell-owner and foreground PIDs for USB and UART1 independently. `getty` assigns standard descriptors 0, 1 and 2 and the terminal affiliation at startup. Descendants inherit both, while ordinary input/output redirection does not change affiliation. Ctrl+C on each terminal terminates only its foreground task. No POSIX signals, sessions, process groups, login authentication or TTY mode switching are implemented. Hardware validation is still required.
+
+### Terminal reporting and input ownership
+
+`tty` retrieves the caller’s terminal via `SYS_GET_TTY`. The `TTY` column in `/proc/tasks` (and `ps`) reports each task’s terminal. While a terminal is owned by an interactive task, reads from other tasks are rejected; UART byte-stream reads remain available when it is unowned. Ctrl+C on UART1 discards pending received bytes and terminates the foreground task. This is not POSIX signal or process-group support.
+
+On UART1, Ctrl+D (`0x04`) becomes EOF (a zero-length `read()`) only while a terminal owner exists. Without an owner, raw `0x04` is preserved. Bytes before Ctrl+D are returned first, followed by EOF on the next read.
+
+The UART1 shell stays active on Ctrl+D (EOF); use `logout` or `exit` to terminate it and print a session-close message.

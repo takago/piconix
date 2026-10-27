@@ -12,7 +12,7 @@ p.add_argument('binary')
 p.add_argument('origin',type=lambda s:int(s,0))
 p.add_argument('--readelf',default='readelf')
 a=p.parse_args()
-end=a.origin+65536
+end=a.origin+32768
 out=subprocess.check_output([a.readelf,'-lW',a.elf],text=True)
 segments=[]
 for line in out.splitlines():
@@ -32,5 +32,5 @@ sym=subprocess.check_output([a.readelf,'-sW',a.elf],text=True)
 entries=re.findall(r'^\s*\d+:\s*([0-9a-fA-F]+)\s+\d+\s+FUNC\s+GLOBAL\s+DEFAULT\s+\d+\s+app_entry\s*$',sym,re.M)
 assert len(entries)==1,'Missing or duplicate app_entry symbol'
 entry=int(entries[0],16)&~1
-assert a.origin<=entry<end-4096,'app_entry outside task code area'
+assert entry==a.origin,'app_entry must be at image start for PIC loading'
 print(f'OK: slot=0x{a.origin:08x}, file={size} bytes, stack reserved=4096 bytes')

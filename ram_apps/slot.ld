@@ -2,7 +2,7 @@
 ENTRY(app_entry)
 SLOT_ORIGIN = @APP_ORIGIN@;
 /* Entrypoint is validated from the ELF by check_slot_image.py. */
-SLOT_SIZE = 0x10000;
+SLOT_SIZE = 0x8000;
 STACK_BYTES = 0x1000;
 MEMORY { TASK (rwx) : ORIGIN = SLOT_ORIGIN, LENGTH = SLOT_SIZE }
 SECTIONS {

@@ -18,11 +18,11 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2 };
-typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint16_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; } task_t;
-// Fixed physical SRAM slots, not a 192-KiB .bss reservation.
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY };
+typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint16_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; uint8_t tty; } task_t;
+// Six fixed 32-KiB SRAM slots, not a .bss reservation.
 // The linker must restrict the kernel to SRAM bank 0 (0x20000000..0x2000ffff).
-_Static_assert(OS_MAX_TASKS == 3 && OS_TASK_BYTES == 65536u,
+_Static_assert(OS_MAX_TASKS == 6 && OS_TASK_BYTES == 32768u,
                "fixed RP2040 SRAM slot geometry changed");
 __asm__(".global task_ram\n.set task_ram, 0x20010000");
 extern uint8_t task_ram[OS_MAX_TASKS][OS_TASK_BYTES];
@@ -45,9 +45,9 @@ static uint32_t rand32(void) {
 static volatile uint32_t svc_count, pendsv_count, context_switch_count;
 static int started;
 static int next_pid=1;
-static volatile int foreground_pid;
-/* The shell owns the console whenever no foreground child is selected. */
-static int tty_owner_pid(void) { return foreground_pid ? foreground_pid : tasks[0].pid; }
+static volatile int foreground_pid[2];
+static int tty_shell_pid[2];
+static int tty_owner_pid(int tty) { return foreground_pid[tty] ? foreground_pid[tty] : tty_shell_pid[tty]; }
 /* Retain exit status independently of the reusable RAM slot. */
 static struct { int pid, parent_pid, status, valid; } exited[OS_MAX_TASKS];
 static void finish_task(int slot, int status) {
@@ -58,12 +58,17 @@ static void finish_task(int slot, int status) {
         exited[i].status=status; exited[i].valid=1; break;
     }
     t->state=DEAD;
-    if(foreground_pid==t->pid) foreground_pid=0;
+    if(foreground_pid[t->tty]==t->pid) foreground_pid[t->tty]=0;
+    if(tty_shell_pid[t->tty]==t->pid) tty_shell_pid[t->tty]=0;
 }
 
-static const uint8_t program_slot[5] = {0, 1, 0, 2, 2}; /* slot 3 shared by omikuji/python */
-static int program_for_slot[OS_MAX_TASKS];
-static struct { os_entry_t entry; const char *name; int slot; } programs[5];
+/* Program images are position independent; RAM slots are assigned at spawn. */
+static struct { os_entry_t entry; const char *name; } programs[5];
+static int free_program_slot(void) {
+    for (int i=0;i<OS_MAX_TASKS;i++)
+        if (tasks[i].state==UNUSED || tasks[i].state==DEAD) return i;
+    return -1;
+}
 // Optional prelinked RAM image. A nonzero image size means the caller must
 // provide the exact slot-linked binary and entry address.
 static struct { const uint8_t *image; size_t size; size_t zero_start; size_t zero_size; } images[5];
@@ -87,7 +92,7 @@ static struct { uint8_t buf[RX_CAP]; volatile uint16_t head, tail; } rx[2];
 static char tty_line[128];
 static unsigned tty_len;
 static struct { char text[128]; uint8_t len; } tty_lines[TTY_LINES];
-static unsigned tty_head, tty_tail, tty_used;
+static unsigned tty_head, tty_tail, tty_used, tty_offset;
 static void tty_enqueue(void) {
     if (tty_used == TTY_LINES) return;
     memcpy(tty_lines[tty_head].text, tty_line, tty_len);
@@ -98,11 +103,15 @@ static void tty_enqueue(void) {
 }
 static int tty_dequeue(void *p, size_t n) {
     if (!tty_used) return -1;
-    unsigned count = tty_lines[tty_tail].len;
+    unsigned count = tty_lines[tty_tail].len - tty_offset;
     if (count > n) count = (unsigned)n;
-    if (count) memcpy(p, tty_lines[tty_tail].text, count);
-    tty_tail = (tty_tail + 1u) % TTY_LINES;
-    tty_used--;
+    if (count) memcpy(p, tty_lines[tty_tail].text + tty_offset, count);
+    tty_offset += count;
+    if (tty_offset == tty_lines[tty_tail].len) {
+        tty_tail = (tty_tail + 1u) % TTY_LINES;
+        tty_used--;
+        tty_offset = 0;
+    }
     return (int)count;
 }
 #if !PICONIX_CONSOLE_USB
@@ -116,6 +125,21 @@ static int uart_pop(int dev, uint8_t *ch) {
     *ch=rx[dev].buf[rx[dev].tail];
     rx[dev].tail=(rx[dev].tail+1)%RX_CAP;
     return 1;
+}
+/* UART1 remains a raw byte stream unless getty owns it. In terminal
+ * mode, consume Ctrl+D as a zero-length read, retaining preceding bytes. */
+static int uart1_read(uint8_t *buf, size_t size) {
+    int count=0;
+    while((size_t)count<size && rx[1].tail!=rx[1].head) {
+        uint8_t ch=rx[1].buf[rx[1].tail];
+        if(ch==4 && tty_owner_pid(1)) {
+            if(count) break; /* Deliver earlier data before EOF. */
+            rx[1].tail=(rx[1].tail+1u)%RX_CAP;
+            return 0;
+        }
+        uart_pop(1,&buf[count++]);
+    }
+    return count;
 }
 static void uart_push(int dev, uint8_t ch) {
     unsigned next=(rx[dev].head+1)%RX_CAP;
@@ -162,9 +186,9 @@ static void tty_put(uint8_t c) {
 }
 static void console_input_char(uint8_t c) {
     if(c==3) {
-        tty_len=0; tty_head=tty_tail=tty_used=0; 
-        if(foreground_pid) {
-            for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==foreground_pid) {
+        tty_len=0; tty_head=tty_tail=tty_used=tty_offset=0; 
+        if(foreground_pid[0]) {
+            for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==foreground_pid[0]) {
                 finish_task(i,130); break;
             }
         }
@@ -200,12 +224,13 @@ static void wake_readers(int dev) {
         if(t->state!=BLOCKED || t->wait_dev!=dev || !t->wait_frame_ready) continue;
         int n=0;
         if(dev==0) {
-            if(!tty_used || t->pid!=tty_owner_pid()) continue;
+            if(!tty_used || t->pid!=tty_owner_pid(0)) continue;
             n=tty_dequeue(t->wait_buf, t->wait_size);
         } else {
+            if(tty_owner_pid(1) && t->pid!=tty_owner_pid(1)) continue;
             uint8_t *b=t->wait_buf;
-            while((size_t)n<t->wait_size && uart_pop(1,&b[n])) n++;
-            if(!n) continue;
+            if(rx[1].head==rx[1].tail) continue;
+            n=uart1_read(b,t->wait_size); /* A zero-length read can be EOF. */
         }
         // Never touch the saved r0 until PendSV has saved the PSP frame.
         t->sp[8]=(uint32_t)n;
@@ -222,7 +247,15 @@ static void uart0_irq_handler(void) {
 }
 #endif
 static void uart1_irq_handler(void) {
-    while(uart_is_readable(uart1)) uart_push(1,uart_getc(uart1));
+    while(uart_is_readable(uart1)) {
+        uint8_t c=uart_getc(uart1);
+        if(c==3 && tty_owner_pid(1)) {
+            rx[1].tail=rx[1].head; /* Discard pending UART input on interrupt. */
+            int pid=foreground_pid[1];
+            for(int i=0;i<OS_MAX_TASKS;i++) if(pid && tasks[i].pid==pid) {finish_task(i,130);break;}
+            /* Do not block on UART TX inside an interrupt handler. */
+        } else uart_push(1,c);
+    }
     wake_readers(1);
 }
 
@@ -231,7 +264,7 @@ static void task_return(void) { os_exit(); }
 
 void os_init(void) {
     memset(tasks, 0, sizeof(tasks));
-    current=-1; ticks=0; svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid=0; memset(exited,0,sizeof exited); tty_len=0; tty_head=tty_tail=tty_used=0; 
+    current=-1; ticks=0; svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); tty_len=0; tty_head=tty_tail=tty_used=tty_offset=0; 
     memset(rx, 0, sizeof(rx));
 #if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
@@ -262,23 +295,17 @@ void os_init(void) {
     // SHPR3: PendSV priority bits 23:22; SysTick bits 31:30.
     *(volatile uint32_t *)0xE000ED20u = 0xC0C00000u;
 }
-// A fixed slot belongs to one program.  Never migrate a program to another
-// slot: this is the foundation for future slot-local .data/.bss/.text linking.
+// One PIC program image may run in any free RAM slot.
 static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char *name) {
     if (!entry || slot<0 || slot>=OS_MAX_TASKS) return OS_EINVAL;
     uint32_t irq_state = save_and_disable_interrupts();
     task_t *t=&tasks[slot];
     if (t->state!=UNUSED && t->state!=DEAD) { restore_interrupts(irq_state); return OS_EAGAIN; }
-    // Reset the fixed slot on every spawn before restoring the flash image.
+    // Reset the selected slot before copying a position-independent image.
     memset(task_ram[slot], 0, OS_TASK_BYTES);
     if (program_id && images[program_id].image) {
-        // Slot-linked image: the entry must be inside the loaded code image.
-        uintptr_t pc=(uintptr_t)entry & ~(uintptr_t)1u;
-        uintptr_t base=(uintptr_t)task_ram[slot];
-        if (pc < base || pc >= base + images[program_id].size) {
-            restore_interrupts(irq_state); return OS_EINVAL;
-        }
-        // The image must already be linked to this exact RAM slot.
+        // app_entry is fixed at offset zero by slot.ld and checked at build time.
+        entry=(os_entry_t)((uintptr_t)task_ram[slot] | 1u);
         memcpy(task_ram[slot], images[program_id].image, images[program_id].size);
         memset(task_ram[slot] + images[program_id].zero_start, 0,
                images[program_id].zero_size);
@@ -291,7 +318,7 @@ static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char 
     for(int k=0;k<8;k++) *(--s)=0; // r4-r11 saved by PendSV
     t->sp=s; t->entry=entry; t->name=name?name:"task";
     t->pid=next_pid++; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0;
-    t->wait_buf=NULL; t->wait_size=0;
+    t->wait_buf=NULL; t->wait_size=0; t->tty=(started && current>=0)?tasks[current].tty:0;
     for(int j=0;j<8;j++) { t->fd[j]=-1; t->fd_pos[j]=0; t->fd_flags[j]=0; }
     t->fd[0]=0; t->fd[1]=0; t->fd[2]=0;
     /* A spawned process inherits the parent's standard streams. */
@@ -303,6 +330,7 @@ static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char 
         }
     }
     t->state=READY;
+    if(program_id==2 && !tty_shell_pid[t->tty]) tty_shell_pid[t->tty]=t->pid;
     int pid=t->pid;
     restore_interrupts(irq_state);
     return pid;
@@ -321,21 +349,19 @@ void os_init_idle(os_entry_t entry) {
 }
 int os_spawn_named(os_entry_t entry, const char *name) {
     if (started) return OS_EINVAL;
-    // Three application slots; the idle task has a separate kernel-owned stack.
+    // Six application slots; the idle task has a separate kernel-owned stack.
     for(int i=0;i<OS_MAX_TASKS;i++)
-        if(tasks[i].state==UNUSED && !program_for_slot[i]) return spawn_in_slot(i,0,entry,name);
+        if(tasks[i].state==UNUSED) return spawn_in_slot(i,0,entry,name);
     return OS_EAGAIN;
 }
 void os_register_program(int id,os_entry_t entry,const char *name) {
     if(started || id<1 || id>=5) return;
-    int slot=program_slot[id];
-    /* Multiple images may share one physical slot; only one runs at a time. */
-    programs[id].entry=entry;programs[id].name=name;programs[id].slot=slot;
-    program_for_slot[slot] = id;
+    programs[id].entry=entry; programs[id].name=name;
 }
 int os_start_program(int id) {
     if (started || id<1 || id>=5 || !programs[id].entry) return OS_EINVAL;
-    return spawn_in_slot(programs[id].slot, id, programs[id].entry, programs[id].name);
+    int slot=free_program_slot();
+    return slot<0 ? OS_EAGAIN : spawn_in_slot(slot,id,programs[id].entry,programs[id].name);
 }
 int os_spawn(os_entry_t entry) { return os_spawn_named(entry, "task"); }
 void isr_systick(void) {
@@ -529,7 +555,7 @@ static int tmp_list_read(int fd,void *p,size_t n) {
     tasks[current].fd_pos[fd]=(uint16_t)pos;
     return (int)done;
 }
-/* Fixed device registry shared by open() and /sys/proc/devices listing. */
+/* Fixed device registry shared by open() and /proc/devices listing. */
 static const struct { const char *path; int id; } dev_registry[] = {
     {"/dev/console",DEV_CONSOLE}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}
 };
@@ -549,13 +575,13 @@ static int device_open(const char *p, int flags) {
     int dev=-1;
     for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
         if(path_match(p,dev_registry[i].path)) { dev=dev_registry[i].id; break; }
-    if(dev<0 && path_match(p,"/sys/proc/uptime")) dev=DEV_PROC_UPTIME;
-    else if(dev<0 && path_match(p,"/sys/proc/ticks")) dev=DEV_PROC_TICKS;
-    else if(dev<0 && path_match(p,"/sys/proc/interrupts")) dev=DEV_PROC_INTERRUPTS;
-    else if(dev<0 && path_match(p,"/sys/proc/context_switches")) dev=DEV_PROC_SWITCHES;
-    else if(dev<0 && path_match(p,"/sys/proc/memory")) dev=DEV_PROC_MEMORY;
-    else if(dev<0 && path_match(p,"/sys/proc/devices")) dev=DEV_PROC_DEVICES;
-    else if(dev<0 && path_match(p,"/sys/proc/tasks")) dev=DEV_PROC_TASKS;
+    if(dev<0 && path_match(p,"/proc/uptime")) dev=DEV_PROC_UPTIME;
+    else if(dev<0 && path_match(p,"/proc/ticks")) dev=DEV_PROC_TICKS;
+    else if(dev<0 && path_match(p,"/proc/interrupts")) dev=DEV_PROC_INTERRUPTS;
+    else if(dev<0 && path_match(p,"/proc/context_switches")) dev=DEV_PROC_SWITCHES;
+    else if(dev<0 && path_match(p,"/proc/memory")) dev=DEV_PROC_MEMORY;
+    else if(dev<0 && path_match(p,"/proc/devices")) dev=DEV_PROC_DEVICES;
+    else if(dev<0 && path_match(p,"/proc/tasks")) dev=DEV_PROC_TASKS;
     if(dev<0) {
         // Avoid unbounded parsing of an invalid pointer.
         for(int pin=0;pin<=DEV_GPIO_MAX_PIN;pin++) {
@@ -594,10 +620,10 @@ static int device_rw_rand(void *p, size_t n, int writing) {
 /* Render one line at a time; proc/tasks can exceed the normal proc buffer.
  * The per-open cursor supports arbitrarily small read() requests. */
 static int proc_tasks_read(int fd, void *p, size_t n) {
-    static const char header[] = "PID  NAME              STATE    SLOT  MEMORY             SP\n";
+    static const char header[] = "PID  NAME              STATE    TTY      SLOT  MEMORY             SP\n";
     size_t pos=tasks[current].fd_pos[fd], offset=0, done=0;
     for(int row=-1;row<OS_MAX_TASKS;row++) {
-        char line[112];
+        char line[128];
         const char *src;
         size_t len;
         if(row<0) { src=header; len=sizeof(header)-1; }
@@ -607,8 +633,8 @@ static int proc_tasks_read(int fd, void *p, size_t n) {
             const char *state=t->state==READY?"READY":
                 t->state==SLEEPING?"SLEEP":t->state==BLOCKED?"BLOCKED":"?";
             uintptr_t base=(uintptr_t)task_ram[row];
-            int count=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%d     %08lX-%08lX  %08lX\n",
-                t->pid,t->name?t->name:"",state,row+1,
+            int count=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX\n",
+                t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":"-",row+1,
                 (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
                 (unsigned long)(uintptr_t)t->sp);
             if(count<0 || (size_t)count>=sizeof line) return OS_EINVAL;
@@ -653,7 +679,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
         case DEV_PROC_TICKS: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)t); break;
         case DEV_PROC_INTERRUPTS: len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\n",(unsigned long)t,(unsigned long)psv,(unsigned long)svc); break;
         case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
-        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nshell  20010000-2001FFFF (slot#1)\n       20020000-2002FFFF (slot#2)\n       20030000-2003FFFF (slot#3)\n"); break;
+        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-2003FFFF (6 x 32 KiB)\n"); break;
     }
     if(len<0) return OS_EINVAL;
     if((size_t)len>=sizeof text) len=sizeof text-1;
@@ -691,15 +717,17 @@ static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
         return (int)n;
     }
     if(n==0) return 0;
-    if(uartdev==DEV_CONSOLE && tasks[current].pid!=tty_owner_pid()) return OS_EIO;
+    if(tty_owner_pid(uartdev) && tasks[current].pid!=tty_owner_pid(uartdev)) return OS_EIO;
     uint32_t irq_state=save_and_disable_interrupts();
     int count=0;
     if(uartdev==DEV_CONSOLE && tty_used) {
         count=tty_dequeue(b,n);
         restore_interrupts(irq_state);
         return count; /* Zero is EOF from Ctrl+D on an empty line. */
-    } else if(uartdev==1) {
-        while((size_t)count<n && uart_pop(1,&b[count])) count++;
+    } else if(uartdev==1 && rx[1].head!=rx[1].tail) {
+        count=uart1_read(b,n);
+        restore_interrupts(irq_state);
+        return count; /* Zero means terminal Ctrl+D, not no data. */
     }
     if(count) { restore_interrupts(irq_state); return count; }
     if(uartdev==1 && (tasks[current].fd_flags[fd] & OS_O_NONBLOCK)) {
@@ -789,6 +817,7 @@ void os_svc_dispatch(uint32_t *f) {
     if(current<0) { f[0]=OS_EINVAL; return; }
     switch(num) {
         case SYS_GETPID: result=tasks[current].pid; break;
+        case SYS_GET_TTY: result=tasks[current].tty; break;
         case SYS_KILL:
             {int slot=slot_from_pid(a);
             if(slot<0 || slot==current || slot==IDLE_SLOT) result=OS_ESRCH;
@@ -813,12 +842,33 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_SET_FG: {
-            if(a==0) { foreground_pid=0; result=0; break; }
+            int tty=tasks[current].tty;
+            if(a==0) { foreground_pid[tty]=0; result=0; break; }
             result=OS_ESRCH;
             for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==a &&
                 tasks[i].parent_pid==tasks[current].pid && tasks[i].state!=DEAD) {
-                foreground_pid=a; result=0; break;
+                foreground_pid[tty]=a; result=0; break;
             }
+            break;
+        }
+        case SYS_TTY_SPAWN: {
+            /* getty: attach a fresh task to a different serial terminal. */
+            if(a!=1 && a!=2) { result=OS_EINVAL; break; }
+            int tty=(int)a-1;
+            if(tty_shell_pid[tty] || foreground_pid[tty]) { result=OS_EBUSY; break; }
+            if(b!=2 && b!=4) { result=OS_EINVAL; break; }
+            uint32_t irq_state=save_and_disable_interrupts();
+            int slot=free_program_slot();
+            result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,b,programs[b].entry,programs[b].name);
+            if(result>0) {
+                task_t *child=&tasks[slot];
+                if(tty_shell_pid[0]==child->pid) tty_shell_pid[0]=0;
+                child->tty=(uint8_t)tty;
+                for(int j=0;j<3;j++) { child->fd[j]=tty?30:0;child->fd_pos[j]=0;child->fd_flags[j]=0; }
+                if(b==2) tty_shell_pid[tty]=child->pid;
+                else foreground_pid[tty]=child->pid;
+            }
+            restore_interrupts(irq_state);
             break;
         }
         case SYS_SPAWN:
@@ -831,17 +881,19 @@ void os_svc_dispatch(uint32_t *f) {
                 if(i==31 || !in_task_range(path+i,1)) result=OS_EINVAL;
                 else result=0;
                 if(result<0) break;
-                result=spawn_in_slot(programs[a].slot,a,programs[a].entry,programs[a].name);
+                { int slot=free_program_slot();
+                  result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name); }
                 if(result>0) {
-                    task_t *child=&tasks[programs[a].slot];
+                    task_t *child=&tasks[slot_from_pid(result)];
                     for(unsigned j=0;j<=i;j++) child->script_path[j]=path[j];
                 }
                 break;
             }
             else {
-                result=spawn_in_slot(programs[a].slot,a,programs[a].entry,programs[a].name);
+                { int slot=free_program_slot();
+                  result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name); }
                 if(result>0) {
-                    task_t *child=&tasks[programs[a].slot];
+                    task_t *child=&tasks[slot_from_pid(result)];
                     child->startup_seconds=b;
                     if(a==4 && c) {
                         const char *path=(const char *)(uintptr_t)c;
@@ -865,7 +917,7 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         case SYS_CONSOLE_READY:
 #if PICONIX_CONSOLE_USB
-            result=stdio_usb_connected() ? 1 : 0;
+            result=tasks[current].tty ? 1 : (stdio_usb_connected() ? 1 : 0);
 #else
             result=1;
 #endif
@@ -909,6 +961,7 @@ int os_waitpid(int pid, int *status, int options) {
 int os_set_foreground(int pid) { return call(SYS_SET_FG,pid,0,0); }
 int os_spawn_program(int program_id) { return call(SYS_SPAWN,program_id,0,0); }
 int os_getpid(void) { return call(SYS_GETPID,0,0,0); }
+int os_get_tty(void) { return call(SYS_GET_TTY,0,0,0); }
 int os_kill(int pid) { return call(SYS_KILL,pid,0,0); }
 void os_exit(void) { call(SYS_EXIT,0,0,0); for(;;) __wfi(); }
 void os_sleep(uint32_t ms) { call(SYS_SLEEP,ms,0,0); }

@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 SLOT_BASE = 0x20010000
-SLOT_BYTES = 0x30000
+SLOT_BYTES = 6 * 0x8000
 
 def run(*argv):
     return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT)
@@ -60,7 +60,7 @@ def audit(symbols, sections):
     require(symbols.get('ram_vector_table') == 0x20000000,
             'ram_vector_table symbol must start at 0x20000000')
     base = symbols.get('task_ram')
-    require(base == SLOT_BASE, 'task_ram must start at 0x20010000 (64-KiB aligned slots)')
+    require(base == SLOT_BASE, 'task_ram must start at 0x20010000 (6 x 32-KiB slots)')
     for name in ('tasks', 'idle_stack'):
         address = symbols.get(name)
         require(address is not None, f'missing {name} symbol')

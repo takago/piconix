@@ -42,7 +42,7 @@ USB CDCの`115200`は端末側の指定であり，物理UARTのビットレー�
 ```text
 piconix# help
 piconix# ps
-piconix# cat /sys/proc/uptime
+piconix# cat /proc/uptime
 piconix# blink &
 piconix# ps
 piconix# kill 2
@@ -61,3 +61,9 @@ piconix# kill 2
 | GPIO25のLEDが動かない | ボードが通常のRaspberry Pi Picoか |
 
 UART0をコンソールとして使う設定は`-DPICONIX_CONSOLE_USB=OFF`です．通常はUSB CDCを推奨します．内部のメモリ配置は[内部構造](INTERNAL-JP.md)を参照してください．
+
+## UART1による別端末
+
+USB側で`getty /dev/uart1 sh &`を実行します．UART1の通信設定は115200 bps，8N1です．詳細は[内部構造](INTERNAL-JP.md)を参照してください．
+
+確認例：USB側で`tty`を実行すると`/dev/console`，UART1側の`getty`で起動したShellでは`/dev/uart1`と表示されます．`ps`の`TTY`列でも確認できます．

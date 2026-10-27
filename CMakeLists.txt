@@ -21,18 +21,20 @@ endif()
 # Freestanding slot-linked images. All four are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
 foreach(APP IN ITEMS shell blink omikuji python)
-  if(APP STREQUAL "shell")
-    set(APP_ORIGIN 0x20010000)
-  elseif(APP STREQUAL "blink")
-    set(APP_ORIGIN 0x20020000)
-  else()
-    set(APP_ORIGIN 0x20030000)
-  endif()
+  # Compile each application once for the same canonical address.
+  # Every image must also link identically at the next 32-KiB slot address.
+  set(APP_ORIGIN 0x20010000)
   set(APP_DIR "${CMAKE_CURRENT_BINARY_DIR}/ram_${APP}")
   file(MAKE_DIRECTORY "${APP_DIR}")
   set(APP_LD "${APP_DIR}/slot.ld")
   configure_file("${CMAKE_CURRENT_LIST_DIR}/ram_apps/slot.ld" "${APP_LD}" @ONLY)
   set(APP_OBJ "${APP_DIR}/${APP}.o")
+  set(APP_LD_ALT "${APP_DIR}/slot_alt.ld")
+  set(APP_ORIGIN 0x20018000)
+  configure_file("${CMAKE_CURRENT_LIST_DIR}/ram_apps/slot.ld" "${APP_LD_ALT}" @ONLY)
+  set(APP_ORIGIN 0x20010000)
+  set(APP_ELF_ALT "${APP_DIR}/${APP}_alt.elf")
+  set(APP_BIN_ALT "${APP_DIR}/${APP}_alt.bin")
   set(APP_ELF "${APP_DIR}/${APP}.elf")
   set(APP_BIN "${APP_DIR}/${APP}.bin")
   # GCC may turn dense if/else comparisons into Thumb-1 switch tables.
@@ -42,19 +44,27 @@ foreach(APP IN ITEMS shell blink omikuji python)
     set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
   endif()
   add_custom_command(OUTPUT "${APP_BIN}"
-    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             ${APP_EXTRA_CFLAGS}
             -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/${APP}.c" -o "${APP_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -nostdlib
-            -Wl,--gc-sections "-Wl,-T,${APP_LD}"
+            -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD}"
             "${APP_OBJ}" -o "${APP_ELF}"
     COMMAND "${CMAKE_OBJCOPY}" -O binary "${APP_ELF}" "${APP_BIN}"
+    COMMAND "${CMAKE_C_COMPILER}" -nostdlib
+            -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD_ALT}"
+            "${APP_OBJ}" -o "${APP_ELF_ALT}"
+    COMMAND "${CMAKE_OBJCOPY}" -O binary "${APP_ELF_ALT}" "${APP_BIN_ALT}"
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_pic.py"
+            "${APP_ELF}" "${APP_BIN}" "${APP_ELF_ALT}" "${APP_BIN_ALT}"
+            --readelf "${CMAKE_READELF}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"
             "${APP_ELF}" "${APP_BIN}" "${APP_ORIGIN}" --readelf "${CMAKE_READELF}"
     DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ram_apps/${APP}.c"
-            "${APP_LD}"
+            "${APP_LD}" "${APP_LD_ALT}"
+            "${CMAKE_CURRENT_LIST_DIR}/tools/check_pic.py"
             "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"
     VERBATIM)
   set(EMBED_APP ${APP})
@@ -67,7 +77,7 @@ endforeach()
 # Stage 17: experimental *real* SDK RAM execution path.
 # Pico SDK's copy_to_ram boot path retains the SDK boot2 and startup support.
 # We generate a copy of the SDK script with RAM restricted to bank 0 (64 KiB).
-# The remaining three banks are accessed by fixed physical addresses only.
+# The remaining three banks provide six fixed 32-KiB task slots.
 option(PICONIX_KERNEL_RAM "Run SDK firmware from kernel SRAM bank 0" ON)
 if(PICONIX_KERNEL_RAM)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
@@ -142,5 +152,5 @@ endif()
 add_custom_target(piconix_ram_image_selftest
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/test_ram_pipeline.py"
   WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
-  COMMENT "Check Shell/Blink fixed-slot Cortex-M0+ images with LLVM"
+  COMMENT "Check Shell/Blink PIC Cortex-M0+ images with LLVM"
   VERBATIM)

@@ -25,13 +25,13 @@ def test_app(tmp, name, base):
     obj = tmp / f'{name}.o'
     elf = tmp / f'{name}.elf'
     binary = tmp / f'{name}.bin'
-    run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb',
+    run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
         '-Os', '-fno-jump-tables', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
         '-fdata-sections', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
         '-c', ROOT / 'ram_apps' / f'{name}.c', '-o', obj)
     linker_script = tmp / f'{name}.ld'
     linker_script.write_text((ROOT / 'ram_apps' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base:#x}'))
-    run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-T',
+    run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T',
         linker_script, '--gc-sections', obj, '-o', elf)
     run(OBJCOPY, '-O', 'binary', elf, binary)
     run(sys.executable, ROOT / 'tools' / 'check_slot_image.py',
@@ -45,7 +45,15 @@ def test_app(tmp, name, base):
     assert not undefined, f'{name}: undefined symbols: {undefined}'
     reloc = subprocess.check_output([READELF, '-rW', str(elf)], text=True, env={**os.environ, 'LC_ALL': 'C', 'LANG': 'C'})
     assert 'There are no relocations in this file.' in reloc, reloc
-    print(f'PASS: {name} image ({binary.stat().st_size} bytes)')
+    alt_ld = tmp / f'{name}_alt.ld'
+    alt_elf = tmp / f'{name}_alt.elf'
+    alt_bin = tmp / f'{name}_alt.bin'
+    alt_ld.write_text((ROOT / 'ram_apps' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base+32768:#x}'))
+    run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T', alt_ld, '--gc-sections', obj, '-o', alt_elf)
+    run(OBJCOPY, '-O', 'binary', alt_elf, alt_bin)
+    run(sys.executable, ROOT / 'tools' / 'check_slot_image.py', alt_elf, alt_bin, hex(base+32768), '--readelf', READELF)
+    run(sys.executable, ROOT / 'tools' / 'check_pic.py', elf, binary, alt_elf, alt_bin, '--readelf', READELF)
+    print(f'PASS: {name} PIC image ({binary.stat().st_size} bytes)')
 
 
 def main():
@@ -56,8 +64,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix='piconix-ram-test-') as directory:
         tmp = pathlib.Path(directory)
         test_app(tmp, 'shell', 0x20010000)
-        test_app(tmp, 'blink', 0x20020000)
-    print('PASS: Shell and Blink fixed-RAM images have no unresolved references or relocations')
+        test_app(tmp, 'blink', 0x20010000)
+    print('PASS: Shell and Blink position-independent RAM images have no unresolved references or relocations')
     print('NOTE: Omikuji and Python require the ARM GCC toolchain for equivalent SDK build checks')
 
 

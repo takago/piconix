@@ -2,8 +2,8 @@
 #define PICONIX_H
 #include <stdint.h>
 #include <stddef.h>
-#define OS_MAX_TASKS 3
-#define OS_TASK_BYTES (64u * 1024u)
+#define OS_MAX_TASKS 6
+#define OS_TASK_BYTES (32u * 1024u)
 #define OS_O_RDONLY 0
 #define OS_O_WRONLY 1
 #define OS_O_RDWR 2
@@ -49,6 +49,7 @@ int os_register_ram_image(int program_id, const void *image, size_t size,
                           size_t zero_start, size_t zero_size);
 void os_start(void) __attribute__((noreturn));
 int os_getpid(void);
+int os_get_tty(void);
 int os_kill(int pid);
 int os_waitpid(int pid, int *status, int options);
 int os_set_foreground(int pid);
