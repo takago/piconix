@@ -2,13 +2,14 @@
 /* Standalone PIC Blink image using the shared user-space syscall API. */
 #include "unistd.h"
 #include "fcntl.h"
+#include "stdio.h"
 #include "../include/piconix.h"  /* OS_GPIO_OUTPUT */
 
-int main(int argc, char **argv) {
-    (void)argc; (void)argv;
+int main(int argc, char *argv[]) {
     int fd = open("/dev/gpio/25", O_WRONLY);
     if (fd < 0) return 0;
     ioctl(fd, OS_GPIO_OUTPUT, 0);
+    printf("blink: GPIO25 ready\r\n");
     for (;;) {
         char on = '1', off = '0';
         write(fd, &on, 1);

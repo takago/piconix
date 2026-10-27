@@ -17,7 +17,7 @@ p.add_argument('alt_binary')
 p.add_argument('--readelf',default='readelf')
 a=p.parse_args()
 assert pathlib.Path(a.binary).read_bytes()==pathlib.Path(a.alt_binary).read_bytes(), 'PIC image changes with link address'
-for elf, origin in ((a.elf, 0x20010000), (a.alt_elf, 0x20018000)):
+for elf, origin in ((a.elf, 0x20018000), (a.alt_elf, 0x20020000)):
     sect=subprocess.check_output([a.readelf,'-SW',elf],text=True)
     for forbidden in ('.got', '.dynamic', '.plt'):
         assert forbidden not in sect, f'{elf}: unsupported {forbidden}'

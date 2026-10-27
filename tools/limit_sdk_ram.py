@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive an SDK-compatible copy_to_ram linker script limited to 64 KiB.
+"""Derive an SDK-compatible copy_to_ram linker script limited to 96 KiB.
 
 Fail closed if the SDK MEMORY layout is not a recognized RP2040 shape.
 Do not silently mutate scripts for other targets/SDK revisions.
@@ -15,10 +15,10 @@ def transform(source):
     matches = list(pat.finditer(source))
     if len(matches) != 1:
         raise ValueError(f"expected exactly one 256-KiB main RAM region; found {len(matches)}")
-    result = pat.sub(lambda m: m.group('pre') + '64k' + m.group('post'), source, count=1)
+    result = pat.sub(lambda m: m.group('pre') + '96k' + m.group('post'), source, count=1)
     if '0x20000000' not in result or 'FLASH' not in result:
         raise ValueError('unexpected SDK linker script')
-    return '/* PicoNIX Stage 17: derived from Pico SDK copy_to_ram; kernel limited to 64 KiB. */\n' + result
+    return '/* PicoNIX Stage 17: derived from Pico SDK copy_to_ram; kernel limited to 96 KiB. */\n' + result
 
 
 def main():

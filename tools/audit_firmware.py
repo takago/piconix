@@ -8,8 +8,8 @@ import re
 import subprocess
 import sys
 
-SLOT_BASE = 0x20010000
-SLOT_BYTES = 6 * 0x8000
+SLOT_BASE = 0x20018000
+SLOT_BYTES = 5 * 0x8000
 
 def run(*argv):
     return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT)
@@ -60,7 +60,7 @@ def audit(symbols, sections):
     require(symbols.get('ram_vector_table') == 0x20000000,
             'ram_vector_table symbol must start at 0x20000000')
     base = symbols.get('task_ram')
-    require(base == SLOT_BASE, 'task_ram must start at 0x20010000 (6 x 32-KiB slots)')
+    require(base == SLOT_BASE, 'task_ram must start at 0x20018000 (5 x 32-KiB slots)')
     for name in ('tasks', 'idle_stack'):
         address = symbols.get(name)
         require(address is not None, f'missing {name} symbol')
@@ -84,7 +84,7 @@ def audit(symbols, sections):
         if image_start is None or image_end is None or image_end <= image_start:
             continue
         in_flash = 0x10000000 <= image_start < image_end <= 0x10200000
-        in_kernel = 0x20000000 <= image_start < image_end <= 0x20010000
+        in_kernel = 0x20000000 <= image_start < image_end <= 0x20018000
         require(in_flash or in_kernel,
                 f'embedded {app} image must reside in XIP flash or kernel RAM')
         if in_kernel:
@@ -94,15 +94,38 @@ def audit(symbols, sections):
                           and lma + size <= 0x10200000]
             require(bool(containing),
                     f'RAM-resident {app} image has no flash-backed load section')
-    # Every allocated kernel SRAM section must fit in bank 0; no accidental
+    # Every allocated kernel SRAM section must fit within 96 KiB; no accidental
     # use of task banks by SDK sections, and no stack spill into the slots.
     for name, (size, vma, lma) in sections.items():
         if not size or name.startswith(('.debug', '.comment')):
             continue
-        if 0x20000000 <= vma < 0x20010000:
-            require(vma + size <= 0x20010000,
-                    f'{name} crosses kernel 64-KiB boundary')
+        if 0x20000000 <= vma < 0x20018000:
+            require(vma + size <= 0x20018000,
+                    f'{name} crosses kernel 96-KiB boundary')
     return problems
+
+def memory_report(sections):
+    """Kernel high-water mark from allocated ELF SRAM sections (includes heap/stack)."""
+    kernel_base, kernel_end = 0x20000000, SLOT_BASE
+    ram_sections = [(name, size, addr) for name, (size, addr, _) in sections.items()
+                    if size and kernel_base <= addr < kernel_end
+                    and not name.startswith(('.debug', '.comment'))]
+    used_end = max([kernel_base] + [addr + size for _, size, addr in ram_sections])
+    used = max(0, used_end - kernel_base)
+    capacity = kernel_end - kernel_base
+    print('\n=== PicoNIX RP2040 SRAM layout ===')
+    print('Region               Address range                Allocated / Capacity')
+    print(f'Kernel (96 KiB)      0x{kernel_base:08x}..0x{kernel_end - 1:08x}     {used:6d} / {capacity:6d} bytes')
+    print(f'Kernel headroom      (after allocated sections)   {max(0, capacity-used):6d} bytes')
+    for i in range(5):
+        base = SLOT_BASE + i * 0x8000
+        print(f'User slot {i+1} (32 KiB)  0x{base:08x}..0x{base+0x7fff:08x}     reserved (runtime)')
+    print('Trace ring            16384 bytes (inside kernel .bss)')
+    print('Kernel section breakdown (allocated SRAM):')
+    for name, size, addr in sorted(ram_sections, key=lambda x: x[2]):
+        print(f'  {name:22s} 0x{addr:08x}  {size:6d} bytes')
+    print('NOTE: headroom is linker-address headroom, not free heap or free task memory.')
+    print('==================================\n')
 
 def main():
     p = argparse.ArgumentParser()
@@ -116,6 +139,7 @@ def main():
     except (OSError, subprocess.CalledProcessError) as e:
         sys.exit(f'FAIL: cannot inspect firmware ELF: {e}')
     problems = audit(symbols, sections)
+    memory_report(sections)
     for name in ('.boot2', '.flashtext', '.ram_vector_table'):
         print(f'{name}: {sections.get(name, "MISSING")}')
     print(f'__vectors: {symbols.get("__vectors", "MISSING")}')

@@ -2,7 +2,7 @@
 #define PICONIX_H
 #include <stdint.h>
 #include <stddef.h>
-#define OS_MAX_TASKS 6
+#define OS_MAX_TASKS 5
 #define OS_TASK_BYTES (32u * 1024u)
 #define OS_O_RDONLY 0
 #define OS_O_WRONLY 1

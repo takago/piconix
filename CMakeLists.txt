@@ -18,12 +18,12 @@ if(NOT CMAKE_READELF)
   get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
   set(CMAKE_READELF "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-readelf")
 endif()
-# Freestanding slot-linked images. All four are embedded in the firmware Flash.
+# Freestanding slot-linked images. All seven program images are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
-foreach(APP IN ITEMS shell blink omikuji python)
+foreach(APP IN ITEMS shell blink omikuji python hello hexdump trace)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
-  set(APP_ORIGIN 0x20010000)
+  set(APP_ORIGIN 0x20018000)
   set(APP_DIR "${CMAKE_CURRENT_BINARY_DIR}/ram_${APP}")
   file(MAKE_DIRECTORY "${APP_DIR}")
   set(APP_LD "${APP_DIR}/slot.ld")
@@ -31,20 +31,18 @@ foreach(APP IN ITEMS shell blink omikuji python)
   set(APP_OBJ "${APP_DIR}/${APP}.o")
   set(CRT_OBJ "${APP_DIR}/crt0.o")
   set(SYSCALLS_OBJ "${APP_DIR}/syscalls.o")
+  set(LIBC_OBJ "${APP_DIR}/libc.o")
   set(APP_LD_ALT "${APP_DIR}/slot_alt.ld")
-  set(APP_ORIGIN 0x20018000)
+  set(APP_ORIGIN 0x20020000)
   configure_file("${CMAKE_CURRENT_LIST_DIR}/ram_apps/slot.ld" "${APP_LD_ALT}" @ONLY)
-  set(APP_ORIGIN 0x20010000)
+  set(APP_ORIGIN 0x20018000)
   set(APP_ELF_ALT "${APP_DIR}/${APP}_alt.elf")
   set(APP_BIN_ALT "${APP_DIR}/${APP}_alt.bin")
   set(APP_ELF "${APP_DIR}/${APP}.elf")
   set(APP_BIN "${APP_DIR}/${APP}.bin")
-  # GCC may turn dense if/else comparisons into Thumb-1 switch tables.
-  # Freestanding RAM images do not link libgcc (__gnu_thumb1_case_uqi).
-  set(APP_EXTRA_CFLAGS "")
-  if(APP STREQUAL "python")
-    set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
-  endif()
+  # All RAM apps are linked without libgcc. Prevent GCC from emitting
+  # Thumb-1 switch helpers such as __gnu_thumb1_case_uqi.
+  set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
   add_custom_command(OUTPUT "${APP_BIN}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
@@ -60,13 +58,18 @@ foreach(APP IN ITEMS shell blink omikuji python)
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             -I "${CMAKE_CURRENT_LIST_DIR}/ram_apps"
             -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/syscalls.c" -o "${SYSCALLS_OBJ}"
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
+            -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
+            -fno-unwind-tables -fno-asynchronous-unwind-tables
+            -I "${CMAKE_CURRENT_LIST_DIR}/ram_apps"
+            -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/libc.c" -o "${LIBC_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -nostdlib
             -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD}"
-            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" -o "${APP_ELF}"
+            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" "${LIBC_OBJ}" -o "${APP_ELF}"
     COMMAND "${CMAKE_OBJCOPY}" -O binary "${APP_ELF}" "${APP_BIN}"
     COMMAND "${CMAKE_C_COMPILER}" -nostdlib
             -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD_ALT}"
-            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" -o "${APP_ELF_ALT}"
+            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" "${LIBC_OBJ}" -o "${APP_ELF_ALT}"
     COMMAND "${CMAKE_OBJCOPY}" -O binary "${APP_ELF_ALT}" "${APP_BIN_ALT}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_pic.py"
             "${APP_ELF}" "${APP_BIN}" "${APP_ELF_ALT}" "${APP_BIN_ALT}"
@@ -78,6 +81,11 @@ foreach(APP IN ITEMS shell blink omikuji python)
             "${CMAKE_CURRENT_LIST_DIR}/ram_apps/syscalls.c"
             "${CMAKE_CURRENT_LIST_DIR}/ram_apps/unistd.h"
             "${CMAKE_CURRENT_LIST_DIR}/ram_apps/fcntl.h"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/libc.c"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/stdio.h"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/stdlib.h"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/string.h"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/trace.h"
             "${APP_LD}" "${APP_LD_ALT}"
             "${CMAKE_CURRENT_LIST_DIR}/tools/check_pic.py"
             "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"
@@ -91,9 +99,9 @@ foreach(APP IN ITEMS shell blink omikuji python)
 endforeach()
 # Stage 17: experimental *real* SDK RAM execution path.
 # Pico SDK's copy_to_ram boot path retains the SDK boot2 and startup support.
-# We generate a copy of the SDK script with RAM restricted to bank 0 (64 KiB).
-# The remaining three banks provide six fixed 32-KiB task slots.
-option(PICONIX_KERNEL_RAM "Run SDK firmware from kernel SRAM bank 0" ON)
+# We generate a copy of the SDK script with RAM restricted to 96 KiB.
+# The remaining 160 KiB provide five fixed 32-KiB task slots.
+option(PICONIX_KERNEL_RAM "Run SDK firmware from the 96-KiB kernel SRAM region" ON)
 if(PICONIX_KERNEL_RAM)
   find_package(Python3 COMPONENTS Interpreter REQUIRED)
   set(PICONIX_SDK_RAM_LD "${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2040/memmap_copy_to_ram.ld")
@@ -137,7 +145,7 @@ endif()
 pico_enable_stdio_uart(piconix 0)
 pico_add_extra_outputs(piconix)
 
-# Post-link inspection of the three fixed 64-KiB task reservations.
+# Post-link inspection of the five fixed 32-KiB task slots.
 # Enable explicitly while transitioning from SDK's default XIP linker script.
 option(PICONIX_VERIFY_LAYOUT "Check task RAM placement in linked ELF" ON)
 if(PICONIX_VERIFY_LAYOUT)
@@ -167,5 +175,5 @@ endif()
 add_custom_target(piconix_ram_image_selftest
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/test_ram_pipeline.py"
   WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
-  COMMENT "Check Shell/Blink PIC Cortex-M0+ images with LLVM"
+  COMMENT "Check all six PIC Cortex-M0+ images with LLVM"
   VERBATIM)

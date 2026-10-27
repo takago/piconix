@@ -16,6 +16,7 @@ int sleep(unsigned ms) { return call(4,ms,0,0); }
 int yield(void) { return call(5,0,0,0); }
 int open(const char *path,int flags) { return call(6,(uintptr_t)path,(uintptr_t)flags,0); }
 int close(int fd) { return call(7,(uintptr_t)fd,0,0); }
+long lseek(int fd,long offset,int whence) { return call(21,(uintptr_t)fd,(uintptr_t)offset,(uintptr_t)whence); }
 int read(int fd,void *p,size_t n) { return call(8,(uintptr_t)fd,(uintptr_t)p,n); }
 int write(int fd,const void *p,size_t n) { return call(9,(uintptr_t)fd,(uintptr_t)p,n); }
 int ioctl(int fd,int cmd,int value) { return call(10,(uintptr_t)fd,(uintptr_t)cmd,(uintptr_t)value); }

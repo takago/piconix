@@ -4,12 +4,14 @@
 #include <stddef.h>
 #include "unistd.h"
 #include "fcntl.h"
+#include "string.h"
+#include "stdio.h"
 static void outn(const char *s,unsigned n) {
     while(n) { int r=write(1, s, n); if(r<0) return;
         if(!r) { sleep(1); continue; } s+=r;n-=(unsigned)r; }
 }
-static void outs(const char *s){unsigned n=0;while(s[n])n++;outn(s,n);}
-static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
+static void outs(const char *s){outn(s,(unsigned)strlen(s));}
+static int same(const char *a,const char *b){return strcmp(a,b)==0;}
 static int idchar(char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_';}
 static char source[513];
 static unsigned offsets[64],levels[64],count;
@@ -233,7 +235,6 @@ static void run_source(unsigned n){
     if(!error)execute(0,count,0);
     if(error)outs("python: syntax/runtime error\r\n");
 }
-static unsigned length(const char *s){unsigned n=0;while(s[n])n++;return n;}
 static void repl(void){
     outs("PicoNIX Tiny Python (Python subset)\r\n");
     outs("Type exit() to quit.\r\n");
@@ -267,7 +268,7 @@ static void repl(void){
         if(n){source[n]=0;run_source(n);}
     }
 }
-int main(int argc, char **argv){
+int main(int argc, char *argv[]){
     if(argc<2 || !argv[1]){repl();goto done;}
     const char *path=argv[1];
     int fd=open(path, 0);

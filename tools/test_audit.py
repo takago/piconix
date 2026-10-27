@@ -4,7 +4,7 @@ from audit_firmware import audit
 
 
 def check(image, section, expected_ok):
-    symbols = {'task_ram': 0x20010000, 'tasks': 0x20001000,
+    symbols = {'task_ram': 0x20018000, 'tasks': 0x20001000,
                'idle_stack': 0x20002000, '__vectors': 0x10000100,
                '__VECTOR_TABLE': 0x10000100, 'ram_vector_table': 0x20000000,
                'piconix_shell_image_start': image,
@@ -26,7 +26,7 @@ check(0x20020000, ('.rodata', (1024, 0x20020000, 0x10003000)), False)
 print('PASS: XIP, RAM copy, missing LMA, and slot overlap tests')
 
 # Shell image absent must fail (Blink alone is not a bootable shell system).
-base = {'task_ram': 0x20010000, 'tasks': 0x20001000, 'idle_stack': 0x20002000, '__vectors': 0x10000100,
+base = {'task_ram': 0x20018000, 'tasks': 0x20001000, 'idle_stack': 0x20002000, '__vectors': 0x10000100,
                '__VECTOR_TABLE': 0x10000100, 'ram_vector_table': 0x20000000,
         'piconix_blink_image_start': 0x10001000, 'piconix_blink_image_end': 0x10001090}
 sections = {'.boot2': (256, 0x10000000, 0x10000000),
@@ -35,12 +35,12 @@ sections = {'.boot2': (256, 0x10000000, 0x10000000),
 assert any('shell' in issue for issue in audit(base, sections))
 # Kernel RAM section must never cross into Shell slot.
 base.update(piconix_shell_image_start=0x10002000, piconix_shell_image_end=0x10002090)
-sections['.bss'] = (0x200, 0x2000ff00, 0x10003000)
-assert any('kernel 64-KiB' in issue for issue in audit(base, sections))
+sections['.bss'] = (0x200, 0x20017f00, 0x10003000)
+assert any('kernel 96-KiB' in issue for issue in audit(base, sections))
 print('PASS: shell presence and kernel boundary negative tests')
 
 # Vector table regression: reject missing flash backing, bad address, and short RAM table.
-valid = {'task_ram': 0x20010000, 'tasks': 0x20001000, 'idle_stack': 0x20002000,
+valid = {'task_ram': 0x20018000, 'tasks': 0x20001000, 'idle_stack': 0x20002000,
          '__vectors': 0x10000100, '__VECTOR_TABLE': 0x10000100,
          'ram_vector_table': 0x20000000,
          'piconix_shell_image_start': 0x10001000, 'piconix_shell_image_end': 0x10001090,

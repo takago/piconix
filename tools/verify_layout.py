@@ -37,10 +37,10 @@ def main():
     start = sym.get('task_ram')
     if start is None:
         sys.exit('ERROR: task_ram symbol not found; cannot verify layout')
-    end = start + 6 * SLOT_SIZE
-    print(f'task_ram: 0x{start:08x}..0x{end-1:08x} (6 x 32 KiB)')
-    if start != 0x20010000:
-        sys.exit('ERROR: fixed image requires task_ram at 0x20010000 ; SDK default linker may not satisfy this')
+    end = start + 5 * SLOT_SIZE
+    print(f'task_ram: 0x{start:08x}..0x{end-1:08x} (5 x 32 KiB)')
+    if start != 0x20018000:
+        sys.exit('ERROR: fixed image requires task_ram at 0x20018000 ; SDK default linker may not satisfy this')
     if start % SLOT_SIZE:
         sys.exit('ERROR: task_ram is not 32-KiB aligned')
     if start < MAIN_START or end > MAIN_END:

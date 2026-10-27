@@ -8,13 +8,12 @@ This guide explains **what runs where and which component is responsible**. See 
 
 | Start address | Region | Notes |
 |---|---|---|
-| `0x20000000` | Kernel | 64 KiB including SDK support |
-| `0x20010000` | Slot 1 | 32 KiB |
-| `0x20018000` | Slot 2 | 32 KiB |
-| `0x20020000` | Slot 3 | 32 KiB |
-| `0x20028000` | Slot 4 | 32 KiB |
-| `0x20030000` | Slot 5 | 32 KiB |
-| `0x20038000` | Slot 6 | 32 KiB |
+| `0x20000000` | Kernel | 96 KiB including SDK support |
+| `0x20018000` | Slot 1 | 32 KiB |
+| `0x20020000` | Slot 2 | 32 KiB |
+| `0x20028000` | Slot 3 | 32 KiB |
+| `0x20030000` | Slot 4 | 32 KiB |
+| `0x20038000` | Slot 5 | 32 KiB |
 
 The last 4 KiB in each application slot is reserved for a stack. Applications are compiled as position-independent code (PIC); one image per program is embedded in flash and copied into a free RAM slot when started. There is no ELF loader, dynamic linking, or address-space isolation.
 
@@ -22,7 +21,7 @@ The last 4 KiB in each application slot is reserved for a stack. Applications ar
 
 `src/main.c` initializes the kernel, registers applications, and starts Shell. `src/kernel.c` manages task state and scheduling. SysTick and PendSV provide preemptive switching, with exception handling in `src/context.S`.
 
-Task states include `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn` chooses a free slot, and `waitpid` waits for or collects exit status. With all six slots occupied, no further application can start.
+Task states include `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn` chooses a free slot, and `waitpid` waits for or collects exit status. With all five slots occupied, no further application can start.
 
 ## 3. Kernel and Shell responsibilities
 
@@ -75,7 +74,7 @@ Next: [Application programming](PROGRAMMING-EN.md).
 
 ### PIC implementation
 
-All applications are compiled with `-fPIC -Os`. The build links the same object at both `0x20010000` and `0x20018000` and checks that the resulting raw binaries are identical. Unresolved symbols, GOT sections, or dynamic relocations cause a build failure. On spawn, the single image stored in flash is copied to a free slot. This check is essential; arbitrary C code is not automatically relocatable.
+All applications are compiled with `-fPIC -Os`. The build links the same object at both `0x20018000` and `0x20020000` and checks that the resulting raw binaries are identical. Unresolved symbols, GOT sections, or dynamic relocations cause a build failure. On spawn, the single image stored in flash is copied to a free slot. This check is essential; arbitrary C code is not automatically relocatable.
 
 **Note**: A full ARM GCC/Pico SDK build and RP2040 hardware run are still required. A self-launching Shell command and a second UART-connected Shell are not implemented merely by enabling PIC.
 
@@ -94,3 +93,21 @@ The UART1 shell stays active on Ctrl+D (EOF); use `logout` or `exit` to terminat
 ## Startup arguments and crt0
 
 The initial task stack holds argument strings and argv pointers. Registers r0/r1 pass argc/argv to the common crt0. The old SYS_GETARG (number 15) is retired and reserved; other syscall numbers remain unchanged.
+
+
+## Trace storage and link-time RAM report
+
+The kernel reserves a 16-KiB trace ring (1,024 fixed 16-byte events), recording task switches and SVC entry/exit. Events remain binary; a readout command is planned separately. The post-link report shows the kernel SRAM high-water mark, linker headroom and five reserved task slots. Headroom is not free heap space.
+
+### Kernel tracing (16 KiB)
+
+`trace on` clears and starts the binary ring; `trace off` stops recording; `trace show` stops recording and prints the retained events. `/dev/trace` provides read-only, fixed 16-byte event records. Trace controls use device-specific `ioctl()` commands; decoding stays in the `trace.c` user application.
+
+```text
+trace on
+hello
+trace off
+trace show
+```
+
+Events include task switches and SVC entry/exit. Timestamps use SysTick milliseconds since boot.

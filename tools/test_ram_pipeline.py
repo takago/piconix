@@ -37,10 +37,15 @@ def test_app(tmp, name, base):
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
         '-Os', '-ffreestanding', '-fno-builtin', '-ffunction-sections', '-fdata-sections',
         '-I', ROOT / 'ram_apps', '-c', ROOT / 'ram_apps' / 'syscalls.c', '-o', syscall_obj)
-    linker_script = tmp / f'{name}.ld' 
+    libc_obj = tmp / f'{name}_libc.o'
+    run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
+        '-Os', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
+        '-fdata-sections', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
+        '-c', ROOT / 'ram_apps' / 'libc.c', '-o', libc_obj)
+    linker_script = tmp / f'{name}.ld'  
     linker_script.write_text((ROOT / 'ram_apps' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base:#x}'))
     run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T',
-        linker_script, '--gc-sections', crt_obj, obj, syscall_obj, '-o', elf)
+        linker_script, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, '-o', elf)
     run(OBJCOPY, '-O', 'binary', elf, binary)
     run(sys.executable, ROOT / 'tools' / 'check_slot_image.py',
         elf, binary, hex(base), '--readelf', READELF)
@@ -57,7 +62,7 @@ def test_app(tmp, name, base):
     alt_elf = tmp / f'{name}_alt.elf'
     alt_bin = tmp / f'{name}_alt.bin'
     alt_ld.write_text((ROOT / 'ram_apps' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base+32768:#x}'))
-    run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T', alt_ld, '--gc-sections', crt_obj, obj, syscall_obj, '-o', alt_elf)
+    run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T', alt_ld, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, '-o', alt_elf)
     run(OBJCOPY, '-O', 'binary', alt_elf, alt_bin)
     run(sys.executable, ROOT / 'tools' / 'check_slot_image.py', alt_elf, alt_bin, hex(base+32768), '--readelf', READELF)
     run(sys.executable, ROOT / 'tools' / 'check_pic.py', elf, binary, alt_elf, alt_bin, '--readelf', READELF)
@@ -71,10 +76,14 @@ def main():
         sys.exit('Missing tools: ' + ', '.join(missing))
     with tempfile.TemporaryDirectory(prefix='piconix-ram-test-') as directory:
         tmp = pathlib.Path(directory)
-        test_app(tmp, 'shell', 0x20010000)
-        test_app(tmp, 'blink', 0x20010000)
-    print('PASS: Shell and Blink position-independent RAM images have no unresolved references or relocations')
-    print('NOTE: Omikuji and Python require the ARM GCC toolchain for equivalent SDK build checks')
+        test_app(tmp, 'shell', 0x20018000)
+        test_app(tmp, 'blink', 0x20018000)
+        test_app(tmp, 'omikuji', 0x20018000)
+        test_app(tmp, 'python', 0x20018000)
+        test_app(tmp, 'hello', 0x20018000)
+        test_app(tmp, 'hexdump', 0x20018000)
+        test_app(tmp, 'trace', 0x20018000)
+    print('PASS: All seven position-independent RAM images have no unresolved references or relocations')
 
 
 if __name__ == '__main__':

@@ -16,6 +16,9 @@ extern const unsigned char piconix_shell_image_start[], piconix_shell_image_end[
 extern const unsigned char piconix_blink_image_start[], piconix_blink_image_end[];
 extern const unsigned char piconix_omikuji_image_start[], piconix_omikuji_image_end[];
 extern const unsigned char piconix_python_image_start[], piconix_python_image_end[];
+extern const unsigned char piconix_hello_image_start[], piconix_hello_image_end[];
+extern const unsigned char piconix_hexdump_image_start[], piconix_hexdump_image_end[];
+extern const unsigned char piconix_trace_image_start[], piconix_trace_image_end[];
 
 static void register_image(int id, uintptr_t entry, const char *name,
                            const unsigned char *start, const unsigned char *end) {
@@ -33,10 +36,13 @@ int main(void) {
 #else
     uart_puts(uart0, "\r\n[PicoNIX] UART initialized\r\n");
 #endif
-    register_image(2,0x20010000u,"sh",piconix_shell_image_start,piconix_shell_image_end);
-    register_image(1,0x20010000u,"blink",piconix_blink_image_start,piconix_blink_image_end);
-    register_image(3,0x20010000u,"omikuji",piconix_omikuji_image_start,piconix_omikuji_image_end);
-    register_image(4,0x20010000u,"python",piconix_python_image_start,piconix_python_image_end);
+    register_image(2,0x20018000u,"sh",piconix_shell_image_start,piconix_shell_image_end);
+    register_image(1,0x20018000u,"blink",piconix_blink_image_start,piconix_blink_image_end);
+    register_image(3,0x20018000u,"omikuji",piconix_omikuji_image_start,piconix_omikuji_image_end);
+    register_image(4,0x20018000u,"python",piconix_python_image_start,piconix_python_image_end);
+    register_image(5,0x20018000u,"hello",piconix_hello_image_start,piconix_hello_image_end);
+    register_image(6,0x20018000u,"hexdump",piconix_hexdump_image_start,piconix_hexdump_image_end);
+    register_image(7,0x20018000u,"trace",piconix_trace_image_start,piconix_trace_image_end);
     os_init_idle(idle_task);
     if(os_start_program(2)<0) panic("PicoNIX: shell start failed");
     // Do not start Blink here: verify the `blink` shell command path.

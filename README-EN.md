@@ -8,7 +8,7 @@ PicoNIX is a **small UNIX-like operating system for the Raspberry Pi Pico (RP204
 
 - Preemptive task switching using SysTick and PendSV
 - An SVC boundary between the kernel and RAM applications
-- Commands including `ps`, `kill`, `sh`, `getty`, `blink`, `omikuji`, and `python`
+- Commands including `ps`, `kill`, `sh`, `getty`, `blink`, `omikuji`, `python`, `hello`, and `hexdump`
 - Simple background execution with `&` and foreground interruption via `Ctrl+C`
 - Virtual files under `/dev` and `/proc`, and volatile files under `/tmp`
 - Basic stdin/stdout redirection (`<`, `>`, `>>`)
@@ -43,7 +43,7 @@ Run `getty /dev/uart1 sh &` in the USB shell to start an independent UART1 shell
 
 ## Design and limitations
 
-PicoNIX has a 64 KiB kernel region and six 32 KiB application slots. PIC application images are embedded in flash and loaded into a free slot on launch. Up to six application tasks can run concurrently.
+PicoNIX has a 96 KiB kernel region and five 32 KiB application slots. PIC application images are embedded in flash and loaded into a free slot on launch. Up to five application tasks can run concurrently.
 
 PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, signal handlers, pipes, per-process memory protection, or dynamic ELF loading. `Ctrl+C` and `kill` terminate tasks directly in the kernel; they do not send UNIX signals. `/tmp` is lost on reboot.
 
@@ -60,3 +60,18 @@ PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, si
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.
+
+`/dev/mem` is read-only. Try `hexdump /dev/mem 0x20018000 64` for RAM or `hexdump /dev/mem 0x10000000 64` for flash. Only the 256-KiB main SRAM and first 2 MiB of XIP flash are readable; peripheral registers are excluded.
+
+### Kernel tracing (16 KiB)
+
+`trace on` clears and starts the binary ring; `trace off` stops recording; `trace show` stops recording and prints the retained events. `/dev/trace` provides read-only, fixed 16-byte event records. Trace controls use device-specific `ioctl()` commands; decoding stays in the `trace.c` user application.
+
+```text
+trace on
+hello
+trace off
+trace show
+```
+
+Events include task switches and SVC entry/exit. Timestamps use SysTick milliseconds since boot.

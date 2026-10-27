@@ -9,6 +9,7 @@
 #include "hardware/irq.h"
 #include <string.h>
 #include <stdio.h>
+#include "../ram_apps/trace.h"
 #if PICONIX_CONSOLE_USB
 #include "pico/stdio_usb.h"
 #include "tusb.h"
@@ -18,13 +19,13 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY };
-typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint16_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; uint8_t tty; } task_t;
-// Six fixed 32-KiB SRAM slots, not a .bss reservation.
-// The linker must restrict the kernel to SRAM bank 0 (0x20000000..0x2000ffff).
-_Static_assert(OS_MAX_TASKS == 6 && OS_TASK_BYTES == 32768u,
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK };
+typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint32_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; uint8_t tty; } task_t;
+// Five fixed 32-KiB SRAM slots, not a .bss reservation.
+// The linker must restrict the kernel to kernel SRAM (0x20000000..0x20017fff).
+_Static_assert(OS_MAX_TASKS == 5 && OS_TASK_BYTES == 32768u,
                "fixed RP2040 SRAM slot geometry changed");
-__asm__(".global task_ram\n.set task_ram, 0x20010000");
+__asm__(".global task_ram\n.set task_ram, 0x20018000");
 extern uint8_t task_ram[OS_MAX_TASKS][OS_TASK_BYTES];
 // Slots are intentionally NOLOAD/unallocated: no linker section occupies them.
 static task_t tasks[TOTAL_SLOTS];
@@ -43,6 +44,26 @@ static uint32_t rand32(void) {
     return x;
 }
 static volatile uint32_t svc_count, pendsv_count, context_switch_count;
+/* Fixed 16-KiB trace ring; presentation belongs in user space. */
+#define TRACE_CAPACITY 1024u
+_Static_assert(sizeof(trace_event_t) == 16, "trace record must be 16 bytes");
+static trace_event_t trace_ring[TRACE_CAPACITY];
+static uint32_t trace_head;
+static uint32_t trace_count;
+static uint8_t trace_enabled;
+static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t detail) {
+    if(!trace_enabled) return;
+    trace_event_t *e = &trace_ring[trace_head];
+    e->tick = ticks;
+    e->value = value;
+    e->detail = detail;
+    e->kind = kind;
+    e->pid = pid;
+    e->reserved = 0;
+    trace_head = (trace_head + 1u) & (TRACE_CAPACITY - 1u);
+    if(trace_count < TRACE_CAPACITY) trace_count++;
+}
+
 static int started;
 static int next_pid=1;
 static volatile int foreground_pid[2];
@@ -63,7 +84,7 @@ static void finish_task(int slot, int status) {
 }
 
 /* Program images are position independent; RAM slots are assigned at spawn. */
-static struct { os_entry_t entry; const char *name; } programs[5];
+static struct { os_entry_t entry; const char *name; } programs[8];
 static int free_program_slot(void) {
     for (int i=0;i<OS_MAX_TASKS;i++)
         if (tasks[i].state==UNUSED || tasks[i].state==DEAD) return i;
@@ -71,10 +92,10 @@ static int free_program_slot(void) {
 }
 // Optional prelinked RAM image. A nonzero image size means the caller must
 // provide the exact slot-linked binary and entry address.
-static struct { const uint8_t *image; size_t size; size_t zero_start; size_t zero_size; } images[5];
+static struct { const uint8_t *image; size_t size; size_t zero_start; size_t zero_size; } images[8];
 int os_register_ram_image(int id, const void *image, size_t size,
                           size_t zero_start, size_t zero_size) {
-    if (started || id < 1 || id >= 5 || !image || !size) return OS_EINVAL;
+    if (started || id < 1 || id >= 8 || !image || !size) return OS_EINVAL;
     if (size > OS_TASK_BYTES - 4096u || zero_start > OS_TASK_BYTES - 4096u ||
         zero_size > OS_TASK_BYTES - 4096u - zero_start ||
         (zero_size && zero_start < size)) return OS_EINVAL;
@@ -385,17 +406,17 @@ void os_init_idle(os_entry_t entry) {
 }
 int os_spawn_named(os_entry_t entry, const char *name) {
     if (started) return OS_EINVAL;
-    // Six application slots; the idle task has a separate kernel-owned stack.
+    // Five application slots; the idle task has a separate kernel-owned stack.
     for(int i=0;i<OS_MAX_TASKS;i++)
         if(tasks[i].state==UNUSED) return spawn_in_slot(i,0,entry,name,0,NULL);
     return OS_EAGAIN;
 }
 void os_register_program(int id,os_entry_t entry,const char *name) {
-    if(started || id<1 || id>=5) return;
+    if(started || id<1 || id>=8) return;
     programs[id].entry=entry; programs[id].name=name;
 }
 int os_start_program(int id) {
-    if (started || id<1 || id>=5 || !programs[id].entry) return OS_EINVAL;
+    if (started || id<1 || id>=8 || !programs[id].entry) return OS_EINVAL;
     int slot=free_program_slot();
     return slot<0 ? OS_EAGAIN : spawn_in_slot(slot,id,programs[id].entry,programs[id].name,0,NULL);
 }
@@ -431,7 +452,11 @@ uint32_t *os_schedule(uint32_t *oldsp) {
     if(next<0) {
         next=IDLE_SLOT;
     }
-    if(previous>=0 && previous!=next) context_switch_count++;
+    if(previous>=0 && previous!=next) {
+        context_switch_count++;
+        trace_record(TRACE_SWITCH, (uint8_t)(previous == IDLE_SLOT ? 0 : tasks[previous].pid),
+                     (uint32_t)(next == IDLE_SLOT ? 0 : tasks[next].pid), 0);
+    }
     current=next;
     uint32_t *sp=tasks[next].sp;
     restore_interrupts(irq_state);
@@ -464,11 +489,11 @@ static int path_match(const char *p, const char *s) {
     if(!p) return 0;
     uintptr_t a=(uintptr_t)p;
     if(!((a>=0x10000000u && a<0x11000000u) ||
-         (a>=0x20000000u && a<0x20010000u) || in_task_range(p,1))) return 0;
+         (a>=0x20000000u && a<0x20018000u) || in_task_range(p,1))) return 0;
     for(size_t i=0;i<32;i++) {
         uintptr_t q=a+i;
         if(!((q>=0x10000000u && q<0x11000000u) ||
-             (q>=0x20000000u && q<0x20010000u) || in_task_range((void*)q,1))) return 0;
+             (q>=0x20000000u && q<0x20018000u) || in_task_range((void*)q,1))) return 0;
         if(p[i]!=s[i]) return 0;
         if(!s[i]) return 1;
     }
@@ -493,12 +518,14 @@ enum {
     DEV_PROC_DEVICES = 95,
     DEV_PROC_TASKS = 96,
     DEV_TMP_LIST = 97,
+    DEV_MEM = 98,
+    DEV_TRACE = 99,
     DEV_TMP_FIRST = 100,
     DEV_GPIO_MAX_PIN = 28
 };
 /* Small volatile regular-file store; IDs are disjoint from devices. */
 #define TMP_FILES 4
-/* Keep the RAM filesystem within the 64-KiB kernel SRAM slot. */
+/* Keep the RAM filesystem within the 96-KiB kernel SRAM region. */
 #define TMP_BYTES 512
 static struct { char name[16]; uint16_t size; uint8_t used; uint8_t data[TMP_BYTES]; } tmp_files[TMP_FILES];
 /* Check a user path without reading outside the caller's address range. */
@@ -593,7 +620,7 @@ static int tmp_list_read(int fd,void *p,size_t n) {
 }
 /* Fixed device registry shared by open() and /proc/devices listing. */
 static const struct { const char *path; int id; } dev_registry[] = {
-    {"/dev/console",DEV_CONSOLE}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}
+    {"/dev/console",DEV_CONSOLE}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
 };
 #define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
 static int device_open(const char *p, int flags) {
@@ -629,7 +656,7 @@ static int device_open(const char *p, int flags) {
             if(path_match(p,name)) { dev=DEV_GPIO_PULL_BASE+pin; break; }
         }
     }
-    if(dev<0 || (((dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_RAND || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS) && (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
+    if(dev<0 || (((dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_TRACE || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS) && (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
     if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1) return OS_EINVAL;
     for(int fd=3;fd<8;fd++) if(tasks[current].fd[fd]<0) {
         tasks[current].fd[fd]=dev; tasks[current].fd_pos[fd]=0; tasks[current].fd_flags[fd]=(uint8_t)flags; return fd;
@@ -715,7 +742,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
         case DEV_PROC_TICKS: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)t); break;
         case DEV_PROC_INTERRUPTS: len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\n",(unsigned long)t,(unsigned long)psv,(unsigned long)svc); break;
         case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
-        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-2003FFFF (6 x 32 KiB)\n"); break;
+        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-20017FFF\nslots  20018000-2003FFFF (5 x 32 KiB)\n"); break;
     }
     if(len<0) return OS_EINVAL;
     if((size_t)len>=sizeof text) len=sizeof text-1;
@@ -825,6 +852,39 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
     int dev=tasks[current].fd[fd];
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) return tmp_rw(fd,p,n,writing);
     if(dev==DEV_TMP_LIST) return writing?OS_EBADF:tmp_list_read(fd,p,n);
+    if(dev==DEV_TRACE) {
+        if(writing) return OS_EBADF;
+        if(n < sizeof(trace_event_t)) return n ? OS_EINVAL : 0;
+        uint32_t irq=save_and_disable_interrupts();
+        uint32_t pos=tasks[current].fd_pos[fd];
+        uint32_t available=trace_count;
+        if(pos>=available) { restore_interrupts(irq); return 0; }
+        uint32_t count=(uint32_t)(n/sizeof(trace_event_t));
+        if(count>available-pos) count=available-pos;
+        uint32_t oldest=(trace_head+TRACE_CAPACITY-available)&(TRACE_CAPACITY-1u);
+        for(uint32_t i=0;i<count;i++)
+            memcpy((uint8_t *)p+i*sizeof(trace_event_t),
+                   &trace_ring[(oldest+pos+i)&(TRACE_CAPACITY-1u)],sizeof(trace_event_t));
+        tasks[current].fd_pos[fd]=pos+count;
+        restore_interrupts(irq);
+        return (int)(count*sizeof(trace_event_t));
+    }
+    if(dev==DEV_MEM) {
+        if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;
+        if(!n) return 0;
+        uint32_t addr=tasks[current].fd_pos[fd];
+        uint32_t end=0;
+        /* Read only Pico's 2-MiB XIP flash and 256-KiB main SRAM.
+         * Avoid peripherals, XIP control registers and scratch banks. */
+        if(addr>=0x10000000u && addr<0x10200000u) end=0x10200000u;
+        if(addr>=0x20000000u && addr<0x20040000u) end=0x20040000u;
+        if(!end) return OS_EINVAL;
+        size_t count=n;
+        if(count>end-addr) count=end-addr;
+        memmove(p,(const void *)(uintptr_t)addr,count);
+        tasks[current].fd_pos[fd]=addr+(uint32_t)count;
+        return (int)count;
+    }
     if(dev==DEV_RAND) return device_rw_rand(p,n,writing);
     if((dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS)
         return device_rw_proc(fd,dev,p,n,writing);
@@ -832,7 +892,19 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
     return device_rw_gpio(dev,p,n,writing);
 }
 static int device_ioctl(int fd,int cmd,int arg) {
-    if(fd<0 || fd>=8 || tasks[current].fd[fd]<DEV_GPIO_VALUE_BASE || tasks[current].fd[fd]>DEV_GPIO_VALUE_END) return OS_EBADF;
+    if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
+    if(tasks[current].fd[fd]==DEV_TRACE) {
+        uint32_t irq=save_and_disable_interrupts();
+        if(cmd==TRACE_ON) {
+            trace_enabled=0;
+            trace_head=trace_count=0;
+            trace_enabled=1;
+        } else if(cmd==TRACE_OFF) trace_enabled=0;
+        else { restore_interrupts(irq); return OS_EINVAL; }
+        restore_interrupts(irq);
+        return 0;
+    }
+    if(tasks[current].fd[fd]<DEV_GPIO_VALUE_BASE || tasks[current].fd[fd]>DEV_GPIO_VALUE_END) return OS_EBADF;
     int pin=tasks[current].fd[fd]-DEV_GPIO_VALUE_BASE;
     (void)arg;
     switch(cmd) {
@@ -851,6 +923,7 @@ void os_svc_dispatch(uint32_t *f) {
     int result=OS_ENOSYS;
     svc_count++;
     if(current<0) { f[0]=OS_EINVAL; return; }
+    trace_record(TRACE_SVC_ENTER, (uint8_t)tasks[current].pid, (uint32_t)num, (uint32_t)a);
     switch(num) {
         case SYS_GETPID: result=tasks[current].pid; break;
         case SYS_GET_TTY: result=tasks[current].tty; break;
@@ -908,9 +981,9 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_SPAWN:
-            if(a<1 || a>=5 || !programs[a].entry) result=OS_ENOENT;
+            if(a<1 || a>=8 || !programs[a].entry) result=OS_ENOENT;
             else if(b<0 || b>31 || (a!=3 && b!=0)) result=OS_EINVAL;
-            else if(a==4 && c) {
+            else if(c) {
                 const char *path=(const char *)(uintptr_t)c;
                 unsigned i=0;
                 while(i<31 && in_task_range(path+i,1) && path[i]) i++;
@@ -931,14 +1004,6 @@ void os_svc_dispatch(uint32_t *f) {
                 if(result>0) {
                     task_t *child=&tasks[slot_from_pid(result)];
                     child->startup_seconds=b;
-                    if(a==4 && c) {
-                        const char *path=(const char *)(uintptr_t)c;
-                        unsigned i=0;
-                        while(i<sizeof(child->script_path)-1 && path[i]) {
-                            child->script_path[i]=path[i]; i++;
-                        }
-                        child->script_path[i]=0;
-                    }
                 }
             }
             break;
@@ -965,7 +1030,23 @@ void os_svc_dispatch(uint32_t *f) {
         case SYS_READ: result=device_rw(a,(void *)(uintptr_t)b,(size_t)c,0); break;
         case SYS_WRITE: result=device_rw(a,(void *)(uintptr_t)b,(size_t)c,1); break;
         case SYS_IOCTL: result=device_ioctl(a,b,c); break;
+        case SYS_LSEEK:
+            if(a<0 || a>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
+            else if(c!=0) result=OS_EINVAL; /* SEEK_SET only */
+            else if(tasks[current].fd[a]==DEV_MEM) {
+                uint32_t pos=(uint32_t)b;
+                if((pos>=0x10000000u && pos<0x10200000u) ||
+                   (pos>=0x20000000u && pos<0x20040000u)) {
+                    tasks[current].fd_pos[a]=pos;
+                    result=b;
+                } else result=OS_EINVAL;
+            } else if(tasks[current].fd[a]>=DEV_TMP_FIRST &&
+                      tasks[current].fd[a]<DEV_TMP_FIRST+TMP_FILES && b>=0 && b<=TMP_BYTES) {
+                tasks[current].fd_pos[a]=(uint32_t)b; result=b;
+            } else result=OS_EINVAL;
+            break;
     }
+    trace_record(TRACE_SVC_EXIT, (uint8_t)tasks[current].pid, (uint32_t)num, (uint32_t)result);
     f[0]=(uint32_t)result;
 }
 // Use explicit registers to pass arguments to the SVC dispatcher.

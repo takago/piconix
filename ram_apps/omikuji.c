@@ -4,16 +4,8 @@
 #include <stddef.h>
 #include "unistd.h"
 #include "fcntl.h"
-static void print(const char *s) {
-    unsigned n=0;
-    while(s[n]) ++n;
-    while(n) {
-        int rc=write(1, s, n);
-        if(rc<0) return;
-        if(rc==0) { sleep(1); continue; }
-        s+=(unsigned)rc; n-=(unsigned)rc;
-    }
-}
+#include "stdio.h"
+#include "stdlib.h"
 static unsigned random_from_device(void) {
     static const char path[]="/dev/rand";
     uint32_t value=0;
@@ -32,7 +24,7 @@ static unsigned mod6(uint32_t value) {
     }
     return rem;
 }
-int main(int argc, char **argv) {
+int main(int argc, char *argv[]) {
     /* Fixed-width strings avoid absolute address entries in a pointer table. */
     static const char fortunes[][9] = {
         "DAIKICHI", "CHUKICHI", "SHOKICHI", "KICHI", "SUEKICHI", "KYO"
@@ -40,12 +32,13 @@ int main(int argc, char **argv) {
     int seconds=0;
     if(argc>1 && argv[1]) {
         const char *p=argv[1];
-        while(*p>='0' && *p<='9') { seconds=seconds*10+(*p++-'0'); }
-        if(*p || seconds>31) seconds=0;
+        char *end;
+        seconds=(int)strtol(p, &end, 10);
+        if(end==p || *end || seconds<0 || seconds>31) seconds=0;
     }
     if(seconds==31) seconds=10; /* no interactive stdin in background */
     if(seconds==0) {
-        print("Countdown seconds (1-30): ");
+        printf("%s", "Countdown seconds (1-30): ");
         char input[16];
         int len=read(0, input, sizeof(input));
         if(len<0) {
@@ -62,14 +55,14 @@ int main(int argc, char **argv) {
                 valid=1;
             }
             if(!valid || value<1 || value>30) {
-                print("Invalid seconds (use 1-30).\r\n");
+                printf("%s", "Invalid seconds (use 1-30).\r\n");
                 _exit(1);
                 for(;;) {}
             }
             seconds=(int)value;
         }
     }
-    print("\t");
+    printf("%s", "\t");
     for(int n=seconds;n>=1;n--) {
         char item[6];
         unsigned len=0;
@@ -86,9 +79,9 @@ int main(int argc, char **argv) {
         sleep(1000);
     }
     unsigned value=random_from_device();
-    print(" (*^_^*) ");
-    print(fortunes[mod6(value)]);
-    print("!\r\n");
+    printf("%s", " (*^_^*) ");
+    printf("%s", fortunes[mod6(value)]);
+    printf("%s", "!\r\n");
     _exit(0);
     for(;;) sleep(1000);
 }

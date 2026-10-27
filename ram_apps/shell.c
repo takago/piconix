@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* PicoNIX shell: freestanding, slot-linked at 0x20010000.
- * No libc, SDK, static mutable state, or kernel RAM data references.
+/* PicoNIX shell: freestanding, slot-linked at 0x20018000.
+ * Small user libc; no SDK or kernel RAM data references.
  * Syscalls use SVC ABI: r0=number, r1..r3=arguments.
  */
 #include <stdint.h>
@@ -8,15 +8,10 @@
 
 #include "unistd.h"
 #include "fcntl.h"
-static size_t slen(const char *s) { size_t n=0; while(s[n]) n++; return n; }
-static int eq(const char *a,const char *b) {
-    while(*a && *a==*b) { a++; b++; }
-    return *a==*b;
-}
-static int prefix(const char *a,const char *b) {
-    while(*b) if(*a++!=*b++) return 0;
-    return 1;
-}
+#include "string.h"
+#include "stdio.h"
+static int eq(const char *a,const char *b) { return strcmp(a,b)==0; }
+static int prefix(const char *a,const char *b) { return strncmp(a,b,strlen(b))==0; }
 /* A console write can be partial when the kernel TX queue fills.
  * Sleep to let the idle task drain it; never discard the remainder. */
 static void write_all(int fd, const char *p, size_t n) {
@@ -74,7 +69,7 @@ static int directory(const char *p) {
     return eq(p,"/") || eq(p,"/dev") || eq(p,"/dev/gpio") ||
            eq(p,"/proc") || eq(p,"/tmp");
 }
-/* Resolve '.', '..', repeated '/' and relative names without libc. */
+/* Resolve '.', '..', repeated '/' and relative names with a small user libc. */
 static int resolve(const char *cwd, const char *input, char out[128]) {
     char combined[256];
     unsigned n=0;
@@ -131,7 +126,7 @@ static void ls(const char *path) {
 /* Whitespace is syntax around redirection paths, not part of names. */
 static char *trim(char *s) {
     while(*s==' ' || *s=='\t') s++;
-    char *end=s+slen(s);
+    char *end=s+strlen(s);
     while(end>s && (end[-1]==' ' || end[-1]=='\t')) *--end=0;
     return s;
 }
@@ -189,7 +184,10 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
     /* Background execution is meaningful only for spawned programs. */
     if(requested_bg && !(eq(s,"blink") || prefix(s,"blink ") ||
                          eq(s,"omikuji") || prefix(s,"omikuji ") ||
-                         eq(s,"python") || prefix(s,"python ") || prefix(s,"getty "))) {
+                         eq(s,"python") || prefix(s,"python ") ||
+                         eq(s,"hello") || prefix(s,"hello ") ||
+                         eq(s,"hexdump") || prefix(s,"hexdump ") ||
+                         eq(s,"trace") || prefix(s,"trace ") || prefix(s,"getty "))) {
         put("background: requires an external program\r\n");
         return;
     }
@@ -206,6 +204,9 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             "  omikuji N [&]    Countdown 1-30 seconds; & = background\r\n"
             "  omikuji &        Background with default 10 seconds\r\n"
             "  python [file] [&] REPL or run a /tmp script\r\n"
+            "  hello [name] [&] Say hello\r\n"
+            "  hexdump [file [offset [count]]] [&]  Hex/ASCII dump\r\n"
+            "  trace on|off|show   Record or display kernel events\r\n"
             "  getty /dev/uart1 sh|python [&]  Attach a terminal\r\n"
             "  &                Return to shell without waiting\r\n"
             "  Ctrl+C           Interrupt foreground task\r\n"
@@ -236,7 +237,10 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             "  echo out > /dev/gpio/25.dir\r\n"
             "  cat /dev/gpio/25.dir\r\n"
             "  echo up > /dev/gpio/16.pull\r\n"
-            "  cat /dev/gpio/16.pull\r\n");
+            "  cat /dev/gpio/16.pull\r\n"
+            "  hexdump /dev/mem 0x20018000 64\r\n"
+            "  hexdump /dev/mem 0x10000000 64\r\n"
+            "  trace on\r\n  hello\r\n  trace off\r\n  trace show\r\n");
     }
     else if(eq(s,"logout") || eq(s,"exit")) {
         put("logout\r\nPicoNIX: Session closed.\r\n");
@@ -290,6 +294,55 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             }
             set_foreground(0);
         }
+    } else if(eq(s,"trace") || prefix(s,"trace ")) {
+        const char *arg=s+5;
+        while(*arg==' ') arg++;
+        if(!eq(arg,"on") && !eq(arg,"off") && !eq(arg,"show")) {
+            put("usage: trace on|off|show\r\n"); return;
+        }
+        int pid=spawn(7,0,arg);
+        if(pid<0) { put("trace: cannot start\r\n"); return; }
+        if(requested_bg) { *bg_pid=pid; *bg_name="trace"; }
+        else {
+            int status=0;
+            set_foreground(pid);
+            while(waitpid(pid,&status,0)==0) sleep(10);
+            set_foreground(0);
+        }
+    } else if(eq(s,"hello") || prefix(s,"hello ") ||
+              eq(s,"hexdump") || prefix(s,"hexdump ")) {
+        int is_dump=prefix(s,"hexdump");
+        const char *arg=s+(is_dump?7:5);
+        while(*arg==' ') arg++;
+        char path[128];
+        if(is_dump && *arg) {
+            /* Resolve just the filename, preserving optional offset and count. */
+            const char *suffix=arg;
+            while(*suffix && *suffix!=' ') suffix++;
+            char file[128];
+            size_t len=(size_t)(suffix-arg);
+            if(len>=sizeof file) { put("hexdump: path too long\r\n"); return; }
+            memcpy(file,arg,len); file[len]=0;
+            if(resolve(cwd,file,path)<0) {
+                put("hexdump: path too long\r\n"); return;
+            }
+            len=strlen(path);
+            if(len+strlen(suffix)>=sizeof path) {
+                put("hexdump: arguments too long\r\n"); return;
+            }
+            strcpy(path+len,suffix);
+            arg=path;
+        }
+        if(strlen(arg)>30) { put("argument too long\r\n"); return; }
+        int pid=spawn(is_dump?6:5,0,*arg?arg:0);
+        if(pid<0) { put("cannot start program\r\n"); return; }
+        if(requested_bg) { *bg_pid=pid; *bg_name=is_dump?"hexdump":"hello"; }
+        else {
+            int status=0;
+            set_foreground(pid);
+            while(waitpid(pid,&status,0)==0) sleep(10);
+            set_foreground(0);
+        }
     } else if(prefix(s,"getty ")) {
         const char *arg=s+6;
         int tty=0;
@@ -309,7 +362,7 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             while(*arg==' ') arg++;
             if(!*arg || resolve(cwd,arg,path)<0 || !prefix(path,"/tmp/") ||
                !path[5]) { put("python: invalid script path\r\n"); return; }
-            if(slen(path)>=32) { put("python: path too long\r\n"); return; }
+            if(strlen(path)>=32) { put("python: path too long\r\n"); return; }
         }
         int pid=spawn(4, 0, (arg?path:0));
         if(pid<0) { put("python: no free slot\r\n"); return; }
@@ -375,8 +428,7 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
         put(s+5); put(redirect_out?"\n":"\r\n");
     } else put("unknown command (help)\r\n");
 }
-int main(int argc, char **argv) {
-    (void)argc; (void)argv;
+int main(int argc, char *argv[]) {
     char line[128];
     char cwd[128];
     cwd[0]='/';
@@ -412,7 +464,7 @@ int main(int argc, char **argv) {
         /* Parse '&' once for every command, before redirection. */
         char *cmd=trim(line);
         int requested_bg=0;
-        size_t len=slen(cmd);
+        size_t len=strlen(cmd);
         if(len && cmd[len-1]=='&') {
             cmd[len-1]=0;
             cmd=trim(cmd);
@@ -427,7 +479,7 @@ int main(int argc, char **argv) {
         if(redir_ok<0) put("redirect: invalid path or cannot open file\r\n");
         /* Background notification must go to the console, not the file. */
         if(bg_pid>0) {
-            put("["); number(bg_pid);
+            put("["); printf("%d", bg_pid);
             put("] "); put(bg_name?bg_name:"program"); put(" started\r\n");
         }
         put("piconix# ");
