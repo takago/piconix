@@ -90,3 +90,7 @@ All applications are compiled with `-fPIC -Os`. The build links the same object 
 On UART1, Ctrl+D (`0x04`) becomes EOF (a zero-length `read()`) only while a terminal owner exists. Without an owner, raw `0x04` is preserved. Bytes before Ctrl+D are returned first, followed by EOF on the next read.
 
 The UART1 shell stays active on Ctrl+D (EOF); use `logout` or `exit` to terminate it and print a session-close message.
+
+## Startup arguments and crt0
+
+The initial task stack holds argument strings and argv pointers. Registers r0/r1 pass argc/argv to the common crt0. The old SYS_GETARG (number 15) is retired and reserved; other syscall numbers remain unchanged.

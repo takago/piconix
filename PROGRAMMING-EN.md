@@ -12,7 +12,7 @@ Change the millisecond values passed to `SYS_SLEEP` in `ram_apps/blink.c`. For e
 
 | Item | Requirement |
 |---|---|
-| Entry point | `app_entry` |
+| Entry point | `main(argc, argv)` |
 | RAM addresses | Six dynamically allocated slots from `0x20010000`, spaced 32 KiB apart |
 | Size | 32 KiB each (last 4 KiB reserved for stack) |
 | Kernel interface | SVC (`r0` number, `r1`–`r3` arguments, return in `r0`) |
@@ -44,3 +44,24 @@ python3 tools/test_ram_pipeline.py
 These are host checks. The host RAM-image pipeline checks Shell and Blink; **building with ARM GCC and Pico SDK is still required for all application images**. Watch for unresolved helpers such as `__aeabi_*`, slot overflows, and mismatched syscall numbers.
 
 For job control and the absence of UNIX signals, see [Internals](INTERNAL-EN.md).
+
+## Common startup (crt0)
+
+Every RAM application links `ram_apps/crt0.c`. The kernel sets `r0=argc` and `r1=argv` in the initial task frame; `app_entry()` in crt0 invokes `main(argc, argv)` and issues `SYS_EXIT` when main returns. `SYS_GETARG` is removed; syscall number 15 remains reserved.
+
+## User application API (stage 6: addition only)
+
+`ram_apps/unistd.h` and `ram_apps/fcntl.h` expose user-facing declarations and flags; `ram_apps/syscalls.c` implements minimal SVC wrappers. Every RAM app links `syscalls.o`; unused functions are removed by section garbage collection.
+
+```c
+#include "unistd.h"
+#include "fcntl.h"
+
+int main(int argc, char **argv) {
+    const char message[] = "hello\n";
+    write(1, message, sizeof(message) - 1);
+    return 0;
+}
+```
+
+All RAM applications and `crt0.c` now use the user API; only `syscalls.c` directly issues SVC instructions. `sleep()` takes milliseconds, unlike POSIX. The API is not a complete POSIX implementation.

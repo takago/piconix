@@ -6,17 +6,8 @@
 #include <stdint.h>
 #include <stddef.h>
 
-enum { SYS_GETPID=1, SYS_KILL=2, SYS_EXIT=3, SYS_OPEN=6, SYS_CLOSE=7,
-       SYS_READ=8, SYS_WRITE=9, SYS_SPAWN=12, SYS_SLEEP=4, SYS_WAITPID=13, SYS_SET_FG=14, SYS_CONSOLE_READY=16, SYS_UNLINK=17, SYS_DUP2=18, SYS_TTY_SPAWN=19, SYS_GET_TTY=20 };
-enum { O_CREAT=8, O_TRUNC=16, O_APPEND=32 };
-static inline int svc(int n, uintptr_t a, uintptr_t b, uintptr_t c) {
-    register uintptr_t r0 __asm("r0") = (uintptr_t)n;
-    register uintptr_t r1 __asm("r1") = a;
-    register uintptr_t r2 __asm("r2") = b;
-    register uintptr_t r3 __asm("r3") = c;
-    __asm volatile("svc #0" : "+r"(r0) : "r"(r1),"r"(r2),"r"(r3) : "memory");
-    return (int)r0;
-}
+#include "unistd.h"
+#include "fcntl.h"
 static size_t slen(const char *s) { size_t n=0; while(s[n]) n++; return n; }
 static int eq(const char *a,const char *b) {
     while(*a && *a==*b) { a++; b++; }
@@ -30,9 +21,9 @@ static int prefix(const char *a,const char *b) {
  * Sleep to let the idle task drain it; never discard the remainder. */
 static void write_all(int fd, const char *p, size_t n) {
     while(n) {
-        int rc=svc(SYS_WRITE,fd,(uintptr_t)p,n);
+        int rc=write(fd, p, n);
         if(rc<0) return;
-        if(rc==0) { svc(SYS_SLEEP,1,0,0); continue; }
+        if(rc==0) { sleep(1); continue; }
         p+=(unsigned)rc; n-=(unsigned)rc;
     }
 }
@@ -70,13 +61,13 @@ static int parse_pid(const char *s) {
     return n>0?n:-1;
 }
 static void ps(void) {
-    int fd=svc(SYS_OPEN,(uintptr_t)"/proc/tasks",0,0);
+    int fd=open("/proc/tasks", 0);
     if(fd<0) { put("ps: cannot open tasks\r\n"); return; }
     char b[32]; int n;
-    while((n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b))>0)
+    while((n=read(fd, b, sizeof b))>0)
         write_all(1,b,(size_t)n);
     if(n<0) put("ps: read error\r\n");
-    svc(SYS_CLOSE,fd,0,0);
+    close(fd);
 }
 /* Shell-local cwd: the kernel still accepts absolute virtual paths only. */
 static int directory(const char *p) {
@@ -119,13 +110,13 @@ static void ls(const char *path) {
        eq(path,"/tmp") || eq(path,"/tmp/")) {
         const char *listing=eq(path,"/dev") || eq(path,"/dev/") ?
             "/proc/devices" : "/tmp";
-        int fd=svc(SYS_OPEN,(uintptr_t)listing,0,0);
+        int fd=open(listing, 0);
         if(fd<0) { put("ls: cannot open directory\r\n"); return; }
         char b[32]; int n;
-        while((n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b))>0)
+        while((n=read(fd, b, sizeof b))>0)
             write_all(1,b,(size_t)n);
         if(n<0) put("ls: read error\r\n");
-        svc(SYS_CLOSE,fd,0,0);
+        close(fd);
     }
     else if(eq(path,"/dev/gpio") || eq(path,"/dev/gpio/")) {
         for(int i=0;i<=28;i++) {
@@ -178,13 +169,13 @@ static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
         int target=output?1:0, saved=output?7:6;
         if(seen & (1<<target)) return -1;
         seen|=1<<target;
-        int fd=svc(SYS_OPEN,(uintptr_t)path,flag,0);
+        int fd=open(path, flag);
         if(fd<0) return -1;
-        if(fd==saved || svc(SYS_DUP2,target,saved,0)<0 ||
-           svc(SYS_DUP2,fd,target,0)<0) {
-            svc(SYS_CLOSE,fd,0,0); return -1;
+        if(fd==saved || dup2(target, saved)<0 ||
+           dup2(fd, target)<0) {
+            close(fd); return -1;
         }
-        svc(SYS_CLOSE,fd,0,0);
+        close(fd);
         if(output) *save_out=saved; else *save_in=saved;
         while(*q==' ' || *q=='\t') q++;
         if(*q && *q!='<' && *q!='>') return -1;
@@ -249,8 +240,8 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
     }
     else if(eq(s,"logout") || eq(s,"exit")) {
         put("logout\r\nPicoNIX: Session closed.\r\n");
-        svc(SYS_EXIT,0,0,0);
-        for(;;) svc(SYS_SLEEP,100,0,0);
+        _exit(0);
+        for(;;) sleep(100);
     }
     else if(eq(s,"pwd")) { put(cwd); put("\r\n"); }
     else if(eq(s,"cd") || prefix(s,"cd ")) {
@@ -262,15 +253,15 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
         unsigned i=0; while((cwd[i]=path[i])) i++;
     }
     else if(eq(s,"ps")) ps();
-    else if(eq(s,"pid")) { number(svc(SYS_GETPID,0,0,0)); put("\r\n"); }
+    else if(eq(s,"pid")) { number(getpid()); put("\r\n"); }
     else if(eq(s,"tty")) {
-        int tty=svc(SYS_GET_TTY,0,0,0);
+        int tty=get_tty();
         put(tty==0?"/dev/console\r\n":tty==1?"/dev/uart1\r\n":"not a tty\r\n");
     }
     else if(prefix(s,"kill ")) {
         int pid=parse_pid(s+5);
-        if(pid<0 || pid==svc(SYS_GETPID,0,0,0)) put("usage: kill PID (not shell)\r\n");
-        else put(svc(SYS_KILL,pid,0,0)==0?"terminated\r\n":"kill: no such task\r\n");
+        if(pid<0 || pid==getpid()) put("usage: kill PID (not shell)\r\n");
+        else put(kill(pid)==0?"terminated\r\n":"kill: no such task\r\n");
     } else if(prefix(s,"blink") || prefix(s,"omikuji")) {
         int omikuji=prefix(s,"omikuji");
         const char *tail=s+(omikuji?7:5);
@@ -285,19 +276,19 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
             if(seconds<1 || seconds>30) { put("usage: omikuji [1-30] [&]\r\n"); return; }
         }
         if(*tail) { put(omikuji?"usage: omikuji [1-30] [&]\r\n":"usage: blink [&]\r\n"); return; }
-        int pid=svc(SYS_SPAWN,omikuji?3:1,(uintptr_t)(omikuji && background && !seconds ? 31 : seconds),0);
+        int pid=spawn(omikuji?3:1, (omikuji && background && !seconds ? 31 : seconds), 0);
         if(pid<0) { put("cannot start program (slot busy or invalid argument)\r\n"); return; }
         if(background) { *bg_pid=pid; *bg_name=omikuji?"omikuji":"blink"; }
         else {
             int status=0;
-            svc(SYS_SET_FG,pid,0,0);
+            set_foreground(pid);
             for(;;) {
-                int rc=svc(SYS_WAITPID,pid,(uintptr_t)&status,0);
+                int rc=waitpid(pid, &status, 0);
                 if(rc==pid) break;
                 if(rc<0) { put("waitpid: error\r\n"); break; }
-                svc(SYS_SLEEP,10,0,0);
+                sleep(10);
             }
-            svc(SYS_SET_FG,0,0,0);
+            set_foreground(0);
         }
     } else if(prefix(s,"getty ")) {
         const char *arg=s+6;
@@ -307,10 +298,10 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
         if(!tty || !(eq(arg,"sh") || eq(arg,"python"))) {
             put("usage: getty /dev/uart1 sh|python [&]\r\n");return;
         }
-        int pid=svc(SYS_TTY_SPAWN,tty,eq(arg,"sh")?2:4,0);
+        int pid=tty_spawn(tty, eq(arg,"sh")?2:4);
         if(pid<0) {put("getty: terminal busy or no free slot\r\n");return;}
         if(requested_bg) {*bg_pid=pid;*bg_name=eq(arg,"sh")?"sh":"python";}
-        else {int status=0;while(svc(SYS_WAITPID,pid,(uintptr_t)&status,0)==0)svc(SYS_SLEEP,10,0,0);}
+        else {int status=0;while(waitpid(pid, &status, 0)==0)sleep(10);}
     } else if(eq(s,"python") || prefix(s,"python ")) {
         char path[128];
         const char *arg=eq(s,"python")?0:s+7;
@@ -320,18 +311,18 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
                !path[5]) { put("python: invalid script path\r\n"); return; }
             if(slen(path)>=32) { put("python: path too long\r\n"); return; }
         }
-        int pid=svc(SYS_SPAWN,4,0,(uintptr_t)(arg?path:0));
+        int pid=spawn(4, 0, (arg?path:0));
         if(pid<0) { put("python: no free slot\r\n"); return; }
         if(requested_bg) { *bg_pid=pid; *bg_name="python"; }
         else {
             int status=0;
-            svc(SYS_SET_FG,pid,0,0);
+            set_foreground(pid);
             for(;;) {
-                int rc=svc(SYS_WAITPID,pid,(uintptr_t)&status,0);
+                int rc=waitpid(pid, &status, 0);
                 if(rc==pid || rc<0) break;
-                svc(SYS_SLEEP,10,0,0);
+                sleep(10);
             }
-            svc(SYS_SET_FG,0,0,0);
+            set_foreground(0);
         }
     } else if(eq(s,"ls") || prefix(s,"ls ")) {
         const char *arg=eq(s,"ls")?cwd:s+3;
@@ -344,7 +335,7 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
     else if(prefix(s,"rm ")) {
         char path[128];
         if(resolve(cwd,s+3,path)<0) { put("rm: path too long\r\n"); return; }
-        if(svc(SYS_UNLINK,(uintptr_t)path,0,0)<0) put("rm: cannot remove\r\n");
+        if(unlink(path)<0) put("rm: cannot remove\r\n");
     }
     else if(eq(s,"cat") || prefix(s,"cat ")) {
         char path[128];
@@ -352,13 +343,13 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
         if(!from_stdin && resolve(cwd,trim(s+4),path)<0) { put("cat: path too long\r\n"); return; }
         if(!from_stdin && eq(path,"/dev/console")) { put("cat: console reserved for shell\r\n"); return; }
         int uart=!from_stdin && eq(path,"/dev/uart1");
-        int fd=from_stdin?0:svc(SYS_OPEN,(uintptr_t)path,uart?4:0,0);
+        int fd=from_stdin?0:open(path, uart?4:0);
         if(fd<0) { put("cat: cannot open\r\n"); return; }
         // Proc reports can exceed one read. Read until EOF, using small
         // transfers to avoid overflowing the nonblocking USB console FIFO.
         if(from_stdin || prefix(path,"/proc/") || prefix(path,"/tmp/")) {
             char b[32]; int n;
-            while((n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b))>0) {
+            while((n=read(fd, b, sizeof b))>0) {
                 write_all(1,b,(size_t)n);
             }
             if(n<0) put("cat: read error\r\n");
@@ -368,30 +359,30 @@ static void command(char *s, char cwd[128], int redirect_out, int requested_bg, 
                stop after 200ms of inactivity, including before first byte. */
             char b[32]; unsigned idle=0;
             while(idle<200) {
-                int n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b);
+                int n=read(fd, b, sizeof b);
                 if(n<0) { put("cat: read error\r\n"); break; }
                 if(n>0) { write_all(1,b,(size_t)n); idle=0; }
-                else { svc(SYS_SLEEP,10,0,0); idle+=10; }
+                else { sleep(10); idle+=10; }
             }
             put("\r\n");
         } else {
-            char b[32]; int n=svc(SYS_READ,fd,(uintptr_t)b,sizeof b);
+            char b[32]; int n=read(fd, b, sizeof b);
             if(n>0) { write_all(1,b,(size_t)n); if(!redirect_out) put("\r\n"); }
             else if(n<0) put("cat: read error\r\n");
         }
-        if(!from_stdin) svc(SYS_CLOSE,fd,0,0);
+        if(!from_stdin) close(fd);
     } else if(prefix(s,"echo ")) {
         put(s+5); put(redirect_out?"\n":"\r\n");
     } else put("unknown command (help)\r\n");
 }
-__attribute__((used,noreturn,section(".text.app_entry")))
-void app_entry(void) {
+int main(int argc, char **argv) {
+    (void)argc; (void)argv;
     char line[128];
     char cwd[128];
     cwd[0]='/';
     cwd[1]=0;
     /* USB CDC may enumerate after the shell task starts.  Do not discard the banner. */
-    while(!svc(SYS_CONSOLE_READY,0,0,0)) svc(SYS_SLEEP,10,0,0);
+    while(!console_ready()) sleep(10);
     put("\r\n--------------------------------------------------------\r\n"
         "PicoNIX-2026-10-26 (TAKAGO_LAB.)\r\n"
         "Type 'help' for commands.\r\n"
@@ -402,13 +393,13 @@ void app_entry(void) {
     for(;;) {
         int n=0;
         while(!n) {
-            if(offset==length) {length=svc(SYS_READ,0,(uintptr_t)chunk,sizeof chunk);offset=0;
-                if(length==0 && svc(SYS_GET_TTY,0,0,0)==1) {
+            if(offset==length) {length=read(0, chunk, sizeof chunk);offset=0;
+                if(length==0 && get_tty()==1) {
                     /* Ctrl+D ends this input, not the shell session. */
                     used=0; previous_cr=0; put("\r\npiconix# ");
                     continue;
                 }
-                if(length<=0) {svc(SYS_SLEEP,1,0,0);continue;}}
+                if(length<=0) {sleep(1);continue;}}
             char c=chunk[offset++];
             if(c=='\n' && previous_cr) {previous_cr=0;continue;}
             previous_cr=(c=='\r');
@@ -417,7 +408,7 @@ void app_entry(void) {
         }
         /* Reap completed background children (no status display yet). */
         int bg_status;
-        while(svc(SYS_WAITPID,(uintptr_t)-1,(uintptr_t)&bg_status,0)>0) {}
+        while(waitpid(-1, &bg_status, 0)>0) {}
         /* Parse '&' once for every command, before redirection. */
         char *cmd=trim(line);
         int requested_bg=0;
@@ -431,8 +422,8 @@ void app_entry(void) {
         const char *bg_name=0;
         int redir_ok=redirect(cmd,cwd,&saved_in,&saved_out);
         if(redir_ok==0) command(trim(cmd),cwd,saved_out>=0,requested_bg,&bg_pid,&bg_name);
-        if(saved_in>=0) { svc(SYS_DUP2,saved_in,0,0); svc(SYS_CLOSE,saved_in,0,0); }
-        if(saved_out>=0) { svc(SYS_DUP2,saved_out,1,0); svc(SYS_CLOSE,saved_out,0,0); }
+        if(saved_in>=0) { dup2(saved_in, 0); close(saved_in); }
+        if(saved_out>=0) { dup2(saved_out, 1); close(saved_out); }
         if(redir_ok<0) put("redirect: invalid path or cannot open file\r\n");
         /* Background notification must go to the console, not the file. */
         if(bg_pid>0) {

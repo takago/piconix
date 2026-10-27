@@ -2,16 +2,11 @@
 /* Tiny Python-like subset for PicoNIX: file execution and simple REPL. */
 #include <stdint.h>
 #include <stddef.h>
-enum { SYS_EXIT=3, SYS_SLEEP=4, SYS_OPEN=6, SYS_CLOSE=7, SYS_READ=8, SYS_WRITE=9, SYS_GETARG=15, SYS_GET_TTY=20 };
-static inline int svc(int n,uintptr_t a,uintptr_t b,uintptr_t c) {
-    register uintptr_t r0 __asm("r0")=(uintptr_t)n;
-    register uintptr_t r1 __asm("r1")=a,r2 __asm("r2")=b,r3 __asm("r3")=c;
-    __asm volatile("svc #0":"+r"(r0):"r"(r1),"r"(r2),"r"(r3):"memory");
-    return (int)r0;
-}
+#include "unistd.h"
+#include "fcntl.h"
 static void outn(const char *s,unsigned n) {
-    while(n) { int r=svc(SYS_WRITE,1,(uintptr_t)s,n); if(r<0) return;
-        if(!r) { svc(SYS_SLEEP,1,0,0); continue; } s+=r;n-=(unsigned)r; }
+    while(n) { int r=write(1, s, n); if(r<0) return;
+        if(!r) { sleep(1); continue; } s+=r;n-=(unsigned)r; }
 }
 static void outs(const char *s){unsigned n=0;while(s[n])n++;outn(s,n);}
 static int same(const char *a,const char *b){while(*a&&*a==*b){a++;b++;}return *a==*b;}
@@ -59,34 +54,34 @@ static int gpio_config(int32_t pin,int32_t value,int pull){
     const char *mode=pull?(value==0?"none":value==1?"up":"down"):
                           (value==0?"in":"out");
     if(value<0 || value>(pull?2:1)){error=1;return 0;}
-    int fd=svc(SYS_OPEN,(uintptr_t)path,1,0);
+    int fd=open(path, 1);
     if(fd<0){error=1;return 0;}
     unsigned len=0;while(mode[len])len++;
-    int rc=svc(SYS_WRITE,fd,(uintptr_t)mode,len);
-    svc(SYS_CLOSE,fd,0,0);
+    int rc=write(fd, mode, len);
+    close(fd);
     if(rc!=(int)len){error=1;return 0;}
     return 1;
 }
 static int gpio_output(int32_t pin,int32_t val){
     char path[20];if(!gpio_path(path,pin,1))return 0;
     if(val!=0&&val!=1){error=1;return 0;}
-    int fd=svc(SYS_OPEN,(uintptr_t)path,1,0);
+    int fd=open(path, 1);
     if(fd<0){error=1;return 0;}
-    int n=svc(SYS_WRITE,fd,(uintptr_t)"out",3);svc(SYS_CLOSE,fd,0,0);
+    int n=write(fd, "out", 3);close(fd);
     if(n!=3){error=1;return 0;}
     if(!gpio_path(path,pin,0))return 0;
-    fd=svc(SYS_OPEN,(uintptr_t)path,1,0);
+    fd=open(path, 1);
     if(fd<0){error=1;return 0;}
     char c=(char)('0'+val);
-    n=svc(SYS_WRITE,fd,(uintptr_t)&c,1);svc(SYS_CLOSE,fd,0,0);
+    n=write(fd, &c, 1);close(fd);
     if(n!=1){error=1;return 0;}return 1;
 }
 static int32_t gpio_input(int32_t pin){
     char path[20];if(!gpio_path(path,pin,0))return 0;
-    int fd=svc(SYS_OPEN,(uintptr_t)path,0,0);
+    int fd=open(path, 0);
     if(fd<0){error=1;return 0;}
-    char c=0;int n=svc(SYS_READ,fd,(uintptr_t)&c,1);
-    svc(SYS_CLOSE,fd,0,0);
+    char c=0;int n=read(fd, &c, 1);
+    close(fd);
     if(n!=1||(c!='0'&&c!='1')){error=1;return 0;}
     return c-'0';
 }
@@ -96,7 +91,7 @@ static int read_line(char *buf,unsigned cap){
     unsigned n=0;
     for(;;){
         char c;
-        int r=svc(SYS_READ,0,(uintptr_t)&c,1);
+        int r=read(0, &c, 1);
         if(r<=0)return n?(int)n:-1;
         if(skip_lf){skip_lf=0;if(c=='\n')continue;}
         if(c=='\r'){skip_lf=1;break;}
@@ -159,7 +154,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         int32_t ms=expr();if(!eat(')'))error=1;
         ws();if(*cursor&&*cursor!='#')error=1;
         if(ms<0||ms>60000)error=1;
-        if(!error)svc(SYS_SLEEP,(uintptr_t)ms,0,0);
+        if(!error)sleep(ms);
         return;
     }
     cursor=source+offsets[line];ws();
@@ -249,11 +244,11 @@ static void repl(void){
             outs(block?"... ":">>> ");
             char line[128];
             int m=read_line(line,sizeof(line));
-            if(m<0){n=0;svc(SYS_SLEEP,10,0,0);break;} /* EOF discards pending input, not the REPL. */
+            if(m<0){n=0;sleep(10);break;} /* EOF discards pending input, not the REPL. */
             while(m>0&&(line[m-1]=='\n'||line[m-1]=='\r'))m--;
             line[m]=0;
             if(!block && same(line,"exit()")){
-                if(svc(SYS_GET_TTY,0,0,0)==1)outs("PicoNIX: Session closed.\r\n");
+                if(get_tty()==1)outs("PicoNIX: Session closed.\r\n");
                 return;
             }
             if(!block && !m)break;
@@ -272,17 +267,16 @@ static void repl(void){
         if(n){source[n]=0;run_source(n);}
     }
 }
-__attribute__((used,noreturn,section(".text.app_entry"))) void app_entry(void){
-    char path[32];
-    int len=svc(SYS_GETARG,(uintptr_t)path,sizeof(path),0);
-    if(len<=0){repl();goto done;}
-    int fd=svc(SYS_OPEN,(uintptr_t)path,0,0);
+int main(int argc, char **argv){
+    if(argc<2 || !argv[1]){repl();goto done;}
+    const char *path=argv[1];
+    int fd=open(path, 0);
     if(fd<0){outs("python: script not found\r\n");goto done;}
-    int n=svc(SYS_READ,fd,(uintptr_t)source,512);
-    svc(SYS_CLOSE,fd,0,0);
+    int n=read(fd, source, 512);
+    close(fd);
     if(n<0){outs("python: read error\r\n");goto done;}
     source[n]=0;run_source((unsigned)n);
 done:
-    svc(SYS_EXIT,error?1:0,0,0);
-    for(;;)svc(SYS_SLEEP,1000,0,0);
+    _exit(error?1:0);
+    for(;;)sleep(1000);
 }

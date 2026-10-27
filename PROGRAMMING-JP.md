@@ -12,7 +12,7 @@ PicoNIXのアプリは通常のLinux実行ファイルではありません．**
 
 | 項目 | 内容 |
 |---|---|
-| エントリポイント | `app_entry` |
+| エントリポイント | `main(argc, argv)` |
 | RAM配置 | 空きスロットを動的に選択（`0x20010000`から32 KiB刻みで6個） |
 | サイズ | 各32 KiB（末尾4 KiBはスタック予約） |
 | カーネル呼び出し | SVC（`r0`が番号，`r1`～`r3`が引数，戻り値は`r0`） |
@@ -44,3 +44,24 @@ python3 tools/test_ram_pipeline.py
 上記はホスト側検査です．RAMイメージのホスト検査対象はShellとBlinkであり，**全アプリの最終確認にはARM GCCとPico SDKによるビルドが必要**です．`__aeabi_*`のような未解決ランタイムシンボル，スロットのサイズ超過，システムコール番号の不一致に注意してください．
 
 背景処理やシグナル未対応の詳細は[内部構造](INTERNAL-JP.md)を参照してください．
+
+## 共通スタートアップ（crt0）
+
+各RAMアプリには `ram_apps/crt0.c` がリンクされます．カーネルは初期スタックから `r0=argc`，`r1=argv` を渡し，`crt0.c` の `app_entry()` が `main(argc, argv)` を呼び出します．`main()` が戻ると `SYS_EXIT` で終了します．`SYS_GETARG` は削除され，番号15は予約のままです．
+
+## ユーザアプリ用のAPI（第6段階：追加のみ）
+
+`ram_apps/unistd.h`と`ram_apps/fcntl.h`がユーザ向けの関数・定数を宣言し，`ram_apps/syscalls.c`がSVCラッパーを提供します．すべてのRAMアプリに`syscalls.o`をリンクしますが，使用しない関数はセクションGCで除去します．
+
+```c
+#include "unistd.h"
+#include "fcntl.h"
+
+int main(int argc, char **argv) {
+    const char message[] = "hello\n";
+    write(1, message, sizeof(message) - 1);
+    return 0;
+}
+```
+
+すべてのRAMアプリと`crt0.c`はユーザAPIを使用し，SVC命令は`syscalls.c`に集約しています．`sleep()`はPOSIXとは異なりミリ秒単位です．`unistd.h`と`fcntl.h`のAPIはPOSIXの完全な実装ではありません．

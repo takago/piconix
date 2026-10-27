@@ -29,6 +29,8 @@ foreach(APP IN ITEMS shell blink omikuji python)
   set(APP_LD "${APP_DIR}/slot.ld")
   configure_file("${CMAKE_CURRENT_LIST_DIR}/ram_apps/slot.ld" "${APP_LD}" @ONLY)
   set(APP_OBJ "${APP_DIR}/${APP}.o")
+  set(CRT_OBJ "${APP_DIR}/crt0.o")
+  set(SYSCALLS_OBJ "${APP_DIR}/syscalls.o")
   set(APP_LD_ALT "${APP_DIR}/slot_alt.ld")
   set(APP_ORIGIN 0x20018000)
   configure_file("${CMAKE_CURRENT_LIST_DIR}/ram_apps/slot.ld" "${APP_LD_ALT}" @ONLY)
@@ -49,13 +51,22 @@ foreach(APP IN ITEMS shell blink omikuji python)
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             ${APP_EXTRA_CFLAGS}
             -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/${APP}.c" -o "${APP_OBJ}"
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
+            -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
+            -fno-unwind-tables -fno-asynchronous-unwind-tables
+            -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/crt0.c" -o "${CRT_OBJ}"
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
+            -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
+            -fno-unwind-tables -fno-asynchronous-unwind-tables
+            -I "${CMAKE_CURRENT_LIST_DIR}/ram_apps"
+            -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/syscalls.c" -o "${SYSCALLS_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -nostdlib
             -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD}"
-            "${APP_OBJ}" -o "${APP_ELF}"
+            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" -o "${APP_ELF}"
     COMMAND "${CMAKE_OBJCOPY}" -O binary "${APP_ELF}" "${APP_BIN}"
     COMMAND "${CMAKE_C_COMPILER}" -nostdlib
             -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD_ALT}"
-            "${APP_OBJ}" -o "${APP_ELF_ALT}"
+            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" -o "${APP_ELF_ALT}"
     COMMAND "${CMAKE_OBJCOPY}" -O binary "${APP_ELF_ALT}" "${APP_BIN_ALT}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_pic.py"
             "${APP_ELF}" "${APP_BIN}" "${APP_ELF_ALT}" "${APP_BIN_ALT}"
@@ -63,6 +74,10 @@ foreach(APP IN ITEMS shell blink omikuji python)
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"
             "${APP_ELF}" "${APP_BIN}" "${APP_ORIGIN}" --readelf "${CMAKE_READELF}"
     DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ram_apps/${APP}.c"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/crt0.c"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/syscalls.c"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/unistd.h"
+            "${CMAKE_CURRENT_LIST_DIR}/ram_apps/fcntl.h"
             "${APP_LD}" "${APP_LD_ALT}"
             "${CMAKE_CURRENT_LIST_DIR}/tools/check_pic.py"
             "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"

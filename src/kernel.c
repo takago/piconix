@@ -18,7 +18,7 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY };
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY };
 typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint16_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; uint8_t tty; } task_t;
 // Six fixed 32-KiB SRAM slots, not a .bss reservation.
 // The linker must restrict the kernel to SRAM bank 0 (0x20000000..0x2000ffff).
@@ -296,7 +296,8 @@ void os_init(void) {
     *(volatile uint32_t *)0xE000ED20u = 0xC0C00000u;
 }
 // One PIC program image may run in any free RAM slot.
-static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char *name) {
+static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char *name,
+                         int seconds, const char *script) {
     if (!entry || slot<0 || slot>=OS_MAX_TASKS) return OS_EINVAL;
     uint32_t irq_state = save_and_disable_interrupts();
     task_t *t=&tasks[slot];
@@ -310,11 +311,46 @@ static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char 
         memset(task_ram[slot] + images[program_id].zero_start, 0,
                images[program_id].zero_size);
     }
-    uint32_t *s=(uint32_t *)(task_ram[slot]+OS_TASK_BYTES);
+    /* Diagnostic step 2: build full argc/argv in the initial stack.
+     * Startup arguments are supplied through r0/r1 to the common crt0 entry point. */
+    uint8_t *top=task_ram[slot]+OS_TASK_BYTES;
+    char *program=(char *)(top-112);
+    char *arg=(char *)(top-80);
+    char **argv=(char **)(top-16);
+    unsigned n=0;
+    const char *label=name?name:"task";
+    while(n<30 && label[n]) { program[n]=label[n]; n++; }
+    program[n]=0;
+    argv[0]=program;
+    argv[1]=NULL;
+    argv[2]=NULL;
+    if (script && *script) {
+        n=0;
+        while(n<30 && script[n]) { arg[n]=script[n]; n++; }
+        arg[n]=0;
+        argv[1]=arg;
+    } else if (program_id==3 && seconds>0) {
+        unsigned value=(unsigned)seconds;
+        if(value>=10) {
+            arg[0]=(char)('0'+value/10);
+            arg[1]=(char)('0'+value%10);
+            arg[2]=0;
+        } else {
+            arg[0]=(char)('0'+value);
+            arg[1]=0;
+        }
+        argv[1]=arg;
+    }
+    unsigned argc=argv[1]?2:1;
+    uint32_t *s=(uint32_t *)(top-128);
     *(--s)=0x01000000u;           // xPSR (Thumb)
     *(--s)=(uint32_t)entry;       // PC
     *(--s)=(uint32_t)task_return;// LR
-    for(int k=0;k<5;k++) *(--s)=0; // r12,r3,r2,r1,r0
+    *(--s)=0;                    // r12
+    *(--s)=0;                    // r3
+    *(--s)=0;                    // r2
+    *(--s)=(uint32_t)argv;       // r1: argv
+    *(--s)=argc;                 // r0: argc
     for(int k=0;k<8;k++) *(--s)=0; // r4-r11 saved by PendSV
     t->sp=s; t->entry=entry; t->name=name?name:"task";
     t->pid=next_pid++; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0;
@@ -351,7 +387,7 @@ int os_spawn_named(os_entry_t entry, const char *name) {
     if (started) return OS_EINVAL;
     // Six application slots; the idle task has a separate kernel-owned stack.
     for(int i=0;i<OS_MAX_TASKS;i++)
-        if(tasks[i].state==UNUSED) return spawn_in_slot(i,0,entry,name);
+        if(tasks[i].state==UNUSED) return spawn_in_slot(i,0,entry,name,0,NULL);
     return OS_EAGAIN;
 }
 void os_register_program(int id,os_entry_t entry,const char *name) {
@@ -361,7 +397,7 @@ void os_register_program(int id,os_entry_t entry,const char *name) {
 int os_start_program(int id) {
     if (started || id<1 || id>=5 || !programs[id].entry) return OS_EINVAL;
     int slot=free_program_slot();
-    return slot<0 ? OS_EAGAIN : spawn_in_slot(slot,id,programs[id].entry,programs[id].name);
+    return slot<0 ? OS_EAGAIN : spawn_in_slot(slot,id,programs[id].entry,programs[id].name,0,NULL);
 }
 int os_spawn(os_entry_t entry) { return os_spawn_named(entry, "task"); }
 void isr_systick(void) {
@@ -859,7 +895,7 @@ void os_svc_dispatch(uint32_t *f) {
             if(b!=2 && b!=4) { result=OS_EINVAL; break; }
             uint32_t irq_state=save_and_disable_interrupts();
             int slot=free_program_slot();
-            result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,b,programs[b].entry,programs[b].name);
+            result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,b,programs[b].entry,programs[b].name,0,NULL);
             if(result>0) {
                 task_t *child=&tasks[slot];
                 if(tty_shell_pid[0]==child->pid) tty_shell_pid[0]=0;
@@ -882,7 +918,7 @@ void os_svc_dispatch(uint32_t *f) {
                 else result=0;
                 if(result<0) break;
                 { int slot=free_program_slot();
-                  result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name); }
+                  result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name,0,path); }
                 if(result>0) {
                     task_t *child=&tasks[slot_from_pid(result)];
                     for(unsigned j=0;j<=i;j++) child->script_path[j]=path[j];
@@ -891,7 +927,7 @@ void os_svc_dispatch(uint32_t *f) {
             }
             else {
                 { int slot=free_program_slot();
-                  result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name); }
+                  result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name,(int)b,NULL); }
                 if(result>0) {
                     task_t *child=&tasks[slot_from_pid(result)];
                     child->startup_seconds=b;
@@ -905,15 +941,6 @@ void os_svc_dispatch(uint32_t *f) {
                     }
                 }
             }
-            break;
-        case SYS_GETARG:
-            if(a && b && tasks[current].script_path[0]) {
-                char *dest=(char *)(uintptr_t)a;
-                unsigned n=0;
-                while(tasks[current].script_path[n]) n++;
-                if((unsigned)b<=n || !in_task_range(dest,n+1)) result=OS_EINVAL;
-                else { memcpy(dest,tasks[current].script_path,n+1); result=(int)n; }
-            } else result=tasks[current].startup_seconds;
             break;
         case SYS_CONSOLE_READY:
 #if PICONIX_CONSOLE_USB
