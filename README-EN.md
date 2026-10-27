@@ -47,6 +47,8 @@ PicoNIX has a 96 KiB kernel region and five 32 KiB application slots. PIC applic
 
 PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, signal handlers, pipes, per-process memory protection, or dynamic ELF loading. `Ctrl+C` and `kill` terminate tasks directly in the kernel; they do not send UNIX signals. `/tmp` is lost on reboot.
 
+[Device guide](DEVICES-EN.md) — GPIO, ADC, PWM, and virtual devices.
+
 ## Documentation
 
 | Goal | Guide |
@@ -65,7 +67,7 @@ GPL-3.0-or-later. See `LICENSE`.
 
 ### Kernel tracing (16 KiB)
 
-`trace on` clears and starts the binary ring; `trace off` stops recording; `trace show` stops recording and prints the retained events. `/dev/trace` provides read-only, fixed 16-byte event records. Trace controls use device-specific `ioctl()` commands; decoding stays in the `trace.c` user application.
+`trace on` clears and starts the binary ring; `trace off` stops recording; `trace show` stops recording and prints the retained events. `/dev/trace` provides read-only, fixed 32-byte event records. Trace controls use device-specific `ioctl()` commands; decoding stays in the `trace.c` user application.
 
 ```text
 trace on
@@ -75,3 +77,49 @@ trace show
 ```
 
 Events include task switches and SVC entry/exit. Timestamps use SysTick milliseconds since boot.
+
+- `/bin`: read-only list of registered external commands. `spawn` supports `argv[]` with up to eight arguments and 128 bytes of strings.
+
+Trace details: [`TRACE-EN.md`](TRACE-EN.md) / [`TRACE-JP.md`](TRACE-JP.md)
+
+
+## External ps, cat, watch and interrupt counters
+
+`ps` and `cat` are standalone PIC applications (`/bin/ps`, `/bin/cat`), no longer Shell builtins. `watch` is a standalone `/bin/watch` application.
+
+```text
+ps
+cat /proc/tasks
+watch ps
+watch 1 ps
+watch 1 cat /proc/interrupts
+watch 2 cat /proc/memory
+```
+
+`watch [seconds] command [args...]` repeatedly executes an external program. The interval is 1–60 seconds, default 1 second. The terminal is cleared using ANSI escapes. `watch` and its child occupy one task slot each. `ls` and `echo` are external commands and can run under `watch`. Ctrl+C only terminates the terminal's foreground PID, not a process group; a child may remain briefly if interrupted while running. Use short-lived commands.
+
+`SysTick` in `/proc/interrupts` counts actual 1-ms interrupts. `uart1` counts entries into the UART1 IRQ handler. UART0-console builds report UART0 IRQs as `console`. USB CDC builds omit `console` because USB IRQs are not counted. `PendSV` and `SVC` count exception handler entries.
+
+
+## External shell commands and working directories
+
+`pwd`, `ls`, `rm`, `echo`, `kill`, and `tty` are separate `/bin` PIC applications. The `pid` command was removed; `getpid()` remains available. Shell built-ins are `help`, `cd`, `exit`, `logout`, and `getty`.
+
+The kernel maintains one working directory per task, inherited through `spawn()`. `chdir()` changes the calling task's directory; `getcwd()` returns it. `open()` and `unlink()` resolve relative paths. After `cd /tmp`, `pwd`, `ls`, `cat name`, and `rm name` use that directory.
+
+`ls /bin` lists external applications, followed by the Shell built-ins under their own heading. `watch 1 ls /tmp` and `watch 1 pwd` are now supported.
+
+### 1-ms tick and ADC
+
+SysTick runs at 1 ms, with a normal 10-ms time slice. The `TICKx1K` trace event is emitted once a second. `cat /dev/adc/0` through `2` reads GPIO26–28 raw ADC values (0–4095). Use `watch 1 cat /dev/adc/0` to sample repeatedly.
+
+Read the RP2040 on-chip temperature sensor with `cat /dev/adc/temp` (approximate Celsius, assuming 3.3 V ADC reference).
+
+### PWM and reserved GPIO pins (2026-10-27)
+
+GP18 and GP19 are dedicated PWM outputs, sharing a default 1 kHz frequency, with initial duties 50% and 0%. `/dev/pwm/freq` accepts 8–100000 Hz, and `/dev/pwm/18` and `/dev/pwm/19` accept 0–100 percent via decimal text reads/writes. GPIO listings and access exclude GP18, GP19 and ADC-reserved GP26–28.
+
+
+### Pin configuration and drivers (2026-10)
+
+Edit `GPn_MODE` in `src/pins.h` and rebuild to change exposed `/dev/gpio`, `/dev/adc`, and `/dev/pwm` nodes and hardware initialization. Hardware drivers are in `src/gpio.c`, `src/adc.c`, and `src/pwm.c`; descriptor management remains in `src/kernel.c`. PWM defaults to 1 kHz and 0% duty on both GP18 and GP19. GP0/1 are GPIO in the default USB CDC build, while GP4/5 are reserved for UART1. For UART0 console builds, set GP0/1 to `PIN_UART`.

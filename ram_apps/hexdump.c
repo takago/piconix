@@ -26,23 +26,9 @@ static int number(const char *s, unsigned *value)
 
 int main(int argc, char *argv[])
 {
-    /* The shell passes its argument string as one argument. */
-    char args[64];
-    char *parts[3]={0,0,0};
-    int count=0;
-    if(argc>1 && argv[1]) {
-        if(strlen(argv[1])>=sizeof args) { puts("hexdump: arguments too long"); return 1; }
-        strcpy(args,argv[1]);
-        char *s=args;
-        while(*s) {
-            while(*s==' ') s++;
-            if(!*s) break;
-            if(count==3) { puts("usage: hexdump [file [offset [count]]]"); return 1; }
-            parts[count++]=s;
-            while(*s && *s!=' ') s++;
-            if(*s) *s++=0;
-        }
-    }
+    if(argc>4) { puts("usage: hexdump [file [offset [count]]]"); return 1; }
+    int count=argc-1;
+    char **parts=argv+1;
     int fd=0;
     if(count) {
         fd=open(parts[0],O_RDONLY);

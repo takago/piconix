@@ -12,13 +12,16 @@ int open(const char *path, int flags);
 int unlink(const char *path);
 int dup2(int oldfd, int newfd);
 int getpid(void);
+int chdir(const char *path);
+char *getcwd(char *buf, size_t size);
 int kill(int pid);
 int sleep(unsigned milliseconds); /* PicoNIX: milliseconds, not POSIX seconds. */
 int yield(void);
+#define WNOHANG 1
 int waitpid(int pid, int *status, int options);
 int ioctl(int fd, int command, int value);
 /* PicoNIX-specific process and terminal operations. */
-int spawn(int program, unsigned arg, const char *path);
+int spawn(int program, int argc, const char *const argv[]);
 int tty_spawn(int tty, int program);
 int set_foreground(int pid);
 int console_ready(void);

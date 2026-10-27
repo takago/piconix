@@ -83,7 +83,16 @@ def main():
         test_app(tmp, 'hello', 0x20018000)
         test_app(tmp, 'hexdump', 0x20018000)
         test_app(tmp, 'trace', 0x20018000)
-    print('PASS: All seven position-independent RAM images have no unresolved references or relocations')
+        test_app(tmp, 'ps', 0x20018000)
+        test_app(tmp, 'cat', 0x20018000)
+        test_app(tmp, 'watch', 0x20018000)
+        test_app(tmp, 'pwd', 0x20018000)
+        test_app(tmp, 'ls', 0x20018000)
+        test_app(tmp, 'rm', 0x20018000)
+        test_app(tmp, 'echo', 0x20018000)
+        test_app(tmp, 'kill', 0x20018000)
+        test_app(tmp, 'tty', 0x20018000)
+    print('PASS: All sixteen position-independent RAM images have no unresolved references or relocations')
 
 
 if __name__ == '__main__':

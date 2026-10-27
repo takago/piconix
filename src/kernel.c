@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "piconix.h"
+#include "devices.h"
+#include "pins.h"
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
+#include "hardware/clocks.h"
 #include "hardware/structs/scb.h"
 #include "hardware/structs/systick.h"
-#include "hardware/clocks.h"
 #include "hardware/sync.h"
 #include "hardware/irq.h"
 #include <string.h>
@@ -19,8 +21,8 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK };
-typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint32_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; uint8_t tty; } task_t;
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD };
+typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint32_t fd_pos[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; char cwd[128]; uint16_t adc_values[8]; } task_t;
 // Five fixed 32-KiB SRAM slots, not a .bss reservation.
 // The linker must restrict the kernel to kernel SRAM (0x20000000..0x20017fff).
 _Static_assert(OS_MAX_TASKS == 5 && OS_TASK_BYTES == 32768u,
@@ -44,47 +46,107 @@ static uint32_t rand32(void) {
     return x;
 }
 static volatile uint32_t svc_count, pendsv_count, context_switch_count;
-/* Fixed 16-KiB trace ring; presentation belongs in user space. */
-#define TRACE_CAPACITY 1024u
-_Static_assert(sizeof(trace_event_t) == 16, "trace record must be 16 bytes");
+static int started;
+static int next_pid=1;
+static volatile int foreground_pid[2];
+static int tty_shell_pid[2];
+/* Fixed 16-KiB trace ring, 512 records of 32 bytes. */
+#define TRACE_CAPACITY 512u
+_Static_assert(sizeof(trace_event_t) == 32, "trace record must be 32 bytes");
 static trace_event_t trace_ring[TRACE_CAPACITY];
 static uint32_t trace_head;
 static uint32_t trace_count;
+static uint32_t trace_serial;
 static uint8_t trace_enabled;
-static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t detail) {
-    if(!trace_enabled) return;
+static uint16_t tick_sample;
+static uint8_t slice_ticks;
+static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t detail,
+                         uint8_t program_id, int8_t file_id, const void *data, unsigned len) {
+    if(!trace_enabled || (program_id & 0x7fu)==7u) return;
+    /* Never record switches to/from the trace viewer either. */
+    if(kind==TRACE_SWITCH) {
+        for(int i=0;i<OS_MAX_TASKS;i++)
+            if((tasks[i].pid==pid || tasks[i].pid==(int)value) &&
+               tasks[i].state!=UNUSED && tasks[i].program_id==7u) return;
+    }
     trace_event_t *e = &trace_ring[trace_head];
     e->tick = ticks;
     e->value = value;
     e->detail = detail;
     e->kind = kind;
     e->pid = pid;
-    e->reserved = 0;
+    /* Upper bit stores the task TTY; low bits remain the program ID. */
+    for(int i=0;i<OS_MAX_TASKS;i++)
+        if(pid && tasks[i].pid==pid && tasks[i].state!=UNUSED) {
+            if(tasks[i].tty) program_id |= 0x80u;
+            break;
+        }
+    e->program_id = program_id;
+    e->file_id = file_id;
+    memset(e->data, 0, sizeof e->data);
+    if(data) {
+        if(len > sizeof e->data) len = sizeof e->data;
+        memcpy(e->data, data, len);
+    }
     trace_head = (trace_head + 1u) & (TRACE_CAPACITY - 1u);
     if(trace_count < TRACE_CAPACITY) trace_count++;
+    trace_serial++;
 }
 
-static int started;
-static int next_pid=1;
-static volatile int foreground_pid[2];
-static int tty_shell_pid[2];
 static int tty_owner_pid(int tty) { return foreground_pid[tty] ? foreground_pid[tty] : tty_shell_pid[tty]; }
-/* Retain exit status independently of the reusable RAM slot. */
-static struct { int pid, parent_pid, status, valid; } exited[OS_MAX_TASKS];
+/* Five pending completion notices, independent of reusable RAM slots. */
+static struct { int pid, parent_pid; } exited[OS_MAX_TASKS];
+static int take_exit(int parent, int requested) {
+    for(int i=0;i<OS_MAX_TASKS;i++)
+        if(exited[i].pid && exited[i].parent_pid==parent &&
+           (requested==-1 || exited[i].pid==requested)) {
+            int pid=exited[i].pid;
+            exited[i].pid=0;
+            return pid;
+        }
+    return 0;
+}
 static void finish_task(int slot, int status) {
+    (void)status; /* PicoNIX retains PIDs, not exit status. */
     task_t *t=&tasks[slot];
     if(t->state==UNUSED || t->state==DEAD) return;
-    for(int i=0;i<OS_MAX_TASKS;i++) if(!exited[i].valid) {
-        exited[i].pid=t->pid; exited[i].parent_pid=t->parent_pid;
-        exited[i].status=status; exited[i].valid=1; break;
+    int parent_alive=0;
+    for(int i=0;i<OS_MAX_TASKS;i++)
+        if(i!=slot && tasks[i].pid==t->parent_pid &&
+           tasks[i].state!=UNUSED && tasks[i].state!=DEAD) parent_alive=1;
+    if(parent_alive) {
+        /* Oldest notice may be discarded when all five entries are occupied. */
+        int pos=-1;
+        for(int i=0;i<OS_MAX_TASKS;i++)
+            if(!exited[i].pid) { pos=i; break; }
+        if(pos<0) pos=0;
+        exited[pos].pid=t->pid;
+        exited[pos].parent_pid=t->parent_pid;
     }
+    /* A dead parent cannot collect notifications. */
+    for(int i=0;i<OS_MAX_TASKS;i++)
+        if(exited[i].parent_pid==t->pid) exited[i].pid=0;
     t->state=DEAD;
     if(foreground_pid[t->tty]==t->pid) foreground_pid[t->tty]=0;
     if(tty_shell_pid[t->tty]==t->pid) tty_shell_pid[t->tty]=0;
 }
+static void wake_waiters(void) {
+    for(int i=0;i<OS_MAX_TASKS;i++) {
+        task_t *t=&tasks[i];
+        if(t->state!=BLOCKED || t->wait_dev!=-2 || !t->wait_frame_ready) continue;
+        int pid=take_exit(t->pid,t->wait_pid);
+        if(!pid) continue;
+        if(t->wait_status) *t->wait_status=0;
+        t->sp[8]=(uint32_t)pid;
+        trace_record(TRACE_SVC_EXIT,(uint8_t)t->pid,SYS_WAITPID,
+                     (uint32_t)pid,t->program_id,-1,NULL,0);
+        t->state=READY;
+        t->wait_frame_ready=0;
+    }
+}
 
 /* Program images are position independent; RAM slots are assigned at spawn. */
-static struct { os_entry_t entry; const char *name; } programs[8];
+static struct { os_entry_t entry; const char *name; } programs[17];
 static int free_program_slot(void) {
     for (int i=0;i<OS_MAX_TASKS;i++)
         if (tasks[i].state==UNUSED || tasks[i].state==DEAD) return i;
@@ -92,10 +154,10 @@ static int free_program_slot(void) {
 }
 // Optional prelinked RAM image. A nonzero image size means the caller must
 // provide the exact slot-linked binary and entry address.
-static struct { const uint8_t *image; size_t size; size_t zero_start; size_t zero_size; } images[8];
+static struct { const uint8_t *image; size_t size; size_t zero_start; size_t zero_size; } images[17];
 int os_register_ram_image(int id, const void *image, size_t size,
                           size_t zero_start, size_t zero_size) {
-    if (started || id < 1 || id >= 8 || !image || !size) return OS_EINVAL;
+    if (started || id < 1 || id >= 17 || !image || !size) return OS_EINVAL;
     if (size > OS_TASK_BYTES - 4096u || zero_start > OS_TASK_BYTES - 4096u ||
         zero_size > OS_TASK_BYTES - 4096u - zero_start ||
         (zero_size && zero_start < size)) return OS_EINVAL;
@@ -136,8 +198,10 @@ static int tty_dequeue(void *p, size_t n) {
     return (int)count;
 }
 #if !PICONIX_CONSOLE_USB
+static volatile uint32_t console_irq_count;
 static void uart0_irq_handler(void);
 #endif
+static volatile uint32_t uart1_irq_count;
 static void uart1_irq_handler(void);
 static void pend(void);
 static void wake_readers(int dev);
@@ -254,6 +318,11 @@ static void wake_readers(int dev) {
             n=uart1_read(b,t->wait_size); /* A zero-length read can be EOF. */
         }
         // Never touch the saved r0 until PendSV has saved the PSP frame.
+        /* Terminal reads finish here, not at the initial blocking SVC. */
+        trace_record(TRACE_SVC_EXIT, (uint8_t)t->pid, SYS_READ,
+                     (uint32_t)n, t->program_id,
+                     (int8_t)t->fd[t->wait_fd], n>0 ? t->wait_buf : NULL,
+                     n>0 ? (unsigned)n : 0u);
         t->sp[8]=(uint32_t)n;
         t->state=READY;
         t->wait_frame_ready=0;
@@ -263,11 +332,13 @@ static void wake_readers(int dev) {
 }
 #if !PICONIX_CONSOLE_USB
 static void uart0_irq_handler(void) {
+    console_irq_count++;
     while(uart_is_readable(uart0)) console_input_char(uart_getc(uart0));
     wake_readers(0);
 }
 #endif
 static void uart1_irq_handler(void) {
+    uart1_irq_count++;
     while(uart_is_readable(uart1)) {
         uint8_t c=uart_getc(uart1);
         if(c==3 && tty_owner_pid(1)) {
@@ -283,9 +354,17 @@ static void uart1_irq_handler(void) {
 static void pend(void) { scb_hw->icsr = (1u << 28); __asm volatile("dsb\n isb" ::: "memory"); }
 static void task_return(void) { os_exit(); }
 
+
 void os_init(void) {
     memset(tasks, 0, sizeof(tasks));
-    current=-1; ticks=0; svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); tty_len=0; tty_head=tty_tail=tty_used=tty_offset=0; 
+    current=-1; ticks=0; uart1_irq_count=0;
+    gpio_driver_init();
+    adc_driver_init();
+    pwm_driver_init();
+#if !PICONIX_CONSOLE_USB
+    console_irq_count=0;
+#endif
+    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); tty_len=0; tty_head=tty_tail=tty_used=tty_offset=0; 
     memset(rx, 0, sizeof(rx));
 #if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
@@ -318,7 +397,7 @@ void os_init(void) {
 }
 // One PIC program image may run in any free RAM slot.
 static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char *name,
-                         int seconds, const char *script) {
+                         int argc, const char *const *args) {
     if (!entry || slot<0 || slot>=OS_MAX_TASKS) return OS_EINVAL;
     uint32_t irq_state = save_and_disable_interrupts();
     task_t *t=&tasks[slot];
@@ -332,38 +411,26 @@ static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char 
         memset(task_ram[slot] + images[program_id].zero_start, 0,
                images[program_id].zero_size);
     }
-    /* Diagnostic step 2: build full argc/argv in the initial stack.
-     * Startup arguments are supplied through r0/r1 to the common crt0 entry point. */
+    /* Reserve argv[0..8] and up to 128 bytes of strings inside the child slot.
+     * The initial context is kept below this area. */
     uint8_t *top=task_ram[slot]+OS_TASK_BYTES;
-    char *program=(char *)(top-112);
-    char *arg=(char *)(top-80);
-    char **argv=(char **)(top-16);
-    unsigned n=0;
-    const char *label=name?name:"task";
-    while(n<30 && label[n]) { program[n]=label[n]; n++; }
-    program[n]=0;
-    argv[0]=program;
-    argv[1]=NULL;
-    argv[2]=NULL;
-    if (script && *script) {
-        n=0;
-        while(n<30 && script[n]) { arg[n]=script[n]; n++; }
-        arg[n]=0;
-        argv[1]=arg;
-    } else if (program_id==3 && seconds>0) {
-        unsigned value=(unsigned)seconds;
-        if(value>=10) {
-            arg[0]=(char)('0'+value/10);
-            arg[1]=(char)('0'+value%10);
-            arg[2]=0;
-        } else {
-            arg[0]=(char)('0'+value);
-            arg[1]=0;
-        }
-        argv[1]=arg;
+    char *strings=(char *)(top-192);
+    char **argv=(char **)(top-64);
+    unsigned used=0;
+    if (argc==0) { /* Boot and tty spawn: argv[0] is the registered name. */
+        args=&name;
+        argc=1;
     }
-    unsigned argc=argv[1]?2:1;
-    uint32_t *s=(uint32_t *)(top-128);
+    for(int i=0;i<argc;i++) {
+        const char *src=args[i];
+        unsigned len=0;
+        while(src[len]) len++;
+        argv[i]=strings+used;
+        memcpy(strings+used,src,len+1);
+        used+=len+1;
+    }
+    argv[argc]=NULL;
+    uint32_t *s=(uint32_t *)(top-256);
     *(--s)=0x01000000u;           // xPSR (Thumb)
     *(--s)=(uint32_t)entry;       // PC
     *(--s)=(uint32_t)task_return;// LR
@@ -373,9 +440,9 @@ static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char 
     *(--s)=(uint32_t)argv;       // r1: argv
     *(--s)=argc;                 // r0: argc
     for(int k=0;k<8;k++) *(--s)=0; // r4-r11 saved by PendSV
-    t->sp=s; t->entry=entry; t->name=name?name:"task";
-    t->pid=next_pid++; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0;
-    t->wait_buf=NULL; t->wait_size=0; t->tty=(started && current>=0)?tasks[current].tty:0;
+    t->sp=s; t->entry=entry; t->name=name?name:"task"; t->program_id=(uint8_t)program_id;
+    t->pid=next_pid++; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0; t->wait_pid=0; t->wait_status=NULL;
+    t->wait_buf=NULL; t->wait_size=0; strcpy(t->cwd,(started && current>=0)?tasks[current].cwd:"/"); t->tty=(started && current>=0)?tasks[current].tty:0;
     for(int j=0;j<8;j++) { t->fd[j]=-1; t->fd_pos[j]=0; t->fd_flags[j]=0; }
     t->fd[0]=0; t->fd[1]=0; t->fd[2]=0;
     /* A spawned process inherits the parent's standard streams. */
@@ -412,21 +479,33 @@ int os_spawn_named(os_entry_t entry, const char *name) {
     return OS_EAGAIN;
 }
 void os_register_program(int id,os_entry_t entry,const char *name) {
-    if(started || id<1 || id>=8) return;
+    if(started || id<1 || id>=17) return;
     programs[id].entry=entry; programs[id].name=name;
 }
 int os_start_program(int id) {
-    if (started || id<1 || id>=8 || !programs[id].entry) return OS_EINVAL;
+    if (started || id<1 || id>=17 || !programs[id].entry) return OS_EINVAL;
     int slot=free_program_slot();
     return slot<0 ? OS_EAGAIN : spawn_in_slot(slot,id,programs[id].entry,programs[id].name,0,NULL);
 }
 int os_spawn(os_entry_t entry) { return os_spawn_named(entry, "task"); }
 void isr_systick(void) {
-    ticks++;
+    ticks += 1u;
+    if(++tick_sample == 1000u) {
+        tick_sample=0;
+        if(current >= 0)
+        trace_record(TRACE_TICK1K,
+                     (uint8_t)(current == IDLE_SLOT ? 0 : tasks[current].pid),
+                     100u, 0, (uint8_t)(current == IDLE_SLOT ? 0 : tasks[current].program_id),
+                     -1, NULL, 0);
+    }
+    int woke=0;
     for(int i=0;i<OS_MAX_TASKS;i++)
-        if(tasks[i].state==SLEEPING && (int32_t)(ticks-tasks[i].wake)>=0)
+        if(tasks[i].state==SLEEPING && (int32_t)(ticks-tasks[i].wake)>=0) {
             tasks[i].state=READY;
-    pend();
+            woke=1;
+        }
+    if(++slice_ticks == 10u) { slice_ticks=0; pend(); }
+    else if(woke) pend();
 }
 uint32_t *os_schedule(uint32_t *oldsp) {
     // The saved frame is only valid *after* PendSV has stored r4-r11.
@@ -441,6 +520,7 @@ uint32_t *os_schedule(uint32_t *oldsp) {
     // the frame. Retry the pending reads now that the frame is valid.
     wake_readers(0);
     wake_readers(1);
+    wake_waiters();
     pendsv_count++;
     int previous=current;
     int next=-1;
@@ -455,7 +535,8 @@ uint32_t *os_schedule(uint32_t *oldsp) {
     if(previous>=0 && previous!=next) {
         context_switch_count++;
         trace_record(TRACE_SWITCH, (uint8_t)(previous == IDLE_SLOT ? 0 : tasks[previous].pid),
-                     (uint32_t)(next == IDLE_SLOT ? 0 : tasks[next].pid), 0);
+                     (uint32_t)(next == IDLE_SLOT ? 0 : tasks[next].pid), 0,
+                     (uint8_t)(next == IDLE_SLOT ? 0 : tasks[next].program_id), -1, NULL, 0);
     }
     current=next;
     uint32_t *sp=tasks[next].sp;
@@ -465,7 +546,7 @@ uint32_t *os_schedule(uint32_t *oldsp) {
 void os_start(void) {
     if(started || tasks[IDLE_SLOT].state!=READY) panic("PicoNIX: missing idle task");
     started=1;
-    // 1 ms SysTick; scheduling decisions on every tick.
+    // 1 ms SysTick; normal time slicing every 10 ticks.
     systick_hw->rvr = (clock_get_hz(clk_sys)/1000u)-1u;
     systick_hw->cvr = 0;
     systick_hw->csr = 7;
@@ -483,21 +564,10 @@ static int in_task_range(const void *p, size_t n) {
     uintptr_t a=(uintptr_t)p;
     return a>=lo && a<=hi && n<=hi-a;
 }
+/* This helper receives a kernel-normalized path, not a user pointer.
+ * The caller validates the user pointer before constructing that path. */
 static int path_match(const char *p, const char *s) {
-    // Validate NUL-terminated paths in the kernel RAM, caller RAM slot,
-    // or XIP flash. The shell itself executes from its own RAM slot.
-    if(!p) return 0;
-    uintptr_t a=(uintptr_t)p;
-    if(!((a>=0x10000000u && a<0x11000000u) ||
-         (a>=0x20000000u && a<0x20018000u) || in_task_range(p,1))) return 0;
-    for(size_t i=0;i<32;i++) {
-        uintptr_t q=a+i;
-        if(!((q>=0x10000000u && q<0x11000000u) ||
-             (q>=0x20000000u && q<0x20018000u) || in_task_range((void*)q,1))) return 0;
-        if(p[i]!=s[i]) return 0;
-        if(!s[i]) return 1;
-    }
-    return 0;
+    return strcmp(p,s)==0;
 }
 /* Stable internal device IDs; preserve the existing FD/device mapping. */
 enum {
@@ -517,9 +587,15 @@ enum {
     DEV_RAND = 94,
     DEV_PROC_DEVICES = 95,
     DEV_PROC_TASKS = 96,
+    DEV_ADC_BASE = 121,
+    DEV_ADC_END = 124,
+    DEV_PWM_FREQ = 125,
+    DEV_PWM_18 = 126,
+    DEV_PWM_19 = 127,
     DEV_TMP_LIST = 97,
     DEV_MEM = 98,
     DEV_TRACE = 99,
+    DEV_BIN_LIST = 120,
     DEV_TMP_FIRST = 100,
     DEV_GPIO_MAX_PIN = 28
 };
@@ -532,11 +608,10 @@ static struct { char name[16]; uint16_t size; uint8_t used; uint8_t data[TMP_BYT
 static int tmp_name(const char *p, char name[16]) {
     static const char dir[]="/tmp/";
     for(unsigned i=0;i<sizeof(dir)-1;i++) {
-        if(!in_task_range(p+i,1) || p[i]!=dir[i]) return 0;
+        if(p[i]!=dir[i]) return 0;
     }
     unsigned len=0;
     for(;len<16;len++) {
-        if(!in_task_range(p+5+len,1)) return 0;
         char c=p[5+len];
         if(!c) { if(!len) return 0; name[len]=0; return 1; }
         if(c=='/') return 0;
@@ -618,13 +693,73 @@ static int tmp_list_read(int fd,void *p,size_t n) {
     tasks[current].fd_pos[fd]=(uint16_t)pos;
     return (int)done;
 }
+/* /bin is a read-only view of the registered PIC application names. */
+static int bin_list_read(int fd,void *p,size_t n) {
+    size_t pos=tasks[current].fd_pos[fd], offset=0,done=0;
+    for(int id=1;id<17;id++) if(programs[id].entry && programs[id].name) {
+        const char *name=programs[id].name;
+        size_t len=strlen(name)+1;
+        if(pos<offset+len && done<n) {
+            size_t start=pos>offset?pos-offset:0;
+            size_t count=len-start;
+            if(count>n-done) count=n-done;
+            for(size_t j=0;j<count;j++)
+                ((char *)p)[done+j]=(start+j==len-1)?'\n':name[start+j];
+            done+=count;pos+=count;
+        }
+        offset+=len;
+        if(done==n) break;
+    }
+    tasks[current].fd_pos[fd]=(uint32_t)pos;
+    return (int)done;
+}
 /* Fixed device registry shared by open() and /proc/devices listing. */
 static const struct { const char *path; int id; } dev_registry[] = {
     {"/dev/console",DEV_CONSOLE}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
 };
 #define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
+/* Resolve paths relative to each task, keeping device handlers absolute-only. */
+static int absolute_path(const char *input, char out[128]) {
+    char combined[256]; unsigned n=0, o=1;
+    if(!in_task_range(input,1) || !*input) return -1;
+    if(*input!='/') {
+        const char *cwd=tasks[current].cwd;
+        while(*cwd) { if(n>=sizeof(combined)-2) return -1; combined[n++]=*cwd++; }
+        if(n==0 || combined[n-1]!='/') combined[n++]='/';
+    }
+    while(*input) { if(!in_task_range(input,1) || n>=sizeof(combined)-1) return -1; combined[n++]=*input++; }
+    combined[n]=0; out[0]='/'; out[1]=0;
+    for(unsigned i=0;i<n;) {
+        while(combined[i]=='/') i++;
+        if(i==n) break;
+        unsigned start=i;
+        while(i<n && combined[i]!='/') i++;
+        unsigned len=i-start;
+        if(len==1 && combined[start]=='.') continue;
+        if(len==2 && combined[start]=='.' && combined[start+1]=='.') {
+            if(o>1) { while(o>1 && out[o-1]!='/') o--; if(o>1) o--; }
+            out[o]=0; continue;
+        }
+        if(o>1) { if(o>=127) return -1; out[o++]='/'; }
+        if(o+len>=128) return -1;
+        memcpy(out+o,combined+start,len); o+=len; out[o]=0;
+    }
+    return 0;
+}
+static int valid_directory(const char *path) {
+    return !strcmp(path,"/") || !strcmp(path,"/bin") || !strcmp(path,"/tmp") ||
+           !strcmp(path,"/dev") || !strcmp(path,"/dev/gpio") ||
+           !strcmp(path,"/dev/adc") || !strcmp(path,"/dev/pwm") || !strcmp(path,"/proc");
+}
 static int device_open(const char *p, int flags) {
     if(flags<0 || (flags & ~(OS_O_WRONLY | OS_O_RDWR | OS_O_NONBLOCK | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) != 0 || (flags & 3)==3) return OS_EINVAL;
+    if(path_match(p,"/bin")) {
+        if(flags!=OS_O_RDONLY) return OS_EINVAL;
+        for(int fd=3;fd<8;fd++) if(tasks[current].fd[fd]<0) {
+            tasks[current].fd[fd]=DEV_BIN_LIST;tasks[current].fd_pos[fd]=0;tasks[current].fd_flags[fd]=0;return fd;
+        }
+        return OS_EMFILE;
+    }
     if(path_match(p,"/tmp")) {
         if(flags!=OS_O_RDONLY) return OS_EINVAL;
         for(int fd=3;fd<8;fd++) if(tasks[current].fd[fd]<0) {
@@ -632,7 +767,7 @@ static int device_open(const char *p, int flags) {
         }
         return OS_EMFILE;
     }
-    if(path_match(p,"/tmp/") || (in_task_range(p,5) && p[0]=='/' && p[1]=='t' && p[2]=='m' && p[3]=='p' && p[4]=='/'))
+    if(!strncmp(p,"/tmp/",5))
         return tmp_open(p,flags);
     if(flags & (OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) return OS_EINVAL;
     int dev=-1;
@@ -648,6 +783,7 @@ static int device_open(const char *p, int flags) {
     if(dev<0) {
         // Avoid unbounded parsing of an invalid pointer.
         for(int pin=0;pin<=DEV_GPIO_MAX_PIN;pin++) {
+            if(!pin_gpio((unsigned)pin)) continue;
             char name[20]; snprintf(name,sizeof(name),"/dev/gpio/%d",pin);
             if(path_match(p,name)) { dev=pin+DEV_GPIO_VALUE_BASE; break; }
             snprintf(name,sizeof(name),"/dev/gpio/%d.dir",pin);
@@ -656,10 +792,21 @@ static int device_open(const char *p, int flags) {
             if(path_match(p,name)) { dev=DEV_GPIO_PULL_BASE+pin; break; }
         }
     }
-    if(dev<0 || (((dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_TRACE || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS) && (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
+    if(dev<0 && !strncmp(p,"/dev/adc/",9) && p[9]>='0' && p[9]<='2' && p[10]==0 && pin_adc((unsigned)(p[9]-'0')))
+        dev=DEV_ADC_BASE+(p[9]-'0');
+    if(dev<0 && !strcmp(p,"/dev/adc/temp")) dev=DEV_ADC_END;
+    if(dev<0 && pin_any_pwm() && !strcmp(p,"/dev/pwm/freq")) dev=DEV_PWM_FREQ;
+    if(dev<0 && pin_pwm(18) && !strcmp(p,"/dev/pwm/18")) dev=DEV_PWM_18;
+    if(dev<0 && pin_pwm(19) && !strcmp(p,"/dev/pwm/19")) dev=DEV_PWM_19;
+    if(dev<0 || (((dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) ||
+                   (dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_TRACE || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS) && (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
     if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1) return OS_EINVAL;
     for(int fd=3;fd<8;fd++) if(tasks[current].fd[fd]<0) {
-        tasks[current].fd[fd]=dev; tasks[current].fd_pos[fd]=0; tasks[current].fd_flags[fd]=(uint8_t)flags; return fd;
+        tasks[current].fd[fd]=dev; tasks[current].fd_pos[fd]=(dev==DEV_TRACE ? trace_serial-trace_count : 0); tasks[current].fd_flags[fd]=(uint8_t)flags;
+        if(dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) {
+            tasks[current].adc_values[fd]=(uint16_t)adc_driver_read(dev==DEV_ADC_END ? 4u : (unsigned)(dev-DEV_ADC_BASE));
+        }
+        return fd;
     }
     return OS_EMFILE;
 }
@@ -722,6 +869,10 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     // Snapshot the counters before formatting; no extra interrupts or tasks.
     uint32_t irq_state=save_and_disable_interrupts();
     uint32_t t=ticks, svc=svc_count, psv=pendsv_count, switches=context_switch_count;
+    uint32_t uart1_irqs=uart1_irq_count;
+#if !PICONIX_CONSOLE_USB
+    uint32_t console_irqs=console_irq_count;
+#endif
     restore_interrupts(irq_state);
     char text[160]; int len=0;
     if(dev==DEV_PROC_DEVICES) {
@@ -733,14 +884,23 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
             len+=written;
         }
         /* GPIO is a dynamically generated subtree, not a fixed device. */
-        int written=snprintf(text+len,sizeof(text)-(size_t)len,"gpio/\n");
+        int written=snprintf(text+len,sizeof(text)-(size_t)len,"gpio/\nadc/\npwm/\n");
         if(written<0 || (size_t)written>=sizeof(text)-(size_t)len) return OS_EINVAL;
         len+=written;
     }
     switch(dev) {
         case DEV_PROC_UPTIME: len=snprintf(text,sizeof text,"%lu.%03lu s\n",(unsigned long)(t/1000u),(unsigned long)(t%1000u)); break;
         case DEV_PROC_TICKS: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)t); break;
-        case DEV_PROC_INTERRUPTS: len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\n",(unsigned long)t,(unsigned long)psv,(unsigned long)svc); break;
+        case DEV_PROC_INTERRUPTS:
+#if PICONIX_CONSOLE_USB
+            len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\nuart1 %lu\n",
+                         (unsigned long)t,(unsigned long)psv,(unsigned long)svc,(unsigned long)uart1_irqs);
+#else
+            len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\nconsole %lu\nuart1 %lu\n",
+                         (unsigned long)t,(unsigned long)psv,(unsigned long)svc,
+                         (unsigned long)console_irqs,(unsigned long)uart1_irqs);
+#endif
+            break;
         case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
         case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-20017FFF\nslots  20018000-2003FFFF (5 x 32 KiB)\n"); break;
     }
@@ -797,54 +957,57 @@ static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
         restore_interrupts(irq_state); return 0;
     }
     task_t *t=&tasks[current];
-    t->wait_dev=uartdev;t->wait_buf=p;t->wait_size=n;
+    t->wait_dev=uartdev;t->wait_fd=fd;t->wait_buf=p;t->wait_size=n;
     t->wait_frame_ready=0;
     t->state=BLOCKED;
     pend();
     restore_interrupts(irq_state);
     return 0; // completed later by IRQ; SVC frame initially holds 0
 }
-static int device_rw_gpio(int dev, void *p, size_t n, int writing) {
-    if(n==0) return 0;
-    if(dev>=DEV_GPIO_DIR_BASE && dev<=DEV_GPIO_PULL_END) {
-        int pin=(dev<=DEV_GPIO_DIR_END)?dev-DEV_GPIO_DIR_BASE:dev-DEV_GPIO_PULL_BASE;
-        // UART pins must not be silently reconfigured by GPIO settings.
-        if(writing && (pin==0 || pin==1 || pin==4 || pin==5)) return OS_EINVAL;
-        if(dev<=DEV_GPIO_DIR_END) {
-            if(writing) {
-                const uint8_t *b=p;
-                if(n==2 && b[0]=='i' && b[1]=='n') {gpio_init(pin);gpio_set_dir(pin,GPIO_IN);return (int)n;}
-                if(n==3 && b[0]=='o' && b[1]=='u' && b[2]=='t') {gpio_init(pin);gpio_set_dir(pin,GPIO_OUT);return (int)n;}
-                return OS_EINVAL;
-            }
-            const char *v=gpio_get_dir(pin)==GPIO_OUT?"out":"in";
-            size_t len=(v[0]=='o')?3:2;
-            if(n<len) len=n;
-            memcpy(p,v,len); return (int)len;
-        }
-        if(writing) {
-            const uint8_t *b=p;
-            if(n==2 && b[0]=='u' && b[1]=='p') {gpio_pull_up(pin);return (int)n;}
-            if(n==4 && !memcmp(b,"down",4)) {gpio_pull_down(pin);return (int)n;}
-            if(n==4 && !memcmp(b,"none",4)) {gpio_disable_pulls(pin);return (int)n;}
-            return OS_EINVAL;
-        }
-        const char *v=gpio_is_pulled_up(pin)?"up":gpio_is_pulled_down(pin)?"down":"none";
-        size_t len=strlen(v);
-        if(n<len) len=n;
-        memcpy(p,v,len); return (int)len;
-    }
-    int pin=dev-DEV_GPIO_VALUE_BASE;
+static int device_rw_pwm(int fd, int dev, void *p, size_t n, int writing) {
+    if(!n) return 0;
+    unsigned which=(dev==DEV_PWM_FREQ) ? 0u : (unsigned)(dev-DEV_PWM_18+1);
     if(writing) {
-        const uint8_t *b=p;
-        if(n>=2 && b[0]=='i' && b[1]=='n') {if(pin==0||pin==1||pin==4||pin==5) return OS_EINVAL; gpio_init(pin);gpio_set_dir(pin,GPIO_IN);return (int)n;}
-        if(n>=3 && b[0]=='o' && b[1]=='u' && b[2]=='t') {if(pin==0||pin==1||pin==4||pin==5) return OS_EINVAL; gpio_init(pin);gpio_set_dir(pin,GPIO_OUT);return (int)n;}
-        if(b[0]!='0' && b[0]!='1') return OS_EINVAL;
-        gpio_put(pin,b[0]=='1');
+        if(n>12) return OS_EINVAL;
+        unsigned x=0; size_t i=0;
+        const char *b=p;
+        while(i<n && b[i]>='0' && b[i]<='9') {
+            x=x*10u+(unsigned)(b[i]-'0');
+            if(x>1000000u) return OS_EINVAL;
+            i++;
+        }
+        if(i==0 || (i<n && !(i+1==n && b[i]=='\n'))) return OS_EINVAL;
+        /* Integer divider + 16-bit counter at RP2040 default clock. */
+        if(dev==DEV_PWM_FREQ) {
+            if(x<8 || x>100000) return OS_EINVAL;
+        } else if(x>100) return OS_EINVAL;
+        if(pwm_driver_set(which,x)<0) return OS_EINVAL;
         return (int)n;
     }
-    ((uint8_t*)p)[0]=gpio_get(pin)?'1':'0';
-    return 1;
+    char b[16]; int len=snprintf(b,sizeof b,"%u\n",pwm_driver_get(which));
+    size_t pos=tasks[current].fd_pos[fd];
+    if(pos>=(size_t)len) return 0;
+    size_t count=(size_t)len-pos;
+    if(count>n) count=n;
+    memcpy(p,b+pos,count);
+    tasks[current].fd_pos[fd]+=(uint32_t)count;
+    return (int)count;
+}
+/* A fresh ADC sample is obtained on open/read; subsequent reads return EOF.
+ * Use a regular read cursor so cat() terminates and watch can reopen. */
+static int device_rw_adc(int fd, int dev, void *p, size_t n, int writing) {
+    if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;
+    if(!n) return 0;
+    unsigned raw=tasks[current].adc_values[fd];
+    char text[20];
+    int len=adc_driver_format(raw,dev==DEV_ADC_END,text,sizeof text);
+    size_t pos=tasks[current].fd_pos[fd];
+    if(pos>=(size_t)len) return 0;
+    size_t count=(size_t)len-pos;
+    if(count>n) count=n;
+    memcpy(p,text+pos,count);
+    tasks[current].fd_pos[fd]=(uint32_t)(pos+count);
+    return (int)count;
 }
 static int device_rw(int fd, void *p, size_t n, int writing) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
@@ -852,19 +1015,21 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
     int dev=tasks[current].fd[fd];
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) return tmp_rw(fd,p,n,writing);
     if(dev==DEV_TMP_LIST) return writing?OS_EBADF:tmp_list_read(fd,p,n);
+    if(dev==DEV_BIN_LIST) return writing?OS_EBADF:bin_list_read(fd,p,n);
     if(dev==DEV_TRACE) {
         if(writing) return OS_EBADF;
         if(n < sizeof(trace_event_t)) return n ? OS_EINVAL : 0;
         uint32_t irq=save_and_disable_interrupts();
         uint32_t pos=tasks[current].fd_pos[fd];
-        uint32_t available=trace_count;
-        if(pos>=available) { restore_interrupts(irq); return 0; }
+        uint32_t oldest_serial=trace_serial-trace_count;
+        if((int32_t)(pos-oldest_serial)<0) pos=oldest_serial;
+        uint32_t available=trace_serial-pos;
         uint32_t count=(uint32_t)(n/sizeof(trace_event_t));
-        if(count>available-pos) count=available-pos;
-        uint32_t oldest=(trace_head+TRACE_CAPACITY-available)&(TRACE_CAPACITY-1u);
+        if(count>available) count=available;
+        uint32_t oldest=(trace_head+TRACE_CAPACITY-trace_count)&(TRACE_CAPACITY-1u);
         for(uint32_t i=0;i<count;i++)
             memcpy((uint8_t *)p+i*sizeof(trace_event_t),
-                   &trace_ring[(oldest+pos+i)&(TRACE_CAPACITY-1u)],sizeof(trace_event_t));
+                   &trace_ring[(oldest+(pos-oldest_serial)+i)&(TRACE_CAPACITY-1u)],sizeof(trace_event_t));
         tasks[current].fd_pos[fd]=pos+count;
         restore_interrupts(irq);
         return (int)(count*sizeof(trace_event_t));
@@ -885,11 +1050,17 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
         tasks[current].fd_pos[fd]=addr+(uint32_t)count;
         return (int)count;
     }
+    if(dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) return device_rw_adc(fd,dev,p,n,writing);
+    if(dev>=DEV_PWM_FREQ && dev<=DEV_PWM_19) return device_rw_pwm(fd,dev,p,n,writing);
     if(dev==DEV_RAND) return device_rw_rand(p,n,writing);
     if((dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS)
         return device_rw_proc(fd,dev,p,n,writing);
     if(dev==DEV_CONSOLE || dev==DEV_UART1) return device_rw_tty(fd,dev,p,n,writing);
-    return device_rw_gpio(dev,p,n,writing);
+    if(dev>=DEV_GPIO_DIR_BASE && dev<=DEV_GPIO_DIR_END)
+        return gpio_driver_rw(1,(unsigned)(dev-DEV_GPIO_DIR_BASE),p,n,writing);
+    if(dev>=DEV_GPIO_PULL_BASE && dev<=DEV_GPIO_PULL_END)
+        return gpio_driver_rw(2,(unsigned)(dev-DEV_GPIO_PULL_BASE),p,n,writing);
+    return gpio_driver_rw(0,(unsigned)(dev-DEV_GPIO_VALUE_BASE),p,n,writing);
 }
 static int device_ioctl(int fd,int cmd,int arg) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
@@ -897,25 +1068,24 @@ static int device_ioctl(int fd,int cmd,int arg) {
         uint32_t irq=save_and_disable_interrupts();
         if(cmd==TRACE_ON) {
             trace_enabled=0;
-            trace_head=trace_count=0;
+            trace_head=trace_count=trace_serial=0;
             trace_enabled=1;
         } else if(cmd==TRACE_OFF) trace_enabled=0;
+        else if(cmd==TRACE_STATUS) { int enabled=trace_enabled; restore_interrupts(irq); return enabled; }
+        else if(cmd==TRACE_LOST) {
+            uint32_t oldest=trace_serial-trace_count, pos=tasks[current].fd_pos[fd];
+            int lost=(int32_t)(pos-oldest)<0 ? (int)(oldest-pos) : 0;
+            restore_interrupts(irq); return lost;
+        }
         else { restore_interrupts(irq); return OS_EINVAL; }
         restore_interrupts(irq);
         return 0;
     }
     if(tasks[current].fd[fd]<DEV_GPIO_VALUE_BASE || tasks[current].fd[fd]>DEV_GPIO_VALUE_END) return OS_EBADF;
     int pin=tasks[current].fd[fd]-DEV_GPIO_VALUE_BASE;
+    if(!pin_gpio(pin)) return OS_EINVAL;
     (void)arg;
-    switch(cmd) {
-        case OS_GPIO_INPUT: gpio_init(pin); gpio_set_dir(pin,GPIO_IN); break;
-        case OS_GPIO_OUTPUT: gpio_init(pin); gpio_set_dir(pin,GPIO_OUT); break;
-        case OS_GPIO_PULL_UP: gpio_pull_up(pin); break;
-        case OS_GPIO_PULL_DOWN: gpio_pull_down(pin); break;
-        case OS_GPIO_NO_PULL: gpio_disable_pulls(pin); break;
-        default: return OS_EINVAL;
-    }
-    return 0;
+    return gpio_driver_ioctl((unsigned)pin,cmd);
 }
 // SVC receives a pointer to the hardware-stacked r0-r3,r12,lr,pc,xPSR.
 void os_svc_dispatch(uint32_t *f) {
@@ -923,7 +1093,13 @@ void os_svc_dispatch(uint32_t *f) {
     int result=OS_ENOSYS;
     svc_count++;
     if(current<0) { f[0]=OS_EINVAL; return; }
-    trace_record(TRACE_SVC_ENTER, (uint8_t)tasks[current].pid, (uint32_t)num, (uint32_t)a);
+    /* Snapshot the file ID before close() releases its descriptor. */
+    int8_t file_id = -1;
+    if((num==SYS_READ || num==SYS_WRITE || num==SYS_CLOSE || num==SYS_IOCTL || num==SYS_LSEEK) &&
+       a>=0 && a<8 && tasks[current].fd[a]>=0 && tasks[current].fd[a]<=127)
+        file_id = (int8_t)tasks[current].fd[a];
+    trace_record(TRACE_SVC_ENTER, (uint8_t)tasks[current].pid, (uint32_t)num,
+                 (uint32_t)a, tasks[current].program_id, file_id, NULL, 0);
     switch(num) {
         case SYS_GETPID: result=tasks[current].pid; break;
         case SYS_GET_TTY: result=tasks[current].tty; break;
@@ -936,18 +1112,34 @@ void os_svc_dispatch(uint32_t *f) {
         case SYS_SLEEP: if(current!=IDLE_SLOT && a>0) { tasks[current].wake=ticks+(uint32_t)a; tasks[current].state=SLEEPING; pend(); } result=0; break;
         case SYS_YIELD: pend(); result=0; break;
         case SYS_WAITPID: {
-            /* a=child pid, b=pointer to exit status; nonblocking primitive.
-               libc-free wrapper below supplies blocking wait semantics. */
+            /* c: WNOHANG (1). Wait without polling; the child slot is
+               freed immediately and only a completion PID is retained. */
             int *status=(int *)(uintptr_t)b;
-            if(!in_task_range(status,sizeof(*status))) { result=OS_EINVAL; break; }
-            result=OS_ESRCH;
-            for(int i=0;i<OS_MAX_TASKS;i++) if(exited[i].valid && (a==-1 || exited[i].pid==a) &&
-                exited[i].parent_pid==tasks[current].pid) {
-                *status=exited[i].status; result=exited[i].pid; exited[i].valid=0; break;
+            if((c & ~1) || (a<1 && a!=-1) ||
+               (status && !in_task_range(status,sizeof(*status)))) {
+                result=OS_EINVAL; break;
             }
-            if(result==OS_ESRCH) for(int i=0;i<OS_MAX_TASKS;i++)
-                if(tasks[i].pid==a && tasks[i].parent_pid==tasks[current].pid &&
-                   tasks[i].state!=UNUSED && tasks[i].state!=DEAD) {result=0;break;}
+            int pid=take_exit(tasks[current].pid,a);
+            if(pid) {
+                if(status) *status=0;
+                result=pid;
+                break;
+            }
+            int running=0;
+            for(int i=0;i<OS_MAX_TASKS;i++)
+                if(i!=current && tasks[i].parent_pid==tasks[current].pid &&
+                   tasks[i].state!=UNUSED && tasks[i].state!=DEAD &&
+                   (a==-1 || tasks[i].pid==a)) { running=1; break; }
+            if(!running) { result=OS_ESRCH; break; }
+            if(c & 1) { result=0; break; }
+            task_t *t=&tasks[current];
+            t->wait_dev=-2;
+            t->wait_pid=a;
+            t->wait_status=status;
+            t->wait_frame_ready=0;
+            t->state=BLOCKED;
+            pend();
+            result=0; /* Real return value is filled after child exit. */
             break;
         }
         case SYS_SET_FG: {
@@ -980,33 +1172,30 @@ void os_svc_dispatch(uint32_t *f) {
             restore_interrupts(irq_state);
             break;
         }
-        case SYS_SPAWN:
-            if(a<1 || a>=8 || !programs[a].entry) result=OS_ENOENT;
-            else if(b<0 || b>31 || (a!=3 && b!=0)) result=OS_EINVAL;
-            else if(c) {
-                const char *path=(const char *)(uintptr_t)c;
-                unsigned i=0;
-                while(i<31 && in_task_range(path+i,1) && path[i]) i++;
-                if(i==31 || !in_task_range(path+i,1)) result=OS_EINVAL;
-                else result=0;
-                if(result<0) break;
-                { int slot=free_program_slot();
-                  result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name,0,path); }
-                if(result>0) {
-                    task_t *child=&tasks[slot_from_pid(result)];
-                    for(unsigned j=0;j<=i;j++) child->script_path[j]=path[j];
-                }
-                break;
+        case SYS_SPAWN: {
+            if(a<1 || a>=17 || !programs[a].entry) { result=OS_ENOENT; break; }
+            int argc=(int)b;
+            const char *const *argv=(const char *const *)(uintptr_t)c;
+            if(argc<1 || argc>8 || !in_task_range(argv,(size_t)argc*sizeof(char *))) {
+                result=OS_EINVAL; break;
             }
-            else {
-                { int slot=free_program_slot();
-                  result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name,(int)b,NULL); }
-                if(result>0) {
-                    task_t *child=&tasks[slot_from_pid(result)];
-                    child->startup_seconds=b;
+            unsigned total=0;
+            result=0;
+            for(int i=0;i<argc;i++) {
+                const char *arg=argv[i];
+                unsigned len=0;
+                if(!in_task_range(arg,1)) { result=OS_EINVAL; break; }
+                while(len<128-total && in_task_range(arg+len,1) && arg[len]) len++;
+                if(len==128-total || !in_task_range(arg+len,1)) {
+                    result=OS_EINVAL; break;
                 }
+                total+=len+1;
             }
+            if(result<0) break;
+            int slot=free_program_slot();
+            result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name,argc,argv);
             break;
+        }
         case SYS_CONSOLE_READY:
 #if PICONIX_CONSOLE_USB
             result=tasks[current].tty ? 1 : (stdio_usb_connected() ? 1 : 0);
@@ -1014,7 +1203,25 @@ void os_svc_dispatch(uint32_t *f) {
             result=1;
 #endif
             break;
-        case SYS_UNLINK: result=tmp_unlink((const char *)(uintptr_t)a); break;
+        case SYS_CHDIR: {
+            char path[128];
+            if(absolute_path((const char *)(uintptr_t)a,path)<0 || !valid_directory(path))
+                result=OS_ENOENT;
+            else {strcpy(tasks[current].cwd,path); result=0;}
+            break;
+        }
+        case SYS_GETCWD: {
+            const size_t len=strlen(tasks[current].cwd)+1;
+            if(!a || b<(int)len || !in_task_range((void *)(uintptr_t)a,len))
+                result=OS_EINVAL;
+            else {memcpy((void *)(uintptr_t)a,tasks[current].cwd,len); result=0;}
+            break;
+        }
+        case SYS_UNLINK: {
+            char path[128];
+            result=absolute_path((const char *)(uintptr_t)a,path)<0 ? OS_EINVAL : tmp_unlink(path);
+            break;
+        }
         case SYS_DUP2:
             if(a<0 || a>=8 || b<0 || b>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
             else {
@@ -1024,7 +1231,11 @@ void os_svc_dispatch(uint32_t *f) {
                 result=b;
             }
             break;
-        case SYS_OPEN: result=device_open((const char *)(uintptr_t)a,b); break;
+        case SYS_OPEN: {
+            char path[128];
+            result=absolute_path((const char *)(uintptr_t)a,path)<0 ? OS_EINVAL : device_open(path,b);
+            break;
+        }
         case SYS_CLOSE: if(a<3 || a>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
             else {tasks[current].fd[a]=-1; tasks[current].fd_pos[a]=0; tasks[current].fd_flags[a]=0; result=0;} break;
         case SYS_READ: result=device_rw(a,(void *)(uintptr_t)b,(size_t)c,0); break;
@@ -1046,7 +1257,28 @@ void os_svc_dispatch(uint32_t *f) {
             } else result=OS_EINVAL;
             break;
     }
-    trace_record(TRACE_SVC_EXIT, (uint8_t)tasks[current].pid, (uint32_t)num, (uint32_t)result);
+    if(num==SYS_OPEN && result>=0 && result<8 && tasks[current].fd[result]<=127)
+        file_id=(int8_t)tasks[current].fd[result];
+    /* Only successful operations may expose user data. /dev/trace is excluded
+       so the trace reader cannot recursively record its own binary records. */
+    const void *preview=NULL;
+    unsigned preview_len=0;
+    if(num==SYS_OPEN && result>=0) {
+        const char *path=(const char *)(uintptr_t)a;
+        static const unsigned max_name=16;
+        while(preview_len<max_name && in_task_range(path+preview_len,1) &&
+              path[preview_len]) preview_len++;
+        if(in_task_range(path,preview_len)) preview=path;
+    } else if((num==SYS_READ || num==SYS_WRITE) && result>0 && file_id!=99 &&
+              in_task_range((const void *)(uintptr_t)b,(unsigned)result)) {
+        preview=(const void *)(uintptr_t)b;
+        preview_len=(unsigned)result;
+    }
+    /* A blocking terminal read finishes asynchronously in wake_readers(). */
+    if(!(num==SYS_READ && tasks[current].state==BLOCKED) &&
+       !(num==SYS_WAITPID && tasks[current].state==BLOCKED))
+        trace_record(TRACE_SVC_EXIT, (uint8_t)tasks[current].pid, (uint32_t)num,
+                     (uint32_t)result, tasks[current].program_id, file_id, preview, preview_len);
     f[0]=(uint32_t)result;
 }
 // Use explicit registers to pass arguments to the SVC dispatcher.
@@ -1059,12 +1291,7 @@ static inline int call(int n, uintptr_t a, uintptr_t b, uintptr_t c) {
     return (int)r0;
 }
 int os_waitpid(int pid, int *status, int options) {
-    if(options & ~1) return OS_EINVAL;
-    for(;;) {
-        int rc=call(SYS_WAITPID,pid,(uintptr_t)status,0);
-        if(rc!=0 || (options & 1)) return rc;
-        os_sleep(10); /* scheduler remains active; no busy wait */
-    }
+    return call(SYS_WAITPID,pid,(uintptr_t)status,(uintptr_t)options);
 }
 int os_set_foreground(int pid) { return call(SYS_SET_FG,pid,0,0); }
 int os_spawn_program(int program_id) { return call(SYS_SPAWN,program_id,0,0); }

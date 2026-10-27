@@ -97,7 +97,7 @@ UART1側のShellはCtrl+D（EOF）で終了せず，`logout`または`exit`で�
 
 ## トレース領域とビルド時のメモリ表示
 
-カーネルには16 KiB（16バイト×1,024件）の固定長トレースリングバッファを確保し，タスク切替とSVC開始・終了を記録します．記録はバイナリ形式で，読み出しコマンドは今後追加予定です．ビルド時には，ELFからカーネルRAM使用量・残量および5スロットの配置を表示します．表示する残量はヒープの空き容量ではありません．
+カーネルには16 KiB（32バイト×512件）の固定長トレースリングバッファを確保し，タスク切替とSVC開始・終了を記録します．記録はバイナリ形式で，外部コマンド`trace`で表示します．ビルド時には，ELFからカーネルRAM使用量・残量および5スロットの配置を表示します．表示する残量はヒープの空き容量ではありません．
 
 ### カーネルトレース（16 KiB）
 
@@ -111,3 +111,50 @@ trace show
 ```
 
 記録対象：コンテキストスイッチ，SVC開始・終了．タイムスタンプは起動後のSysTickミリ秒値です．
+
+- `/bin`: 登録済み外部コマンドの読み出し専用一覧．`spawn` は最大8引数・合計128バイトの `argv[]` に対応．
+
+`trace show` は Time(ms)，PID，Command，Event，Detail の列形式で表示します．Commandはイベント記録時のプログラムIDから `/bin` の登録名を復元するため，終了したタスクも識別できます．コンテキストスイッチのPID・Commandは切替先を示します．バイナリレコードは引き続き16バイトです．
+
+トレースの詳細 / Trace details: [`TRACE-JP.md`](TRACE-JP.md) / [`TRACE-EN.md`](TRACE-EN.md)
+
+
+## waitpid / Shell built-ins
+
+`waitpid(pid, status, 0)` は子の終了までブロックし，`WNOHANG` 指定時はブロックしません．終了時に子のタスク領域を即座に解放し，終了通知としてPIDのみを最大5件保持します．終了ステータスは保持しません．孤児の終了通知は保持しません．`ls /bin` は外部コマンドの後に `---- sh built-in commands ----` で区切って内蔵コマンドを表示します．
+
+
+## ps・cat・watch と割り込み表示
+
+`ps` と `cat` は Shell 内蔵コマンドではなく，`/bin/ps`，`/bin/cat` のPICアプリです．`watch` も独立した `/bin/watch` です．
+
+```text
+ps
+cat /proc/tasks
+watch ps
+watch 1 ps
+watch 1 cat /proc/interrupts
+watch 2 cat /proc/memory
+```
+
+`watch [秒] コマンド [引数...]` は外部プログラムを繰り返し実行します．間隔は1〜60秒，省略時は1秒です．ANSI制御文字によって表示を消去します．`watch` 自身と実行対象がそれぞれ1タスクを使用します．`ls` や `echo` は外部化されたため，`watch` から起動できます．現在のCtrl+Cはプロセスグループではなく，その端末のフォアグラウンドPIDだけを終了させます．`watch` 実行中にその子が残る可能性があるため，継続時間の短いコマンドを想定しています．
+
+`/proc/interrupts` の `SysTick` は1 msごとの実割り込み回数です．`uart1` はUART1 IRQハンドラの実行回数です．UART0コンソール構成では `console` 行にもUART0 IRQ回数を表示します．USB CDCコンソール構成ではUSB割り込み回数を計測していないため `console` 行は出しません．`PendSV` と `SVC` は例外ハンドラのカウンタです．
+
+
+## Shell コマンドの外部化と作業ディレクトリ
+
+`pwd`，`ls`，`rm`，`echo`，`kill`，`tty` は `/bin` の独立PICアプリになりました．`pid` コマンドは削除しましたが，`getpid()` は残ります．Shell内蔵は `help`，`cd`，`exit`，`logout`，`getty` です．
+
+カーネルはタスクごとにカレントディレクトリを保持し，`spawn()` で子へ継承します．`chdir()` は呼び出し元のカレントディレクトリを変更し，`getcwd()` はこれを取得します．`open()` と `unlink()` は相対パスを解決します．`cd /tmp` の後に `pwd`，`ls`，`cat name`，`rm name` を実行できます．
+
+`ls /bin` はアプリの一覧に続いてShell内蔵コマンドを見出し付きで表示します．`watch 1 ls /tmp` と `watch 1 pwd` も使用できます．
+
+### PWMとGPIO予約ピン（2026-10-27）
+
+GP18/GP19はPWM専用（共通周波数は起動時1 kHz，Dutyはそれぞれ50%/0%）です．`/dev/pwm/freq` は周波数（8～100000 Hz），`/dev/pwm/18`・`/dev/pwm/19` はDuty（0～100%）を十進数のテキストで読み書きできます．GPIO一覧からGP18，19，26～28を除外し，対応するGPIOパスも開けません．GP26～28はADC専用です．
+
+
+### ピン割り当てとドライバ（2026-10）
+
+`src/pins.h` の `GPn_MODE` を変更して再ビルドすると，`/dev/gpio`，`/dev/adc`，`/dev/pwm` の公開デバイスと初期化が連動します．ドライバは `src/gpio.c`，`src/adc.c`，`src/pwm.c` に分割し，カーネルのFD管理は `src/kernel.c` に残しています．PWM初期値は1 kHz，GP18/GP19ともDuty 0%です．GP0/1/4/5はUART用に予約しています．

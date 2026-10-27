@@ -9,6 +9,8 @@ static inline int call(int n, uintptr_t a, uintptr_t b, uintptr_t c) {
     __asm volatile("svc #0" : "+r"(r0) : "r"(r1), "r"(r2), "r"(r3) : "memory");
     return (int)r0;
 }
+int chdir(const char *path) { return call(22,(uintptr_t)path,0,0); }
+char *getcwd(char *buf,size_t size) { return call(23,(uintptr_t)buf,size,0)<0 ? 0 : buf; }
 int getpid(void) { return call(1,0,0,0); }
 int kill(int pid) { return call(2,(uintptr_t)pid,0,0); }
 void _exit(int status) { call(3,(uintptr_t)status,0,0); for(;;) {} }
@@ -24,7 +26,7 @@ int waitpid(int pid,int *status,int options) { return call(13,(uintptr_t)pid,(ui
 int unlink(const char *path) { return call(17,(uintptr_t)path,0,0); }
 int dup2(int oldfd,int newfd) { return call(18,(uintptr_t)oldfd,(uintptr_t)newfd,0); }
 
-int spawn(int program,unsigned arg,const char *path) { return call(12,(uintptr_t)program,arg,(uintptr_t)path); }
+int spawn(int program,int argc,const char *const argv[]) { return call(12,(uintptr_t)program,(uintptr_t)argc,(uintptr_t)argv); }
 int tty_spawn(int tty,int program) { return call(19,(uintptr_t)tty,(uintptr_t)program,0); }
 int set_foreground(int pid) { return call(14,(uintptr_t)pid,0,0); }
 int console_ready(void) { return call(16,0,0,0); }

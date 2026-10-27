@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Ensure the SVC spawn path forwards a single string argument for every app."""
+"""Guard the bounded argv ABI and /bin virtual registry."""
 from pathlib import Path
-source = (Path(__file__).resolve().parents[1] / 'src/kernel.c').read_text()
-spawn = source.split('case SYS_SPAWN:', 1)[1].split('case SYS_CONSOLE_READY:', 1)[0]
-assert 'else if(c) {' in spawn
-assert '(a==4 || a==6 || a==7)' not in spawn
-assert 'in_task_range(path+i,1)' in spawn
-assert 'spawn_in_slot(slot,a,programs[a].entry,programs[a].name,0,path)' in spawn
-assert 'child->script_path[j]=path[j]' in spawn
-assert 'a!=3 && b!=0' in spawn  # preserve legacy Omikuji numeric argument
-assert 'spawn_in_slot(slot,a,programs[a].entry,programs[a].name,(int)b,NULL)' in spawn
-print('PASS: generic spawn string argument forwarding')
+root=Path(__file__).resolve().parents[1]
+k=(root/'src/kernel.c').read_text()
+sh=(root/'ram_apps/shell.c').read_text()
+api=(root/'ram_apps/unistd.h').read_text()
+assert 'int spawn(int program, int argc, const char *const argv[]);' in api
+assert 'argc<1 || argc>8' in k
+assert 'unsigned total=0;' in k and 'len<128-total' in k
+assert 'argv[argc]=NULL;' in k and 'char *strings=(char *)(top-192);' in k
+assert 'DEV_BIN_LIST' in k and 'bin_list_read' in k
+assert 'program_id(name)' in sh and 'run_external(s,cwd,requested_bg' in sh
+assert 'args[argc++]="31"' in sh
+assert 'int count=argc-1;' in (root/'ram_apps/hexdump.c').read_text()
+print('PASS: bounded argv ABI, /bin registry and application parser')

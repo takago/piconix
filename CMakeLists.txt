@@ -18,9 +18,9 @@ if(NOT CMAKE_READELF)
   get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
   set(CMAKE_READELF "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-readelf")
 endif()
-# Freestanding slot-linked images. All seven program images are embedded in the firmware Flash.
+# Freestanding slot-linked images. All sixteen program images are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
-foreach(APP IN ITEMS shell blink omikuji python hello hexdump trace)
+foreach(APP IN ITEMS shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
   set(APP_ORIGIN 0x20018000)
@@ -77,6 +77,7 @@ foreach(APP IN ITEMS shell blink omikuji python hello hexdump trace)
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"
             "${APP_ELF}" "${APP_BIN}" "${APP_ORIGIN}" --readelf "${CMAKE_READELF}"
     DEPENDS "${CMAKE_CURRENT_LIST_DIR}/ram_apps/${APP}.c"
+            "${CMAKE_CURRENT_LIST_DIR}/src/pins.h"
             "${CMAKE_CURRENT_LIST_DIR}/ram_apps/crt0.c"
             "${CMAKE_CURRENT_LIST_DIR}/ram_apps/syscalls.c"
             "${CMAKE_CURRENT_LIST_DIR}/ram_apps/unistd.h"
@@ -123,7 +124,7 @@ if(PICONIX_KERNEL_RAM)
   endif()
   message(STATUS "PicoNIX RAM linker: ${PICONIX_CUSTOM_LD}")
 endif()
-add_executable(piconix src/kernel.c src/context.S src/main.c
+add_executable(piconix src/kernel.c src/gpio.c src/adc.c src/pwm.c src/context.S src/main.c
                    ${PICONIX_EMBED_SOURCES})
 if(PICONIX_KERNEL_RAM)
   # SDK supplies boot2, initial vectors and flash-to-RAM relocation.
@@ -133,7 +134,7 @@ endif()
 target_include_directories(piconix PRIVATE include)
 option(PICONIX_CONSOLE_USB "Use onboard USB CDC instead of UART0 console" ON)
 target_compile_definitions(piconix PRIVATE PICONIX_CONSOLE_USB=$<BOOL:${PICONIX_CONSOLE_USB}>)
-target_link_libraries(piconix pico_stdlib hardware_uart hardware_gpio)
+target_link_libraries(piconix pico_stdlib hardware_uart hardware_gpio hardware_adc hardware_pwm)
 if(PICONIX_CONSOLE_USB)
   target_link_libraries(piconix pico_stdio_usb)
 endif()
