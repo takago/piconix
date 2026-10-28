@@ -117,9 +117,17 @@ Read the RP2040 on-chip temperature sensor with `cat /dev/adc/temp` (approximate
 
 ### PWM and reserved GPIO pins (2026-10-27)
 
-GP18 and GP19 are dedicated PWM outputs, sharing a default 1 kHz frequency, with initial duties 50% and 0%. `/dev/pwm/freq` accepts 8–100000 Hz, and `/dev/pwm/18` and `/dev/pwm/19` accept 0–100 percent via decimal text reads/writes. GPIO listings and access exclude GP18, GP19 and ADC-reserved GP26–28.
+GP18 and GP19 are dedicated PWM outputs, sharing a default 1 kHz frequency, with initial duties 50% and 0%. `/dev/pwm/1/freq` accepts 8–100000 Hz, and `/dev/pwm/1/a` and `/dev/pwm/1/b` accept 0–100 percent via decimal text reads/writes. GPIO listings and access exclude GP18, GP19 and ADC-reserved GP26–28.
 
 
 ### Pin configuration and drivers (2026-10)
 
 Edit `GPn_MODE` in `src/pins.h` and rebuild to change exposed `/dev/gpio`, `/dev/adc`, and `/dev/pwm` nodes and hardware initialization. Hardware drivers are in `src/gpio.c`, `src/adc.c`, and `src/pwm.c`; descriptor management remains in `src/kernel.c`. PWM defaults to 1 kHz and 0% duty on both GP18 and GP19. GP0/1 are GPIO in the default USB CDC build, while GP4/5 are reserved for UART1. For UART0 console builds, set GP0/1 to `PIN_UART`.
+
+### Pinout command
+
+Run `pins` to display the Raspberry Pi Pico 40-pin header as an ASCII diagram (USB connector at top), with live GPIO direction/level, framebuffer ownership, UART, ADC, and PWM duty/frequency from existing GPIO/PWM devices. Labels are obtained dynamically from existing GPIO/PWM devices; framebuffer ownership and PWM settings reflect the current state.
+
+### pwmctl
+
+`pwmctl status` shows the PWM settings. `pwmctl freq 2000` sets the common frequency to 2000 Hz; `pwmctl a 50` and `pwmctl b 25` set duty cycles in percent. `pwmctl off` sets both duty cycles to zero. Frequency range: 8–100000 Hz; duty range: 0–100%. Uses existing `/dev/pwm/1/*` devices.

@@ -2,6 +2,9 @@
 #ifndef PICONIX_UNISTD_H
 #define PICONIX_UNISTD_H
 #include <stddef.h>
+#define FB_ENABLE  0x100
+#define FB_DISABLE 0x101
+#define FB_STATUS  0x102
 int read(int fd, void *buf, size_t count);
 int write(int fd, const void *buf, size_t count);
 int close(int fd);
@@ -15,7 +18,7 @@ int getpid(void);
 int chdir(const char *path);
 char *getcwd(char *buf, size_t size);
 int kill(int pid);
-int sleep(unsigned milliseconds); /* PicoNIX: milliseconds, not POSIX seconds. */
+int msleep(unsigned milliseconds); /* PicoNIX: delay in milliseconds. */
 int yield(void);
 #define WNOHANG 1
 int waitpid(int pid, int *status, int options);

@@ -13,8 +13,8 @@ int main(int argc, char *argv[]) {
     for (;;) {
         char on = '1', off = '0';
         write(fd, &on, 1);
-        sleep(500);
+        msleep(500);
         write(fd, &off, 1);
-        sleep(500);
+        msleep(500);
     }
 }

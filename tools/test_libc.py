@@ -16,7 +16,7 @@ source = r'''
 #include <stddef.h>
 int write(int fd,const void *data,size_t n){(void)fd;(void)data;return (int)n;}
 int read(int fd,void *data,size_t n){(void)fd;(void)data;(void)n;return -1;}
-int sleep(unsigned n){(void)n;return 0;}
+int msleep(unsigned n){(void)n;return 0;}
 #define CHECK(x) do {if(!(x))return __LINE__;}while(0)
 int main(void){
     char buf[64];char tmp[16];char *end;

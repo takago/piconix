@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-すべてのRAMアプリと`crt0.c`はユーザAPIを使用し，SVC命令は`syscalls.c`に集約しています．`sleep()`はPOSIXとは異なりミリ秒単位です．`unistd.h`と`fcntl.h`のAPIはPOSIXの完全な実装ではありません．
+すべてのRAMアプリと`crt0.c`はユーザAPIを使用し，SVC命令は`syscalls.c`に集約しています．`msleep()`はPOSIXとは異なりミリ秒単位です．`unistd.h`と`fcntl.h`のAPIはPOSIXの完全な実装ではありません．
 
 
 ## ユーザ空間の小型Cライブラリ
@@ -159,4 +159,4 @@ watch 2 cat /proc/memory
 
 ### PWMとGPIO予約ピン（2026-10-27）
 
-GP18/GP19はPWM専用（共通周波数は起動時1 kHz，Dutyはそれぞれ50%/0%）です．`/dev/pwm/freq` は周波数（8～100000 Hz），`/dev/pwm/18`・`/dev/pwm/19` はDuty（0～100%）を十進数のテキストで読み書きできます．GPIO一覧からGP18，19，26～28を除外し，対応するGPIOパスも開けません．GP26～28はADC専用です．
+GP18/GP19はPWM専用（共通周波数は起動時1 kHz，Dutyはそれぞれ50%/0%）です．`/dev/pwm/1/freq` は周波数（8～100000 Hz），`/dev/pwm/1/a`・`/dev/pwm/1/b` はDuty（0～100%）を十進数のテキストで読み書きできます．GPIO一覧からGP18，19，26～28を除外し，対応するGPIOパスも開けません．GP26～28はADC専用です．

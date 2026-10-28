@@ -18,6 +18,9 @@
 #define OS_GPIO_PULL_UP 3
 #define OS_GPIO_PULL_DOWN 4
 #define OS_GPIO_NO_PULL 5
+#define OS_FB_ENABLE  0x100
+#define OS_FB_DISABLE 0x101
+#define OS_FB_STATUS  0x102
 #define OS_WNOHANG 1
 #define OS_EINVAL (-22)
 #define OS_EBADF (-9)
@@ -54,7 +57,7 @@ int os_kill(int pid);
 int os_waitpid(int pid, int *status, int options);
 int os_set_foreground(int pid);
 void os_exit(void) __attribute__((noreturn));
-void os_sleep(uint32_t milliseconds);
+void os_msleep(uint32_t milliseconds);
 void os_yield(void);
 int os_open(const char *path, int flags);
 int os_close(int fd);

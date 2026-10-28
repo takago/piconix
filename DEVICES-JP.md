@@ -43,16 +43,18 @@ ADC値はファイルを開くときに取得し，十進テキストとして�
 
 既定ではGP18とGP19をPWM出力に割り当てます．両方とも同じPWMスライスを使用するため，**周波数は共通**ですがDuty比は個別に設定できます．起動時は**1 kHz，両方ともDuty 0%**です．
 
+PWMスライス1のチャネルA（`/dev/pwm/1/a`）はGPIO18，チャネルB（`/dev/pwm/1/b`）はGPIO19に対応します．両チャネルは周波数を共有します．
+
 ```sh
-cat /dev/pwm/freq
-cat /dev/pwm/18
-cat /dev/pwm/19
-echo 2000 > /dev/pwm/freq
-echo 50 > /dev/pwm/18
-echo 0 > /dev/pwm/18
+cat /dev/pwm/1/freq
+cat /dev/pwm/1/a
+cat /dev/pwm/1/b
+echo 2000 > /dev/pwm/1/freq
+echo 50 > /dev/pwm/1/a
+echo 0 > /dev/pwm/1/a
 ```
 
-`/dev/pwm/freq`は8～100000 Hz，`/dev/pwm/18`と`/dev/pwm/19`は0～100%の整数をテキストで読み書きします．ハードウェアの分周比とカウンタ範囲によって，設定周波数には丸め誤差が生じ得ます．PWM出力に割り当てていないピンのデバイスは公開されません．
+`/dev/pwm/1/freq`は8～100000 Hz，`/dev/pwm/1/a`と`/dev/pwm/1/b`は0～100%の整数をテキストで読み書きします．ハードウェアの分周比とカウンタ範囲によって，設定周波数には丸め誤差が生じ得ます．PWM出力に割り当てていないピンのデバイスは公開されません．
 
 ## ピン割り当ての変更
 

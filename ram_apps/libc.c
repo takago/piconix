@@ -51,7 +51,7 @@ int atoi(const char *s) {return (int)strtol(s,0,10);}
 static int output(int fd,const char *s,size_t n) {
     size_t done=0;
     while(done<n){int r=write(fd,s+done,n-done);if(r<0)return -1;
-        if(!r){sleep(1);continue;}done+=(unsigned)r;}
+        if(!r){msleep(1);continue;}done+=(unsigned)r;}
     return (int)done;
 }
 int putchar(int c){unsigned char ch=(unsigned char)c;return output(1,(const char *)&ch,1)<0?EOF:ch;}
@@ -72,13 +72,12 @@ static void emit(Format *f,char c){
 }
 static void unsigned_value(Format *f,uint32_t n,unsigned base,int upper){
     char buf[32];unsigned i=0;
-    /* Shift-only hex, repeated subtraction for decimal (no libgcc divide). */
-    if(base==16){do{unsigned d=n&15u;buf[i++]=(char)(d<10?'0'+d:(upper?'A':'a')+d-10);n>>=4;}while(n);}
-    else { static const uint32_t powers[]={1000000000u,100000000u,10000000u,1000000u,100000u,10000u,1000u,100u,10u,1u};
-        int started=0;for(unsigned k=0;k<10;k++){unsigned d=0;while(n>=powers[k]){n-=powers[k];++d;}
-            if(d||started||k==9){buf[i++]=(char)('0'+d);started=1;}}
-        for(unsigned j=0;j<i/2;j++){char t=buf[j];buf[j]=buf[i-1-j];buf[i-1-j]=t;}
-    }
+    /* Compiler runtime provides Cortex-M0+ integer division. */
+    do {
+        unsigned d=n%base;
+        buf[i++]=(char)(d<10 ? '0'+d : (upper?'A':'a')+d-10);
+        n/=base;
+    } while(n);
     while(i)emit(f,buf[--i]);
 }
 static int format(Format *f,const char *fmt,va_list ap){
@@ -109,13 +108,3 @@ void __aeabi_memclr(void *dst, size_t n) {
 }
 void __aeabi_memclr4(void *dst, size_t n) { __aeabi_memclr(dst, n); }
 void __aeabi_memclr8(void *dst, size_t n) { __aeabi_memclr(dst, n); }
-/* Cortex-M0+ has no hardware division. */
-unsigned __aeabi_uidiv(unsigned a, unsigned b) {
-    if (!b) return 0;
-    unsigned q=0,r=0;
-    for(int bit=31;bit>=0;--bit) {
-        r=(r<<1)|((a>>(unsigned)bit)&1u);
-        if(r>=b){r-=b;q|=1u<<(unsigned)bit;}
-    }
-    return q;
-}

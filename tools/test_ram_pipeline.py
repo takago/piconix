@@ -15,6 +15,16 @@ CLANG = shutil.which('clang')
 LLD = shutil.which('ld.lld')
 OBJCOPY = shutil.which('llvm-objcopy')
 READELF = shutil.which('readelf')
+# Match the GCC runtime used by the CMake RAM-app link step.
+GCC = shutil.which('arm-none-eabi-gcc')
+if not GCC:
+    toolchain = os.environ.get('PICO_TOOLCHAIN_PATH', '')
+    candidate = pathlib.Path(toolchain) / 'bin' / 'arm-none-eabi-gcc'
+    if candidate.is_file():
+        GCC = str(candidate)
+LIBGCC = (subprocess.check_output([GCC, '-mcpu=cortex-m0plus', '-mthumb', '-print-libgcc-file-name'], text=True).strip()
+          if GCC else None)
+
 
 
 def run(*args):
@@ -45,7 +55,7 @@ def test_app(tmp, name, base):
     linker_script = tmp / f'{name}.ld'  
     linker_script.write_text((ROOT / 'ram_apps' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base:#x}'))
     run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T',
-        linker_script, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, '-o', elf)
+        linker_script, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, LIBGCC, '-o', elf)
     run(OBJCOPY, '-O', 'binary', elf, binary)
     run(sys.executable, ROOT / 'tools' / 'check_slot_image.py',
         elf, binary, hex(base), '--readelf', READELF)
@@ -62,7 +72,7 @@ def test_app(tmp, name, base):
     alt_elf = tmp / f'{name}_alt.elf'
     alt_bin = tmp / f'{name}_alt.bin'
     alt_ld.write_text((ROOT / 'ram_apps' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base+32768:#x}'))
-    run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T', alt_ld, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, '-o', alt_elf)
+    run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T', alt_ld, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, LIBGCC, '-o', alt_elf)
     run(OBJCOPY, '-O', 'binary', alt_elf, alt_bin)
     run(sys.executable, ROOT / 'tools' / 'check_slot_image.py', alt_elf, alt_bin, hex(base+32768), '--readelf', READELF)
     run(sys.executable, ROOT / 'tools' / 'check_pic.py', elf, binary, alt_elf, alt_bin, '--readelf', READELF)
@@ -71,7 +81,7 @@ def test_app(tmp, name, base):
 
 def main():
     missing = [name for name, path in [('clang', CLANG), ('ld.lld', LLD),
-               ('llvm-objcopy', OBJCOPY), ('readelf', READELF)] if not path]
+               ('llvm-objcopy', OBJCOPY), ('readelf', READELF), ('arm-none-eabi-gcc', GCC), ('libgcc', LIBGCC)] if not path]
     if missing:
         sys.exit('Missing tools: ' + ', '.join(missing))
     with tempfile.TemporaryDirectory(prefix='piconix-ram-test-') as directory:
@@ -92,7 +102,7 @@ def main():
         test_app(tmp, 'echo', 0x20018000)
         test_app(tmp, 'kill', 0x20018000)
         test_app(tmp, 'tty', 0x20018000)
-    print('PASS: All sixteen position-independent RAM images have no unresolved references or relocations')
+    print('PASS: All position-independent RAM images have no unresolved references or relocations')
 
 
 if __name__ == '__main__':

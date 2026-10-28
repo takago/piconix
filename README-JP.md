@@ -116,9 +116,17 @@ SysTickは1 ms，通常のタイムスライスは10 msです．`trace` の `TIC
 
 ### PWMとGPIO予約ピン（2026-10-27）
 
-GP18/GP19は標準設定でPWM用（共通周波数は起動時1 kHz，Dutyは両方0%）です．`/dev/pwm/freq` は周波数（8～100000 Hz），`/dev/pwm/18`・`/dev/pwm/19` はDuty（0～100%）を十進数のテキストで読み書きできます．GPIO一覧からGP18，19，26～28を除外し，対応するGPIOパスも開けません．GP26～28はADC専用です．
+GP18/GP19は標準設定でPWM用（共通周波数は起動時1 kHz，Dutyは両方0%）です．`/dev/pwm/1/freq` は周波数（8～100000 Hz），`/dev/pwm/1/a`・`/dev/pwm/1/b` はDuty（0～100%）を十進数のテキストで読み書きできます．GPIO一覧からGP18，19，26～28を除外し，対応するGPIOパスも開けません．GP26～28はADC専用です．
 
 
 ### ピン割り当てとドライバ（2026-10）
 
 `src/pins.h` の `GPn_MODE` を変更して再ビルドすると，`/dev/gpio`，`/dev/adc`，`/dev/pwm` の公開デバイスと初期化が連動します．ドライバは `src/gpio.c`，`src/adc.c`，`src/pwm.c` に分割し，カーネルのFD管理は `src/kernel.c` に残しています．PWM初期値は1 kHz，GP18/GP19ともDuty 0%です．USB CDCコンソールの標準構成ではGP0/1はGPIOとして使用でき，GP4/5はUART1用に予約しています．UART0コンソール構成ではGP0/1を`PIN_UART`に変更します．
+
+### Pinout command
+
+Run `pins` to display the Raspberry Pi Pico 40-pin header as an ASCII diagram (USB connector at top), with live GPIO direction/level, framebuffer ownership, UART, ADC, and PWM duty/frequency from existing GPIO/PWM devices. Labels are obtained dynamically from existing GPIO/PWM devices; framebuffer ownership and PWM settings reflect the current state.
+
+### pwmctl
+
+`pwmctl status` でPWM設定を表示します．`pwmctl freq 2000` はGP18/GP19共通周波数を2000 Hzに，`pwmctl a 50` はGP18のDutyを50%に設定します．`pwmctl b 25` も同様です．`pwmctl off` は両チャネルを0%にします．周波数は8～100000 Hz，Dutyは0～100%です．設定には既存の `/dev/pwm/1/*` を使用します．

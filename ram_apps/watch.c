@@ -50,6 +50,6 @@ int main(int argc, char *argv[]) {
         int child=spawn(id,count,args);
         if(child<0) {puts("watch: cannot start command");return 1;}
         if(waitpid(child,0,0)<0) {puts("watch: waitpid failed");return 1;}
-        sleep(interval*1000u);
+        msleep(interval*1000u);
     }
 }

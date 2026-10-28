@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ABI and integration sanity checks for the 16-KiB binary trace device."""
+"""ABI and integration sanity checks for the 32-KiB binary trace device."""
 from pathlib import Path
 import subprocess
 import tempfile
@@ -10,7 +10,10 @@ with tempfile.TemporaryDirectory() as d:
     subprocess.run(['cc','-std=c11','-I',str(ROOT/'ram_apps'),'-fsyntax-only',str(f)], check=True)
 source = (ROOT/'src/kernel.c').read_text()
 assert 'static trace_event_t trace_ring[TRACE_CAPACITY];' in source
-assert '#define TRACE_CAPACITY 512u' in source
+assert '#define TRACE_CAPACITY 1024u' in source
+audit_source = (ROOT/'tools/audit_firmware.py').read_text()
+assert "symbol_sizes.get('trace_ring')" in audit_source
+assert 'Trace ring            16384 bytes' not in audit_source
 assert 'trace_enabled=0;' in source
 assert 'trace_enabled=1;' in source
 assert '{"/dev/trace",DEV_TRACE}' in source

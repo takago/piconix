@@ -42,7 +42,7 @@ After `cd /tmp`, `python test.py` also works. Only RAM scripts under `/tmp` are 
 | Values and math | Signed 32-bit integers, `+ - * / %`, comparisons, parentheses |
 | Control | Assignment, `if`/`else`, `while`, space indentation, `#` comments |
 | I/O | `print(...)`, integer-valued `input(...)`, `int(input(...))` |
-| Delays | `sleep(milliseconds)` (0–60000) |
+| Delays | `msleep(milliseconds)` (0–60000) |
 | GPIO | `gpio`, `gpio_read`, `gpio_mode`, `gpio_pull` |
 
 Limits: 16 variables, 512 source bytes, 64 nonempty lines, and eight nested blocks. Each `while` statement is capped at 10,000 iterations. There are no floats, lists, user-defined functions, `for`, imports, or string variables.
@@ -55,9 +55,9 @@ Save the following as `/tmp/led.py` and run `python /tmp/led.py`:
 i = 0
 while i < 5:
     gpio(25, 1)
-    sleep(250)
+    msleep(250)
     gpio(25, 0)
-    sleep(250)
+    msleep(250)
     i = i + 1
 ```
 

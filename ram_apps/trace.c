@@ -239,7 +239,7 @@ int main(int argc, char *argv[]) {
         if(n<0) {puts("trace: read error");close(fd);return 1;}
         if(!follow) break;
         if(ioctl(fd,TRACE_STATUS,0)==0) break;
-        sleep(50);
+        msleep(50);
     }
     close(fd);
     if(!count) puts("trace: no events (use trace on first)");

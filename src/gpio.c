@@ -6,6 +6,7 @@
 #include <string.h>
 void gpio_driver_init(void) { }
 int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
+    if(pin<16 && fb_active()) return OS_EBUSY;
     if(n==0) return 0;
     if(kind==1 || kind==2) {
         if(!pin_gpio(pin)) return OS_EINVAL;
@@ -47,6 +48,7 @@ int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
 }
 
 int gpio_driver_ioctl(unsigned pin, int cmd) {
+    if(pin<16 && fb_active()) return OS_EBUSY;
     if(!pin_gpio(pin)) return OS_EINVAL;
     switch(cmd) {
         case OS_GPIO_INPUT: gpio_init(pin);gpio_set_dir(pin,GPIO_IN);break;

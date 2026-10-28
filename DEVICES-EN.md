@@ -41,16 +41,18 @@ An ADC sample is captured when the file is opened and returned as decimal text. 
 
 By default, GP18 and GP19 are PWM outputs sharing one RP2040 PWM slice: **frequency is common**, while duty cycles are independent. On boot the frequency is **1 kHz** and both duties are **0%**.
 
+PWM slice 1 channel A (`/dev/pwm/1/a`) maps to GPIO18 and channel B (`/dev/pwm/1/b`) to GPIO19. Both channels share one frequency.
+
 ```sh
-cat /dev/pwm/freq
-cat /dev/pwm/18
-cat /dev/pwm/19
-echo 2000 > /dev/pwm/freq
-echo 50 > /dev/pwm/18
-echo 0 > /dev/pwm/18
+cat /dev/pwm/1/freq
+cat /dev/pwm/1/a
+cat /dev/pwm/1/b
+echo 2000 > /dev/pwm/1/freq
+echo 50 > /dev/pwm/1/a
+echo 0 > /dev/pwm/1/a
 ```
 
-`/dev/pwm/freq` accepts 8–100000 Hz; `/dev/pwm/18` and `/dev/pwm/19` accept 0–100% duty as decimal text. Hardware dividers and counter limits may introduce frequency rounding. PWM device entries appear only for pins configured as PWM.
+`/dev/pwm/1/freq` accepts 8–100000 Hz; `/dev/pwm/1/a` and `/dev/pwm/1/b` accept 0–100% duty as decimal text. Hardware dividers and counter limits may introduce frequency rounding. PWM device entries appear only for pins configured as PWM.
 
 ## Pin assignments
 

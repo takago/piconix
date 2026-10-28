@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Tiny Python-like subset for PicoNIX: file execution and simple REPL. */
 #include <stdint.h>
+#include <limits.h>
 #include <stddef.h>
 #include "unistd.h"
 #include "fcntl.h"
@@ -8,7 +9,7 @@
 #include "stdio.h"
 static void outn(const char *s,unsigned n) {
     while(n) { int r=write(1, s, n); if(r<0) return;
-        if(!r) { sleep(1); continue; } s+=r;n-=(unsigned)r; }
+        if(!r) { msleep(1); continue; } s+=r;n-=(unsigned)r; }
 }
 static void outs(const char *s){outn(s,(unsigned)strlen(s));}
 static int same(const char *a,const char *b){return strcmp(a,b)==0;}
@@ -24,16 +25,13 @@ static int word(const char *s){ws();const char *p=cursor;while(*s&&*p==*s){s++;p
 static int32_t getvar(const char *name){for(int i=0;i<nvars;i++)if(same(vars[i].name,name))return vars[i].val;error=1;return 0;}
 static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same(vars[i].name,name)){vars[i].val=val;return;}
     if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars++].val=val;}
-/* Division without ARM runtime support; divisor==0 is an interpreter error. */
-static uint32_t udiv(uint32_t a,uint32_t b,uint32_t *rem) {
-    uint32_t q=0,r=0;for(int bit=31;bit>=0;bit--){r=(r<<1)|((a>>(unsigned)bit)&1u);
-        if(r>=b){r-=b;q|=1u<<(unsigned)bit;}}*rem=r;return q;
-}
-static int32_t divide(int32_t a,int32_t b,int mod){if(!b){error=1;return 0;}
-    int na=a<0,nb=b<0;uint32_t aa=na?0u-(uint32_t)a:(uint32_t)a;
-    uint32_t bb=nb?0u-(uint32_t)b:(uint32_t)b,r;
-    uint32_t q=udiv(aa,bb,&r);if(mod)return (int32_t)(na?0u-r:r);
-    return (int32_t)((na!=nb)?0u-q:q);
+/* Keep the interpreter's divide-by-zero and INT32_MIN/-1 behavior explicit. */
+static int32_t divide(int32_t a,int32_t b,int mod) {
+    if(!b) { error=1; return 0; }
+    /* The mathematical quotient 2147483648 does not fit in int32_t.
+       Preserve the previous interpreter's 32-bit wraparound result. */
+    if(a==INT32_MIN && b==-1) return mod ? 0 : INT32_MIN;
+    return mod ? a%b : a/b;
 }
 /* GPIO accesses go through PicoNIX device files; no new syscall required. */
 static int gpio_path(char path[20],int32_t pin,int direction){
@@ -148,15 +146,15 @@ static int32_t expr(void){int32_t a=sum();ws();int op=0;
     return a;
 }
 static void number(int32_t v){char b[12];unsigned n=0,x=v<0?0u-(uint32_t)v:(uint32_t)v;
-    do{uint32_t r;x=udiv(x,10,&r);b[n++]=(char)('0'+r);}while(x&&n<11);
+    do{uint32_t r=x%10u;x/=10u;b[n++]=(char)('0'+r);}while(x&&n<11);
     if(v<0)b[n++]='-';while(n){char c=b[--n];outn(&c,1);}}
 static int repl_mode;
 static void statement(unsigned line){cursor=source+offsets[line];ws();
-    if(word("sleep")&&eat('(')){
+    if(word("msleep")&&eat('(')){
         int32_t ms=expr();if(!eat(')'))error=1;
         ws();if(*cursor&&*cursor!='#')error=1;
         if(ms<0||ms>60000)error=1;
-        if(!error)sleep(ms);
+        if(!error)msleep(ms);
         return;
     }
     cursor=source+offsets[line];ws();
@@ -245,7 +243,7 @@ static void repl(void){
             outs(block?"... ":">>> ");
             char line[128];
             int m=read_line(line,sizeof(line));
-            if(m<0){n=0;sleep(10);break;} /* EOF discards pending input, not the REPL. */
+            if(m<0){n=0;msleep(10);break;} /* EOF discards pending input, not the REPL. */
             while(m>0&&(line[m-1]=='\n'||line[m-1]=='\r'))m--;
             line[m]=0;
             if(!block && same(line,"exit()")){
@@ -279,5 +277,5 @@ int main(int argc, char *argv[]){
     source[n]=0;run_source((unsigned)n);
 done:
     _exit(error?1:0);
-    for(;;)sleep(1000);
+    for(;;)msleep(1000);
 }

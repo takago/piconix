@@ -18,9 +18,9 @@ if(NOT CMAKE_READELF)
   get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
   set(CMAKE_READELF "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-readelf")
 endif()
-# Freestanding slot-linked images. All sixteen program images are embedded in the firmware Flash.
+# Freestanding slot-linked images. All user program images are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
-foreach(APP IN ITEMS shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
   set(APP_ORIGIN 0x20018000)
@@ -40,7 +40,7 @@ foreach(APP IN ITEMS shell blink omikuji python hello hexdump trace ps cat watch
   set(APP_BIN_ALT "${APP_DIR}/${APP}_alt.bin")
   set(APP_ELF "${APP_DIR}/${APP}.elf")
   set(APP_BIN "${APP_DIR}/${APP}.bin")
-  # All RAM apps are linked without libgcc. Prevent GCC from emitting
+  # RAM apps link libgcc for compiler-generated arithmetic helpers. Prevent GCC from emitting
   # Thumb-1 switch helpers such as __gnu_thumb1_case_uqi.
   set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
   add_custom_command(OUTPUT "${APP_BIN}"
@@ -63,13 +63,13 @@ foreach(APP IN ITEMS shell blink omikuji python hello hexdump trace ps cat watch
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             -I "${CMAKE_CURRENT_LIST_DIR}/ram_apps"
             -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/libc.c" -o "${LIBC_OBJ}"
-    COMMAND "${CMAKE_C_COMPILER}" -nostdlib
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -nostdlib
             -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD}"
-            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" "${LIBC_OBJ}" -o "${APP_ELF}"
+            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" "${LIBC_OBJ}" -lgcc -o "${APP_ELF}"
     COMMAND "${CMAKE_OBJCOPY}" -O binary "${APP_ELF}" "${APP_BIN}"
-    COMMAND "${CMAKE_C_COMPILER}" -nostdlib
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -nostdlib
             -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD_ALT}"
-            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" "${LIBC_OBJ}" -o "${APP_ELF_ALT}"
+            "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" "${LIBC_OBJ}" -lgcc -o "${APP_ELF_ALT}"
     COMMAND "${CMAKE_OBJCOPY}" -O binary "${APP_ELF_ALT}" "${APP_BIN_ALT}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_pic.py"
             "${APP_ELF}" "${APP_BIN}" "${APP_ELF_ALT}" "${APP_BIN_ALT}"
@@ -124,7 +124,7 @@ if(PICONIX_KERNEL_RAM)
   endif()
   message(STATUS "PicoNIX RAM linker: ${PICONIX_CUSTOM_LD}")
 endif()
-add_executable(piconix src/kernel.c src/gpio.c src/adc.c src/pwm.c src/context.S src/main.c
+add_executable(piconix src/kernel.c src/gpio.c src/fb.c src/adc.c src/pwm.c src/context.S src/main.c
                    ${PICONIX_EMBED_SOURCES})
 if(PICONIX_KERNEL_RAM)
   # SDK supplies boot2, initial vectors and flash-to-RAM relocation.

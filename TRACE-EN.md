@@ -15,7 +15,7 @@ Use `trace on` to clear and start recording, `trace off` to stop and `trace show
 
 ## Timer
 
-SysTick fires every 1 ms. Every thousandth tick is recorded as `TICKx1K` (1000 ms). Normal time slicing remains 10 ms, with earlier rescheduling when a sleeping task wakes. Actual task switches and SVC events are not sampled. `sleep` still takes milliseconds, with a 1-ms wakeup granularity.
+SysTick fires every 1 ms. Every thousandth tick is recorded as `TICKx1K` (1000 ms). Normal time slicing remains 10 ms, with earlier rescheduling when a sleeping task wakes. Actual task switches and SVC events are not sampled. `msleep` still takes milliseconds, with a 1-ms wakeup granularity.
 
 ## Descriptor names
 

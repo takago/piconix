@@ -14,7 +14,7 @@ char *getcwd(char *buf,size_t size) { return call(23,(uintptr_t)buf,size,0)<0 ? 
 int getpid(void) { return call(1,0,0,0); }
 int kill(int pid) { return call(2,(uintptr_t)pid,0,0); }
 void _exit(int status) { call(3,(uintptr_t)status,0,0); for(;;) {} }
-int sleep(unsigned ms) { return call(4,ms,0,0); }
+int msleep(unsigned ms) { return call(4,ms,0,0); }
 int yield(void) { return call(5,0,0,0); }
 int open(const char *path,int flags) { return call(6,(uintptr_t)path,(uintptr_t)flags,0); }
 int close(int fd) { return call(7,(uintptr_t)fd,0,0); }

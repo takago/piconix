@@ -29,6 +29,9 @@ extern const unsigned char piconix_rm_image_start[], piconix_rm_image_end[];
 extern const unsigned char piconix_echo_image_start[], piconix_echo_image_end[];
 extern const unsigned char piconix_kill_image_start[], piconix_kill_image_end[];
 extern const unsigned char piconix_tty_image_start[], piconix_tty_image_end[];
+extern const unsigned char piconix_fbctl_image_start[], piconix_fbctl_image_end[];
+extern const unsigned char piconix_kitesys_image_start[], piconix_kitesys_image_end[];
+extern const unsigned char piconix_pins_image_start[], piconix_pins_image_end[];
 static void register_image(int id, uintptr_t entry, const char *name,
                            const unsigned char *start, const unsigned char *end) {
     size_t size=(size_t)(end-start);
@@ -61,6 +64,9 @@ int main(void) {
     register_image(14,0x20018000u,"echo",piconix_echo_image_start,piconix_echo_image_end);
     register_image(15,0x20018000u,"kill",piconix_kill_image_start,piconix_kill_image_end);
     register_image(16,0x20018000u,"tty",piconix_tty_image_start,piconix_tty_image_end);
+    register_image(18,0x20018000u,"fbctl",piconix_fbctl_image_start,piconix_fbctl_image_end);
+    register_image(17,0x20018000u,"kitesys",piconix_kitesys_image_start,piconix_kitesys_image_end);
+    register_image(19,0x20018000u,"pins",piconix_pins_image_start,piconix_pins_image_end);
     os_init_idle(idle_task);
     if(os_start_program(2)<0) panic("PicoNIX: shell start failed");
     // Do not start Blink here: verify the `blink` shell command path.

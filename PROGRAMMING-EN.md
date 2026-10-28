@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
 }
 ```
 
-All RAM applications and `crt0.c` now use the user API; only `syscalls.c` directly issues SVC instructions. `sleep()` takes milliseconds, unlike POSIX. The API is not a complete POSIX implementation.
+All RAM applications and `crt0.c` now use the user API; only `syscalls.c` directly issues SVC instructions. `msleep()` takes milliseconds, unlike POSIX. The API is not a complete POSIX implementation.
 
 
 ## Minimal user-space C library
@@ -161,4 +161,4 @@ The kernel maintains one working directory per task, inherited through `spawn()`
 
 ### PWM and reserved GPIO pins (2026-10-27)
 
-GP18 and GP19 are dedicated PWM outputs, sharing a default 1 kHz frequency, with initial duties 50% and 0%. `/dev/pwm/freq` accepts 8–100000 Hz, and `/dev/pwm/18` and `/dev/pwm/19` accept 0–100 percent via decimal text reads/writes. GPIO listings and access exclude GP18, GP19 and ADC-reserved GP26–28.
+GP18 and GP19 are dedicated PWM outputs, sharing a default 1 kHz frequency, with initial duties 50% and 0%. `/dev/pwm/1/freq` accepts 8–100000 Hz, and `/dev/pwm/1/a` and `/dev/pwm/1/b` accept 0–100 percent via decimal text reads/writes. GPIO listings and access exclude GP18, GP19 and ADC-reserved GP26–28.

@@ -40,7 +40,7 @@ piconix# python /tmp/test.py
 | 値と計算 | 符号付き32ビット整数，`+ - * / %`，比較，括弧 |
 | 制御 | 代入，`if`／`else`，`while`，スペースによるインデント，`#`コメント |
 | 入出力 | `print(...)`，整数入力の`input(...)`，`int(input(...))` |
-| 待機 | `sleep(ミリ秒)`（0～60000） |
+| 待機 | `msleep(ミリ秒)`（0～60000） |
 | GPIO | `gpio`，`gpio_read`，`gpio_mode`，`gpio_pull` |
 
 変数は最大16個，ソースは512バイト／非空行64行，ブロックは8段までです．`while`は1文につき最大10000回の反復に制限されています．浮動小数点，リスト，ユーザ定義関数，`for`，`import`，文字列変数はありません．
@@ -53,9 +53,9 @@ piconix# python /tmp/test.py
 i = 0
 while i < 5:
     gpio(25, 1)
-    sleep(250)
+    msleep(250)
     gpio(25, 0)
-    sleep(250)
+    msleep(250)
     i = i + 1
 ```
 

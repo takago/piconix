@@ -10,8 +10,8 @@
 #define GP1_MODE PIN_GPIO
 #define GP2_MODE PIN_GPIO
 #define GP3_MODE PIN_GPIO
-#define GP4_MODE PIN_UART
-#define GP5_MODE PIN_UART
+#define GP4_MODE PIN_GPIO
+#define GP5_MODE PIN_GPIO
 #define GP6_MODE PIN_GPIO
 #define GP7_MODE PIN_GPIO
 #define GP8_MODE PIN_GPIO
@@ -26,8 +26,8 @@
 #define GP17_MODE PIN_GPIO
 #define GP18_MODE PIN_PWM
 #define GP19_MODE PIN_PWM
-#define GP20_MODE PIN_GPIO
-#define GP21_MODE PIN_GPIO
+#define GP20_MODE PIN_UART
+#define GP21_MODE PIN_UART
 #define GP22_MODE PIN_GPIO
 #define GP23_MODE PIN_GPIO
 #define GP24_MODE PIN_GPIO
@@ -41,13 +41,14 @@
 /* USB CDC is the default console: GP0/1 are free GPIO pins.
  * UART0 console builds must reserve GP0/1 for UART instead. */
 #if defined(PICONIX_CONSOLE_USB) && !PICONIX_CONSOLE_USB
+#error "LED framebuffer requires USB CDC console (GP0/1 reserved for LED matrix)"
 #if GP0_MODE != PIN_UART || GP1_MODE != PIN_UART
 #error "UART0 console requires GP0/1 to be PIN_UART"
 #endif
 #endif
-/* UART1 is always enabled on GP4/5 in this build. */
-#if GP4_MODE != PIN_UART || GP5_MODE != PIN_UART
-#error "UART1 requires GP4/5 to be PIN_UART"
+/* UART1 uses GP20/21. */
+#if GP20_MODE != PIN_UART || GP21_MODE != PIN_UART
+#error "UART1 requires GP20/21 to be PIN_UART"
 #endif
 #if (GP0_MODE != PIN_GPIO && GP0_MODE != PIN_UART) || (GP1_MODE != PIN_GPIO && GP1_MODE != PIN_UART)
 #error "GP0/1 support GPIO or UART only"
@@ -100,12 +101,6 @@
 #endif
 #if GP17_MODE != PIN_GPIO
 #error "GP17 supports GPIO only"
-#endif
-#if GP20_MODE != PIN_GPIO
-#error "GP20 supports GPIO only"
-#endif
-#if GP21_MODE != PIN_GPIO
-#error "GP21 supports GPIO only"
 #endif
 #if GP22_MODE != PIN_GPIO
 #error "GP22 supports GPIO only"

@@ -15,15 +15,6 @@ static unsigned random_from_device(void) {
     close(fd);
     return n==(int)sizeof(value) ? value : 0;
 }
-/* Calculate value modulo 6 without a hardware divide or libgcc. */
-static unsigned mod6(uint32_t value) {
-    unsigned rem=0;
-    for(int bit=31;bit>=0;--bit) {
-        rem=(rem<<1)|((value>>(unsigned)bit)&1u);
-        if(rem>=6u) rem-=6u;
-    }
-    return rem;
-}
 int main(int argc, char *argv[]) {
     /* Fixed-width strings avoid absolute address entries in a pointer table. */
     static const char fortunes[][9] = {
@@ -73,15 +64,15 @@ int main(int argc, char *argv[]) {
         while(sent<len) {
             int rc=write(1, (item+sent), len-sent);
             if(rc<0) break;
-            if(rc==0) { sleep(1); continue; }
+            if(rc==0) { msleep(1); continue; }
             sent+=(unsigned)rc;
         }
-        sleep(1000);
+        msleep(1000);
     }
     unsigned value=random_from_device();
     printf("%s", " (*^_^*) ");
-    printf("%s", fortunes[mod6(value)]);
+    printf("%s", fortunes[value % 6u]);
     printf("%s", "!\r\n");
     _exit(0);
-    for(;;) sleep(1000);
+    for(;;) msleep(1000);
 }

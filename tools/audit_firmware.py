@@ -22,6 +22,17 @@ def parse_nm(output):
             symbols[fields[2]] = int(fields[0], 16)
     return symbols
 
+def parse_symbol_sizes(output):
+    """Parse GNU nm -S output; sizes are from the linked ELF, not constants."""
+    sizes = {}
+    for line in output.splitlines():
+        fields = line.split()
+        if (len(fields) >= 4
+                and re.fullmatch(r'[0-9a-fA-F]+', fields[0])
+                and re.fullmatch(r'[0-9a-fA-F]+', fields[1])):
+            sizes[fields[3]] = int(fields[1], 16)
+    return sizes
+
 def parse_sections(output):
     result = {}
     # GNU objdump -h: 0 .boot2 00000100 10000000 10000000 ...
@@ -74,26 +85,24 @@ def audit(symbols, sections):
         if name.startswith('.debug') or name.startswith('.comment'): continue
         if max(vma, SLOT_BASE) < min(vma + size, SLOT_BASE + SLOT_BYTES):
             require(False, f'{name} overlaps reserved task slots: 0x{vma:08x}+0x{size:x}')
-    # Check *both* embedded programs, not just Blink. In copy_to_ram mode
-    # their .rodata may have an SRAM VMA and Flash LMA.
-    for app in ('shell', 'blink'):
+    # Every embedded user image must remain in XIP FLASH.  A RAM VMA here
+    # silently consumes kernel SRAM and grows with the application count.
+    for app in ('pins', 'fbctl', 'kitesys', 'shell', 'blink', 'omikuji', 'python',
+                'hello', 'hexdump', 'trace', 'ps', 'cat', 'watch', 'pwd',
+                'ls', 'rm', 'echo', 'kill', 'tty'):
         image_start = symbols.get(f'piconix_{app}_image_start')
         image_end = symbols.get(f'piconix_{app}_image_end')
         require(image_start is not None and image_end is not None and image_end > image_start,
                 f'missing/empty embedded {app} image')
         if image_start is None or image_end is None or image_end <= image_start:
             continue
-        in_flash = 0x10000000 <= image_start < image_end <= 0x10200000
-        in_kernel = 0x20000000 <= image_start < image_end <= 0x20018000
-        require(in_flash or in_kernel,
-                f'embedded {app} image must reside in XIP flash or kernel RAM')
-        if in_kernel:
-            containing = [(name, vma, lma, size) for name, (size, vma, lma)
-                          in sections.items() if size and vma <= image_start
-                          and image_end <= vma + size and 0x10000000 <= lma
-                          and lma + size <= 0x10200000]
-            require(bool(containing),
-                    f'RAM-resident {app} image has no flash-backed load section')
+        require(0x10000000 <= image_start < image_end <= 0x10200000,
+                f'embedded {app} image must reside in XIP flash, not kernel RAM')
+        app_section = sections.get('.piconix_app_images')
+        require(app_section is not None and app_section[1] <= image_start
+                and image_end <= app_section[1] + app_section[0]
+                and app_section[2] == app_section[1],
+                f'embedded {app} image is not in flash-backed .piconix_app_images')
     # Every allocated kernel SRAM section must fit within 96 KiB; no accidental
     # use of task banks by SDK sections, and no stack spill into the slots.
     for name, (size, vma, lma) in sections.items():
@@ -104,7 +113,7 @@ def audit(symbols, sections):
                     f'{name} crosses kernel 96-KiB boundary')
     return problems
 
-def memory_report(sections):
+def memory_report(sections, symbol_sizes):
     """Kernel high-water mark from allocated ELF SRAM sections (includes heap/stack)."""
     kernel_base, kernel_end = 0x20000000, SLOT_BASE
     ram_sections = [(name, size, addr) for name, (size, addr, _) in sections.items()
@@ -120,7 +129,10 @@ def memory_report(sections):
     for i in range(5):
         base = SLOT_BASE + i * 0x8000
         print(f'User slot {i+1} (32 KiB)  0x{base:08x}..0x{base+0x7fff:08x}     reserved (runtime)')
-    print('Trace ring            16384 bytes (inside kernel .bss)')
+    trace_bytes = symbol_sizes.get('trace_ring')
+    print(f'Trace ring            {trace_bytes} bytes (inside kernel .bss)'
+          if trace_bytes is not None else
+          'Trace ring            UNKNOWN (trace_ring symbol size unavailable)')
     print('Kernel section breakdown (allocated SRAM):')
     for name, size, addr in sorted(ram_sections, key=lambda x: x[2]):
         print(f'  {name:22s} 0x{addr:08x}  {size:6d} bytes')
@@ -135,11 +147,14 @@ def main():
     args = p.parse_args()
     try:
         symbols = parse_nm(run(args.nm, '-n', args.elf))
+        symbol_sizes = parse_symbol_sizes(run(args.nm, '-S', '-n', args.elf))
         sections = parse_sections(run(args.objdump, '-h', args.elf))
     except (OSError, subprocess.CalledProcessError) as e:
         sys.exit(f'FAIL: cannot inspect firmware ELF: {e}')
     problems = audit(symbols, sections)
-    memory_report(sections)
+    if symbol_sizes.get('trace_ring') is None:
+        problems.append('missing trace_ring symbol size in linked ELF')
+    memory_report(sections, symbol_sizes)
     for name in ('.boot2', '.flashtext', '.ram_vector_table'):
         print(f'{name}: {sections.get(name, "MISSING")}')
     print(f'__vectors: {symbols.get("__vectors", "MISSING")}')

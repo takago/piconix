@@ -18,7 +18,7 @@ static void write_all(int fd, const char *p, size_t n) {
     while(n) {
         int rc=write(fd, p, n);
         if(rc<0) return;
-        if(rc==0) { sleep(1); continue; }
+        if(rc==0) { msleep(1); continue; }
         p+=(unsigned)rc; n-=(unsigned)rc;
     }
 }
@@ -184,6 +184,7 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
             "  help             Show this help\r\n"
             "  ps               Show tasks and RAM layout (external)\r\n"
                         "  tty              Show controlling terminal (external)\r\n"
+            "  pins           Show Pico physical pin layout (external)\r\n"
             "  logout / exit    Close this shell session\r\n"
             "  blink [&]        Run blink (Ctrl+C to interrupt)\r\n"
             "  omikuji          Prompt for countdown seconds (foreground)\r\n"
@@ -234,7 +235,7 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
     else if(eq(s,"logout") || eq(s,"exit")) {
         put("logout\r\nPicoNIX: Session closed.\r\n");
         _exit(0);
-        for(;;) sleep(100);
+        for(;;) msleep(100);
     }
     else if(eq(s,"cd") || prefix(s,"cd ")) {
         const char *arg=eq(s,"cd")?"/":s+3;
@@ -264,7 +265,7 @@ int main(int argc, char *argv[]) {
     cwd[0]='/';
     cwd[1]=0;
     /* USB CDC may enumerate after the shell task starts.  Do not discard the banner. */
-    while(!console_ready()) sleep(10);
+    while(!console_ready()) msleep(10);
     put("\r\n--------------------------------------------------------\r\n"
         "PicoNIX-2026-10-26 (TAKAGO_LAB.)\r\n"
         "Type 'help' for commands.\r\n"
@@ -281,7 +282,7 @@ int main(int argc, char *argv[]) {
                     used=0; previous_cr=0; put("\r\npiconix# ");
                     continue;
                 }
-                if(length<=0) {sleep(1);continue;}}
+                if(length<=0) {msleep(1);continue;}}
             char c=chunk[offset++];
             if(c=='\n' && previous_cr) {previous_cr=0;continue;}
             previous_cr=(c=='\r');

@@ -10,7 +10,7 @@ static int output(const char *buf, int n) {
     while(done<n) {
         int k=write(1,buf+done,(unsigned)(n-done));
         if(k<0) return -1;
-        if(!k) {sleep(1);continue;}
+        if(!k) {msleep(1);continue;}
         done+=k;
     }
     return 0;
@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
             n=read(fd,buf,sizeof buf);
             if(n<0) {rc=1;break;}
             if(n>0) {if(output(buf,n)<0) {rc=1;break;}idle=0;}
-            else {sleep(10);idle+=10;}
+            else {msleep(10);idle+=10;}
         }
     } else {
         while((n=read(fd,buf,sizeof buf))>0)
