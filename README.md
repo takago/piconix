@@ -5,6 +5,8 @@ Choose a language / 言語を選択してください．
 - [日本語 — PicoNIXの概要](README-JP.md)
 - [English — PicoNIX overview](README-EN.md)
 
+External device wiring / 外付けデバイスの接続例: [日本語](README-JP.md#想定する外付けデバイスと配線) / [English](README-EN.md#expected-external-devices-and-wiring)
+
 - [UART1・端末操作（日本語）](UART-JP.md)
 - [UART1 and terminals (English)](UART-EN.md)
 

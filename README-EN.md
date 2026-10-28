@@ -41,6 +41,26 @@ piconix# python
 
 Run `getty /dev/uart1 sh &` in the USB shell to start an independent UART1 shell. Its children inherit standard I/O on UART1. Use `getty /dev/uart1 python &` for a Python REPL. Configure UART1 for 115200 baud, 8N1 and local echo. Starting another `getty` on an occupied terminal is rejected. 
 
+## Expected external devices and wiring
+
+The following is the intended wiring example for the standard PicoNIX configuration (USB CDC console and 8×8 LED framebuffer). **The OS does not automatically identify attached components.**
+
+| GPIO | External connection | Purpose / notes |
+|---|---|---|
+| GP0–GP7 | 8×8 LED matrix columns (cathodes) | Columns 0–7; active LOW |
+| GP8–GP15 | 8×8 LED matrix rows (anodes) | Rows 0–7; active HIGH |
+| GP16 | Push button | Between GPIO and GND; internal pull-up enabled |
+| GP17 | Push button | Between GPIO and GND; internal pull-up enabled |
+| GP18 | Passive buzzer or another PWM load | PWM slice 1, channel A; used by `kitesys` |
+| GP19 | Optional PWM output | PWM slice 1, channel B; shares frequency with GP18 |
+| GP20 | UART1 TX | Connect to the external device's RX |
+| GP21 | UART1 RX | Connect to the external device's TX |
+| GP26–GP28 | Optional analog signals | ADC0–ADC2; keep inputs within 0–3.3 V |
+
+`kitesys` shifts digits using the GP16/17 buttons and sounds a buzzer on GP18. PWM is controlled through `/dev/pwm/1/freq`, `/dev/pwm/1/a` (GP18), and `/dev/pwm/1/b` (GP19). UART1 operates at 115200 baud, 8N1. **Share GND** with the connected serial device and use **3.3 V logic levels**; do not connect RS-232 voltage levels directly.
+
+**The LED matrix needs current limiting and suitable drive circuitry.** A selected row may carry the combined current of several LEDs; use appropriate resistors and transistor drivers. This is not a direct-to-GPIO wiring schematic. See [Framebuffer](FB-JP.md) and [Device guide](DEVICES-EN.md). Use `pins` to inspect the current pin state.
+
 ## Design and limitations
 
 PicoNIX has a 96 KiB kernel region and five 32 KiB application slots. PIC application images are embedded in flash and loaded into a free slot on launch. Up to five application tasks can run concurrently.
