@@ -2,6 +2,7 @@
 set -euo pipefail
 : "${PICO_SDK_PATH:?Set PICO_SDK_PATH to a Pico SDK checkout}"
 cd "$(dirname "$0")/.."
+python3 tools/check_program_capacity.py
 python3 tools/test_audit.py
 python3 tools/test_pwm_paths.py
 python3 tools/test_ram_pipeline.py

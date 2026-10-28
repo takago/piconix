@@ -154,7 +154,7 @@ static void wake_waiters(void) {
 }
 
 /* Program images are position independent; RAM slots are assigned at spawn. */
-#define PROGRAM_CAPACITY 20  /* IDs 1..19; slot 0 reserved */
+#define PROGRAM_CAPACITY 32  /* IDs 1..31; slot 0 reserved */
 static struct { os_entry_t entry; const char *name; } programs[PROGRAM_CAPACITY];
 static int free_program_slot(void) {
     for (int i=0;i<OS_MAX_TASKS;i++)

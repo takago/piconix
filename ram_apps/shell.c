@@ -185,6 +185,7 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
             "  ps               Show tasks and RAM layout (external)\r\n"
                         "  tty              Show controlling terminal (external)\r\n"
             "  pins           Show Pico physical pin layout (external)\r\n"
+            "  pwmctl           Control PWM slice 1 (external)\r\n"
             "  logout / exit    Close this shell session\r\n"
             "  blink [&]        Run blink (Ctrl+C to interrupt)\r\n"
             "  omikuji          Prompt for countdown seconds (foreground)\r\n"
