@@ -82,7 +82,7 @@ piconix# ps
 
 USB CDCコンソールとUART1の端末を扱えます．`getty /dev/uart1 sh &` により別のShellを起動できます．端末ごとに所有Shellと前景PIDを管理し，Ctrl+Cはその端末の前景タスクに作用します．
 
-端末の**入力モード**（canonical/非canonical，echo）は `ioctl()`，FDごとの**非ブロッキングフラグ**は `fcntl()` で設定します．この2種類は独立しています．詳しい操作例と `mb` は[端末設定とゲーム](TTY-GAMES-JP.md)を参照してください．端末モードはPOSIX `termios` の完全実装ではなく，`VMIN` と `VTIME` はありません．
+端末の**入力モード**（canonical/非canonical，echo）は `ioctl()`，FDごとの**非ブロッキングフラグ**は `fcntl()` で設定します．この2種類は独立しています．詳しい操作例と `mb` は[端末設定と対話型入力](TTY-JP.md)を参照してください．端末モードはPOSIX `termios` の完全実装ではなく，`VMIN` と `VTIME` はありません．
 
 ## 7．仮想ファイルとデバイス
 
@@ -124,4 +124,4 @@ trace show
 | `ram_apps/syscalls.c`，`crt0.c` | ユーザ空間のSVC呼び出しと起動 |
 | `ram_apps/slot.ld`，`CMakeLists.txt` | RAM配置，イメージ生成，PIC検証 |
 
-**次に読む文書：** 実際にコマンドを追加する場合は[Cアプリ開発](PROGRAMMING-JP.md)，端末の仕組みは[端末設定とゲーム](TTY-GAMES-JP.md)，ハードウェアへの接続は[デバイスと配線](DEVICES-JP.md)を参照してください．
+**次に読む文書：** 実際にコマンドを追加する場合は[Cアプリ開発](PROGRAMMING-JP.md)，端末の仕組みは[端末設定と対話型入力](TTY-JP.md)，ハードウェアへの接続は[デバイスと配線](DEVICES-JP.md)を参照してください．

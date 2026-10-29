@@ -82,7 +82,7 @@ With `command &`, the Shell returns without waiting for the external command. `C
 
 PicoNIX supports the USB CDC console and a UART1 terminal. For example, `getty /dev/uart1 sh &` starts another Shell. Each terminal tracks its owning Shell and foreground PID; `Ctrl+C` acts on that terminal's foreground task.
 
-Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) and `fcntl()` to set **per-FD nonblocking flags**. These settings are independent. See [Terminal modes and games](TTY-GAMES-JP.md) for examples (Japanese). This is not a full POSIX `termios` implementation: `VMIN` and `VTIME` are not provided.
+Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) and `fcntl()` to set **per-FD nonblocking flags**. These settings are independent. See [Terminal settings and interactive input](TTY-EN.md) for examples. This is not a full POSIX `termios` implementation: `VMIN` and `VTIME` are not provided.
 
 ## 7. Virtual files and devices
 
@@ -124,4 +124,4 @@ trace show
 | `ram_apps/syscalls.c`, `crt0.c` | User-side SVC wrappers and startup |
 | `ram_apps/slot.ld`, `CMakeLists.txt` | RAM layout, images and PIC validation |
 
-**Next:** [C application development](PROGRAMMING-EN.md) for adding a command, [Devices and wiring](DEVICES-EN.md) for hardware, and [Terminal modes and games](TTY-GAMES-JP.md) (Japanese) for TTY details.
+**Next:** [C application development](PROGRAMMING-EN.md) for adding a command, [Devices and wiring](DEVICES-EN.md) for hardware, and [Terminal settings and interactive input](TTY-EN.md) for TTY details.

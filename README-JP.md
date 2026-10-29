@@ -61,7 +61,7 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 | GPIO・ADC・PWMなどのデバイスを使用する | [デバイスガイド](DEVICES-JP.md) |
 | UART1，`getty`，Ctrl+C／Ctrl+Dを理解する | [UARTと端末操作](UART-JP.md) |
 | `python`コマンドを使う | [Python風インタプリタ](PYTHON-JP.md) |
-| `stty`・`mb`・`reset`を使う | [端末設定とゲーム](TTY-GAMES-JP.md) |
+| `stty`・`mb`・`reset`を使う | [端末設定と対話型入力](TTY-JP.md) |
 | 8×8 LEDマトリクスを使う | [デバイスガイド（フレームバッファ）](DEVICES-JP.md) |
 | カーネルトレースを見る | [トレース](TRACE-JP.md) |
 

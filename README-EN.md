@@ -62,7 +62,7 @@ PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, si
 | Write a C RAM application | [Application programming](PROGRAMMING-EN.md) |
 | Understand UART1, `getty`, Ctrl+C/Ctrl+D | [UART and terminals](UART-EN.md) |
 | Use the `python` command | [Python-like interpreter](PYTHON-EN.md) |
-| Configure TTY input and play `mb` | [TTY and games (Japanese)](TTY-GAMES-JP.md) |
+| Configure TTY input and play `mb` | [Terminal settings and interactive input](TTY-EN.md) |
 | Use the LED framebuffer | [Device guide (framebuffer)](DEVICES-EN.md) |
 | Inspect kernel tracing | [Trace](TRACE-EN.md) |
 

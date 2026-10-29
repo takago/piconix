@@ -114,7 +114,7 @@ if (flags >= 0)
 /* 文字単位で読みたいときは，別途ioctlでcanonicalを解除する */
 ```
 
-`O_NONBLOCK` はFDの動作を指定し，canonical/echoの設定とは別です．ゲーム `ram_apps/mb.c` は入力設定を一時変更して使用する例です．実際のモード復元方法と注意点は[端末設定とゲーム](TTY-GAMES-JP.md)を参照してください．
+`O_NONBLOCK` はFDの動作を指定し，canonical/echoの設定とは別です．ゲーム `ram_apps/mb.c` は入力設定を一時変更して使用する例です．実際のモード復元方法と注意点は[端末設定と対話型入力](TTY-JP.md)を参照してください．
 
 ## 9．デバッグと検証
 

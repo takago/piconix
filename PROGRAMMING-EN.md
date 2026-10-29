@@ -114,7 +114,7 @@ if (flags >= 0)
 /* For character input, also disable canonical mode using ioctl. */
 ```
 
-`O_NONBLOCK` controls a file descriptor, independently of canonical and echo terminal modes. The game in `ram_apps/mb.c` demonstrates temporarily switching the input mode. See [Terminal modes and games](TTY-GAMES-JP.md) for restoring settings and additional cautions (Japanese).
+`O_NONBLOCK` controls a file descriptor, independently of canonical and echo terminal modes. The game in `ram_apps/mb.c` demonstrates temporarily switching the input mode. See [Terminal settings and interactive input](TTY-EN.md) for restoring settings and additional cautions.
 
 ## 9. Debugging and verification
 

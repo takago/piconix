@@ -1,0 +1,46 @@
+# 端末設定と対話型入力
+
+[English](TTY-EN.md) | [概要](README-JP.md) | [UART1と端末](UART-JP.md) | [Cアプリ開発](PROGRAMMING-JP.md)
+
+PicoNIXでは，端末の**入力モード**とファイルディスクリプタ（FD）の**ブロッキング設定**を別々に扱います．POSIX `termios` の完全実装ではありません．
+
+## 端末設定：`stty` と `ioctl()`
+
+```text
+stty
+stty -icanon -echo
+stty icanon echo
+stty raw
+stty cooked
+```
+
+- `stty`：標準入力端末の `icanon`（行入力）と `echo` の状態を表示します．
+- `icanon` / `-icanon`：行単位 / 文字単位の入力を切り替えます．
+- `echo` / `-echo`：入力文字のエコーを有効 / 無効にします．
+- `raw` は `-icanon -echo`，`cooked` は `icanon echo` の簡易指定です．POSIXの完全なraw/cooked設定ではありません．
+
+Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_SET_CANON`，`OS_TTY_SET_ECHO` を使います．`stty` は `OS_TTY_PERSIST` によりコマンド終了後も設定を維持します．通常はアプリ内だけで設定を一時変更し，終了時に復元する方が安全です．`VMIN` / `VTIME` には対応していません．
+
+## FDごとのノンブロッキング：`fcntl()`
+
+`fcntl(fd, F_GETFL, 0)` でフラグを取得し，`fcntl(fd, F_SETFL, flags)` で `O_NONBLOCK` を設定します．端末のcanonical/echo設定とは独立しています．文字単位の入力が必要なら，`-icanon` と適切なブロッキング設定を組み合わせて使います．
+
+## `mb`（moonbuggy）
+
+```text
+mb
+```
+
+SPACEでジャンプ，`q`で終了します．`mb` は標準入力を文字単位・非エコー・非ブロッキングに切り替え，`read()` と `msleep()` で入力と画面更新を扱います．通常終了時に保存した端末設定とFDフラグを復元します．
+
+## `reset`（端末表示の初期化）
+
+```text
+reset
+```
+
+`reset` は標準入力の `icanon` と `echo` を有効にし，ANSIエスケープシーケンスで文字属性・カーソル・画面を初期化します．`O_NONBLOCK` は変更しません．端末入力ができない場合は実行できないため，復旧手段として万能ではありません．
+
+## 注意点と関連資料
+
+端末モードは端末側で共有されます．非標準設定のままシェルに戻ると入力が難しくなるため，対話型アプリでは終了時の復元を徹底してください．端末の所属，`getty`，Ctrl+C／Ctrl+D，USB CDCとUART1の相違は[UART1と端末](UART-JP.md)を参照してください．

@@ -1,47 +1,47 @@
-# PicoNIX Kernel Trace
+# PicoNIX Kernel Tracing
 
-Use `trace on` to clear and start recording, `trace off` to stop and `trace show` to stop and display saved events.
+[日本語](TRACE-JP.md) | [Overview](README-EN.md) | [Internals](INTERNAL-EN.md)
 
-## Binary ABI
+PicoNIX records task switches, system-call entry/exit, and periodic timer events through `/dev/trace`. Use the `trace` command to inspect these events.
 
-`/dev/trace` exports fixed 32-byte events defined in `ram_apps/trace.h`. The 16-KiB ring holds 512 records, overwriting the oldest as needed.
+## Commands
 
-- `tick`: elapsed milliseconds since boot.
-- `kind`: SWITCH, SVC entry/exit, or TICKx1K.
-- `pid`, `program_id`: task and registered program identifiers.
-- `file_id`: internal device/file identifier, or -1 when absent or unknown.
-- `value`, `detail`: syscall number, argument, result, or switch target depending on event kind.
-- `data[16]`: first 16 bytes of a successful open path or successful read/write transfer, with no required NUL terminator.
+```text
+trace on         # clear the buffer and start recording
+trace off        # stop recording
+trace show       # stop recording and display all retained events
+trace show 3     # stop recording and show events for PID 3
+trace follow     # continuously display new events while recording
+trace follow 3   # continuously display new events for PID 3
+```
 
-## Timer
+The PID argument is a decimal integer. **PID selection filters displayed records**, not the events captured by the kernel. Start with `trace on`, then run the program you want to observe. `show` stops tracing before reading the retained history; `follow` displays incoming records without stopping capture.
 
-SysTick fires every 1 ms. Every thousandth tick is recorded as `TICKx1K` (1000 ms). Normal time slicing remains 10 ms, with earlier rescheduling when a sleeping task wakes. Actual task switches and SVC events are not sampled. `msleep` still takes milliseconds, with a 1-ms wakeup granularity.
+For `SWITCH` records, the filter matches the **destination PID** (the event's `value`); for SVC records, it matches the event PID. `follow` runs in the foreground. Stop tracing from another terminal with `trace off` to drain the remaining records and exit, or interrupt the viewer with Ctrl+C. If the viewer falls behind, it reports overwritten records.
 
-## Descriptor names
+## Event types and display
 
-The user-space trace decoder associates successful open paths with PID/FD pairs; subsequent read/write/close entries reuse this history. If the open event was overwritten, only the file ID is shown. Standard descriptors 0-2 may be inherited without open events.
+| Event | Meaning |
+|---|---|
+| `SWITCH` | Context switch |
+| `ENTER` / `EXIT` | System-call entry and exit |
+| `TICKx1K` | One record for every 1,000 ticks of the 1ms SysTick |
 
-## Limitations
+The display contains time, PID, command, TTY (`console` / `uart1` / `-`), event, call, target, return value, and data columns. The trace command's own system calls and related context switches are excluded from capture.
 
-Captured paths and I/O previews are truncated to 16 bytes. Binary data is escaped for display. Tracing introduces overhead; `trace show` first disables tracing to prevent recursive capture.
+## `/dev/trace` binary format
 
-Time is displayed in seconds (for example, `12.460`). `TICKx1K` records every thousandth 1-ms SysTick. A blocking terminal `read()` does not log an EXIT at the initial wait; it logs EXIT and received bytes when the input is delivered and the task becomes ready.
+Records are **32 bytes each**, as defined by `trace_event_t` in `ram_apps/trace.h`. The kernel holds **32KiB (1,024 events)** in a ring buffer; new events overwrite the oldest when full.
 
+- `tick`: milliseconds since boot
+- `kind`: event type
+- `pid` / `program_id`: task and registered program IDs (the latter also encodes the TTY)
+- `file_id`: internal device/file ID, or -1 when absent/unknown
+- `value` / `detail`: syscall ID, arguments, return value, or destination task depending on event
+- `data[16]`: first 16 bytes of a successful `open()` path or successful `read()`/`write()` transfer; not necessarily NUL-terminated
 
-## 80-column output and continuous follow
+The viewer associates successful open events with PID/FD paths. If that history has been overwritten, it falls back to file IDs. Long paths and I/O are truncated, while binary bytes are escaped for display.
 
-`trace show` stops capture and prints the retained history. `trace follow`
-continuously displays new events without stopping capture. Start capture with
-`trace on` first. `trace follow` runs in the foreground; issue `trace off`
-from another terminal to stop capture and let the viewer drain and exit, or use
-Ctrl+C according to the foreground-task terminal behavior.
+## Timing and limitations
 
-Time is shown as seconds (`000.00`). The TTY column is `console`, `uart1`,
-or `-`. ENTER/EXIT use aligned syscall, target, return, and data columns.
-The `trace` program's own syscalls and context switches to/from that program
-are excluded. Other SWITCH and sampled TICKx1K events remain enabled.
-
-Long output is truncated to fit the terminal; each binary event still stores
-up to 16 data bytes. The upper bit of program_id encodes UART1 TTY, preserving
-the 32-byte event ABI. If live viewing falls behind the fixed ring, the viewer
-reports the number of overwritten events.
+SysTick runs every 1ms and the usual time slice is 10ms. A sleeping task can trigger rescheduling with 1ms granularity. Tracing has runtime overhead. A blocking `read()` EXIT is emitted when input arrives and the call completes, not when it first blocks. PID filtering does not reduce ring buffer consumption.
