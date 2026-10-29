@@ -7,34 +7,45 @@ PicoNIX can assemble a small Cortex-M0+ Thumb-1 program on-device, write `/tmp/a
 From the shell (which starts in `/tmp`), run `cat > test.s`, enter the following, and press Ctrl+D to finish:
 
 ```asm
-movs r0, #1
-svc #0
-bx lr
+	@ Call getpid() (result returned in r0)
+	movs	r0, #1		@ syscall 1: getpid
+	svc	#0
+
+	@ Explicitly terminate the program
+	movs	r0, #3		@ syscall 3: exit
+	movs	r1, #0		@ exit status 0
+	svc	#0
 ```
 
 ```text
 piconix# as test.s
-as: 6 bytes (14 total) -> /tmp/a.out
+as: 10 bytes (18 total) -> /tmp/a.out
 piconix# ./a.out
 ```
 
-The SVC ABI uses `r0` for the system-call number and `r1`–`r3` for arguments. Here, call 1 returns the process ID in `r0`. `bx lr` returns from the program.
+The SVC ABI uses `r0` for the system-call number and `r1`–`r3` for arguments. Here, call 1 returns the process ID in `r0`, and call 3 explicitly terminates the program with `exit(0)`. `bx lr` returns from a subroutine to its caller; it is not used to terminate the program.
 
 ## Write to the terminal
 
 ```asm
-movs r0, #9
-movs r1, #1
-adr r2, msg
-movs r3, #6
-svc #0
-bx lr
-.align 2
+	@ Write "Hello\n" to standard output
+	movs	r0, #9		@ syscall 9: write
+	movs	r1, #1		@ file descriptor 1: stdout
+	adr	r2, msg		@ message address (PC-relative)
+	movs	r3, #6		@ message length in bytes
+	svc	#0		@ write(1, msg, 6)
+
+	@ Exit with status 0
+	movs	r0, #3		@ syscall 3: exit
+	movs	r1, #0		@ exit status
+	svc	#0
+
+	.align	2		@ align msg to a 4-byte boundary
 msg:
-.ascii "Hello\n"
+	.ascii	"Hello\n"
 ```
 
-Call 9 is `write`: FD in `r1`, buffer in `r2`, length in `r3`. `.align 2` aligns the string to a word boundary for `adr`.
+Call 9 is `write`: FD in `r1`, buffer in `r2`, length in `r3`. `.align 2` aligns the string to a word boundary for `adr`. This example produces 22 bytes of code and data (30 bytes including the header).
 
 ## Supported syntax
 
@@ -53,7 +64,6 @@ Call 9 is `write`: FD in `r1`, buffer in `r2`, length in `r3`. `.align 2` aligns
 - No ELF, relocations, absolute-symbol resolution, or external linking.
 - All files are volatile. The kernel copies the image to a free RAM task slot when `./a.out` is launched.
 - **Untrusted machine code can corrupt memory**, since RP2040 does not provide conventional process memory protection. Run only trusted learning examples.
-- Complete ARM firmware builds and on-device execution remain unverified.
 
 ## Additional Thumb-1 instructions
 
@@ -73,4 +83,4 @@ Assembly success reports both the code/data byte count and the file size includi
 as: 24 bytes (32 total) -> /tmp/a.out
 ```
 
-See the [assembly examples](examples/asm/README-EN.md) for output, stack operations, and decimal conversion of numbers from 0 to 255.
+See the [assembly examples](../../userland/examples/asm/en/README.md) for output, stack operations, and decimal conversion of numbers from 0 to 255.
