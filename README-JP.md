@@ -1,6 +1,6 @@
 # PicoNIX
 
-[English](README-EN.md) | [文書一覧](#文書一覧)
+[English](README-EN.md) | [文書案内](DOCS-JP.md)
 
 PicoNIXは，**Raspberry Pi Pico（RP2040）向けの小型UNIX風OS**です．Linuxを移植したものではなく，タスク管理，システムコール，簡易ファイル，デバイスI/Oの仕組みを少ないコードで理解するための実験的なOSです．
 
@@ -41,25 +41,9 @@ piconix# python
 
 USBコンソールのShellから`getty /dev/uart1 sh &`を実行すると，UART1に別のShellを起動できます．UART1側で起動したプログラムには同じ端末の標準入出力が継承されます．Python対話環境なら`getty /dev/uart1 python &`です．UART1は115200 bps，8N1で接続し，端末側のローカルエコーを利用してください．同一端末で複数の対話プログラムを競合させないため，占有中は新しい`getty`の起動に失敗します．
 
-## 想定する外付けデバイスと配線
+## ハードウェアと接続
 
-PicoNIXの標準構成（USB CDCコンソール，8×8 LEDフレームバッファ使用）で想定する接続例です．**OSが外付け部品の種類を自動検出するわけではありません**．実際の配線に合わせて接続してください．
-
-| GPIO | 接続するもの | 役割・備考 |
-|---|---|---|
-| GP0〜GP7 | 8×8 LEDマトリクスの列（カソード） | 列0〜7．LOWで点灯する列を選択 |
-| GP8〜GP15 | 8×8 LEDマトリクスの行（アノード） | 行0〜7．HIGHで行を選択 |
-| GP16 | 押しボタンスイッチ | GPIOとGND間に接続．内部プルアップを使用 |
-| GP17 | 押しボタンスイッチ | GPIOとGND間に接続．内部プルアップを使用 |
-| GP18 | パッシブブザーなどのPWM負荷 | PWMスライス1・チャネルA．`kitesys` の通知音に使用 |
-| GP19 | PWM出力先（任意） | PWMスライス1・チャネルB．GP18と周波数を共有 |
-| GP20 | UART1 TX | 外部シリアル機器のRXへ接続 |
-| GP21 | UART1 RX | 外部シリアル機器のTXへ接続 |
-| GP26〜GP28 | アナログ入力（任意） | ADC0〜ADC2．接続する信号は0〜3.3 Vの範囲内 |
-
-`kitesys` はGP16/17のボタンで数字を左右に移動し，GP18のブザーを鳴らします．PWMは `/dev/pwm/1/freq`，`/dev/pwm/1/a`（GP18），`/dev/pwm/1/b`（GP19）から操作できます．UART1は115200 bps，8N1です．接続するシリアル機器とは**GNDを共通**にし，**3.3 Vロジックレベル**を使用してください（RS-232電圧を直接接続しないでください）．
-
-**LEDマトリクスの電流制限に注意してください．** 行には複数LED分の電流が集中するため，適切な抵抗とトランジスタ等の駆動回路が必要です．GPIOへ直接つなぐ配線例ではありません．詳しくは[フレームバッファ](FB-JP.md)と[デバイスガイド](DEVICES-JP.md)を参照してください．現在のピン状態は `pins` コマンドで確認できます．
+標準構成はUSB CDCコンソールと8×8 LEDマトリクスを想定しています．UART1はGP20（TX）／GP21（RX），PWMはGP18／19，ADCはGP26～28です．配線，電流制限，3.3 Vロジックの注意事項は[デバイスガイド](DEVICES-JP.md)にまとめています．
 
 ## 設計の特徴と制限
 
@@ -77,76 +61,11 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 | GPIO・ADC・PWMなどのデバイスを使用する | [デバイスガイド](DEVICES-JP.md) |
 | UART1，`getty`，Ctrl+C／Ctrl+Dを理解する | [UARTと端末操作](UART-JP.md) |
 | `python`コマンドを使う | [Python風インタプリタ](PYTHON-JP.md) |
+| `stty`・`mb`・`reset`を使う | [端末設定とゲーム](TTY-GAMES-JP.md) |
+| 8×8 LEDマトリクスを使う | [フレームバッファ](FB-JP.md) |
+| カーネルトレースを見る | [トレース](TRACE-JP.md) |
+
 
 ## ライセンス
 
 GPL-3.0-or-later．詳細は`LICENSE`を参照してください．
-
-`/dev/mem`は読み出し専用です．`hexdump /dev/mem 0x20018000 64`でRAM，`hexdump /dev/mem 0x10000000 64`でFlashを確認できます．対象はRP2040のメインSRAM（256 KiB）と先頭2 MiBのXIP Flashのみです．周辺機器レジスタへのアクセスは許可しません．
-
-### カーネルトレース（16 KiB）
-
-`trace on` でログを初期化して記録を開始し，`trace off` で停止します．`trace show` は停止後にリングバッファを表示します（再表示可能）．`/dev/trace` は16バイト固定長のバイナリレコードを読み出す読み取り専用デバイスです．トレース制御は専用の `ioctl()` で行い，文字列整形は外部アプリ `trace.c` が担当します．
-
-```text
-trace on
-hello
-trace off
-trace show
-```
-
-記録対象：コンテキストスイッチ，SVC開始・終了．タイムスタンプは起動後のSysTickミリ秒値です．
-
-- `/bin`: 登録済み外部コマンドの読み出し専用一覧．`spawn` は最大8引数・合計128バイトの `argv[]` に対応．
-
-トレースの詳細 / Trace details: [`TRACE-JP.md`](TRACE-JP.md) / [`TRACE-EN.md`](TRACE-EN.md)
-
-
-## ps・cat・watch と割り込み表示
-
-`ps` と `cat` は Shell 内蔵コマンドではなく，`/bin/ps`，`/bin/cat` のPICアプリです．`watch` も独立した `/bin/watch` です．
-
-```text
-ps
-cat /proc/tasks
-watch ps
-watch 1 ps
-watch 1 cat /proc/interrupts
-watch 2 cat /proc/memory
-```
-
-`watch [秒] コマンド [引数...]` は外部プログラムを繰り返し実行します．間隔は1〜60秒，省略時は1秒です．ANSI制御文字によって表示を消去します．`watch` 自身と実行対象がそれぞれ1タスクを使用します．`ls` や `echo` は外部化されたため，`watch` から起動できます．現在のCtrl+Cはプロセスグループではなく，その端末のフォアグラウンドPIDだけを終了させます．`watch` 実行中にその子が残る可能性があるため，継続時間の短いコマンドを想定しています．
-
-`/proc/interrupts` の `SysTick` は1 msごとの実割り込み回数です．`uart1` はUART1 IRQハンドラの実行回数です．UART0コンソール構成では `console` 行にもUART0 IRQ回数を表示します．USB CDCコンソール構成ではUSB割り込み回数を計測していないため `console` 行は出しません．`PendSV` と `SVC` は例外ハンドラのカウンタです．
-
-
-## Shell コマンドの外部化と作業ディレクトリ
-
-`pwd`，`ls`，`rm`，`echo`，`kill`，`tty` は `/bin` の独立PICアプリになりました．`pid` コマンドは削除しましたが，`getpid()` は残ります．Shell内蔵は `help`，`cd`，`exit`，`logout`，`getty` です．
-
-カーネルはタスクごとにカレントディレクトリを保持し，`spawn()` で子へ継承します．`chdir()` は呼び出し元のカレントディレクトリを変更し，`getcwd()` はこれを取得します．`open()` と `unlink()` は相対パスを解決します．`cd /tmp` の後に `pwd`，`ls`，`cat name`，`rm name` を実行できます．
-
-`ls /bin` はアプリの一覧に続いてShell内蔵コマンドを見出し付きで表示します．`watch 1 ls /tmp` と `watch 1 pwd` も使用できます．
-
-### 1 msタイマーとADC
-
-SysTickは1 ms，通常のタイムスライスは10 msです．`trace` の `TICKx1K` は1秒ごとに記録されます．`cat /dev/adc/0`～`2` でGPIO26～28のADC値（0～4095）を読み出せます．繰り返し測定は `watch 1 cat /dev/adc/0` などを使用します．
-
-内蔵温度センサーは `cat /dev/adc/temp` で摂氏の概算値を表示します（基準電圧3.3 Vを仮定）．
-
-### PWMとGPIO予約ピン（2026-10-27）
-
-GP18/GP19は標準設定でPWM用（共通周波数は起動時1 kHz，Dutyは両方0%）です．`/dev/pwm/1/freq` は周波数（8～100000 Hz），`/dev/pwm/1/a`・`/dev/pwm/1/b` はDuty（0～100%）を十進数のテキストで読み書きできます．GPIO一覧からGP18，19，26～28を除外し，対応するGPIOパスも開けません．GP26～28はADC専用です．
-
-
-### ピン割り当てとドライバ（2026-10）
-
-`src/pins.h` の `GPn_MODE` を変更して再ビルドすると，`/dev/gpio`，`/dev/adc`，`/dev/pwm` の公開デバイスと初期化が連動します．ドライバは `src/gpio.c`，`src/adc.c`，`src/pwm.c` に分割し，カーネルのFD管理は `src/kernel.c` に残しています．PWM初期値は1 kHz，GP18/GP19ともDuty 0%です．USB CDCコンソールの標準構成ではGP0/1はGPIOとして使用でき，GP4/5はUART1用に予約しています．UART0コンソール構成ではGP0/1を`PIN_UART`に変更します．
-
-### Pinout command
-
-Run `pins` to display the Raspberry Pi Pico 40-pin header as an ASCII diagram (USB connector at top), with live GPIO direction/level, framebuffer ownership, UART, ADC, and PWM duty/frequency from existing GPIO/PWM devices. Labels are obtained dynamically from existing GPIO/PWM devices; framebuffer ownership and PWM settings reflect the current state.
-
-### pwmctl
-
-`pwmctl status` でPWM設定を表示します．`pwmctl freq 2000` はGP18/GP19共通周波数を2000 Hzに，`pwmctl a 50` はGP18のDutyを50%に設定します．`pwmctl b 25` も同様です．`pwmctl off` は両チャネルを0%にします．周波数は8～100000 Hz，Dutyは0～100%です．設定には既存の `/dev/pwm/1/*` を使用します．

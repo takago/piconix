@@ -31,13 +31,14 @@ static const char *syscall_name(unsigned n) {
         case 21: return "lseek";
         case 22: return "chdir";
         case 23: return "getcwd";
+        case 24: return "fcntl";
         default: return "unknown";
     }
 }
 /* /bin lists registered applications in program-ID order.  Resolve names
  * once at display time; the ID itself was recorded before the task exited. */
-#define PROGRAM_COUNT 17
-#define NAMES_CAP 256
+#define PROGRAM_COUNT 32
+#define NAMES_CAP 768
 static char names[NAMES_CAP];
 static const char *program_names[PROGRAM_COUNT];
 
@@ -211,9 +212,25 @@ static void print_event(const trace_event_t *e) {
         forget_fd(close_pid,close_fd);
 }
 int main(int argc, char *argv[]) {
-    if(argc!=2 || (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
+    if(argc<2 || argc>3 || (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
                    strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) {
-        puts("usage: trace on|off|show|follow"); return 1;
+        puts("usage: trace on|off|show [PID]|follow [PID]"); return 1;
+    }
+    int filter_pid=-1;
+    if(argc==3) {
+        if(strcmp(argv[1],"show") && strcmp(argv[1],"follow")) {
+            puts("trace: PID filter requires show or follow"); return 1;
+        }
+        const char *p=argv[2];
+        if(!*p) {puts("trace: invalid PID");return 1;}
+        int pid=0;
+        while(*p) {
+            if(*p<'0' || *p>'9' || pid>100000) {
+                puts("trace: invalid PID");return 1;
+            }
+            pid=pid*10+(*p++-'0');
+        }
+        filter_pid=pid;
     }
     int fd=open("/dev/trace",O_RDONLY);
     if(fd<0) {puts("trace: cannot open /dev/trace"); return 1;}
@@ -235,7 +252,14 @@ int main(int argc, char *argv[]) {
             if(lost>0) printf("trace: %d events overwritten\n",lost);
         }
         n=read(fd,&event,sizeof event);
-        if(n==(int)sizeof event) {print_event(&event);count++;continue;}
+        if(n==(int)sizeof event) {
+            /* Switch events identify the destination task in value. */
+            unsigned event_pid=event.kind==TRACE_SWITCH ? event.value : event.pid;
+            if(filter_pid<0 || event_pid==(unsigned)filter_pid) {
+                print_event(&event);count++;
+            }
+            continue;
+        }
         if(n<0) {puts("trace: read error");close(fd);return 1;}
         if(!follow) break;
         if(ioctl(fd,TRACE_STATUS,0)==0) break;

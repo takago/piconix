@@ -3,6 +3,12 @@
 #define PICONIX_UNISTD_H
 #include <stddef.h>
 #define FB_ENABLE  0x100
+/* PicoNIX console ioctl commands (minimal, not POSIX termios). */
+#define OS_TTY_GET_CANON 0x200
+#define OS_TTY_SET_CANON 0x201
+#define OS_TTY_GET_ECHO 0x202
+#define OS_TTY_SET_ECHO 0x203
+#define OS_TTY_PERSIST 0x206
 #define FB_DISABLE 0x101
 #define FB_STATUS  0x102
 int read(int fd, void *buf, size_t count);

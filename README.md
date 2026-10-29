@@ -1,20 +1,17 @@
 # PicoNIX
 
-Choose a language / 言語を選択してください．
+PicoNIX is a small UNIX-like operating system for the Raspberry Pi Pico (RP2040). It is intended for learning and experimentation, not as a Linux port.
 
-- [日本語 — PicoNIXの概要](README-JP.md)
-- [English — PicoNIX overview](README-EN.md)
+**Choose a language / 言語を選択してください．**
 
-External device wiring / 外付けデバイスの接続例: [日本語](README-JP.md#想定する外付けデバイスと配線) / [English](README-EN.md#expected-external-devices-and-wiring)
+- [日本語：概要・使い方・文書一覧](README-JP.md)
+- [English: Overview, quick start, and documentation](README-EN.md)
 
-- [UART1・端末操作（日本語）](UART-JP.md)
-- [UART1 and terminals (English)](UART-EN.md)
+Quick links / クイックリンク：
 
-### Pinout command
-
-Run `pins` to display the Raspberry Pi Pico 40-pin header as an ASCII diagram (USB connector at top), with live GPIO direction/level, framebuffer ownership, UART, ADC, and PWM duty/frequency from existing GPIO/PWM devices. Labels are obtained dynamically from existing GPIO/PWM devices; framebuffer ownership and PWM settings reflect the current state.
-
-### Process inspection
-
-`cat /proc/fb` displays the live 8x8 framebuffer pixels and enable state.
-`cat /proc/tasks` lists running tasks; `cat /proc/task/N` shows the task's PCB fields, saved context (when available), and open file descriptors. `ls /proc/task` lists active PIDs. These interfaces are read-only. Register values are saved context, not a live CPU snapshot.
+| 日本語 | English |
+|---|---|
+| [セットアップ](SETUP-JP.md) | [Setup](SETUP-EN.md) |
+| [Cアプリ開発](PROGRAMMING-JP.md) | [C application development](PROGRAMMING-EN.md) |
+| [デバイス・ピン配置](DEVICES-JP.md) | [Devices and pin assignment](DEVICES-EN.md) |
+| [内部構造](INTERNAL-JP.md) | [Internals](INTERNAL-EN.md) |

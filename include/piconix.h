@@ -8,6 +8,12 @@
 #define OS_O_WRONLY 1
 #define OS_O_RDWR 2
 #define OS_O_NONBLOCK 4
+/* PicoNIX console ioctl commands (minimal, not POSIX termios). */
+#define OS_TTY_GET_CANON 0x200
+#define OS_TTY_SET_CANON 0x201
+#define OS_TTY_GET_ECHO 0x202
+#define OS_TTY_SET_ECHO 0x203
+#define OS_TTY_PERSIST 0x206
 #define OS_O_CREAT 8
 #define OS_O_TRUNC 16
 #define OS_O_APPEND 32
@@ -66,4 +72,5 @@ int os_dup2(int oldfd,int newfd);
 int os_read(int fd, void *buf, size_t n);
 int os_write(int fd, const void *buf, size_t n);
 int os_ioctl(int fd, int cmd, int value);
+int os_fcntl(int fd, int cmd, int value);
 #endif

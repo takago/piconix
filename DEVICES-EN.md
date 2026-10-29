@@ -68,7 +68,20 @@ Edit `GPn_MODE` in `src/pins.h`, then rebuild. Available modes are `PIN_GPIO`, `
 #define PWM_DEFAULT_DUTY 0u
 ```
 
-To restore all general-purpose pins to GPIO mode, set the ADC/PWM assignments to `PIN_GPIO`. With the default USB CDC console, GP0/1 are available as GPIO and GP4/5 are reserved for UART1. For a UART0 console build, change GP0/1 to `PIN_UART`. UART-assigned pins are not exposed as GPIO devices.
+To restore all general-purpose pins to GPIO mode, set the ADC/PWM assignments to `PIN_GPIO`. With the default USB CDC console, GP0/1 are available as GPIO and GP20/21 are reserved for UART1. For a UART0 console build, change GP0/1 to `PIN_UART`. UART-assigned pins are not exposed as GPIO devices.
+
+## Default wiring overview
+
+| Pins | Function | Notes |
+|---|---|---|
+| GP0–7 | 8×8 LED matrix columns (cathodes) | Active LOW |
+| GP8–15 | 8×8 LED matrix rows (anodes) | Active HIGH |
+| GP16/17 | Push buttons | To GND, internal pull-up |
+| GP18/19 | PWM | Shared frequency |
+| GP20/21 | UART1 TX/RX | 115200 baud, 8N1 |
+| GP26–28 | ADC0–2 | 0–3.3 V input |
+
+Use a common GND and 3.3 V logic for UART; do not connect RS-232 voltages directly. An LED matrix requires current-limiting resistors and suitable driver circuitry. Use `pins` to inspect the pin assignment.
 
 ## UART and console
 

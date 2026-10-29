@@ -70,31 +70,60 @@ static void emit(Format *f,char c){
         if(output(f->fd,f->out,f->used)<0)f->failed=1;f->used=0;}}
     ++f->count;
 }
-static void unsigned_value(Format *f,uint32_t n,unsigned base,int upper){
-    char buf[32];unsigned i=0;
-    /* Compiler runtime provides Cortex-M0+ integer division. */
-    do {
-        unsigned d=n%base;
-        buf[i++]=(char)(d<10 ? '0'+d : (upper?'A':'a')+d-10);
-        n/=base;
-    } while(n);
-    while(i)emit(f,buf[--i]);
+static unsigned digits(char *buf,uint32_t n,unsigned base,int upper){
+    unsigned i=0;
+    do {unsigned d=n%base;buf[i++]=(char)(d<10?'0'+d:(upper?'A':'a')+d-10);n/=base;}while(n);
+    return i;
 }
+static void pad(Format *f,char c,int n){while(n-->0)emit(f,c);}
 static int format(Format *f,const char *fmt,va_list ap){
-    while(*fmt){if(*fmt!='%'){emit(f,*fmt++);continue;}++fmt;
+    while(*fmt){
+        if(*fmt!='%'){emit(f,*fmt++);continue;}
+        ++fmt;
         if(*fmt=='%'){emit(f,'%');++fmt;continue;}
-        /* Minimal subset: no width, precision, length modifiers or floats. */
-        char spec=*fmt;if(!spec)break;++fmt;
-        if(spec=='s'){const char *s=va_arg(ap,const char *);if(!s)s="(null)";while(*s)emit(f,*s++);}
-        else if(spec=='c')emit(f,(char)va_arg(ap,int));
-        else if(spec=='d'||spec=='i'){int v=va_arg(ap,int);uint32_t u=(uint32_t)v;
-            if(v<0){emit(f,'-');u=0u-u;}unsigned_value(f,u,10,0);}
-        else if(spec=='u')unsigned_value(f,va_arg(ap,unsigned),10,0);
-        else if(spec=='x'||spec=='X')unsigned_value(f,va_arg(ap,unsigned),16,spec=='X');
-        else {emit(f,'%');emit(f,spec);}
+        int left=0,zero=0,width=0,precision=-1;
+        if(*fmt=='-'){left=1;fmt++;}
+        if(*fmt=='0'){zero=1;fmt++;}
+        while(*fmt>='0'&&*fmt<='9'){if(width<10000)width=width*10+(*fmt-'0');fmt++;}
+        if(*fmt=='.'){
+            fmt++;precision=0;
+            while(*fmt>='0'&&*fmt<='9'){if(precision<10000)precision=precision*10+(*fmt-'0');fmt++;}
+        }
+        /* Integer length modifiers for 32-bit Cortex-M0+. */
+        if(*fmt=='l'){fmt++;if(*fmt=='l')fmt++;}
+        else if(*fmt=='h'){fmt++;if(*fmt=='h')fmt++;}
+        char spec=*fmt;if(!spec)break;fmt++;
+        if(spec=='s'){
+            const char *v=va_arg(ap,const char *);if(!v)v="(null)";
+            int n=0;while(v[n]&&(precision<0||n<precision))n++;
+            if(!left)pad(f,' ',width-n);
+            for(int i=0;i<n;i++)emit(f,v[i]);
+            if(left)pad(f,' ',width-n);
+        }else if(spec=='c'){
+            int c=va_arg(ap,int);
+            if(!left)pad(f,' ',width-1);
+            emit(f,(char)c);
+            if(left)pad(f,' ',width-1);
+        }else if(spec=='d'||spec=='i'||spec=='u'||spec=='x'||spec=='X'){
+            uint32_t u;int negative=0;
+            if(spec=='d'||spec=='i'){
+                int32_t v=va_arg(ap,int);u=(uint32_t)v;
+                if(v<0){negative=1;u=0u-u;}
+            }else u=va_arg(ap,unsigned);
+            char buf[32];unsigned n=digits(buf,u,(spec=='x'||spec=='X')?16:10,spec=='X');
+            if(precision==0&&u==0)n=0;
+            int zeros=precision>(int)n?precision-(int)n:0;
+            int spaces=width-(int)n-zeros-negative;
+            if(zero&&!left&&precision<0){zeros+=spaces>0?spaces:0;spaces=0;}
+            if(!left)pad(f,' ',spaces);
+            if(negative)emit(f,'-');
+            pad(f,'0',zeros);
+            while(n)emit(f,buf[--n]);
+            if(left)pad(f,' ',spaces);
+        }else{emit(f,'%');emit(f,spec);}
     }
-    if(f->fd<0 && f->dst && f->cap)f->dst[f->count<f->cap?f->count:f->cap-1]=0;
-    if(f->fd>=0 && f->used && output(f->fd,f->out,f->used)<0)f->failed=1;
+    if(f->fd<0&&f->dst&&f->cap)f->dst[f->count<f->cap?f->count:f->cap-1]=0;
+    if(f->fd>=0&&f->used&&output(f->fd,f->out,f->used)<0)f->failed=1;
     return f->failed?-1:(int)f->count;
 }
 int printf(const char *fmt,...){Format f={0};f.fd=1;va_list a;va_start(a,fmt);int r=format(&f,fmt,a);va_end(a);return r;}

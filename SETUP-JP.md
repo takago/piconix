@@ -35,8 +35,8 @@ git submodule update --init --recursive
 PicoNIXのZIPをダウンロードしたディレクトリで実行します．以下のファイル名は今回の配布物の例です．
 
 ```sh
-unzip PicoNIX-stage30-docs-clean.zip
-cd PicoNIX-stage30-docs-clean
+unzip PicoNIX-<version>.zip
+cd <extracted-directory>
 chmod +x ./tools/build_sdk.sh
 ```
 

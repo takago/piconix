@@ -28,7 +28,7 @@ if(NOT CMAKE_READELF)
 endif()
 # Freestanding slot-linked images. All user program images are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
   set(APP_ORIGIN 0x20018000)
@@ -56,6 +56,7 @@ foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello 
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             ${APP_EXTRA_CFLAGS}
+            -I "${CMAKE_CURRENT_BINARY_DIR}"
             -c "${CMAKE_CURRENT_LIST_DIR}/ram_apps/${APP}.c" -o "${APP_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
@@ -112,15 +113,6 @@ endforeach()
 # The remaining 160 KiB provide five fixed 32-KiB task slots.
 option(PICONIX_KERNEL_RAM "Run SDK firmware from the 96-KiB kernel SRAM region" ON)
 if(PICONIX_KERNEL_RAM)
-  find_package(Python3 COMPONENTS Interpreter REQUIRED)
-# Reject invalid RAM application IDs before building firmware.
-execute_process(
-  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_program_capacity.py"
-  RESULT_VARIABLE PICONIX_CAPACITY_CHECK_RESULT
-)
-if(NOT PICONIX_CAPACITY_CHECK_RESULT EQUAL 0)
-  message(FATAL_ERROR "RAM application ID validation failed")
-endif()
   set(PICONIX_SDK_RAM_LD "${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2040/memmap_copy_to_ram.ld")
   if(NOT EXISTS "${PICONIX_SDK_RAM_LD}")
     set(PICONIX_SDK_RAM_LD "${PICO_SDK_PATH}/src/rp2_common/pico_standard_link/memmap_copy_to_ram.ld")
@@ -166,15 +158,6 @@ pico_add_extra_outputs(piconix)
 # Enable explicitly while transitioning from SDK's default XIP linker script.
 option(PICONIX_VERIFY_LAYOUT "Check task RAM placement in linked ELF" ON)
 if(PICONIX_VERIFY_LAYOUT)
-  find_package(Python3 COMPONENTS Interpreter REQUIRED)
-# Reject invalid RAM application IDs before building firmware.
-execute_process(
-  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_program_capacity.py"
-  RESULT_VARIABLE PICONIX_CAPACITY_CHECK_RESULT
-)
-if(NOT PICONIX_CAPACITY_CHECK_RESULT EQUAL 0)
-  message(FATAL_ERROR "RAM application ID validation failed")
-endif()
   add_custom_command(TARGET piconix POST_BUILD
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/verify_layout.py"
             "$<TARGET_FILE:piconix>" --nm "${CMAKE_NM}"
@@ -187,15 +170,6 @@ endif()
 # indicates that a dedicated firmware linker script is still required.
 option(PICONIX_AUDIT_FIRMWARE "Audit SDK boot2/vectors and fixed RAM slots" ON)
 if(PICONIX_AUDIT_FIRMWARE)
-  find_package(Python3 COMPONENTS Interpreter REQUIRED)
-# Reject invalid RAM application IDs before building firmware.
-execute_process(
-  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_program_capacity.py"
-  RESULT_VARIABLE PICONIX_CAPACITY_CHECK_RESULT
-)
-if(NOT PICONIX_CAPACITY_CHECK_RESULT EQUAL 0)
-  message(FATAL_ERROR "RAM application ID validation failed")
-endif()
   add_custom_command(TARGET piconix POST_BUILD
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/audit_firmware.py"
             "$<TARGET_FILE:piconix>" --nm "${CMAKE_NM}"

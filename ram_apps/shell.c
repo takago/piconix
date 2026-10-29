@@ -70,10 +70,9 @@ static char *trim(char *s) {
 /* Redirection applies to builtins and spawned processes alike.  Return the
  * temporary descriptor so that the caller can restore the standard stream. */
 static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
-    char *first=0, *last=0;
+    char *first=0;
     for(char *q=s;*q;q++) if(*q=='<' || *q=='>') {
         if(!first) first=q;
-        last=q;
         if(*q=='>' && q[1]=='>') q++;
     }
     if(!first) return 0;

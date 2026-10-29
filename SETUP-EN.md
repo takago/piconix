@@ -35,8 +35,8 @@ If you already have this checkout, update its submodules rather than cloning a s
 Run the following in the directory where you downloaded the archive. The filename is the one used for this distribution.
 
 ```sh
-unzip PicoNIX-stage30-docs-clean.zip
-cd PicoNIX-stage30-docs-clean
+unzip PicoNIX-<version>.zip
+cd <extracted-directory>
 chmod +x ./tools/build_sdk.sh
 ```
 
