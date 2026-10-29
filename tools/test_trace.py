@@ -7,8 +7,8 @@ ROOT = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory() as d:
     f = Path(d) / 'trace_size.c'
     f.write_text('#include "trace.h"\n_Static_assert(sizeof(trace_event_t)==32,"trace ABI");\nint main(void){return 0;}\n')
-    subprocess.run(['cc','-std=c11','-I',str(ROOT/'ram_apps'),'-fsyntax-only',str(f)], check=True)
-source = (ROOT/'src/kernel.c').read_text()
+    subprocess.run(['cc','-std=c11','-I',str(ROOT/'userland'),'-fsyntax-only',str(f)], check=True)
+source = (ROOT/'kernel/kernel.c').read_text()
 assert 'static trace_event_t trace_ring[TRACE_CAPACITY];' in source
 assert '#define TRACE_CAPACITY 1024u' in source
 audit_source = (ROOT/'tools/audit_firmware.py').read_text()
@@ -26,15 +26,18 @@ assert 'trace_record(TRACE_SVC_ENTER' in source
 assert 'trace_record(TRACE_SVC_EXIT' in source
 assert 'trace_serial++' in source
 assert 'TRACE_STATUS' in source and 'TRACE_LOST' in source
-trace_app=(ROOT/'ram_apps/trace.c').read_text()
+trace_app=(ROOT/'userland/trace.c').read_text()
 assert 'trace on|off|show [PID]|follow [PID]' in trace_app
 assert 'TICKx1K' in trace_app
+assert 'is_tmp ? spawn_tmp(image) : spawn(' in trace_app
+assert 'getcwd(cwd,sizeof cwd)' in trace_app
+assert 'case 25: return "spawn_tmp";' in trace_app
 assert 'console' in trace_app and 'uart1' in trace_app
 assert 'print_event(&event)' in trace_app
-assert 'register_image(7,' in (ROOT/'src/main.c').read_text()
+assert 'register_image(7,' in (ROOT/'kernel/main.c').read_text()
 # Trace is launched via the shared /bin lookup and bounded argv SVC.
-assert 'run_external(s,cwd,requested_bg' in (ROOT/'ram_apps/shell.c').read_text()
-assert 'spawn(id,argc,(const char *const *)args)' in (ROOT/'ram_apps/shell.c').read_text()
-assert 'spawn_in_slot(slot,a,programs[a].entry,programs[a].name,argc,argv)' in source
+assert 'run_external(s,cwd,requested_bg' in (ROOT/'userland/shell.c').read_text()
+assert 'spawn(id,argc,(const char *const *)args)' in (ROOT/'userland/shell.c').read_text()
+assert 'spawn_in_slot(slot,a,programs[a].entry,programs[a].name,argc,argv,NULL,0)' in source
 assert 'test_app(tmp, \'trace\'' in (ROOT/'tools/test_ram_pipeline.py').read_text()
 print('PASS: trace ABI and device integration')

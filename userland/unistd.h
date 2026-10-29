@@ -1,0 +1,44 @@
+/* PicoNIX user-space syscall interfaces (small POSIX-like subset). */
+#ifndef PICONIX_UNISTD_H
+#define PICONIX_UNISTD_H
+#include <stddef.h>
+#define FB_ENABLE  0x100
+/* PicoNIX console ioctl commands (minimal, not POSIX termios). */
+#define OS_TTY_GET_CANON 0x200
+#define OS_TTY_SET_CANON 0x201
+#define OS_TTY_GET_ECHO 0x202
+#define OS_TTY_SET_ECHO 0x203
+#define OS_TTY_GET_ONLCR 0x204
+#define OS_TTY_SET_ONLCR 0x205
+#define OS_TTY_PERSIST 0x206
+#define OS_TTY_CLAIM   0x207
+#define OS_TTY_RELEASE 0x208
+#define FB_DISABLE 0x101
+#define FB_STATUS  0x102
+int read(int fd, void *buf, size_t count);
+int write(int fd, const void *buf, size_t count);
+int close(int fd);
+/* Seek to an absolute offset; PicoNIX currently supports SEEK_SET only. */
+#define SEEK_SET 0
+long lseek(int fd, long offset, int whence);
+int open(const char *path, int flags);
+int unlink(const char *path);
+int dup2(int oldfd, int newfd);
+int getpid(void);
+int chdir(const char *path);
+char *getcwd(char *buf, size_t size);
+int kill(int pid);
+int msleep(unsigned milliseconds); /* PicoNIX: delay in milliseconds. */
+int yield(void);
+#define WNOHANG 1
+int waitpid(int pid, int *status, int options);
+int ioctl(int fd, int command, int value);
+/* PicoNIX-specific process and terminal operations. */
+int spawn(int program, int argc, const char *const argv[]);
+int tty_spawn(int tty, int program);
+int spawn_tmp(const char *path);
+int set_foreground(int pid);
+int console_ready(void);
+int get_tty(void);
+void _exit(int status) __attribute__((noreturn));
+#endif

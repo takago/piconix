@@ -41,7 +41,7 @@ int main(void){
 with tempfile.TemporaryDirectory(prefix='piconix-libc-') as temp:
     p = pathlib.Path(temp)
     (p/'test.c').write_text(source)
-    subprocess.run([cc, '-O2', '-fno-builtin', '-I', str(root/'ram_apps'),
-                    str(root/'ram_apps/libc.c'), str(p/'test.c'), '-o', str(p/'test')], check=True)
+    subprocess.run([cc, '-O2', '-fno-builtin', '-I', str(root/'userland'),
+                    str(root/'userland/libc.c'), str(p/'test.c'), '-o', str(p/'test')], check=True)
     subprocess.run([str(p/'test')], check=True)
 print('PASS: libc string/memory/integer/formatting host tests')
