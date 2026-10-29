@@ -11,7 +11,7 @@ PicoNIXを初めて使う場合は，**セットアップ → READMEのコマン
 | GPIO，PWM，ADC，UARTの配線 | [デバイスと配線](DEVICES-JP.md) |
 | USBとUARTの対話端末 | [UART1と端末](UART-JP.md) |
 | `stty`，`fcntl`，`mb`，`reset` | [端末設定とゲーム](TTY-GAMES-JP.md) |
-| LEDマトリクス・`fbctl` | [フレームバッファ](FB-JP.md) |
+| LEDマトリクス・`fbctl` | [デバイスガイド（フレームバッファ）](DEVICES-JP.md) |
 | `python`を使う | [Python風インタプリタ](PYTHON-JP.md) |
 | 自作Cアプリを追加する | [Cアプリ開発](PROGRAMMING-JP.md) |
 | RAM配置，タスク，SVC，FDなど | [内部構造](INTERNAL-JP.md) |

@@ -10,11 +10,56 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 |---|---|
 | `/dev/console` | Main console (USB CDC or UART0 build) |
 | `/dev/uart1` | UART1 terminal |
+| `/dev/gpio/fb` | 64-bit framebuffer for an 8×8 LED matrix |
 | `/dev/gpio/` | Pins configured for GPIO in `pins.h` |
 | `/dev/adc/` | Enabled ADC inputs and on-chip temperature sensor |
 | `/dev/pwm/` | Enabled PWM outputs and common frequency |
 | `/dev/mem` | Read-only access to permitted RAM/flash ranges |
 | `/dev/trace` | Binary trace records |
+
+## 8×8 LED framebuffer
+
+PicoNIX provides a monochrome 8×8 LED-matrix framebuffer connected to GP0–15. Its device path is **`/dev/gpio/fb`**, not `/dev/fb` or `/dev/fb0`. The default wiring assumes the main console uses USB CDC.
+
+### Data layout and wiring
+
+The framebuffer holds **64 bits (8 bytes)**: one byte per row. `buffer[0]` through `buffer[7]` correspond to GP8 through GP15 (row anodes). Bits 0–7 in each byte correspond to GP0–GP7 (column cathodes). A set bit turns its LED **on**. In the text view provided by `/proc/fb`, bit 7 appears at the left and bit 0 at the right.
+
+| Pins | Matrix connection | Active level |
+|---|---|---|
+| GP0–7 | Column cathodes | LOW selects illuminated columns |
+| GP8–15 | Row anodes | HIGH selects the scanned row |
+
+A SysTick handler scans **one row every 1 ms**, completing a frame in approximately 8 ms (**125 Hz**). There is no brightness control. Anodes are blanked before each row change to reduce ghosting.
+
+### Reading, writing, and control
+
+Open the device with `open("/dev/gpio/fb", O_RDWR)`. Both **`read()` and `write()` require exactly 8 bytes**; other sizes return an error. Updating the data and enabling the display are separate operations.
+
+| `ioctl()` command | Meaning |
+|---|---|
+| `OS_FB_ENABLE` | Enable scanning and reserve GP0–15 for the framebuffer |
+| `OS_FB_DISABLE` | Blank the display, return GP0–15 to input mode, and release them |
+| `OS_FB_STATUS` | Return 1 if enabled, otherwise 0 |
+
+These constants are defined in `include/piconix.h`. Closing the descriptor **does not disable** the display; disable it explicitly when the GPIO pins are needed again. While enabled, normal GPIO operations on GP0–15 fail with **`OS_EBUSY`**, including operations on previously opened GPIO descriptors.
+
+### fbctl command
+
+```sh
+fbctl status    # Show /proc/fb status and 8×8 pattern
+fbctl on        # Enable the display
+fbctl clear     # Zero the framebuffer without changing enable state
+fbctl test      # Blink a heart three times; leave it displayed
+fbctl off       # Blank the display and release GPIO pins
+cat /proc/fb    # Read framebuffer state as text
+```
+
+`fbctl status` prints `/proc/fb`. Each row uses `#` for a lit LED and `.` for an unlit one. `fbctl clear` does not change the enabled state.
+
+The `kitesys` demo displays digits, uses buttons on GP16/17 to shift the image, and drives a buzzer on GP18. It enables the framebuffer at startup; the display remains active after the program exits. Use `fbctl off` when finished.
+
+**Electrical safety:** Each row anode may carry the current of multiple LEDs. Use current-limiting resistors and suitable driver circuitry rather than connecting the matrix directly to GPIO pins.
 
 ## GPIO
 
