@@ -53,6 +53,7 @@ static volatile int foreground_pid[2];
 static int tty_shell_pid[2];
 /* Console mode is owned by the foreground application and reset on exit. */
 static uint8_t tty_canonical[2]={1,1}, tty_echo[2]={1,1};
+static uint8_t tty_onlcr[2]={1,1}, tty_last_cr[2];
 static int tty_mode_owner[2];
 static void tty_mode_reset(int dev);
 /* Fixed 32-KiB trace ring, 1024 records of 32 bytes. */
@@ -193,7 +194,8 @@ typedef struct {
 } tty_buffer_t;
 static tty_buffer_t tty_buf[2];
 static void tty_mode_reset(int dev) {
-    tty_canonical[dev]=tty_echo[dev]=1;
+    tty_canonical[dev]=tty_echo[dev]=tty_onlcr[dev]=1;
+    tty_last_cr[dev]=0;
     tty_mode_owner[dev]=0;
     memset(&tty_buf[dev],0,sizeof tty_buf[dev]);
 }
@@ -389,7 +391,7 @@ void os_init(void) {
 #if !PICONIX_CONSOLE_USB
     console_irq_count=0;
 #endif
-    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); tty_canonical[0]=tty_canonical[1]=1; tty_echo[0]=tty_echo[1]=1; tty_mode_owner[0]=tty_mode_owner[1]=0; 
+    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); tty_canonical[0]=tty_canonical[1]=1; tty_echo[0]=tty_echo[1]=1; tty_onlcr[0]=tty_onlcr[1]=1; tty_last_cr[0]=tty_last_cr[1]=0; tty_mode_owner[0]=tty_mode_owner[1]=0; 
     memset(rx, 0, sizeof(rx));
 #if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
@@ -1088,21 +1090,29 @@ static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
 #endif
     uint8_t *b=p;
     if(writing) {
-        if (dev==DEV_CONSOLE) {
 #if PICONIX_CONSOLE_USB
-            if(!stdio_usb_connected()) return (int)n;
-            return (int)console_queue(b,n);
-#else
-            for(size_t i=0;i<n;i++) tty_put(b[i]);
+        if(dev==DEV_CONSOLE && !stdio_usb_connected()) return (int)n;
 #endif
-        } else {
+        size_t i=0;
+        for(;i<n;i++) {
+            uint8_t c=b[i];
+            int insert_cr=tty_onlcr[uartdev] && c=='\n' && !tty_last_cr[uartdev];
 #if PICONIX_CONSOLE_USB
-            for(size_t i=0;i<n;i++) uart_putc_raw(uart1,b[i]);
-#else
-            for(size_t i=0;i<n;i++) uart_putc_raw(u,b[i]);
+            if(dev==DEV_CONSOLE) {
+                /* Reserve both bytes before accepting an LF. */
+                unsigned used=(console_tx_head+CONSOLE_TX_CAP-console_tx_tail)%CONSOLE_TX_CAP;
+                if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) break;
+                if(insert_cr) tty_put('\r');
+                tty_put(c);
+            } else
 #endif
+            {
+                if(insert_cr) tty_put_dev(uartdev,'\r');
+                tty_put_dev(uartdev,c);
+            }
+            tty_last_cr[uartdev]=(c=='\r');
         }
-        return (int)n;
+        return (int)i;
     }
     if(n==0) return 0;
     if(tty_owner_pid(uartdev) && tasks[current].pid!=tty_owner_pid(uartdev)) return OS_EIO;
@@ -1237,12 +1247,14 @@ static int device_ioctl(int fd,int cmd,int arg) {
         if(cmd==OS_TTY_PERSIST){tty_mode_owner[tty]=0;return 0;}
         if(cmd==OS_TTY_GET_CANON)return tty_canonical[tty];
         if(cmd==OS_TTY_GET_ECHO)return tty_echo[tty];
+        if(cmd==OS_TTY_GET_ONLCR)return tty_onlcr[tty];
         if(arg!=0 && arg!=1)return OS_EINVAL;
         if(cmd==OS_TTY_SET_CANON && tty_canonical[tty]!=arg){
             memset(&tty_buf[tty],0,sizeof tty_buf[tty]);
             tty_canonical[tty]=(uint8_t)arg;
         }
         if(cmd==OS_TTY_SET_ECHO)tty_echo[tty]=(uint8_t)arg;
+        if(cmd==OS_TTY_SET_ONLCR)tty_onlcr[tty]=(uint8_t)arg;
         tty_mode_owner[tty]=tasks[current].pid;
         return 0;
     }

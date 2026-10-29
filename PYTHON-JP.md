@@ -15,7 +15,7 @@ piconix# python
 piconix#
 ```
 
-引数なしの`python`で対話モードに入り，`exit()`でShellへ戻ります．入力は行単位です．`if`や`while`のブロックはインデントして入力し，空行で確定します．
+引数なしの`python`で対話モードに入り，`exit()`でShellへ戻ります．入力は行単位です．`if`，`while`，`for`のブロックはインデントして入力し，空行で確定します．
 
 ## 2．ファイルを実行する
 
@@ -37,15 +37,35 @@ piconix# python /tmp/test.py
 
 | 分類 | 内容 |
 |---|---|
-| 値と計算 | 符号付き32ビット整数，`+ - * / %`，比較，括弧 |
-| 制御 | 代入，`if`／`else`，`while`，スペースによるインデント，`#`コメント |
+| 値と計算 | 符号付き32ビット整数，`True`（1）・`False`（0），`+ - * / %`，比較，`and`・`or`・`not`，括弧 |
+| 制御 | 代入，`if`／`else`，`while`，`for ... in range(...)`，`break`，`continue`，スペースによるインデント，`#`コメント |
 | 入出力 | `print(...)`，整数入力の`input(...)`，`int(input(...))` |
 | 待機 | `msleep(ミリ秒)`（0～60000） |
 | GPIO | `gpio`，`gpio_read`，`gpio_mode`，`gpio_pull` |
 
-変数は最大16個，ソースは512バイト／非空行64行，ブロックは8段までです．`while`は1文につき最大10000回の反復に制限されています．浮動小数点，リスト，ユーザ定義関数，`for`，`import`，文字列変数はありません．
+変数は最大16個，ソースは512バイト／非空行64行，ブロックは8段までです．`while`と`for`は各ループにつき最大10000回の反復に制限されています．浮動小数点，リスト，ユーザ定義関数，`import`，文字列変数はありません．`True`／`False`は専用のbool型ではなく整数値として扱います．
 
-## 4．GPIOの例
+## 4．論理演算と繰り返し
+
+```python
+x = True
+if x and not False:
+    print("OK")
+
+for i in range(5):
+    print(i)
+
+for i in range(10, 0, -2):
+    if i == 6:
+        continue
+    if i == 2:
+        break
+    print(i)
+```
+
+`range(stop)`，`range(start, stop)`，`range(start, stop, step)`に対応します．終了値は含まず，負のstepも使用できます．step=0はエラーです．`break`と`continue`は最も内側のループを対象とします．`and`／`or`は短絡評価を行います．ただし整数専用の小型言語であり，Python全体との互換性はありません．
+
+## 5．GPIOの例
 
 `/tmp/led.py`に次の内容を保存し，`python /tmp/led.py`で実行します．
 
@@ -61,7 +81,7 @@ while i < 5:
 
 `gpio_mode(pin, 0)`が入力，`gpio_mode(pin, 1)`が出力です．`gpio_pull(pin, 0/1/2)`はそれぞれ無効／プルアップ／プルダウンです．UART用のGPIO 0，1，4，5は操作できません．ボードや接続回路の電気的制約にも注意してください．
 
-## 5．バックグラウンド実行とUART1からの対話操作
+## 6．バックグラウンド実行とUART1からの対話操作
 
 ```text
 piconix# python /tmp/led.py &

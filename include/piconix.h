@@ -13,6 +13,8 @@
 #define OS_TTY_SET_CANON 0x201
 #define OS_TTY_GET_ECHO 0x202
 #define OS_TTY_SET_ECHO 0x203
+#define OS_TTY_GET_ONLCR 0x204
+#define OS_TTY_SET_ONLCR 0x205
 #define OS_TTY_PERSIST 0x206
 #define OS_O_CREAT 8
 #define OS_O_TRUNC 16

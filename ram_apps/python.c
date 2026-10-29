@@ -17,7 +17,7 @@ static int idchar(char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<
 static char source[513];
 static unsigned offsets[64],levels[64],count;
 static struct {char name[16];int32_t val;} vars[16];
-static int nvars,error;
+static int nvars,error, evaluating=1;
 static const char *cursor;
 static void ws(void){while(*cursor==' '||*cursor=='\t')cursor++;}
 static int eat(char c){ws();if(*cursor==c){cursor++;return 1;}return 0;}
@@ -27,6 +27,7 @@ static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same
     if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars++].val=val;}
 /* Keep the interpreter's divide-by-zero and INT32_MIN/-1 behavior explicit. */
 static int32_t divide(int32_t a,int32_t b,int mod) {
+    if(!evaluating)return 0;
     if(!b) { error=1; return 0; }
     /* The mathematical quotient 2147483648 does not fit in int32_t.
        Preserve the previous interpreter's 32-bit wraparound result. */
@@ -109,10 +110,13 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     char name[16];unsigned n=0;
     while(idchar(*cursor)&&n<15)name[n++]=*cursor++;
     name[n]=0;if(!n){error=1;return 0;}
+    if(same(name,"True"))return 1;
+    if(same(name,"False"))return 0;
     if(same(name,"input")&&eat('(')){
         ws();if(*cursor=='"'||*cursor=='\''){char quote=*cursor++;const char *start=cursor;
-            while(*cursor&&*cursor!=quote)cursor++;outn(start,(unsigned)(cursor-start));if(!eat(quote))error=1;}
+            while(*cursor&&*cursor!=quote)cursor++;if(evaluating)outn(start,(unsigned)(cursor-start));if(!eat(quote))error=1;}
         if(!eat(')'))error=1;
+        if(!evaluating)return 0;
         char buf[32];int m=read_line(buf,sizeof(buf));int32_t v=0,sign=1;unsigned i=0;
         if(m<=0){error=1;return 0;}if(buf[0]=='-'){sign=-1;i++;}
         int digits=0;for(;i<(unsigned)m && buf[i]>='0'&&buf[i]<='9';i++){v=(int32_t)((uint32_t)v*10u+(unsigned)(buf[i]-'0'));digits++;}
@@ -120,16 +124,16 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     }
     if(same(name,"gpio_read")&&eat('(')){
         int32_t pin=expr();if(!eat(')')){error=1;return 0;}
-        return gpio_input(pin);
+        return evaluating?gpio_input(pin):0;
     }
     if(same(name,"int")&&eat('(')){int32_t v=expr();if(!eat(')'))error=1;return v;}
-    return getvar(name);
+    return evaluating?getvar(name):0;
 }
 static int32_t product(void){int32_t a=atom();for(;;){if(eat('*'))a=(int32_t)((uint32_t)a*(uint32_t)atom());
     else if(eat('/'))a=divide(a,atom(),0);else if(eat('%'))a=divide(a,atom(),1);else break;}return a;}
 static int32_t sum(void){int32_t a=product();for(;;){if(eat('+'))a=(int32_t)((uint32_t)a+(uint32_t)product());
     else if(eat('-'))a=(int32_t)((uint32_t)a-(uint32_t)product());else break;}return a;}
-static int32_t expr(void){int32_t a=sum();ws();int op=0;
+static int32_t comparison(void){int32_t a=sum();ws();int op=0;
     if(cursor[0]=='='&&cursor[1]=='='){op=1;cursor+=2;}
     else if(cursor[0]=='!'&&cursor[1]=='='){op=2;cursor+=2;}
     else if(cursor[0]=='<'&&cursor[1]=='='){op=3;cursor+=2;}
@@ -144,6 +148,21 @@ static int32_t expr(void){int32_t a=sum();ws();int op=0;
         return a>b;
     }
     return a;
+}
+/* Python precedence: comparison > not > and > or.
+   Parse skipped operands without evaluating their side effects. */
+static int32_t logical_not(void){if(word("not"))return !logical_not();return comparison();}
+static int32_t logical_and(void){int32_t v=logical_not();
+    while(word("and")){int saved=evaluating;evaluating=saved&&(v!=0);
+        int32_t b=logical_not();evaluating=saved;
+        if(saved&&v!=0)v=b; /* Python returns an operand, not a forced bool. */
+    }return v;
+}
+static int32_t expr(void){int32_t v=logical_and();
+    while(word("or")){int saved=evaluating;evaluating=saved&&(v==0);
+        int32_t b=logical_and();evaluating=saved;
+        if(saved&&v==0)v=b;
+    }return v;
 }
 static void number(int32_t v){char b[12];unsigned n=0,x=v<0?0u-(uint32_t)v:(uint32_t)v;
     do{uint32_t r=x%10u;x/=10u;b[n++]=(char)('0'+r);}while(x&&n<11);
@@ -196,22 +215,80 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
     }int32_t v=expr();ws();if(*cursor&&*cursor!='#')error=1;if(!error)setvar(name,v);
 }
 static unsigned block_end(unsigned start){unsigned i=start+1;while(i<count&&levels[i]>levels[start])i++;return i;}
-static void execute(unsigned first,unsigned last,unsigned depth){if(depth>8){error=1;return;}
+/* A block returns loop control to its nearest enclosing loop. */
+enum {FLOW_NORMAL, FLOW_BREAK, FLOW_CONTINUE};
+static int execute(unsigned first,unsigned last,unsigned depth,unsigned in_loop){
+    if(depth>8){error=1;return FLOW_NORMAL;}
     for(unsigned i=first;i<last&&!error;){cursor=source+offsets[i];ws();
-        if(word("if")||word("while")){int loop=source[offsets[i]]=='w';
-            int32_t condition=expr();if(!eat(':')){error=1;break;}
-            unsigned end=block_end(i);if(i+1==end||levels[i+1]<=levels[i]){error=1;break;}
+        if(word("break")||word("continue")){
+            int flow=source[offsets[i]]=='b'?FLOW_BREAK:FLOW_CONTINUE;
+            ws();if((*cursor&&*cursor!='#')||!in_loop)error=1;
+            return flow;
+        }
+        cursor=source+offsets[i];ws();
+        int is_if=word("if"),is_while=0,is_for=0;
+        if(!is_if){is_while=word("while");if(!is_while)is_for=word("for");}
+        if(is_if||is_while||is_for){
+            int32_t condition=0,start=0,stop=0,step=1;
+            char target[16]={0};
+            if(is_for){
+                ws();unsigned n=0;
+                if(!((*cursor>='a'&&*cursor<='z')||(*cursor>='A'&&*cursor<='Z')||*cursor=='_'))error=1;
+                while(idchar(*cursor)){
+                    if(n<15)target[n++]=*cursor;
+                    else error=1;
+                    cursor++;
+                }
+                if(!word("in")||!word("range")||!eat('('))error=1;
+                int32_t a=expr();
+                if(eat(',')){
+                    start=a;stop=expr();
+                    if(eat(','))step=expr();
+                }else stop=a;
+                if(!eat(')')||step==0)error=1;
+            }else condition=expr();
+            if(!eat(':'))error=1;
+            ws();if(*cursor&&*cursor!='#')error=1;
+            unsigned end=block_end(i);
+            if(i+1==end||levels[i+1]<=levels[i])error=1;
+            if(error)break;
             unsigned other=end;
-            if(!loop&&end<last&&levels[end]==levels[i]){
-                cursor=source+offsets[end];if(word("else")&&eat(':'))other=block_end(end);
+            if(is_if&&end<last&&levels[end]==levels[i]){
+                cursor=source+offsets[end];if(word("else")&&eat(':')){
+                    ws();if(*cursor&&*cursor!='#')error=1;
+                    other=block_end(end);
+                }
             }
-            if(loop){unsigned iterations=0;while(condition&&!error){if(++iterations>10000){error=1;break;}
-                execute(i+1,end,depth+1);cursor=source+offsets[i];word("while");condition=expr();}}
-            else if(condition)execute(i+1,end,depth+1);
-            else if(other>end)execute(end+1,other,depth+1);
+            if(is_while){
+                unsigned iterations=0;
+                while(condition&&!error){
+                    if(++iterations>10000){error=1;break;}
+                    int flow=execute(i+1,end,depth+1,1);
+                    if(flow==FLOW_BREAK)break;
+                    if(error)break;
+                    cursor=source+offsets[i];word("while");condition=expr();
+                }
+            }else if(is_for){
+                unsigned iterations=0;
+                int64_t v=start;
+                while(!error&&(step>0?v<(int64_t)stop:v>(int64_t)stop)){
+                    if(++iterations>10000){error=1;break;}
+                    setvar(target,(int32_t)v);if(error)break;
+                    int flow=execute(i+1,end,depth+1,1);
+                    if(flow==FLOW_BREAK)break;
+                    v+=(int64_t)step;
+                }
+            }else if(condition){
+                int flow=execute(i+1,end,depth+1,in_loop);
+                if(flow!=FLOW_NORMAL)return flow;
+            }else if(other>end){
+                int flow=execute(end+1,other,depth+1,in_loop);
+                if(flow!=FLOW_NORMAL)return flow;
+            }
             i=other;
-        } else { statement(i);i++; }
+        }else{statement(i);i++;}
     }
+    return FLOW_NORMAL;
 }
 static void run_source(unsigned n){
     count=0;error=0;
@@ -230,7 +307,7 @@ static void run_source(unsigned n){
         source[end]=0;
         if(off==begin)break;
     }
-    if(!error)execute(0,count,0);
+    if(!error)execute(0,count,0,0);
     if(error)outs("python: syntax/runtime error\r\n");
 }
 static void repl(void){

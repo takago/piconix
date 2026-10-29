@@ -259,11 +259,128 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
     } else if(!run_external(s,cwd,requested_bg,bg_pid,bg_name))
         put("unknown command (help)\r\n");
 }
+/* Compact per-shell history; no heap allocation or kernel changes. */
+#define HISTORY_SIZE 8
+#define SHELL_PROMPT "piconix# "
+static char history[HISTORY_SIZE][128];
+static unsigned history_count, history_next;
+
+static void history_add(const char *line) {
+    if(!*line) return;
+    if(history_count && eq(history[(history_next+HISTORY_SIZE-1)%HISTORY_SIZE],line)) return;
+    strcpy(history[history_next],line);
+    history_next=(history_next+1)%HISTORY_SIZE;
+    if(history_count<HISTORY_SIZE) history_count++;
+}
+/* Move left from the current position by n columns. */
+static void shell_move_left(unsigned n) {
+    if(!n) return;
+    char digits[4];unsigned used=0;
+    do {digits[used++]=(char)('0'+n%10);n/=10;} while(n);
+    put("\033[");
+    while(used) write_all(1,&digits[--used],1);
+    put("D");
+}
+/* Full redraw is necessary only when recalling a different history entry. */
+static void shell_redraw(const char *line, unsigned len, unsigned cursor) {
+    put("\r" SHELL_PROMPT);
+    write_all(1,line,len);
+    put("\033[K");
+    shell_move_left(len-cursor);
+}
+/* Update from the edited column, leaving the prompt and prefix alone. */
+static void shell_redraw_tail(const char *line, unsigned len, unsigned cursor) {
+    write_all(1,line+cursor,len-cursor);
+    put("\033[K");
+    shell_move_left(len-cursor);
+}
+/* Read one line in raw/no-echo mode; restore the TTY before commands run.
+ * If this TTY cannot be controlled, keep the original canonical fallback. */
+static int shell_readline(char line[128]) {
+    int canon=ioctl(0,OS_TTY_GET_CANON,0);
+    int echo=ioctl(0,OS_TTY_GET_ECHO,0);
+    if(canon<0 || echo<0 || ioctl(0,OS_TTY_SET_CANON,0)<0 ||
+       ioctl(0,OS_TTY_SET_ECHO,0)<0) {
+        if(canon>=0) ioctl(0,OS_TTY_SET_CANON,canon);
+        if(echo>=0) ioctl(0,OS_TTY_SET_ECHO,echo);
+        unsigned used=0; int previous_cr=0;
+        for(;;) {
+            char c;int n=read(0,&c,1);
+            if(n<=0) {if(n==0 && get_tty()==1) {put("\r\n" SHELL_PROMPT);used=0;} else msleep(1);continue;}
+            if(c=='\n' && previous_cr) {previous_cr=0;continue;}
+            previous_cr=(c=='\r');
+            if(c=='\r'||c=='\n') {line[used]=0;return 1;}
+            if(used<127) line[used++]=c;
+        }
+    }
+    char draft[128]={0};
+    line[0]=0;
+    unsigned len=0,cursor=0;
+    unsigned selected=history_count; /* history_count means draft */
+    int escape=0;
+    for(;;) {
+        char c;
+        int n=read(0,&c,1);
+        if(n<=0) {if(n<0) msleep(1);else msleep(1);continue;}
+        if(escape==1) {escape=(c=='[' || c=='O')?2:0;continue;}
+        if(escape==2) {
+            escape=0;
+            if(c=='A' || c=='B') {
+                if(c=='A' && selected==0) continue;
+                if(c=='B' && selected==history_count) continue;
+                if(selected==history_count) strcpy(draft,line);
+                if(c=='A') selected--;
+                else selected++;
+                if(selected==history_count) strcpy(line,draft);
+                else strcpy(line,history[(history_next+HISTORY_SIZE-history_count+selected)%HISTORY_SIZE]);
+                len=(unsigned)strlen(line);cursor=len;
+            } else if(c=='C') {
+                if(cursor<len) {cursor++;put("\033[C");}
+                continue;
+            } else if(c=='D') {
+                if(cursor) {cursor--;put("\033[D");}
+                continue;
+            } else continue;
+            shell_redraw(line,len,cursor);
+            continue;
+        }
+        if(c==27) {escape=1;continue;}
+        if(c=='\r' || c=='\n') {
+            line[len]=0;
+            put("\r\n");
+            history_add(line);
+            ioctl(0,OS_TTY_SET_ECHO,echo);
+            ioctl(0,OS_TTY_SET_CANON,canon);
+            return 1;
+        }
+        if(c==8 || c==127) {
+            if(!cursor) continue;
+            for(unsigned i=cursor;i<len;i++)line[i-1]=line[i];
+            len--;cursor--;line[len]=0;
+            put("\b");
+            if(cursor==len) put(" \b");
+            else shell_redraw_tail(line,len,cursor);
+        } else if(c>=32 && c<=126 && len<127) {
+            int at_end=(cursor==len);
+            for(unsigned i=len;i>cursor;i--)line[i]=line[i-1];
+            line[cursor++]=c;line[++len]=0;
+            if(at_end) write_all(1,&c,1);
+            else {
+                /* Cursor is still at the insertion point on the terminal. */
+                shell_redraw_tail(line,len,cursor-1);
+                put("\033[C");
+            }
+        }
+    }
+}
 int main(int argc, char *argv[]) {
     char line[128];
     char cwd[128];
-    cwd[0]='/';
-    cwd[1]=0;
+    if(chdir("/tmp")<0) {
+        put("sh: cannot cd to /tmp\r\n");
+        _exit(1);
+    }
+    strcpy(cwd,"/tmp");
     /* USB CDC may enumerate after the shell task starts.  Do not discard the banner. */
     while(!console_ready()) msleep(10);
     put("\r\n--------------------------------------------------------\r\n"
@@ -271,24 +388,8 @@ int main(int argc, char *argv[]) {
         "Type 'help' for commands.\r\n"
         "--------------------------------------------------------\r\n"
         "piconix# ");
-    char chunk[128];
-    int used=0, offset=0, length=0, previous_cr=0;
     for(;;) {
-        int n=0;
-        while(!n) {
-            if(offset==length) {length=read(0, chunk, sizeof chunk);offset=0;
-                if(length==0 && get_tty()==1) {
-                    /* Ctrl+D ends this input, not the shell session. */
-                    used=0; previous_cr=0; put("\r\npiconix# ");
-                    continue;
-                }
-                if(length<=0) {msleep(1);continue;}}
-            char c=chunk[offset++];
-            if(c=='\n' && previous_cr) {previous_cr=0;continue;}
-            previous_cr=(c=='\r');
-            if(c=='\r' || c=='\n') {line[used]=0;n=1;used=0;break;}
-            if(used<sizeof line-1) line[used++]=c;
-        }
+        shell_readline(line);
         /* Reap completed background children (no status display yet). */
         int bg_status;
         while(waitpid(-1, &bg_status, 1)>0) {}

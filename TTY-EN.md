@@ -44,3 +44,15 @@ reset
 ## Notes and related guides
 
 Terminal modes are shared by users of a terminal. An interactive application should restore its previous settings so that the shell remains usable. For terminal affiliation, `getty`, Ctrl+C/Ctrl+D, and USB CDC versus UART1, see [UART1 and terminals](UART-EN.md).
+
+## TTY output newline conversion (ONLCR)
+
+By default, the USB CDC console and UART1 terminal convert LF (`\n`) to CRLF (`\r\n`). An LF immediately following CR is passed through, so existing CRLF sequences are not doubled. Files and non-TTY devices are unaffected.
+
+```text
+stty             # Show onlcr or -onlcr
+stty -onlcr      # Disable output conversion
+stty onlcr       # Enable output conversion
+```
+
+C applications can use `ioctl(fd, OS_TTY_GET_ONLCR, 0)` and `ioctl(fd, OS_TTY_SET_ONLCR, 0 or 1)`. The setting is per terminal and independent of canonical input and echo. The `raw` convenience command does not change output conversion.

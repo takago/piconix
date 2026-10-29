@@ -44,3 +44,15 @@ reset
 ## 注意点と関連資料
 
 端末モードは端末側で共有されます．非標準設定のままシェルに戻ると入力が難しくなるため，対話型アプリでは終了時の復元を徹底してください．端末の所属，`getty`，Ctrl+C／Ctrl+D，USB CDCとUART1の相違は[UART1と端末](UART-JP.md)を参照してください．
+
+## TTY出力の改行変換（ONLCR）
+
+通常，USB CDCコンソールとUART1のTTYでは，LF（`\n`）をCRLF（`\r\n`）に変換します．既存のCRLFを二重変換せず，CR直後のLFはそのまま出力します．ファイルやGPIO等のデバイスには適用されません．
+
+```text
+stty             # onlcr または -onlcr を表示
+stty -onlcr      # TTY出力変換を無効化
+stty onlcr       # TTY出力変換を有効化
+```
+
+Cプログラムでは `ioctl(fd, OS_TTY_GET_ONLCR, 0)` と `ioctl(fd, OS_TTY_SET_ONLCR, 0 または 1)` を利用できます．設定はTTYごとに独立しており，canonical入力とエコー設定とは別です．`raw` コマンドでも出力変換は自動的に変更しません．

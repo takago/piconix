@@ -15,7 +15,7 @@ piconix# python
 piconix#
 ```
 
-Run `python` without arguments to enter the REPL; type `exit()` to return to Shell. Input is line-based. Indent `if` and `while` bodies, and finish a block with an empty line.
+Run `python` without arguments to enter the REPL; type `exit()` to return to Shell. Input is line-based. Indent `if`, `while`, and `for` bodies, and finish a block with an empty line.
 
 ## 2. Run a script
 
@@ -39,15 +39,35 @@ After `cd /tmp`, `python test.py` also works. Only RAM scripts under `/tmp` are 
 
 | Category | Features |
 |---|---|
-| Values and math | Signed 32-bit integers, `+ - * / %`, comparisons, parentheses |
-| Control | Assignment, `if`/`else`, `while`, space indentation, `#` comments |
+| Values and math | Signed 32-bit integers, `True` (1) / `False` (0), `+ - * / %`, comparisons, `and` / `or` / `not`, parentheses |
+| Control | Assignment, `if`/`else`, `while`, `for ... in range(...)`, `break`, `continue`, space indentation, `#` comments |
 | I/O | `print(...)`, integer-valued `input(...)`, `int(input(...))` |
 | Delays | `msleep(milliseconds)` (0–60000) |
 | GPIO | `gpio`, `gpio_read`, `gpio_mode`, `gpio_pull` |
 
-Limits: 16 variables, 512 source bytes, 64 nonempty lines, and eight nested blocks. Each `while` statement is capped at 10,000 iterations. There are no floats, lists, user-defined functions, `for`, imports, or string variables.
+Limits: 16 variables, 512 source bytes, 64 nonempty lines, and eight nested blocks. Each `while` or `for` loop is capped at 10,000 iterations. There are no floats, lists, user-defined functions, imports, or string variables. `True` and `False` are integers, not a separate boolean type.
 
-## 4. GPIO example
+## 4. Logical operations and loops
+
+```python
+x = True
+if x and not False:
+    print("OK")
+
+for i in range(5):
+    print(i)
+
+for i in range(10, 0, -2):
+    if i == 6:
+        continue
+    if i == 2:
+        break
+    print(i)
+```
+
+Supported forms: `range(stop)`, `range(start, stop)`, and `range(start, stop, step)`. The stop value is excluded; negative steps work, but zero is an error. `break` and `continue` apply to the innermost loop. `and` and `or` short-circuit. This is a small integer-only subset, not a full Python implementation.
+
+## 5. GPIO example
 
 Save the following as `/tmp/led.py` and run `python /tmp/led.py`:
 
@@ -63,7 +83,7 @@ while i < 5:
 
 `gpio_mode(pin, 0)` selects input and `gpio_mode(pin, 1)` output. `gpio_pull(pin, 0/1/2)` selects none/pull-up/pull-down. GPIO 0, 1, 4, and 5 are reserved for UART connections. Observe electrical limits for the board and attached circuits.
 
-## 5. Background mode and interactive UART1 session
+## 6. Background mode and interactive UART1 session
 
 ```text
 piconix# python /tmp/led.py &
