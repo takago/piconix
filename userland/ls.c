@@ -2,7 +2,7 @@
 #include "unistd.h"
 #include "stdio.h"
 #include "string.h"
-#include "../src/pins.h"
+#include "../kernel/pins.h"
 static int eq(const char *a,const char *b) {return strcmp(a,b)==0;}
 static void write_all(int fd,const char *p,size_t n) {while(n) {int k=write(fd,p,n);if(k<0)return;if(!k){msleep(1);continue;}p+=k;n-=k;}}
 static void put(const char *s) {write_all(1,s,strlen(s));}
