@@ -1,13 +1,17 @@
-# Python風インタプリタ
+# PicoNIX Tiny Python — 利用ガイド
 
-[English](PYTHON-EN.md) | [概要へ戻る](README-JP.md)
+[English](PYTHON-EN.md) | [概要](README-JP.md) | [GPIO・デバイス](DEVICES-JP.md)
 
-`ram_apps/python.c`はPicoNIX独自の**小型Python風言語**です．CPythonやMicroPythonではありません．アプリケーションは起動時に空きRAMスロットへ配置されます．
+PicoNIXには，Cで書かれた小型の **Python風インタプリタ** が付属します．整数計算，条件分岐，繰り返し，GPIO制御を学ぶためのものです．**CPythonやMicroPythonとは異なり，標準Pythonのプログラムをそのまま実行できるわけではありません**．以下は現在の `ram_apps/python.c` に基づく仕様です．
 
-## 1．対話モード
+## 1．起動と終了
+
+シェルで `python` と入力すると，対話モード（REPL）が起動します．
 
 ```text
 piconix# python
+PicoNIX Tiny Python (Python subset)
+Type exit() to quit.
 >>> x = 10
 >>> print(x + 5)
 15
@@ -15,84 +19,183 @@ piconix# python
 piconix#
 ```
 
-引数なしの`python`で対話モードに入り，`exit()`でShellへ戻ります．入力は行単位です．`if`，`while`，`for`のブロックはインデントして入力し，空行で確定します．
+`>>>` は新しい入力を待つプロンプト，`...` はブロックの続きを待つプロンプトです．終了するには，トップレベルで **`exit()`** を入力します．
 
-## 2．ファイルを実行する
+### 複数行の入力
+
+`if`，`while`，`for` の行末には `:` を書き，その下をスペースでインデントします．**対話モードでは空行でブロック入力を終了**します．
 
 ```text
-piconix# cat > /tmp/test.py
+>>> for i in range(3):
+...     print(i)
+...
+0
+1
+2
+```
+
+ブロック全体を入力し終えるまで実行されません．対話モードの複数行貼り付けでは，TTYのエコーと `...` プロンプトが重なり，表示だけが乱れる場合があります．1行ずつ入力するか，次節のスクリプト実行を使用してください．
+
+## 2．スクリプトファイルを実行する
+
+ファイルはRAM上の `/tmp` に作成します．シェルの初期作業ディレクトリは `/tmp` なので，通常は相対パスで実行できます．
+
+```text
+piconix# pwd
+/tmp
+piconix# cat > test.py
 print(1 + 2)
 ```
 
-最後に空行で`Ctrl+D`を入力し，ファイル保存を終えます．続いて実行します．
+空の行で `Ctrl+D` を入力して `cat` を終了し，次のように実行します．
 
 ```text
-piconix# python /tmp/test.py
+piconix# python test.py
 3
 ```
 
-`cd /tmp`したShellからは`python test.py`でも実行できます．スクリプトは`/tmp`のRAMファイルに限られ，電源を切ると消えます．ファイル実行時には対話バナーを表示しません．
+`python /tmp/test.py` のように絶対パスでも指定できます．`/tmp` のファイルは揮発性で，再起動後には残りません．Pythonインタプリタはファイルを読み込んで実行できますが，**Pythonプログラムからファイルを開いて読み書きする `open()` などは未実装**です．
 
-## 3．対応する機能
+## 3．使える構文と演算
 
-| 分類 | 内容 |
+| 分類 | 対応内容 |
 |---|---|
-| 値と計算 | 符号付き32ビット整数，`True`（1）・`False`（0），`+ - * / %`，比較，`and`・`or`・`not`，括弧 |
-| 制御 | 代入，`if`／`else`，`while`，`for ... in range(...)`，`break`，`continue`，スペースによるインデント，`#`コメント |
-| 入出力 | `print(...)`，整数入力の`input(...)`，`int(input(...))` |
-| 待機 | `msleep(ミリ秒)`（0～60000） |
-| GPIO | `gpio`，`gpio_read`，`gpio_mode`，`gpio_pull` |
+| 値 | 符号付き32bit整数，`True`（1），`False`（0） |
+| 変数 | `x = 123` 形式の整数代入 |
+| 算術 | `+`，`-`，`*`，`/`，`%`，丸括弧，単項 `+`・`-` |
+| 比較 | `==`，`!=`，`<`，`<=`，`>`，`>=` |
+| 論理 | `not`，`and`，`or`（短絡評価） |
+| 分岐 | `if 条件:`，`else:` |
+| 反復 | `while 条件:`，`for 変数 in range(...):` |
+| ループ制御 | `break`，`continue` |
+| コメント | `#` 以降をコメントとして扱う |
 
-変数は最大16個，ソースは512バイト／非空行64行，ブロックは8段までです．`while`と`for`は各ループにつき最大10000回の反復に制限されています．浮動小数点，リスト，ユーザ定義関数，`import`，文字列変数はありません．`True`／`False`は専用のbool型ではなく整数値として扱います．
-
-## 4．論理演算と繰り返し
+`True` と `False` は専用のbool型ではなく，それぞれ整数の1と0です．条件式では0が偽，0以外が真になります．`and` と `or` は標準Pythonに近く，真偽値ではなく**評価対象の整数値そのもの**を返す場合があります．
 
 ```python
-x = True
-if x and not False:
+x = 7
+if x >= 5 and not False:
     print("OK")
+else:
+    print("NG")
+```
 
+演算の優先順位は，おおむね `* / %` → `+ -` → 比較 → `not` → `and` → `or` です．`and` と `or` は必要のない右辺を評価しません．`/` は整数除算です．ゼロ除算はエラーになります．
+
+### 繰り返しとrange
+
+```python
 for i in range(5):
     print(i)
 
-for i in range(10, 0, -2):
-    if i == 6:
-        continue
+for i in range(5, 0, -2):
+    print(i)
+```
+
+`range(stop)`，`range(start, stop)`，`range(start, stop, step)` を使えます．`stop` は含まれず，負の `step` も有効です．`step = 0` はエラーです．
+
+```python
+for i in range(10):
     if i == 2:
+        continue
+    if i == 5:
         break
     print(i)
 ```
 
-`range(stop)`，`range(start, stop)`，`range(start, stop, step)`に対応します．終了値は含まず，負のstepも使用できます．step=0はエラーです．`break`と`continue`は最も内側のループを対象とします．`and`／`or`は短絡評価を行います．ただし整数専用の小型言語であり，Python全体との互換性はありません．
+`break` と `continue` は最も内側のループを対象とします．`while` と `for` は各実行につき最大10,000回の反復に制限されます．`while True:` の無限ループはこの上限で停止します．
 
-## 5．GPIOの例
+## 4．組込みの入出力と待機
 
-`/tmp/led.py`に次の内容を保存し，`python /tmp/led.py`で実行します．
+| 記述 | 動作・注意点 |
+|---|---|
+| `print(123)` | 整数式の結果を表示 |
+| `print("hello")` | 文字列リテラルを表示 |
+| `input("number? ")` | 行入力を整数として読み取り，整数値を返す |
+| `int(input())` | 整数入力に使用可能（`input()` 自体も整数を返す） |
+| `msleep(500)` | 500ミリ秒待機（0〜60,000） |
+
+`print()` は**1引数のみ**で，文字列変数，文字列連結，`print("x=", x)` のような複数引数には対応しません．`input()` は文字列を返しません．数値入力用です．数値以外の入力や不正な式はエラーになります．
 
 ```python
-i = 0
-while i < 5:
-    gpio(25, 1)
-    msleep(250)
-    gpio(25, 0)
-    msleep(250)
-    i = i + 1
+n = input("Number: ")
+print(n * 2)
 ```
 
-`gpio_mode(pin, 0)`が入力，`gpio_mode(pin, 1)`が出力です．`gpio_pull(pin, 0/1/2)`はそれぞれ無効／プルアップ／プルダウンです．UART用のGPIO 0，1，4，5は操作できません．ボードや接続回路の電気的制約にも注意してください．
+## 5．GPIO操作
 
-## 6．バックグラウンド実行とUART1からの対話操作
+Pythonは `/dev/gpio/N` とその設定用デバイスを経由してGPIOを操作します．専用のGPIOシステムコールを追加しているわけではありません．
+
+| 関数 | 用途 |
+|---|---|
+| `gpio_mode(pin, 0)` | 入力に設定 |
+| `gpio_mode(pin, 1)` | 出力に設定 |
+| `gpio_pull(pin, 0)` | 内部プル抵抗を無効化 |
+| `gpio_pull(pin, 1)` | プルアップ |
+| `gpio_pull(pin, 2)` | プルダウン |
+| `gpio(pin, 0)` / `gpio(pin, 1)` | LOW／HIGHを出力（内部で出力方向にも設定） |
+| `gpio_read(pin)` | デジタル入力を0または1として取得 |
+
+GPIO番号は実装上0〜28の範囲ですが，**GP0，GP1，GP4，GP5はPythonからの操作対象外**です．また，フレームバッファなどの周辺機能が占有するピンや，実際のボードに実装されている端子にも注意してください．詳細は[デバイスガイド](DEVICES-JP.md)を参照してください．
+
+### LEDを点滅させる
+
+GP16に適切な電流制限抵抗を介してLEDを接続した例です．
+
+```python
+gpio_mode(16, 1)
+for i in range(10):
+    gpio(16, True)
+    msleep(250)
+    gpio(16, False)
+    msleep(250)
+```
+
+### スイッチを読む（プルアップ）
+
+GP16とGNDの間にスイッチを接続する場合は，**入力モードだけでなく内部プルアップも設定**します．押したときは0（LOW）です．
+
+```python
+gpio_mode(16, 0)
+gpio_pull(16, 1)
+
+for i in range(10):
+    if gpio_read(16):
+        print("OFF")
+    else:
+        print("ON")
+    msleep(500)
+```
+
+プルアップ・プルダウンを設定せずにスイッチを離すと，入力が浮いて値が安定しない場合があります．`kitesys` 実行後だけ値が変化するように見える場合は，そのプログラムが残したプル抵抗設定の影響を疑ってください．
+
+## 6．バックグラウンド実行・別端末
 
 ```text
-piconix# python /tmp/led.py &
-piconix# python /tmp/led.py > /tmp/output.txt &
-piconix# python < /dev/uart1 > /dev/uart1 &
+piconix# python test.py &
+piconix# python test.py > output.txt &
+piconix# getty /dev/uart1 python &
 ```
 
-最後の例では，USB接続のShellを操作したまま，UART1に接続した端末からPythonのREPLを使用できます．UART1はバイトストリームですが，Pythonが改行まで入力を蓄積します．UART端末ではローカルエコーを有効にすると入力文字を確認できます．改行はCR，LF，CRLFを処理します．
+最後の例はUART1側へPython REPLを接続するものです．`getty` は常駐デーモンではなく，指定TTYにプログラムを起動するコマンドです．セッション終了には `exit()` を使います．別端末の入力を取り合わないよう，**同じTTYで複数の対話プログラムを同時に実行しない**でください．
 
-**注意：** `python &`のように入力をリダイレクトせずUSBコンソールを共有する使い方は避けてください．USBコンソールの入力所有権はフォアグラウンドタスクに制限されています．UART側ではCtrl+Cによるシグナル処理はありません．終了には`exit()`を使用してください．実機でのUART対話操作は未検証です．
+通常のREPLはTTYの行入力を利用します．端末エミュレータ側の行入力・エコー設定が重複すると表示が乱れることがあります．複数行を高速に貼り付けた際に `>>>`／`...` の表示が混ざっても，入力データが欠けているとは限りません．
 
-## UART1での対話実行
+## 7．制限とエラー
 
-`getty /dev/uart1 python &`でUART1にPythonを直接接続できます．標準入出力がUART1となり，Ctrl+Cはこの端末の前景タスクに作用します．対話モードではCtrl+Dを押しても終了せず，次の入力待ちに戻ります．`exit()`で終了すると，UART1側には`PicoNIX: Session closed.`が表示されます．スクリプト実行時のEOF処理は変更しません．
+| 制限 | 現在の値 |
+|---|---|
+| ソース全体 | 最大512バイト |
+| 有効な行 | 最大64行 |
+| 変数 | 最大16個，名前は最大15文字 |
+| 制御ブロックの実行深さ | 最大8段 |
+| 各ループの反復 | 最大10,000回 |
+| 一度のREPL入力行 | 127文字までを保持 |
+
+スクリプトの読み込みも最大512バイトです．REPLでは1回の入力単位が512バイトまでなので，短いプログラムを複数回入力できます．ただし，これはフルPythonではありません．`def`，`import`，リスト，辞書，浮動小数点，ファイルAPI，文字列変数，例外処理には対応していません．タブを使ったインデントも避け，スペースを使ってください．
+
+解析・実行に失敗すると，詳細な例外ではなく通常は `python: syntax/runtime error` と表示されます．構文，インデント，変数名，GPIO番号，ループ回数，スクリプト長を確認してください．
+
+## 8．ソースコード
+
+実装は [`ram_apps/python.c`](ram_apps/python.c) です．小さな整数式パーサ，ブロック実行器，REPL，GPIOファイルアクセスを1ファイルに収めています．機能を追加する際は，32KiBのRAMアプリスロット制限も確認してください．

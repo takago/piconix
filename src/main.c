@@ -37,6 +37,7 @@ extern const unsigned char piconix_stty_image_start[], piconix_stty_image_end[];
 extern const unsigned char piconix_mb_image_start[], piconix_mb_image_end[];
 extern const unsigned char piconix_reset_image_start[], piconix_reset_image_end[];
 extern const unsigned char piconix_lsof_image_start[], piconix_lsof_image_end[];
+extern const unsigned char piconix_pong_image_start[], piconix_pong_image_end[];
 #define RAM_APP_ORIGIN 0x20018000u
 
 static void register_image(int id, const char *name,
@@ -79,6 +80,7 @@ int main(void) {
     register_image(22,"mb",piconix_mb_image_start,piconix_mb_image_end);
     register_image(23,"reset",piconix_reset_image_start,piconix_reset_image_end);
     register_image(24,"lsof",piconix_lsof_image_start,piconix_lsof_image_end);
+    register_image(25,"pong",piconix_pong_image_start,piconix_pong_image_end);
     os_init_idle(idle_task);
     if(os_start_program(2)<0) panic("PicoNIX: shell start failed");
     // Do not start Blink here: verify the `blink` shell command path.

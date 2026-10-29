@@ -11,6 +11,8 @@
 #define OS_TTY_GET_ONLCR 0x204
 #define OS_TTY_SET_ONLCR 0x205
 #define OS_TTY_PERSIST 0x206
+#define OS_TTY_CLAIM   0x207
+#define OS_TTY_RELEASE 0x208
 #define FB_DISABLE 0x101
 #define FB_STATUS  0x102
 int read(int fd, void *buf, size_t count);

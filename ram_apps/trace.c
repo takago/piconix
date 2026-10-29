@@ -211,10 +211,84 @@ static void print_event(const trace_event_t *e) {
     if(!enter && call==7 && (int)e->detail==0 && close_pid==e->pid)
         forget_fd(close_pid,close_fd);
 }
+/* Resolve a command against the registered /bin image list. */
+static int program_id(const char *name) {
+    if(!strncmp(name,"/bin/",5)) name+=5;
+    for(int id=1;id<PROGRAM_COUNT;id++)
+        if(!strcmp(name,program_names[id])) return id;
+    return -1;
+}
+/* Trace reads use a per-FD event cursor.  Advancing it to the current
+ * end avoids mixing previously recorded events into a new run. */
+static int trace_drain(int fd) {
+    trace_event_t e;
+    int n;
+    while((n=read(fd,&e,sizeof e))==(int)sizeof e) {}
+    return n;
+}
+static int trace_run(int fd, int argc, char *argv[]) {
+    if(argc<3 || argc>10) {
+        puts("usage: trace run command [args...]");return 1;
+    }
+    load_program_names();
+    int id=program_id(argv[2]);
+    if(id<0) {puts("trace: unknown command");return 1;}
+    unsigned bytes=0;
+    for(int i=2;i<argc;i++) bytes+=(unsigned)strlen(argv[i])+1;
+    if(bytes>128) {puts("trace: arguments too long");return 1;}
+    int enabled=ioctl(fd,TRACE_STATUS,0);
+    if(enabled<0) {puts("trace: cannot query tracing status");return 1;}
+    if(!enabled && ioctl(fd,TRACE_ON,0)<0) {
+        puts("trace: cannot enable tracing");return 1;
+    }
+    /* Keep existing recording intact when already enabled. */
+    if(trace_drain(fd)<0) {
+        puts("trace: cannot seek to latest event");
+        if(!enabled) ioctl(fd,TRACE_OFF,0);
+        return 1;
+    }
+    int pid=spawn(id,argc-2,(const char *const *)(argv+2));
+    if(pid<0) {
+        puts("trace: cannot start command");
+        if(!enabled) ioctl(fd,TRACE_OFF,0);
+        return 1;
+    }
+    /* Allow programs such as Python to read from their terminal. */
+    set_foreground(pid);
+    int status=0;
+    int waited=waitpid(pid,&status,0);
+    set_foreground(0);
+    if(!enabled) ioctl(fd,TRACE_OFF,0);
+    printf("\n--- trace: %s (PID %d) ---\n",argv[2],pid);
+    header();
+    trace_event_t e;
+    int count=0,n;
+    while((n=read(fd,&e,sizeof e))==(int)sizeof e) {
+        unsigned event_pid=e.kind==TRACE_SWITCH ? e.value : e.pid;
+        if(event_pid==(unsigned)pid) {print_event(&e);count++;}
+    }
+    if(n<0) puts("trace: read error");
+    else if(!count) puts("trace: no retained events");
+    int lost=ioctl(fd,TRACE_LOST,0);
+    if(lost>0) printf("trace: %d events overwritten\n",lost);
+    puts("--- end of trace ---");
+    if(waited<0) puts("trace: waitpid failed");
+    return n<0 || waited<0 ? 1 : 0;
+}
 int main(int argc, char *argv[]) {
-    if(argc<2 || argc>3 || (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
+    if(argc<2) {
+        puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]");return 1;
+    }
+    if(!strcmp(argv[1],"run")) {
+        int fd=open("/dev/trace",O_RDONLY);
+        if(fd<0) {puts("trace: cannot open /dev/trace");return 1;}
+        int rc=trace_run(fd,argc,argv);
+        close(fd);
+        return rc;
+    }
+    if(argc>3 || (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
                    strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) {
-        puts("usage: trace on|off|show [PID]|follow [PID]"); return 1;
+        puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]");return 1;
     }
     int filter_pid=-1;
     if(argc==3) {
@@ -242,6 +316,8 @@ int main(int argc, char *argv[]) {
         close(fd);return 0;
     }
     if(show && ioctl(fd,TRACE_OFF,0)<0) {puts("trace: ioctl failed");close(fd);return 1;}
+    /* follow starts at invocation, not at the oldest retained event. */
+    if(follow && trace_drain(fd)<0) {puts("trace: cannot seek to latest event");close(fd);return 1;}
     load_program_names();
     header();
     trace_event_t event;

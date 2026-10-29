@@ -28,7 +28,7 @@ if(NOT CMAKE_READELF)
 endif()
 # Freestanding slot-linked images. All user program images are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
   set(APP_ORIGIN 0x20018000)

@@ -16,6 +16,8 @@
 #define OS_TTY_GET_ONLCR 0x204
 #define OS_TTY_SET_ONLCR 0x205
 #define OS_TTY_PERSIST 0x206
+#define OS_TTY_CLAIM   0x207
+#define OS_TTY_RELEASE 0x208
 #define OS_O_CREAT 8
 #define OS_O_TRUNC 16
 #define OS_O_APPEND 32

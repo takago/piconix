@@ -11,13 +11,29 @@ trace on         # clear the buffer and start recording
 trace off        # stop recording
 trace show       # stop recording and display all retained events
 trace show 3     # stop recording and show events for PID 3
-trace follow     # continuously display new events while recording
-trace follow 3   # continuously display new events for PID 3
+trace follow     # display events occurring after invocation
+trace follow 3   # display new events for PID 3 after invocation
+trace run hello  # start hello and show its trace after exit
+trace run python test.py  # trace a Python script
 ```
 
-The PID argument is a decimal integer. **PID selection filters displayed records**, not the events captured by the kernel. Start with `trace on`, then run the program you want to observe. `show` stops tracing before reading the retained history; `follow` displays incoming records without stopping capture.
+The PID argument is a decimal integer. **PID selection filters displayed records**, not the events captured by the kernel. Start with `trace on`, then run the program you want to observe. `show` stops tracing before reading the retained history; `follow` skips existing buffered records on startup and displays only events occurring afterward, without stopping capture.
 
 For `SWITCH` records, the filter matches the **destination PID** (the event's `value`); for SVC records, it matches the event PID. `follow` runs in the foreground. Stop tracing from another terminal with `trace off` to drain the remaining records and exit, or interrupt the viewer with Ctrl+C. If the viewer falls behind, it reports overwritten records.
+
+## Start and trace a command (`trace run`)
+
+`trace run command [args...]` **starts a new program**, waits for it to exit, and then displays the trace records for its PID. You do not need to look up a PID in advance, and trace output will not interrupt the program's normal screen updates. The command must be registered in `/bin`; `/bin/name` is also accepted.
+
+```text
+trace run hello
+trace run ls
+trace run python test.py
+```
+
+The reader advances its `/dev/trace` cursor past existing events before launching the program, so earlier records are excluded. If tracing was off, this command enables it for the run and then disables it. If tracing was already enabled, **it leaves both the existing records and the tracing state intact**. Concurrent events from unrelated processes are excluded from the output by PID.
+
+The existing 32KiB (1,024-event) ring buffer is still used. Long-running programs may overwrite their earliest records, including startup events. Only the directly spawned process is filtered; descendants are not automatically followed. Interactive programs must exit before the trace report is printed.
 
 ## Event types and display
 

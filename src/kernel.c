@@ -55,6 +55,8 @@ static int tty_shell_pid[2];
 static uint8_t tty_canonical[2]={1,1}, tty_echo[2]={1,1};
 static uint8_t tty_onlcr[2]={1,1}, tty_last_cr[2];
 static int tty_mode_owner[2];
+/* Temporary exclusive control of an otherwise idle terminal. */
+static int tty_claim_pid[2];
 static void tty_mode_reset(int dev);
 /* Fixed 32-KiB trace ring, 1024 records of 32 bytes. */
 #define TRACE_CAPACITY 1024u
@@ -99,7 +101,8 @@ static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t det
     trace_serial++;
 }
 
-static int tty_owner_pid(int tty) { return foreground_pid[tty] ? foreground_pid[tty] : tty_shell_pid[tty]; }
+static int tty_owner_pid(int tty) { return tty_claim_pid[tty] ? tty_claim_pid[tty] :
+    (foreground_pid[tty] ? foreground_pid[tty] : tty_shell_pid[tty]); }
 /* Five pending completion notices, independent of reusable RAM slots. */
 static struct { int pid, parent_pid; } exited[OS_MAX_TASKS];
 static int take_exit(int parent, int requested) {
@@ -140,7 +143,10 @@ static void finish_task(int slot, int status) {
     for(int i=0;i<OS_MAX_TASKS;i++)
         if(exited[i].parent_pid==t->pid) exited[i].pid=0;
     t->state=DEAD;
-    for(int dev=0;dev<2;dev++) if(tty_mode_owner[dev]==t->pid) tty_mode_reset(dev);
+    for(int dev=0;dev<2;dev++) {
+        if(tty_claim_pid[dev]==t->pid) tty_claim_pid[dev]=0;
+        if(tty_mode_owner[dev]==t->pid) tty_mode_reset(dev);
+    }
     if(foreground_pid[t->tty]==t->pid) foreground_pid[t->tty]=0;
     if(tty_shell_pid[t->tty]==t->pid) tty_shell_pid[t->tty]=0;
 }
@@ -295,7 +301,7 @@ static void tty_put_dev(int dev,uint8_t c) {
 }
 static void tty_input_char(int dev,uint8_t c) {
     tty_buffer_t *t=&tty_buf[dev];
-    if(!tty_canonical[dev] && c!=3){
+    if(!tty_canonical[dev] && (c!=3 || tty_claim_pid[dev])){
         tty_raw_enqueue(dev,c);
         if(tty_echo[dev])tty_put_dev(dev,c);
         return;
@@ -391,7 +397,7 @@ void os_init(void) {
 #if !PICONIX_CONSOLE_USB
     console_irq_count=0;
 #endif
-    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); tty_canonical[0]=tty_canonical[1]=1; tty_echo[0]=tty_echo[1]=1; tty_onlcr[0]=tty_onlcr[1]=1; tty_last_cr[0]=tty_last_cr[1]=0; tty_mode_owner[0]=tty_mode_owner[1]=0; 
+    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); tty_canonical[0]=tty_canonical[1]=1; tty_echo[0]=tty_echo[1]=1; tty_onlcr[0]=tty_onlcr[1]=1; tty_last_cr[0]=tty_last_cr[1]=0; tty_mode_owner[0]=tty_mode_owner[1]=0; tty_claim_pid[0]=tty_claim_pid[1]=0; 
     memset(rx, 0, sizeof(rx));
 #if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
@@ -855,7 +861,7 @@ static int device_open(const char *p, int flags) {
     if(dev<0 || (((dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) ||
                    proc_device(dev) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_TRACE) &&
                   (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
-    if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1) return OS_EINVAL;
+    if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE) return OS_EINVAL;
     int fd=free_fd();
     if(fd<0) return OS_EMFILE;
     fd_set(&tasks[current],fd,dev,
@@ -1090,6 +1096,7 @@ static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
 #endif
     uint8_t *b=p;
     if(writing) {
+        if(tty_claim_pid[uartdev] && tty_claim_pid[uartdev]!=tasks[current].pid) return OS_EIO;
 #if PICONIX_CONSOLE_USB
         if(dev==DEV_CONSOLE && !stdio_usb_connected()) return (int)n;
 #endif
@@ -1240,9 +1247,29 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
 static int device_ioctl(int fd,int cmd,int arg) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
     int dev=tasks[current].fd[fd];
-    if(cmd>=OS_TTY_GET_CANON && cmd<=OS_TTY_PERSIST) {
+    if(cmd>=OS_TTY_GET_CANON && cmd<=OS_TTY_RELEASE) {
         if(dev!=DEV_CONSOLE && dev!=DEV_UART1)return OS_EINVAL;
         int tty=(dev==DEV_CONSOLE)?0:1;
+        if(cmd==OS_TTY_CLAIM) {
+            if(tty_owner_pid(tty)) return OS_EBUSY;
+            /* A background user with an open descriptor also makes it busy. */
+            int id=tty ? DEV_UART1 : DEV_CONSOLE;
+            for(int i=0;i<OS_MAX_TASKS;i++) {
+                if(i==current || tasks[i].state==UNUSED || tasks[i].state==DEAD) continue;
+                for(int f=0;f<8;f++) if(tasks[i].fd[f]==id) return OS_EBUSY;
+            }
+            tty_claim_pid[tty]=tasks[current].pid;
+            tty_mode_reset(tty);
+            /* Discard input received before the terminal was claimed. */
+            rx[tty].tail=rx[tty].head;
+            return 0;
+        }
+        if(cmd==OS_TTY_RELEASE) {
+            if(tty_claim_pid[tty]!=tasks[current].pid)return OS_EIO;
+            tty_claim_pid[tty]=0;
+            tty_mode_reset(tty);
+            return 0;
+        }
         if(tty_owner_pid(tty)!=tasks[current].pid)return OS_EIO;
         if(cmd==OS_TTY_PERSIST){tty_mode_owner[tty]=0;return 0;}
         if(cmd==OS_TTY_GET_CANON)return tty_canonical[tty];
@@ -1373,7 +1400,7 @@ void os_svc_dispatch(uint32_t *f) {
             /* getty: attach a fresh task to a different serial terminal. */
             if(a!=1 && a!=2) { result=OS_EINVAL; break; }
             int tty=(int)a-1;
-            if(tty_shell_pid[tty] || foreground_pid[tty]) { result=OS_EBUSY; break; }
+            if(tty_owner_pid(tty)) { result=OS_EBUSY; break; }
             if(b!=2 && b!=4) { result=OS_EINVAL; break; }
             uint32_t irq_state=save_and_disable_interrupts();
             int slot=free_program_slot();

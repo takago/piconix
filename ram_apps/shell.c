@@ -195,6 +195,7 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
             "  hexdump [file [offset [count]]] [&]  Hex/ASCII dump\r\n"
             "  trace on|off|show   Record or display kernel events\r\n"
             "  getty /dev/uart1 sh|python [&]  Attach a terminal\r\n"
+            "  pong [-2]        Pong (CPU or two-terminal match)\r\n"
             "  &                Return to shell without waiting\r\n"
             "  Ctrl+C           Interrupt foreground task\r\n"
             "  kill PID         Terminate a task\r\n"

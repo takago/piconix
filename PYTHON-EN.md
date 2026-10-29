@@ -1,13 +1,17 @@
-# Python-like interpreter
+# PicoNIX Tiny Python — User Guide
 
-[日本語](PYTHON-JP.md) | [Back to overview](README-EN.md)
+[日本語](PYTHON-JP.md) | [Overview](README-EN.md) | [Devices](DEVICES-EN.md)
 
-`ram_apps/python.c` implements a **small PicoNIX-specific Python-like language**. It is neither CPython nor MicroPython. Applications are loaded into available RAM slots at startup.
+PicoNIX includes a small **Python-like interpreter written in C**, intended for learning integer expressions, control flow, and GPIO control. It is **not CPython or MicroPython**, and it does not run arbitrary standard Python programs. The behavior below is based on the current `ram_apps/python.c` implementation.
 
-## 1. Interactive mode
+## 1. Starting and leaving the REPL
+
+Run `python` without arguments:
 
 ```text
 piconix# python
+PicoNIX Tiny Python (Python subset)
+Type exit() to quit.
 >>> x = 10
 >>> print(x + 5)
 15
@@ -15,86 +19,183 @@ piconix# python
 piconix#
 ```
 
-Run `python` without arguments to enter the REPL; type `exit()` to return to Shell. Input is line-based. Indent `if`, `while`, and `for` bodies, and finish a block with an empty line.
+`>>>` prompts for a new statement; `...` prompts for the continuation of a block. Type **`exit()`** at top level to return to the shell.
 
-## 2. Run a script
+### Multiline blocks
 
-Create `/tmp/test.py` using:
+Terminate `if`, `while`, and `for` headers with `:` and indent their bodies using spaces. In the interactive REPL, **enter a blank line to finish the block**:
 
 ```text
-piconix# cat > /tmp/test.py
+>>> for i in range(3):
+...     print(i)
+...
+0
+1
+2
+```
+
+The block runs once entry is complete. Pasting multiple lines quickly may visually interleave TTY echo with `...` prompts. This does not necessarily mean that input was lost. For larger examples, use a script file.
+
+## 2. Running a script file
+
+Temporary files live in RAM under `/tmp`. The shell starts in `/tmp` by default, so relative paths normally suffice:
+
+```text
+piconix# pwd
+/tmp
+piconix# cat > test.py
 print(1 + 2)
 ```
 
-Finish by pressing `Ctrl+D` on an empty line, then run:
+Press `Ctrl+D` on an empty line to finish `cat`, then execute:
 
 ```text
-piconix# python /tmp/test.py
+piconix# python test.py
 3
 ```
 
-After `cd /tmp`, `python test.py` also works. Only RAM scripts under `/tmp` are supported, and they disappear on reboot. Script mode suppresses the interactive banner.
+`python /tmp/test.py` also works. Files in `/tmp` are volatile and disappear after reboot. The interpreter can **load** a script file, but Python-level `open()`, `read()`, and `write()` file APIs are **not implemented**.
 
-## 3. Supported features
+## 3. Supported syntax
 
-| Category | Features |
+| Area | Supported features |
 |---|---|
-| Values and math | Signed 32-bit integers, `True` (1) / `False` (0), `+ - * / %`, comparisons, `and` / `or` / `not`, parentheses |
-| Control | Assignment, `if`/`else`, `while`, `for ... in range(...)`, `break`, `continue`, space indentation, `#` comments |
-| I/O | `print(...)`, integer-valued `input(...)`, `int(input(...))` |
-| Delays | `msleep(milliseconds)` (0–60000) |
-| GPIO | `gpio`, `gpio_read`, `gpio_mode`, `gpio_pull` |
+| Values | Signed 32-bit integers, `True` (1), `False` (0) |
+| Variables | Integer assignments such as `x = 123` |
+| Arithmetic | `+`, `-`, `*`, `/`, `%`, parentheses, unary `+` and `-` |
+| Comparisons | `==`, `!=`, `<`, `<=`, `>`, `>=` |
+| Logic | `not`, `and`, `or` (short-circuit evaluation) |
+| Branches | `if condition:`, `else:` |
+| Loops | `while condition:`, `for name in range(...):` |
+| Loop control | `break`, `continue` |
+| Comments | `#` to the end of the line |
 
-Limits: 16 variables, 512 source bytes, 64 nonempty lines, and eight nested blocks. Each `while` or `for` loop is capped at 10,000 iterations. There are no floats, lists, user-defined functions, imports, or string variables. `True` and `False` are integers, not a separate boolean type.
-
-## 4. Logical operations and loops
+`True` and `False` are integer constants, not a distinct Boolean type. Zero is false; nonzero integers are true. As in Python, `and` and `or` can return an **operand value**, rather than a normalized Boolean.
 
 ```python
-x = True
-if x and not False:
+x = 7
+if x >= 5 and not False:
     print("OK")
+else:
+    print("NG")
+```
 
+Expression precedence is roughly `* / %`, then `+ -`, comparisons, `not`, `and`, and `or`. `and` and `or` skip evaluating unnecessary right-hand operands. Division is integer division; division by zero is an error.
+
+### for, range, break and continue
+
+```python
 for i in range(5):
     print(i)
 
-for i in range(10, 0, -2):
-    if i == 6:
-        continue
+for i in range(5, 0, -2):
+    print(i)
+```
+
+The accepted forms are `range(stop)`, `range(start, stop)`, and `range(start, stop, step)`. The stop is exclusive; negative steps are supported, while a zero step is an error.
+
+```python
+for i in range(10):
     if i == 2:
+        continue
+    if i == 5:
         break
     print(i)
 ```
 
-Supported forms: `range(stop)`, `range(start, stop)`, and `range(start, stop, step)`. The stop value is excluded; negative steps work, but zero is an error. `break` and `continue` apply to the innermost loop. `and` and `or` short-circuit. This is a small integer-only subset, not a full Python implementation.
+`break` and `continue` target the innermost loop. Each executed `for` or `while` loop is limited to 10,000 iterations; `while True:` is therefore not unlimited.
 
-## 5. GPIO example
+## 4. Built-in I/O and delays
 
-Save the following as `/tmp/led.py` and run `python /tmp/led.py`:
+| Expression | Behavior / limits |
+|---|---|
+| `print(123)` | Print the value of an integer expression |
+| `print("hello")` | Print a string literal |
+| `input("number? ")` | Read a line and return a parsed integer |
+| `int(input())` | Accepted, although `input()` already returns an integer |
+| `msleep(500)` | Sleep for 500 ms (allowed range: 0–60,000) |
+
+`print()` accepts **only one argument**. String variables, concatenation, and multi-argument forms such as `print("x=", x)` are unsupported. `input()` does **not** return a string; it reads a number. Invalid numeric input or expressions result in an error.
 
 ```python
-i = 0
-while i < 5:
-    gpio(25, 1)
-    msleep(250)
-    gpio(25, 0)
-    msleep(250)
-    i = i + 1
+n = input("Number: ")
+print(n * 2)
 ```
 
-`gpio_mode(pin, 0)` selects input and `gpio_mode(pin, 1)` output. `gpio_pull(pin, 0/1/2)` selects none/pull-up/pull-down. GPIO 0, 1, 4, and 5 are reserved for UART connections. Observe electrical limits for the board and attached circuits.
+## 5. GPIO operations
 
-## 6. Background mode and interactive UART1 session
+GPIO is accessed through `/dev/gpio/N` and its configuration devices, not through a dedicated GPIO system call.
+
+| Function | Purpose |
+|---|---|
+| `gpio_mode(pin, 0)` | Set input direction |
+| `gpio_mode(pin, 1)` | Set output direction |
+| `gpio_pull(pin, 0)` | Disable internal pulls |
+| `gpio_pull(pin, 1)` | Enable pull-up |
+| `gpio_pull(pin, 2)` | Enable pull-down |
+| `gpio(pin, 0)` / `gpio(pin, 1)` | Drive LOW / HIGH (also configures output direction) |
+| `gpio_read(pin)` | Return digital input 0 or 1 |
+
+The implementation accepts GPIO numbers in the range 0–28 but **excludes GP0, GP1, GP4 and GP5** from Python access. Pins can also be occupied by peripherals such as the framebuffer; consult the [device guide](DEVICES-EN.md) and the physical board pinout.
+
+### Blink an LED
+
+Connect an LED with a suitable current-limiting resistor to GP16:
+
+```python
+gpio_mode(16, 1)
+for i in range(10):
+    gpio(16, True)
+    msleep(250)
+    gpio(16, False)
+    msleep(250)
+```
+
+### Read a switch using a pull-up
+
+For a switch between GP16 and GND, configure **both input direction and an internal pull-up**. Pressing the switch then reads LOW (0):
+
+```python
+gpio_mode(16, 0)
+gpio_pull(16, 1)
+
+for i in range(10):
+    if gpio_read(16):
+        print("OFF")
+    else:
+        print("ON")
+    msleep(500)
+```
+
+Without a pull-up or pull-down, a disconnected switch input may float. If a program only starts seeing sensible values after `kitesys` runs, check whether `kitesys` left a pull configuration in place.
+
+## 6. Background execution and a second terminal
 
 ```text
-piconix# python /tmp/led.py &
-piconix# python /tmp/led.py > /tmp/output.txt &
-piconix# python < /dev/uart1 > /dev/uart1 &
+piconix# python test.py &
+piconix# python test.py > output.txt &
+piconix# getty /dev/uart1 python &
 ```
 
-The last example keeps the USB Shell available while providing a Python REPL to a terminal connected to UART1. UART1 is a byte stream; Python collects input until a line ending. Enable local echo in the UART terminal to see typed characters. CR, LF, and CRLF line endings are accepted.
+The last command attaches the Python REPL to UART1. In PicoNIX, `getty` is a command that starts a program on a specified TTY, **not a persistent daemon**. Use `exit()` to close the session. Avoid launching multiple interactive programs on the same TTY at once, as they can compete for input.
 
-**Note:** Avoid `python &` without redirecting standard input, as that would share the USB console with Shell. The console restricts input to its foreground owner. UART input does not provide Ctrl+C signal handling; use `exit()` to quit. Interactive UART operation has not yet been verified on hardware.
+The REPL generally uses TTY line input. Terminal-side line editing or echo options may interfere with the device's own input handling. When pasting multiple lines at speed, `>>>` and `...` output can mix with echoed text even if no bytes are lost.
 
-## Interactive use over UART1
+## 7. Limits and troubleshooting
 
-`getty /dev/uart1 python &` attaches the Python REPL to UART1; Ctrl+C on that terminal targets its foreground task. In interactive mode, Ctrl+D does not exit the REPL: it returns to the next prompt. Enter `exit()` to quit; the UART1 session prints `PicoNIX: Session closed.`. Script-file EOF handling is unchanged.
+| Limit | Current value |
+|---|---|
+| Source text | Up to 512 bytes |
+| Effective source lines | Up to 64 |
+| Variables | Up to 16; names up to 15 characters |
+| Execution nesting | Up to 8 blocks |
+| Loop iterations | Up to 10,000 per executed loop |
+| One REPL input line | Up to 127 stored characters |
+
+Script loading is limited to 512 bytes. Each submitted REPL input group also has a 512-byte limit; separate submissions can be made interactively. This is a small language subset: `def`, `import`, lists, dictionaries, floating-point values, Python file APIs, string variables, and exceptions are not implemented. Use spaces, not tabs, for block indentation.
+
+On parse or execution failures, the interpreter generally prints `python: syntax/runtime error` rather than detailed exceptions. Check syntax, indentation, variable names, pin numbers, iteration limits, and source length.
+
+## 8. Implementation
+
+The interpreter lives in [`ram_apps/python.c`](ram_apps/python.c). Its integer expression parser, block executor, REPL, and GPIO device access are deliberately kept in one file. When extending it, also verify the 32 KiB RAM application-slot limit.
