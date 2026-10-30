@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Tiny full-screen /tmp editor: 1024-byte cap, 20 visible text rows. */
+/* Tiny full-screen /tmp editor: 1024-byte cap, adaptive terminal layout. */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 #define CAP 1024
-#define LINES 20
+#define DEFAULT_ROWS 24
+#define DEFAULT_COLS 80
+static int screen_rows=DEFAULT_ROWS,screen_cols=DEFAULT_COLS;
+static int visible_rows=DEFAULT_ROWS-4, left_col;
 static char data[CAP];
 static int len,pos,top,changed;
 static int width(char c,int col) {return c=='\t'?4-col%4:1;}
@@ -18,42 +21,71 @@ static void insert(char c){if(len>=CAP)return;memmove(data+pos+1,data+pos,len-po
 static void erase(void){if(!pos)return;memmove(data+pos-1,data+pos,len-pos);pos--;len--;changed=1;}
 static void del(void){if(pos>=len)return;memmove(data+pos,data+pos+1,len-pos-1);len--;changed=1;}
 static int save(const char *name){int fd=open(name,O_WRONLY|O_CREAT|O_TRUNC);if(fd<0)return -1;int n=write(fd,data,len);close(fd);if(n==len){changed=0;return 0;}return -1;}
-/* 80-column screen: 4-column inverted gutter and 76-column text area. */
+/* Query cursor location at the lower-right corner (DSR). Unsupported terminals
+ * simply use 80x24; never require a terminal-specific extension to edit. */
+static void measure_screen(void){
+ int flags=fcntl(0,F_GETFL,0);
+ if(flags<0||fcntl(0,F_SETFL,flags|O_NONBLOCK)<0)return;
+ printf("\033[999;999H\033[6n");
+ int state=0,row=0,col=0;
+ for(int t=0;t<20&&state!=6;t++){
+  char c;
+  while(read(0,&c,1)==1){
+   if(state==0)state=c==27?1:0;
+   else if(state==1)state=c=='['?2:0;
+   else if(state==2){if(c>='0'&&c<='9'){row=row*10+c-'0';state=3;}else state=0;}
+   else if(state==3){if(c>='0'&&c<='9')row=row*10+c-'0';else if(c==';')state=4;else state=0;}
+   else if(state==4){if(c>='0'&&c<='9'){col=col*10+c-'0';state=5;}else state=0;}
+   else if(state==5){if(c>='0'&&c<='9')col=col*10+c-'0';else if(c=='R')state=6;else state=0;}
+   if(state==6)break;
+  }
+  if(state!=6)msleep(10);
+ }
+ fcntl(0,F_SETFL,flags);
+ if(state==6&&row>=8&&col>=30){
+  screen_rows=row>60?60:row;
+  screen_cols=col>160?160:col;
+ }
+ visible_rows=screen_rows-4;
+}
 static void draw(const char *name,const char *notice){
- int line=line_no(pos),column=col_no(pos);
+ int line=line_no(pos),column=col_no(pos),text_cols=screen_cols-4;
  if(line<top)top=line;
- if(line>=top+LINES)top=line-LINES+1;
- /* Reverse-video bars extend to the right edge using erase-to-EOL. */
- printf("\033[H\033[7mPicoNIX edit  %-16s  %d/1024 bytes %c\033[K\033[0m\r\n",
-        name,len,changed?'*':' ');
+ if(line>=top+visible_rows)top=line-visible_rows+1;
+ if(column<left_col)left_col=column;
+ if(column>=left_col+text_cols)left_col=column-text_cols+1;
+ /* Clear and repaint the whole usable screen; no scrolling or stale text. */
+ const char *base=name;
+ for(const char *q=name;*q;q++)if(*q=='/')base=q+1;
+ char short_name[21];int i=0;
+ while(base[i]&&i<20){short_name[i]=base[i];i++;}short_name[i]=0;
+ printf("\033[H\033[J\033[7mPicoNIX edit  %-20s  %d/1024 bytes %c\033[K\033[0m\r\n",
+        short_name,len,changed?'*':' ');
  int p=0,n=0;
  while(p<len&&n<top){if(data[p++]=='\n')n++;}
- for(int row=0;row<LINES;row++){
-  /* Line numbers are display-only and do not enter the text buffer. */
+ for(int row=0;row<visible_rows;row++){
   int number=top+row+1;
   if(number<=999)printf("\033[7m%03d \033[0m",number);
   else printf("\033[7m--- \033[0m");
   int c=0;
   while(p<len&&data[p]!='\n'){
-   char ch=data[p++];
-   if(ch=='\t'){
-    int w=width(ch,c);
-    while(w--){if(c<76)putchar(' ');c++;}
-   }else{
-    if(c<76)putchar(ch>=32&&ch<127?ch:'.');
+   char ch=data[p++];int w=width(ch,c);
+   for(int i=0;i<w;i++){
+    if(c>=left_col&&c<left_col+text_cols){
+     char shown=ch=='\t'?' ':(ch>=32&&ch<127?ch:'.');
+     putchar(i==0?shown:' ');
+    }
     c++;
    }
-   if(c>=76){while(p<len&&data[p]!='\n')p++;break;}
   }
   if(p<len&&data[p]=='\n')p++;
   printf("\033[K\r\n");
  }
  printf("\033[7m^S Save  ^Q Quit  Arrows Move  Enter Newline  TAB=4\033[K\033[0m\r\n");
  printf("\033[KLn %d Col %d  %s\033[K",line+1,column+1,notice?notice:"");
- int y=line-top+2,x=column+5;
- if(y<2)y=2;
- if(y>LINES+1)y=LINES+1;
- if(x>80)x=80;
+ int y=line-top+2,x=column-left_col+5;
+ if(y<2)y=2;if(y>visible_rows+1)y=visible_rows+1;
+ if(x<5)x=5;if(x>screen_cols)x=screen_cols;
  printf("\033[%d;%dH",y,x);
 }
 int main(int argc,char **argv){
@@ -86,6 +118,7 @@ int main(int argc,char **argv){
   puts("edit: terminal required");return 1;
  }
  printf("\033[?1049h\033[?25h\033[2J");
+ measure_screen();
  int esc=0,quit=0;const char *notice="";draw(path,notice);
  while(!quit){char c;if(read(0,&c,1)!=1)break;notice="";
   if(esc==1){esc=c=='['?2:0;continue;}
