@@ -3,11 +3,13 @@
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 k=(root/'kernel/kernel.c').read_text()
+v=k
+h=k
 l=(root/'userland/ls.c').read_text()
 m=(root/'userland/mem.c').read_text()
 assert '/proc/syms' not in k and 'DEV_SYMS = ' not in k
-assert '{"/proc/sym/kernel",DEV_SYMS_KERNEL}' in k
-assert '!strcmp(path,"/proc/sym")' in k and '!strcmp(path,"/proc/sym/userland")' in k
+assert '{"/proc/sym/kernel",DEV_SYMS_KERNEL}' in v
+assert '"/proc/sym"' in v and '"/proc/sym/userland"' in v
 assert '"/proc/sym/userland/"' in k and 'DEV_SYMS_USER_BASE+id' in k
 assert 'piconix_symbols_start' in k and 'line[name_len]' in k
 assert 'piconix_kernel_syms_start+4u' in k

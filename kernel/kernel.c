@@ -19,6 +19,98 @@
 #include "tusb.h"
 #endif
 
+/* Internal VFS path and directory IDs (no separate translation unit). */
+enum {
+    DEV_CONSOLE = 0,
+    DEV_GPIO_VALUE_BASE = 1,
+    DEV_GPIO_VALUE_END = 29,
+    DEV_UART1 = 30,
+    DEV_PROC_UPTIME = 31,
+    DEV_PROC_TICKS = 32,
+    DEV_PROC_INTERRUPTS = 33,
+    DEV_PROC_SWITCHES = 34,
+    DEV_PROC_MEMORY = 35,
+    DEV_PROC_RAMFILES = 136,
+    DEV_GPIO_DIR_BASE = 36,
+    DEV_GPIO_DIR_END = 64,
+    DEV_GPIO_PULL_BASE = 65,
+    DEV_GPIO_PULL_END = 93,
+    DEV_RAND = 94,
+    DEV_PROC_DEVICES = 95,
+    DEV_PROC_TASKS = 96,
+    DEV_ADC_BASE = 121,
+    DEV_ADC_END = 124,
+    DEV_PWM_FREQ = 125,
+    DEV_PWM_18 = 126,
+    DEV_PWM_19 = 127,
+    DEV_MEM = 98,
+    DEV_SYMS_KERNEL = 135,
+    DEV_SYMS_USER_BASE = 200, /* 200..263: registered user programs */
+    DEV_TRACE = 99,
+    DEV_FB = 128,
+    DEV_PROC_FB = 129,
+    DEV_PROC_TASK_BASE = 130, /* 130..134: physical task slots */
+    DEV_TMP_FIRST = 100,
+    DEV_GPIO_MAX_PIN = 28
+};
+enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
+       VDIR_PWM, VDIR_PWM1, VDIR_PROC, VDIR_TASK, VDIR_SYM,
+       VDIR_USERLAND, VDIR_TMP };
+
+static int path_match(const char *p, const char *s);
+
+/* Fixed device registry shared by open() and /proc/devices listing. */
+static const struct { const char *path; int id; } dev_registry[] = {
+    {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
+};
+#define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
+/* Fixed virtual files share one path-to-ID mapping for open and FD display. */
+static const struct { const char *path; int id; } vfs_registry[] = {
+    {"/proc/uptime",DEV_PROC_UPTIME}, {"/proc/ticks",DEV_PROC_TICKS},
+    {"/proc/interrupts",DEV_PROC_INTERRUPTS},
+    {"/proc/context_switches",DEV_PROC_SWITCHES},
+    {"/proc/memory",DEV_PROC_MEMORY}, {"/proc/devices",DEV_PROC_DEVICES},
+    {"/proc/ramfiles",DEV_PROC_RAMFILES},
+    {"/proc/tasks",DEV_PROC_TASKS}, {"/proc/fb",DEV_PROC_FB},
+    {"/proc/sym/kernel",DEV_SYMS_KERNEL},
+    {"/dev/pwm/1/freq",DEV_PWM_FREQ}, {"/dev/pwm/1/a",DEV_PWM_18},
+    {"/dev/pwm/1/b",DEV_PWM_19}, {"/dev/adc/temp",DEV_ADC_END}
+};
+#define VFS_REGISTRY_COUNT (sizeof(vfs_registry)/sizeof(vfs_registry[0]))
+static int vfs_fixed_path_id(const char *path) {
+    for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
+        if(path_match(path,dev_registry[i].path)) return dev_registry[i].id;
+    for(unsigned i=0;i<VFS_REGISTRY_COUNT;i++)
+        if(path_match(path,vfs_registry[i].path)) return vfs_registry[i].id;
+    return -1;
+}
+
+static const char *const vdir_paths[] = {
+    "/", "/bin", "/dev", "/dev/gpio", "/dev/adc",
+    "/dev/pwm", "/dev/pwm/1", "/proc", "/proc/task",
+    "/proc/sym", "/proc/sym/userland", "/tmp"
+};
+static int vfs_directory_id(const char *path) {
+    for(unsigned i=0;i<sizeof(vdir_paths)/sizeof(vdir_paths[0]);i++)
+        if(!strcmp(path,vdir_paths[i])) return VDIR_ROOT+(int)i;
+    return -1;
+}
+
+static const char *vfs_directory_path(int id) {
+    return id>=VDIR_ROOT && id<=VDIR_TMP ? vdir_paths[id-VDIR_ROOT] : 0;
+}
+static const char *vfs_fixed_id_path(int id) {
+    for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
+        if(dev_registry[i].id==id) return dev_registry[i].path;
+    for(unsigned i=0;i<VFS_REGISTRY_COUNT;i++)
+        if(vfs_registry[i].id==id) return vfs_registry[i].path;
+    return 0;
+}
+static unsigned vfs_device_count(void) { return DEV_REGISTRY_COUNT; }
+static const char *vfs_device_path(unsigned index) {
+    return index<DEV_REGISTRY_COUNT ? dev_registry[index].path : 0;
+}
+
 enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
@@ -639,40 +731,6 @@ static int in_task_range(const void *p, size_t n) {
 static int path_match(const char *p, const char *s) {
     return strcmp(p,s)==0;
 }
-/* Stable internal device IDs; preserve the existing FD/device mapping. */
-enum {
-    DEV_CONSOLE = 0,
-    DEV_GPIO_VALUE_BASE = 1,
-    DEV_GPIO_VALUE_END = 29,
-    DEV_UART1 = 30,
-    DEV_PROC_UPTIME = 31,
-    DEV_PROC_TICKS = 32,
-    DEV_PROC_INTERRUPTS = 33,
-    DEV_PROC_SWITCHES = 34,
-    DEV_PROC_MEMORY = 35,
-    DEV_PROC_RAMFILES = 136,
-    DEV_GPIO_DIR_BASE = 36,
-    DEV_GPIO_DIR_END = 64,
-    DEV_GPIO_PULL_BASE = 65,
-    DEV_GPIO_PULL_END = 93,
-    DEV_RAND = 94,
-    DEV_PROC_DEVICES = 95,
-    DEV_PROC_TASKS = 96,
-    DEV_ADC_BASE = 121,
-    DEV_ADC_END = 124,
-    DEV_PWM_FREQ = 125,
-    DEV_PWM_18 = 126,
-    DEV_PWM_19 = 127,
-    DEV_MEM = 98,
-    DEV_SYMS_KERNEL = 135,
-    DEV_SYMS_USER_BASE = 200, /* 200..263: registered user programs */
-    DEV_TRACE = 99,
-    DEV_FB = 128,
-    DEV_PROC_FB = 129,
-    DEV_PROC_TASK_BASE = 130, /* 130..134: physical task slots */
-    DEV_TMP_FIRST = 100,
-    DEV_GPIO_MAX_PIN = 28
-};
 /* Small volatile regular-file store; IDs are disjoint from devices. */
 #define TMP_FILES 4
 /* Keep the RAM filesystem within the 96-KiB kernel SRAM region. */
@@ -759,32 +817,6 @@ static int tmp_rw(int fd,void *p,size_t n,int writing) {
     tasks[current].fd_pos[fd]=(uint32_t)(pos+count);
     return (int)count;
 }
-/* Fixed device registry shared by open() and /proc/devices listing. */
-static const struct { const char *path; int id; } dev_registry[] = {
-    {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
-};
-#define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
-/* Fixed virtual files share one path-to-ID mapping for open and FD display. */
-static const struct { const char *path; int id; } vfs_registry[] = {
-    {"/proc/uptime",DEV_PROC_UPTIME}, {"/proc/ticks",DEV_PROC_TICKS},
-    {"/proc/interrupts",DEV_PROC_INTERRUPTS},
-    {"/proc/context_switches",DEV_PROC_SWITCHES},
-    {"/proc/memory",DEV_PROC_MEMORY}, {"/proc/devices",DEV_PROC_DEVICES},
-    {"/proc/ramfiles",DEV_PROC_RAMFILES},
-    {"/proc/tasks",DEV_PROC_TASKS}, {"/proc/fb",DEV_PROC_FB},
-    {"/proc/sym/kernel",DEV_SYMS_KERNEL},
-    {"/dev/pwm/1/freq",DEV_PWM_FREQ}, {"/dev/pwm/1/a",DEV_PWM_18},
-    {"/dev/pwm/1/b",DEV_PWM_19}, {"/dev/adc/temp",DEV_ADC_END}
-};
-#define VFS_REGISTRY_COUNT (sizeof(vfs_registry)/sizeof(vfs_registry[0]))
-static int fixed_path_id(const char *path) {
-    for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
-        if(path_match(path,dev_registry[i].path)) return dev_registry[i].id;
-    for(unsigned i=0;i<VFS_REGISTRY_COUNT;i++)
-        if(path_match(path,vfs_registry[i].path)) return vfs_registry[i].id;
-    return -1;
-}
-
 /* Resolve paths relative to each task, keeping device handlers absolute-only. */
 static int absolute_path(const char *input, char out[128]) {
     char combined[256]; unsigned n=0, o=1;
@@ -814,25 +846,8 @@ static int absolute_path(const char *input, char out[128]) {
     return 0;
 }
 static int valid_directory(const char *path) {
-    return !strcmp(path,"/") || !strcmp(path,"/bin") || !strcmp(path,"/tmp") ||
-           !strcmp(path,"/dev") || !strcmp(path,"/dev/gpio") ||
-           !strcmp(path,"/dev/adc") || !strcmp(path,"/dev/pwm") ||
-           (pin_any_pwm() && !strcmp(path,"/dev/pwm/1")) || !strcmp(path,"/proc") || !strcmp(path,"/proc/task") ||
-           !strcmp(path,"/proc/sym") || !strcmp(path,"/proc/sym/userland");
-}
-/* Directory descriptor IDs are separate from devices and regular files. */
-enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
-       VDIR_PWM, VDIR_PWM1, VDIR_PROC, VDIR_TASK, VDIR_SYM,
-       VDIR_USERLAND, VDIR_TMP };
-static const char *const vdir_paths[] = {
-    "/", "/bin", "/dev", "/dev/gpio", "/dev/adc",
-    "/dev/pwm", "/dev/pwm/1", "/proc", "/proc/task",
-    "/proc/sym", "/proc/sym/userland", "/tmp"
-};
-static int vdir_id(const char *path) {
-    for(unsigned i=0;i<sizeof(vdir_paths)/sizeof(vdir_paths[0]);i++)
-        if(!strcmp(path,vdir_paths[i])) return VDIR_ROOT+(int)i;
-    return -1;
+    int id=vfs_directory_id(path);
+    return id>=0 && (id!=VDIR_PWM1 || pin_any_pwm());
 }
 /* Return one entry by ordinal, without allocating or keeping a directory cache. */
 static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
@@ -850,8 +865,8 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
         for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) { EMIT(tmp_files[i].name,0); }
         break;
     case VDIR_DEV:
-        for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++) {
-            const char *path=dev_registry[i].path;
+        for(unsigned i=0;i<vfs_device_count();i++) {
+            const char *path=vfs_device_path(i);
             if(!strncmp(path,"/dev/",5) && !strchr(path+5,'/')) EMIT(path+5,0);
         }
         EMIT("gpio",1); EMIT("adc",1); EMIT("pwm",1); break;
@@ -905,7 +920,7 @@ static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
 /* Minimal VFS dispatch: keep the established FD IDs and backends. */
 static int vfs_open(const char *p, int flags) {
     if(flags<0 || (flags & ~(OS_O_WRONLY | OS_O_RDWR | OS_O_NONBLOCK | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) != 0 || (flags & 3)==3) return OS_EINVAL;
-    int dir=vdir_id(p);
+    int dir=vfs_directory_id(p);
     if(dir>=0) {
         if(flags!=OS_O_RDONLY || (dir==VDIR_PWM1 && !pin_any_pwm())) return OS_EINVAL;
         int fd=free_fd(); if(fd<0) return OS_EMFILE;
@@ -913,7 +928,7 @@ static int vfs_open(const char *p, int flags) {
     }
     if(!strncmp(p,"/tmp/",5)) return tmp_open(p,flags);
     if(flags & (OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) return OS_EINVAL;
-    int dev=fixed_path_id(p);
+    int dev=vfs_fixed_path_id(p);
     if(dev<0 && !strncmp(p,"/proc/task/",11)) {
         const char *q=p+11;
         unsigned pid=0;
@@ -1042,9 +1057,9 @@ static int proc_fb_read(int fd, void *dst, size_t n) {
 }
 /* Resolve an open descriptor from the kernel's authoritative device IDs. */
 static const char *fd_path(int dev, int task_pid, char *buf, size_t size) {
-    if(dev>=VDIR_ROOT && dev<=VDIR_TMP) return vdir_paths[dev-VDIR_ROOT];
-    for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
-        if(dev_registry[i].id==dev) return dev_registry[i].path;
+    if(dev>=VDIR_ROOT && dev<=VDIR_TMP) return vfs_directory_path(dev);
+    const char *fixed=vfs_fixed_id_path(dev);
+    if(fixed) return fixed;
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) {
         int index=dev-DEV_TMP_FIRST;
         if(tmp_files[index].used) {
@@ -1056,8 +1071,7 @@ static const char *fd_path(int dev, int task_pid, char *buf, size_t size) {
         snprintf(buf,size,"/proc/task/%d",task_pid);
         return buf;
     }
-    for(unsigned i=0;i<VFS_REGISTRY_COUNT;i++)
-        if(vfs_registry[i].id==dev) return vfs_registry[i].path;
+
     if(dev>DEV_SYMS_USER_BASE && dev<DEV_SYMS_USER_BASE+PROGRAM_CAPACITY &&
        programs[dev-DEV_SYMS_USER_BASE].name) {
         snprintf(buf,size,"/proc/sym/userland/%s",programs[dev-DEV_SYMS_USER_BASE].name);
@@ -1161,8 +1175,8 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     char text[160]; int len=0;
     if(dev==DEV_PROC_DEVICES) {
         /* Enumerate the same registry used by vfs_open(). */
-        for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++) {
-            const char *name=dev_registry[i].path+5; /* skip /dev/ */
+        for(unsigned i=0;i<vfs_device_count();i++) {
+            const char *name=vfs_device_path(i)+5; /* skip /dev/ */
             int written=snprintf(text+len,sizeof(text)-(size_t)len,"%s\n",name);
             if(written<0 || (size_t)written>=sizeof(text)-(size_t)len) return OS_EINVAL;
             len+=written;

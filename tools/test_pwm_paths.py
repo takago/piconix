@@ -3,11 +3,13 @@
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]
 k=(root/'kernel/kernel.c').read_text()
+v=k
+h=k
 ls=(root/'userland/ls.c').read_text()
 ctl=(root/'userland/pwmctl.c').read_text()
 for name in ('freq','a','b'):
     path=f'/dev/pwm/1/{name}'
-    assert path in k and path in ctl
+    assert path in v and path in ctl
 assert '/dev/pwm/1' in k and 'getdents(fd,&e,sizeof e)' in ls
 assert 'case VDIR_PWM:' in k and 'EMIT("1",1)' in k
 for old in ('/dev/pwm/freq','/dev/pwm/18','/dev/pwm/19'):
