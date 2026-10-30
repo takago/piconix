@@ -98,6 +98,8 @@ def main():
         test_app(tmp, 'watch', 0x20018000)
         test_app(tmp, 'pwd', 0x20018000)
         test_app(tmp, 'ls', 0x20018000)
+        test_app(tmp, 'tree', 0x20018000)
+        test_app(tmp, 'find', 0x20018000)
         test_app(tmp, 'rm', 0x20018000)
         test_app(tmp, 'echo', 0x20018000)
         test_app(tmp, 'kill', 0x20018000)

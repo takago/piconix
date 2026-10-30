@@ -96,8 +96,12 @@ static void ls(const char *path) {
         { if(pin_any_pwm()) entry(path,"freq",0); if(pin_pwm(18)) entry(path,"a",0); if(pin_pwm(19)) entry(path,"b",0); }
     else if(eq(path,"/proc") || eq(path,"/proc/"))
         {entry(path,"uptime",0);entry(path,"ticks",0);entry(path,"interrupts",0);
-         entry(path,"context_switches",0);entry(path,"memory",0);entry(path,"devices",0);
-         entry(path,"tasks",0);entry(path,"task/",1);entry(path,"fb",0);entry(path,"syms",0);}
+         entry(path,"context_switches",0);entry(path,"memory",0);entry(path,"ramfiles",0);entry(path,"devices",0);
+         entry(path,"tasks",0);entry(path,"task/",1);entry(path,"fb",0);entry(path,"sym/",1);}
+    else if(eq(path,"/proc/sym") || eq(path,"/proc/sym/"))
+        {entry(path,"kernel",0);entry(path,"userland/",1);}
+    else if(eq(path,"/proc/sym/userland") || eq(path,"/proc/sym/userland/"))
+        list_stream("/bin");
     else if(eq(path,"/proc/task") || eq(path,"/proc/task/")) {
         /* /proc/tasks is the authoritative live-task list. */
         int fd=open("/proc/tasks",0);

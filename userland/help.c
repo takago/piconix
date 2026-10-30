@@ -9,6 +9,9 @@ int main(int argc, char **argv) {
         puts("\nFiles and shell:");
         puts("  sh         Interactive shell");
         puts("  ls         List files / sizes");
+        puts("  tree       Display directory tree");
+        puts("  find       Search directory entries");
+        puts("  edit       Edit a /tmp file");
         puts("  cat        Read file / standard input");
         puts("  rm         Remove a /tmp file");
         puts("  echo       Print text");
@@ -28,6 +31,7 @@ int main(int argc, char **argv) {
         puts("  trace      Trace system calls");
         puts("  watch      Repeat a command");
         puts("  hexdump    Hex and ASCII dump");
+        puts("  mem        Live memory viewer");
         puts("\nHardware:");
         puts("  gpio       Interactive GPIO editor");
         puts("  pins       Show physical pin layout");
@@ -59,6 +63,10 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"cat")) puts("cat: Read file / standard input\nusage: cat [file]  (shell: cat > file)");
     else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command\nusage: watch [seconds] command [args...]");
     else if(!strcmp(argv[1],"pwd")) puts("pwd: Print working directory\nusage: pwd");
+    else if(!strcmp(argv[1],"tree")) puts("tree: Display directory tree\nusage: tree [-L 0..8] [path]");
+    else if(!strcmp(argv[1],"find")) puts("find: Search directory entries\nusage: find [path] [-name pattern]");
+    else if(!strcmp(argv[1],"edit")) puts("edit: Edit a /tmp file\nusage: edit [path]");
+    else if(!strcmp(argv[1],"mem")) puts("mem: Live memory viewer\nusage: mem [address] | mem -s [app]\ninteractive: arrows, PgUp/PgDn, g goto, q quit");
     else if(!strcmp(argv[1],"ls")) puts("ls: List files / sizes\nusage: ls [-l] [path]");
     else if(!strcmp(argv[1],"rm")) puts("rm: Remove a /tmp file\nusage: rm path");
     else if(!strcmp(argv[1],"echo")) puts("echo: Print text\nusage: echo [-n] [-e] [text...]\n-e: interpret \\n, \\r, \\t, \\\\, \\033 (octal), \\x1b (hex)\n-n: omit trailing newline");

@@ -30,7 +30,7 @@ endif()
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
   set(APP_ORIGIN 0x20018000)

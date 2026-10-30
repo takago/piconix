@@ -9,7 +9,7 @@
 #define ROWS 16
 #define BYTES_PER_ROW 16
 #define COUNT (ROWS*BYTES_PER_ROW)
-#define SYMBOL_NAME_MAX 96
+#define SYMBOL_NAME_MAX 128
 static unsigned char previous[COUNT],current[COUNT];
 static char labels[ROWS][SYMBOL_NAME_MAX];
 static char symbol_app[96];
@@ -25,7 +25,7 @@ static const char *region(unsigned addr){
 }
 /* Catalog records: application<TAB>hex_offset<TAB>type<TAB>name<LF>.
    Each application is linked at 0x20018000; offsets are slot-relative.
-   Read through /proc/syms, never dereference an ELF symbol table. */
+   Read through /proc/sym, never dereference an ELF symbol table. */
 static int symbol_record(char *line,char **app,unsigned *offset,char *kind,char **name){
  char *a=strchr(line,'\t');if(!a)return 0;*a++=0;
  char *b=strchr(a,'\t');if(!b)return 0;*b++=0;
@@ -41,7 +41,12 @@ static int symbol_record(char *line,char **app,unsigned *offset,char *kind,char 
 /* Process a catalog as a stream, with fixed-size memory and no malloc.
    Lines larger than the buffer are skipped (including their remainder). */
 static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigned slot_hint){
- int fd=open("/proc/syms",O_RDONLY);
+ char path[128];
+ if(selected) {
+  if(!strcmp(selected,"kernel")) strcpy(path,"/proc/sym/kernel");
+  else snprintf(path,sizeof path,"/proc/sym/userland/%s",selected);
+ } else return -1;
+ int fd=open(path,O_RDONLY);
  if(fd<0)return -1;
  char buf[128];unsigned used=0;int overflow=0,found=0,read_error=0;
  unsigned char chunk[128];int n;
@@ -56,16 +61,7 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
    if(!overflow){
     buf[used]=0;char *app,*name,kind;unsigned offset;
     if(symbol_record(buf,&app,&offset,&kind,&name)){
-     if(list_mode==1){
-      /* Catalog is sorted by app; show each name once. */
-      static char previous_app[32];
-      if(strcmp(previous_app,app)){
-       printf("  %s\n",app);
-       strncpy(previous_app,app,sizeof previous_app-1);
-       previous_app[sizeof previous_app-1]=0;
-       found++;
-      }
-     }else if(selected&&!strcmp(app,selected)){
+     if(selected&&!strcmp(app,selected)){
       found++;
       if(list_mode==2){hex(offset,4);printf("  %c  %s\n",kind,name);}
       else if(!strcmp(app,"kernel")){
@@ -176,6 +172,29 @@ static void append_app(char *list,unsigned cap,const char *name){
  if(used){list[used++]=',';list[used++]=' ';}
  memcpy(list+used,name,len+1);
 }
+/* Label a live /tmp data buffer without assuming the kernel layout. */
+static void refresh_ram_labels(unsigned addr) {
+ int fd=open("/proc/ramfiles",O_RDONLY);
+ if(fd<0)return;
+ char line[80];unsigned used=0;char c;
+ while(read(fd,&c,1)==1){
+  if(c!='\n') {if(used+1<sizeof line)line[used++]=c;continue;}
+  line[used]=0;used=0;
+  if(strlen(line)<10 || line[8]!=' ')continue;
+  unsigned a=0;int ok=1;
+  for(int i=0;i<8;i++){
+   char x=line[i];unsigned d=x>='0'&&x<='9'?(unsigned)(x-'0'):
+      x>='A'&&x<='F'?(unsigned)(x-'A'+10):x>='a'&&x<='f'?(unsigned)(x-'a'+10):16u;
+   if(d>15){ok=0;break;}a=(a<<4)|d;
+  }
+  if(!ok || a<addr || a-addr>=COUNT)continue;
+  unsigned row=(a-addr)/BYTES_PER_ROW;
+  char *dst=labels[row];size_t n=strlen(dst);
+  if(n+2<sizeof labels[row] && n){dst[n++]=',';dst[n++]=' ';dst[n]=0;}
+  snprintf(dst+n,sizeof labels[row]-n,"RAM_FILE: /tmp/%s",line+9);
+ }
+ close(fd);
+}
 static int refresh_labels(unsigned addr){
  char old[ROWS][SYMBOL_NAME_MAX],old_app[sizeof symbol_app];
  memcpy(old,labels,sizeof old);
@@ -205,6 +224,7 @@ static int refresh_labels(unsigned addr){
   int n=scan_symbols(app,addr,0,a);
   if(n>0)symbols_available=1;
  }
+ refresh_ram_labels(addr);
  return memcmp(old,labels,sizeof old)!=0 ||
         strcmp(old_app,symbol_app)!=0 || old_available!=symbols_available;
 }
@@ -227,7 +247,7 @@ static void draw(unsigned addr,int pause,int have,int changed){
   }
   printf("| %s\033[K\r\n",labels[r]);
  }
- printf("\033[7mArrows: 16B  PgUp/Dn: 256B  SPACE Pause  q Quit\033[K\033[0m\r\n");
+ printf("\033[7mArrows: 16B  PgUp/Dn: 256B  g Goto  SPACE Pause  q Quit\033[K\033[0m\r\n");
  printf("k Kernel  1..5 Task slots  f Flash   Symbols: %s\033[K",symbol_app[0]?(symbols_available?"loaded":"unavailable"):"none");
 }
 static int parse(const char *s,unsigned *out){char *end;long n=strtol(s,&end,0);if(!*s||*end||n<0||!valid((unsigned)n))return -1;*out=(unsigned)n&~15u;return 0;}
@@ -235,6 +255,19 @@ static int shifted(unsigned addr,int delta,unsigned *next){
  unsigned n=addr+(unsigned)delta;
  if(!valid(n)||!valid(n+COUNT-1))return 0;
  *next=n;return 1;
+}
+static int list_symbol_sources(void){
+ puts("  kernel");
+ int fd=open("/bin",O_RDONLY);
+ if(fd<0)return -1;
+ char c;int at_start=1,count=1,n;
+ while((n=read(fd,&c,1))==1){
+  if(at_start){printf("  ");at_start=0;count++;}
+  putchar(c);
+  if(c=='\n')at_start=1;
+ }
+ close(fd);
+ return n<0?-1:count;
 }
 int main(int argc,char **argv){
  unsigned addr=0x20000000u;
@@ -245,7 +278,7 @@ int main(int argc,char **argv){
    if(!strcmp(argv[2],"kernel"))puts("Symbols: kernel (absolute addresses)");
    else printf("Symbols: /bin/%s (slot-relative offsets)\n",argv[2]);
   }
-  int found=scan_symbols(mode==2?argv[2]:0,0,mode,0);
+  int found=mode==1?list_symbol_sources():scan_symbols(argv[2],0,mode,0);
   if(found<=0){
    puts(found<0?"mem: symbol table unavailable":"mem: no symbols found");
    return 1;
@@ -264,9 +297,28 @@ int main(int argc,char **argv){
  }
  printf("\033[?1049h\033[?25l\033[2J");
  int have=0,pause=0,esc=0,run=1,dirty=1;
+ int goto_mode=0;char goto_buf[12];int goto_len=0;
  int ticks=25,highlighted=0;
  while(run){
   char c;while(read(0,&c,1)==1){
+   if(goto_mode){
+    if(c==27){goto_mode=0;dirty=1;continue;}
+    if(c=='\r'||c=='\n'){
+     if(goto_len){unsigned next;goto_buf[goto_len]=0;
+      char input[14];snprintf(input,sizeof input,"0x%s",goto_buf);
+      if(parse(input,&next)==0 && valid(next+COUNT-1)){
+       addr=next;have=0;dirty=1;
+      }
+     }
+     goto_mode=0;goto_len=0;dirty=1;continue;
+    }
+    if(c==8||c==127){if(goto_len)goto_len--;}
+    else if(((c>='0'&&c<='9')||(c>='a'&&c<='f')||(c>='A'&&c<='F')) && goto_len<8)
+     goto_buf[goto_len++]=c;
+    goto_buf[goto_len]=0;
+    printf("\033[22;1HGoto HEX: %s_  (Enter / Esc)\033[K",goto_buf);
+    continue;
+   }
    if(esc==1){esc=c=='['?2:0;continue;}
    if(esc==2){esc=0;int delta=0;
     if(c=='A')delta=-BYTES_PER_ROW;else if(c=='B')delta=BYTES_PER_ROW;
@@ -276,6 +328,7 @@ int main(int argc,char **argv){
    if(esc==5||esc==6){int delta=esc==5?-COUNT:COUNT;esc=0;if(c=='~'){unsigned next;if(shifted(addr,delta,&next)){addr=next;have=0;dirty=1;}}continue;}
    if(c==27){esc=1;continue;}
    if(c=='q'||c=='Q'||c==3){run=0;break;}
+   if(c=='g'||c=='G'){goto_mode=1;goto_len=0;goto_buf[0]=0;printf("\033[22;1HGoto HEX: _  (Enter / Esc)\033[K");continue;}
    if(c==' '){pause=!pause;dirty=1;}
    if(c=='k'||c=='f'||(c>='1'&&c<='5')){
     addr=c=='k'?0x20000000u:c=='f'?0x10000000u:0x20018000u+(unsigned)(c-'1')*0x8000u;
@@ -288,6 +341,7 @@ int main(int argc,char **argv){
     int labels_changed=refresh_labels(addr);
     if(dirty||changed||highlighted||labels_changed){
      draw(addr,pause,have,changed&&!pause);
+     if(goto_mode)printf("\033[22;1HGoto HEX: %s_  (Enter / Esc)\033[K",goto_buf);
      highlighted=changed&&!pause;
     }
     memcpy(previous,current,COUNT);have=1;

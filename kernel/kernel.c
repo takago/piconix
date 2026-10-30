@@ -649,6 +649,7 @@ enum {
     DEV_PROC_INTERRUPTS = 33,
     DEV_PROC_SWITCHES = 34,
     DEV_PROC_MEMORY = 35,
+    DEV_PROC_RAMFILES = 136,
     DEV_GPIO_DIR_BASE = 36,
     DEV_GPIO_DIR_END = 64,
     DEV_GPIO_PULL_BASE = 65,
@@ -663,7 +664,8 @@ enum {
     DEV_PWM_19 = 127,
     DEV_TMP_LIST = 97,
     DEV_MEM = 98,
-    DEV_SYMS = 119,
+    DEV_SYMS_KERNEL = 135,
+    DEV_SYMS_USER_BASE = 200, /* 200..263: registered user programs */
     DEV_TRACE = 99,
     DEV_BIN_LIST = 120,
     DEV_FB = 128,
@@ -705,6 +707,7 @@ static int free_fd(void) {
 static int proc_device(int dev) {
     return (dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) ||
            dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS || dev==DEV_PROC_FB ||
+           dev==DEV_PROC_RAMFILES ||
            (dev>=DEV_PROC_TASK_BASE && dev<DEV_PROC_TASK_BASE+OS_MAX_TASKS);
 }
 static int tmp_open(const char *p,int flags) {
@@ -799,6 +802,28 @@ static const struct { const char *path; int id; } dev_registry[] = {
     {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
 };
 #define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
+/* Fixed virtual files share one path-to-ID mapping for open and FD display. */
+static const struct { const char *path; int id; } vfs_registry[] = {
+    {"/bin",DEV_BIN_LIST}, {"/tmp",DEV_TMP_LIST},
+    {"/proc/uptime",DEV_PROC_UPTIME}, {"/proc/ticks",DEV_PROC_TICKS},
+    {"/proc/interrupts",DEV_PROC_INTERRUPTS},
+    {"/proc/context_switches",DEV_PROC_SWITCHES},
+    {"/proc/memory",DEV_PROC_MEMORY}, {"/proc/devices",DEV_PROC_DEVICES},
+    {"/proc/ramfiles",DEV_PROC_RAMFILES},
+    {"/proc/tasks",DEV_PROC_TASKS}, {"/proc/fb",DEV_PROC_FB},
+    {"/proc/sym/kernel",DEV_SYMS_KERNEL},
+    {"/dev/pwm/1/freq",DEV_PWM_FREQ}, {"/dev/pwm/1/a",DEV_PWM_18},
+    {"/dev/pwm/1/b",DEV_PWM_19}, {"/dev/adc/temp",DEV_ADC_END}
+};
+#define VFS_REGISTRY_COUNT (sizeof(vfs_registry)/sizeof(vfs_registry[0]))
+static int fixed_path_id(const char *path) {
+    for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
+        if(path_match(path,dev_registry[i].path)) return dev_registry[i].id;
+    for(unsigned i=0;i<VFS_REGISTRY_COUNT;i++)
+        if(path_match(path,vfs_registry[i].path)) return vfs_registry[i].id;
+    return -1;
+}
+
 /* Resolve paths relative to each task, keeping device handlers absolute-only. */
 static int absolute_path(const char *input, char out[128]) {
     char combined[256]; unsigned n=0, o=1;
@@ -831,40 +856,23 @@ static int valid_directory(const char *path) {
     return !strcmp(path,"/") || !strcmp(path,"/bin") || !strcmp(path,"/tmp") ||
            !strcmp(path,"/dev") || !strcmp(path,"/dev/gpio") ||
            !strcmp(path,"/dev/adc") || !strcmp(path,"/dev/pwm") ||
-           (pin_any_pwm() && !strcmp(path,"/dev/pwm/1")) || !strcmp(path,"/proc") || !strcmp(path,"/proc/task");
+           (pin_any_pwm() && !strcmp(path,"/dev/pwm/1")) || !strcmp(path,"/proc") || !strcmp(path,"/proc/task") ||
+           !strcmp(path,"/proc/sym") || !strcmp(path,"/proc/sym/userland");
 }
-static int device_open(const char *p, int flags) {
+/* Minimal VFS dispatch: keep the established FD IDs and backends. */
+static int vfs_open(const char *p, int flags) {
     if(flags<0 || (flags & ~(OS_O_WRONLY | OS_O_RDWR | OS_O_NONBLOCK | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) != 0 || (flags & 3)==3) return OS_EINVAL;
-    if(path_match(p,"/bin")) {
+    if(path_match(p,"/bin") || path_match(p,"/tmp")) {
         if(flags!=OS_O_RDONLY) return OS_EINVAL;
         int fd=free_fd();
         if(fd<0) return OS_EMFILE;
-        fd_set(&tasks[current],fd,DEV_BIN_LIST,0,0,0);
+        fd_set(&tasks[current],fd,path_match(p,"/bin")?DEV_BIN_LIST:DEV_TMP_LIST,0,0,0);
         return fd;
     }
-    if(path_match(p,"/tmp")) {
-        if(flags!=OS_O_RDONLY) return OS_EINVAL;
-        int fd=free_fd();
-        if(fd<0) return OS_EMFILE;
-        fd_set(&tasks[current],fd,DEV_TMP_LIST,0,0,0);
-        return fd;
-    }
-    if(!strncmp(p,"/tmp/",5))
-        return tmp_open(p,flags);
+    if(!strncmp(p,"/tmp/",5)) return tmp_open(p,flags);
     if(flags & (OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) return OS_EINVAL;
-    int dev=-1;
-    for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
-        if(path_match(p,dev_registry[i].path)) { dev=dev_registry[i].id; break; }
-    if(dev<0 && path_match(p,"/proc/uptime")) dev=DEV_PROC_UPTIME;
-    else if(dev<0 && path_match(p,"/proc/ticks")) dev=DEV_PROC_TICKS;
-    else if(dev<0 && path_match(p,"/proc/interrupts")) dev=DEV_PROC_INTERRUPTS;
-    else if(dev<0 && path_match(p,"/proc/context_switches")) dev=DEV_PROC_SWITCHES;
-    else if(dev<0 && path_match(p,"/proc/memory")) dev=DEV_PROC_MEMORY;
-    else if(dev<0 && path_match(p,"/proc/devices")) dev=DEV_PROC_DEVICES;
-    else if(dev<0 && path_match(p,"/proc/tasks")) dev=DEV_PROC_TASKS;
-    else if(dev<0 && path_match(p,"/proc/fb")) dev=DEV_PROC_FB;
-    else if(dev<0 && path_match(p,"/proc/syms")) dev=DEV_SYMS;
-    else if(dev<0 && !strncmp(p,"/proc/task/",11)) {
+    int dev=fixed_path_id(p);
+    if(dev<0 && !strncmp(p,"/proc/task/",11)) {
         const char *q=p+11;
         unsigned pid=0;
         if(*q) {
@@ -875,6 +883,16 @@ static int device_open(const char *p, int flags) {
                     if(tasks[i].state!=UNUSED && tasks[i].state!=DEAD &&
                        tasks[i].pid==(int)pid) {dev=DEV_PROC_TASK_BASE+i;break;}
         }
+    }
+    if(dev<0 && !strncmp(p,"/proc/sym/userland/",19)) {
+        const char *name=p+19;
+        if(*name && !strchr(name,'/'))
+            for(int id=1;id<PROGRAM_CAPACITY;id++)
+                if(programs[id].entry && programs[id].name &&
+                   !strcmp(name,programs[id].name)) {
+                    dev=DEV_SYMS_USER_BASE+id;
+                    break;
+                }
     }
     if(dev<0) {
         // Avoid unbounded parsing of an invalid pointer.
@@ -890,12 +908,13 @@ static int device_open(const char *p, int flags) {
     }
     if(dev<0 && !strncmp(p,"/dev/adc/",9) && p[9]>='0' && p[9]<='2' && p[10]==0 && pin_adc((unsigned)(p[9]-'0')))
         dev=DEV_ADC_BASE+(p[9]-'0');
-    if(dev<0 && !strcmp(p,"/dev/adc/temp")) dev=DEV_ADC_END;
-    if(dev<0 && pin_any_pwm() && !strcmp(p,"/dev/pwm/1/freq")) dev=DEV_PWM_FREQ;
-    if(dev<0 && pin_pwm(18) && !strcmp(p,"/dev/pwm/1/a")) dev=DEV_PWM_18;
-    if(dev<0 && pin_pwm(19) && !strcmp(p,"/dev/pwm/1/b")) dev=DEV_PWM_19;
+    /* Fixed PWM paths remain conditional on their configured pins. */
+    if((dev==DEV_PWM_FREQ && !pin_any_pwm()) ||
+       (dev==DEV_PWM_18 && !pin_pwm(18)) ||
+       (dev==DEV_PWM_19 && !pin_pwm(19))) dev=-1;
     if(dev<0 || (((dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) ||
-                   proc_device(dev) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_SYMS || dev==DEV_TRACE) &&
+                   proc_device(dev) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_SYMS_KERNEL ||
+                   (dev>DEV_SYMS_USER_BASE && dev<DEV_SYMS_USER_BASE+PROGRAM_CAPACITY) || dev==DEV_TRACE) &&
                   (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
     if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE) return OS_EINVAL;
     int fd=free_fd();
@@ -994,22 +1013,12 @@ static const char *fd_path(int dev, int task_pid, char *buf, size_t size) {
         snprintf(buf,size,"/proc/task/%d",task_pid);
         return buf;
     }
-    switch(dev) {
-    case DEV_BIN_LIST: return "/bin";
-    case DEV_TMP_LIST: return "/tmp";
-    case DEV_PROC_UPTIME: return "/proc/uptime";
-    case DEV_PROC_TICKS: return "/proc/ticks";
-    case DEV_PROC_INTERRUPTS: return "/proc/interrupts";
-    case DEV_PROC_SWITCHES: return "/proc/context_switches";
-    case DEV_PROC_MEMORY: return "/proc/memory";
-    case DEV_PROC_DEVICES: return "/proc/devices";
-    case DEV_PROC_TASKS: return "/proc/tasks";
-    case DEV_PROC_FB: return "/proc/fb";
-    case DEV_SYMS: return "/proc/syms";
-    case DEV_PWM_FREQ: return "/dev/pwm/1/freq";
-    case DEV_PWM_18: return "/dev/pwm/1/a";
-    case DEV_PWM_19: return "/dev/pwm/1/b";
-    case DEV_ADC_END: return "/dev/adc/temp";
+    for(unsigned i=0;i<VFS_REGISTRY_COUNT;i++)
+        if(vfs_registry[i].id==dev) return vfs_registry[i].path;
+    if(dev>DEV_SYMS_USER_BASE && dev<DEV_SYMS_USER_BASE+PROGRAM_CAPACITY &&
+       programs[dev-DEV_SYMS_USER_BASE].name) {
+        snprintf(buf,size,"/proc/sym/userland/%s",programs[dev-DEV_SYMS_USER_BASE].name);
+        return buf;
     }
     if(dev>=DEV_GPIO_VALUE_BASE && dev<=DEV_GPIO_VALUE_END)
         snprintf(buf,size,"/dev/gpio/%d",dev-DEV_GPIO_VALUE_BASE);
@@ -1070,9 +1079,31 @@ static int proc_task_read(int fd, int slot, void *dst, size_t n) {
 #undef PROC_LINE
     return (int)done;
 }
+/* Live /tmp data-region addresses, exposed for the mem viewer.  This is
+ * metadata only; the contents remain accessible through /dev/mem. */
+static int proc_ramfiles_read(int fd, void *p, size_t n) {
+    size_t pos=tasks[current].fd_pos[fd], done=0, skip=0;
+    for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) {
+        char line[80];
+        int len=snprintf(line,sizeof line,"%08lX %s\n",
+                         (unsigned long)(uintptr_t)tmp_files[i].data,
+                         tmp_files[i].name);
+        if(len<=0 || (size_t)len>=sizeof line) return OS_EINVAL;
+        if(pos>=skip+(size_t)len) {skip+=(size_t)len;continue;}
+        size_t off=pos>skip?pos-skip:0;
+        size_t count=(size_t)len-off;
+        if(count>n-done)count=n-done;
+        memcpy((char*)p+done,line+off,count);
+        done+=count;pos+=count;skip+=(size_t)len;
+        if(done==n)break;
+    }
+    tasks[current].fd_pos[fd]+=(uint32_t)done;
+    return (int)done;
+}
 static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     if(writing) return OS_EBADF;
     if(dev==DEV_PROC_TASKS) return proc_tasks_read(fd,p,n);
+    if(dev==DEV_PROC_RAMFILES) return proc_ramfiles_read(fd,p,n);
     if(dev==DEV_PROC_FB) return proc_fb_read(fd,p,n);
     if(dev>=DEV_PROC_TASK_BASE && dev<DEV_PROC_TASK_BASE+OS_MAX_TASKS)
         return proc_task_read(fd,dev-DEV_PROC_TASK_BASE,p,n);
@@ -1086,7 +1117,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     restore_interrupts(irq_state);
     char text[160]; int len=0;
     if(dev==DEV_PROC_DEVICES) {
-        /* Enumerate the same registry used by device_open(). */
+        /* Enumerate the same registry used by vfs_open(). */
         for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++) {
             const char *name=dev_registry[i].path+5; /* skip /dev/ */
             int written=snprintf(text+len,sizeof(text)-(size_t)len,"%s\n",name);
@@ -1230,7 +1261,7 @@ static int device_rw_adc(int fd, int dev, void *p, size_t n, int writing) {
 }
 extern const unsigned char piconix_symbols_start[], piconix_symbols_end[];
 extern const unsigned char piconix_kernel_syms_start[], piconix_kernel_syms_end[];
-static int device_rw(int fd, void *p, size_t n, int writing) {
+static int vfs_rw(int fd, void *p, size_t n, int writing) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
     if(n>0 && !in_task_range(p,n)) return OS_EINVAL;
     int dev=tasks[current].fd[fd];
@@ -1255,29 +1286,47 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
         restore_interrupts(irq);
         return (int)(count*sizeof(trace_event_t));
     }
-    if(dev==DEV_SYMS) {
+    if(dev==DEV_SYMS_KERNEL ||
+       (dev>DEV_SYMS_USER_BASE && dev<DEV_SYMS_USER_BASE+PROGRAM_CAPACITY)) {
         if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;
         uint32_t pos=tasks[current].fd_pos[fd];
-        size_t user_length=(size_t)(piconix_symbols_end-piconix_symbols_start);
-        size_t reserved=(size_t)(piconix_kernel_syms_end-piconix_kernel_syms_start);
-        uint32_t kernel_length=0;
-        if(reserved>=4u) memcpy(&kernel_length,piconix_kernel_syms_start,4u);
-        /* Fail closed if the embedded catalog is missing or damaged. */
-        if(kernel_length>reserved-4u) kernel_length=0;
-        size_t length=user_length+(size_t)kernel_length;
-        if(pos>=length) return 0;
-        if(n>length-pos) n=length-pos;
-        size_t copied=0;
-        if(pos<user_length){
-            copied=user_length-pos;
-            if(copied>n) copied=n;
-            memcpy(p,piconix_symbols_start+pos,copied);
+        const unsigned char *start, *end;
+        if(dev==DEV_SYMS_KERNEL) {
+            size_t reserved=(size_t)(piconix_kernel_syms_end-piconix_kernel_syms_start);
+            uint32_t length=0;
+            if(reserved>=4u) memcpy(&length,piconix_kernel_syms_start,4u);
+            if(length>reserved-4u) length=0;
+            start=piconix_kernel_syms_start+4u;
+            end=start+length;
+            if(pos>=(size_t)(end-start)) return 0;
+            if(n>(size_t)(end-start)-pos) n=(size_t)(end-start)-pos;
+            memcpy(p,start+pos,n);
+            tasks[current].fd_pos[fd]=pos+(uint32_t)n;
+            return (int)n;
         }
-        if(copied<n)
-            memcpy((uint8_t *)p+copied,piconix_kernel_syms_start+4u+
-                   (pos+copied-user_length),n-copied);
-        tasks[current].fd_pos[fd]=pos+(uint32_t)n;
-        return (int)n;
+        /* Stream only the requested program's catalog records, without RAM copies. */
+        const char *name=programs[dev-DEV_SYMS_USER_BASE].name;
+        if(!name) return OS_ENOENT;
+        size_t name_len=strlen(name), skip=pos, done=0;
+        start=piconix_symbols_start; end=piconix_symbols_end;
+        while(start<end && done<n) {
+            const unsigned char *line=start;
+            while(start<end && *start!='\n') start++;
+            if(start<end) start++;
+            size_t len=(size_t)(start-line);
+            if(len>name_len && !memcmp(line,name,name_len) && line[name_len]=='\t') {
+                if(skip>=len) skip-=len;
+                else {
+                    size_t count=len-skip;
+                    if(count>n-done) count=n-done;
+                    memcpy((unsigned char *)p+done,line+skip,count);
+                    done+=count;
+                    skip=0;
+                }
+            }
+        }
+        tasks[current].fd_pos[fd]=pos+(uint32_t)done;
+        return (int)done;
     }
     if(dev==DEV_MEM) {
         if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;
@@ -1572,13 +1621,13 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         case SYS_OPEN: {
             char path[128];
-            result=absolute_path((const char *)(uintptr_t)a,path)<0 ? OS_EINVAL : device_open(path,b);
+            result=absolute_path((const char *)(uintptr_t)a,path)<0 ? OS_EINVAL : vfs_open(path,b);
             break;
         }
         case SYS_CLOSE: if(a<3 || a>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
             else {fd_set(&tasks[current],a,-1,0,0,0); result=0;} break;
-        case SYS_READ: result=device_rw(a,(void *)(uintptr_t)b,(size_t)c,0); break;
-        case SYS_WRITE: result=device_rw(a,(void *)(uintptr_t)b,(size_t)c,1); break;
+        case SYS_READ: result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,0); break;
+        case SYS_WRITE: result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,1); break;
         case SYS_IOCTL: result=device_ioctl(a,b,c); break;
         case SYS_FCNTL:
             if(a<0 || a>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
