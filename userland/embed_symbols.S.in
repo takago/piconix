@@ -1,0 +1,10 @@
+/* Generated userland symbols: read-only catalog in firmware Flash. */
+.section .rodata.piconix_symbols,"a",%progbits
+.balign 4
+.global piconix_symbols_start
+.global piconix_symbols_end
+piconix_symbols_start:
+.incbin "@PICONIX_SYMBOL_FILE@"
+piconix_symbols_end:
+.balign 4
+.section .note.GNU-stack,"",%progbits

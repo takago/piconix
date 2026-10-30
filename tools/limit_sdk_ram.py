@@ -28,12 +28,14 @@ def transform(source):
     if 'AT> FLASH' not in source and 'AT > FLASH' not in source:
         raise ValueError('expected SDK RAM copy sections loaded from FLASH')
     m = matches[0]
-    section = (m['indent'] + '/* User application binaries are stored in XIP flash only. */\n'
+    section = (m['indent'] + '/* User application binaries and symbols are stored in XIP flash only. */\n'
                + m['indent'] + '.piconix_app_images :\n'
                + m['indent'] + '{\n'
                + m['indent'] + '    . = ALIGN(4);\n'
                + m['indent'] + '    __piconix_app_images_start = .;\n'
                + m['indent'] + '    KEEP(*(.piconix_app_image*))\n'
+               + m['indent'] + '    KEEP(*(.rodata.piconix_symbols))\n'
+               + m['indent'] + '    KEEP(*(.rodata.piconix_kernel_symbols))\n'
                + m['indent'] + '    . = ALIGN(4);\n'
                + m['indent'] + '    __piconix_app_images_end = .;\n'
                + m['indent'] + '} > FLASH\n\n')

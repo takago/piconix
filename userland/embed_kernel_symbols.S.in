@@ -1,0 +1,9 @@
+.section .rodata.piconix_kernel_symbols,"a",%progbits
+.balign 4
+.global piconix_kernel_syms_start
+.global piconix_kernel_syms_end
+piconix_kernel_syms_start:
+.incbin "@PICONIX_KERNEL_SYMBOL_FILE@"
+piconix_kernel_syms_end:
+.balign 4
+.section .note.GNU-stack,"",%progbits

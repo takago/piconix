@@ -97,7 +97,7 @@ static void ls(const char *path) {
     else if(eq(path,"/proc") || eq(path,"/proc/"))
         {entry(path,"uptime",0);entry(path,"ticks",0);entry(path,"interrupts",0);
          entry(path,"context_switches",0);entry(path,"memory",0);entry(path,"devices",0);
-         entry(path,"tasks",0);entry(path,"task/",1);entry(path,"fb",0);}
+         entry(path,"tasks",0);entry(path,"task/",1);entry(path,"fb",0);entry(path,"syms",0);}
     else if(eq(path,"/proc/task") || eq(path,"/proc/task/")) {
         /* /proc/tasks is the authoritative live-task list. */
         int fd=open("/proc/tasks",0);

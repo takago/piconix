@@ -19,6 +19,19 @@ for arg in "$@"; do
 done
 cmake -S . -B build -DPICO_BOARD=pico -DPICONIX_KERNEL_RAM=ON -DCMAKE_BUILD_TYPE=MinSizeRel "${cmake_args[@]}"
 cmake --build build -j "$(nproc)"
+# Resolve kernel ELF symbols after link. The embedded section has constant size,
+# so the second link does not move code or data. Verify against the final ELF.
+# The SDK toolchain may be selected with PICO_TOOLCHAIN_PATH instead of PATH.
+NM=arm-none-eabi-nm
+if [[ -n "${PICO_TOOLCHAIN_PATH:-}" && -x "$PICO_TOOLCHAIN_PATH/bin/arm-none-eabi-nm" ]]; then
+    NM="$PICO_TOOLCHAIN_PATH/bin/arm-none-eabi-nm"
+fi
+python3 tools/make_kernel_symbols.py --nm "$NM" --elf build/piconix.elf \
+  --output build/piconix_kernel_symbols.bin
+cmake --build build -j "$(nproc)"
+python3 tools/make_kernel_symbols.py --nm "$NM" --elf build/piconix.elf \
+  --output build/piconix_kernel_symbols.bin --verify-only
+
 
 # Flash only an already mounted Pico in BOOTSEL mode.
 if (( flash )); then

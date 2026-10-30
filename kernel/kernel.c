@@ -663,6 +663,7 @@ enum {
     DEV_PWM_19 = 127,
     DEV_TMP_LIST = 97,
     DEV_MEM = 98,
+    DEV_SYMS = 119,
     DEV_TRACE = 99,
     DEV_BIN_LIST = 120,
     DEV_FB = 128,
@@ -862,6 +863,7 @@ static int device_open(const char *p, int flags) {
     else if(dev<0 && path_match(p,"/proc/devices")) dev=DEV_PROC_DEVICES;
     else if(dev<0 && path_match(p,"/proc/tasks")) dev=DEV_PROC_TASKS;
     else if(dev<0 && path_match(p,"/proc/fb")) dev=DEV_PROC_FB;
+    else if(dev<0 && path_match(p,"/proc/syms")) dev=DEV_SYMS;
     else if(dev<0 && !strncmp(p,"/proc/task/",11)) {
         const char *q=p+11;
         unsigned pid=0;
@@ -893,7 +895,7 @@ static int device_open(const char *p, int flags) {
     if(dev<0 && pin_pwm(18) && !strcmp(p,"/dev/pwm/1/a")) dev=DEV_PWM_18;
     if(dev<0 && pin_pwm(19) && !strcmp(p,"/dev/pwm/1/b")) dev=DEV_PWM_19;
     if(dev<0 || (((dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) ||
-                   proc_device(dev) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_TRACE) &&
+                   proc_device(dev) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_SYMS || dev==DEV_TRACE) &&
                   (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
     if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE) return OS_EINVAL;
     int fd=free_fd();
@@ -1003,6 +1005,7 @@ static const char *fd_path(int dev, int task_pid, char *buf, size_t size) {
     case DEV_PROC_DEVICES: return "/proc/devices";
     case DEV_PROC_TASKS: return "/proc/tasks";
     case DEV_PROC_FB: return "/proc/fb";
+    case DEV_SYMS: return "/proc/syms";
     case DEV_PWM_FREQ: return "/dev/pwm/1/freq";
     case DEV_PWM_18: return "/dev/pwm/1/a";
     case DEV_PWM_19: return "/dev/pwm/1/b";
@@ -1225,6 +1228,8 @@ static int device_rw_adc(int fd, int dev, void *p, size_t n, int writing) {
     tasks[current].fd_pos[fd]=(uint32_t)(pos+count);
     return (int)count;
 }
+extern const unsigned char piconix_symbols_start[], piconix_symbols_end[];
+extern const unsigned char piconix_kernel_syms_start[], piconix_kernel_syms_end[];
 static int device_rw(int fd, void *p, size_t n, int writing) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
     if(n>0 && !in_task_range(p,n)) return OS_EINVAL;
@@ -1249,6 +1254,30 @@ static int device_rw(int fd, void *p, size_t n, int writing) {
         tasks[current].fd_pos[fd]=pos+count;
         restore_interrupts(irq);
         return (int)(count*sizeof(trace_event_t));
+    }
+    if(dev==DEV_SYMS) {
+        if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;
+        uint32_t pos=tasks[current].fd_pos[fd];
+        size_t user_length=(size_t)(piconix_symbols_end-piconix_symbols_start);
+        size_t reserved=(size_t)(piconix_kernel_syms_end-piconix_kernel_syms_start);
+        uint32_t kernel_length=0;
+        if(reserved>=4u) memcpy(&kernel_length,piconix_kernel_syms_start,4u);
+        /* Fail closed if the embedded catalog is missing or damaged. */
+        if(kernel_length>reserved-4u) kernel_length=0;
+        size_t length=user_length+(size_t)kernel_length;
+        if(pos>=length) return 0;
+        if(n>length-pos) n=length-pos;
+        size_t copied=0;
+        if(pos<user_length){
+            copied=user_length-pos;
+            if(copied>n) copied=n;
+            memcpy(p,piconix_symbols_start+pos,copied);
+        }
+        if(copied<n)
+            memcpy((uint8_t *)p+copied,piconix_kernel_syms_start+4u+
+                   (pos+copied-user_length),n-copied);
+        tasks[current].fd_pos[fd]=pos+(uint32_t)n;
+        return (int)n;
     }
     if(dev==DEV_MEM) {
         if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;

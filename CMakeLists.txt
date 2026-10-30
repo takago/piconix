@@ -28,6 +28,8 @@ if(NOT CMAKE_READELF)
 endif()
 # Freestanding slot-linked images. All user program images are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
+set(PICONIX_SYMBOL_ELFS "")
+set(PICONIX_SYMBOL_BINS "")
 foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
@@ -106,7 +108,37 @@ foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello 
                  "${APP_DIR}/embed_image.S" @ONLY)
   set_source_files_properties("${APP_DIR}/embed_image.S" PROPERTIES OBJECT_DEPENDS "${APP_BIN}")
   list(APPEND PICONIX_EMBED_SOURCES "${APP_DIR}/embed_image.S")
+  list(APPEND PICONIX_SYMBOL_ELFS "${APP_ELF}")
+  list(APPEND PICONIX_SYMBOL_BINS "${APP_BIN}")
 endforeach()
+# Generate a Flash-resident symbol catalog from linked RAM app ELF files.
+set(PICONIX_SYMBOL_FILE "${CMAKE_CURRENT_BINARY_DIR}/piconix_symbols.txt")
+add_custom_command(OUTPUT "${PICONIX_SYMBOL_FILE}"
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/make_symbols.py"
+          --nm "${CMAKE_NM}" --output "${PICONIX_SYMBOL_FILE}"
+          ${PICONIX_SYMBOL_ELFS}
+  DEPENDS ${PICONIX_SYMBOL_BINS} "${CMAKE_CURRENT_LIST_DIR}/tools/make_symbols.py"
+  VERBATIM)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/embed_symbols.S.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/embed_symbols.S" @ONLY)
+set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_symbols.S"
+  PROPERTIES OBJECT_DEPENDS "${PICONIX_SYMBOL_FILE}")
+list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_symbols.S")
+
+# Fixed-size Flash reservation for kernel symbols. A post-link pass fills it
+# without shifting kernel code/data addresses.
+set(PICONIX_KERNEL_SYMBOL_FILE "${CMAKE_CURRENT_BINARY_DIR}/piconix_kernel_symbols.bin")
+if(NOT EXISTS "${PICONIX_KERNEL_SYMBOL_FILE}")
+  file(WRITE "${PICONIX_KERNEL_SYMBOL_FILE}" "")
+  execute_process(COMMAND "${Python3_EXECUTABLE}" -c
+    "import pathlib,struct;pathlib.Path(r'${PICONIX_KERNEL_SYMBOL_FILE}').write_bytes(bytes(32768))")
+endif()
+configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/embed_kernel_symbols.S.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S" @ONLY)
+set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S"
+  PROPERTIES OBJECT_DEPENDS "${PICONIX_KERNEL_SYMBOL_FILE}")
+list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S")
+
 # Stage 17: experimental *real* SDK RAM execution path.
 # Pico SDK's copy_to_ram boot path retains the SDK boot2 and startup support.
 # We generate a copy of the SDK script with RAM restricted to 96 KiB.
