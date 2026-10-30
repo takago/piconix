@@ -19,7 +19,7 @@ stty cooked
 - `echo` / `-echo`：入力文字のエコーを有効 / 無効にします．
 - `raw` は `-icanon -echo`，`cooked` は `icanon echo` の簡易指定です．POSIXの完全なraw/cooked設定ではありません．
 
-Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_SET_CANON`，`OS_TTY_SET_ECHO` を使います．`stty` は `OS_TTY_PERSIST` によりコマンド終了後も設定を維持します．通常はアプリ内だけで設定を一時変更し，終了時に復元する方が安全です．`VMIN` / `VTIME` には対応していません．
+Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_SET_CANON`，`OS_TTY_SET_ECHO` を使います．`stty` は `OS_TTY_PERSIST` によりコマンド終了後も設定を維持します．フォアグラウンドで起動されたアプリでは，カーネルが実行前のTTY設定を保存し，終了時（Ctrl+Cやkillを含む）に復元します．`edit`，`mem`，`gpio`，`mb`，`pong`，`fbed` は通常終了時のTTY設定復元をカーネルに任せます．起動途中の設定失敗時にはアプリも復旧を試みます．`VMIN` / `VTIME` には対応していません．
 
 ## FDごとのノンブロッキング：`fcntl()`
 
@@ -31,7 +31,7 @@ Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_
 mb
 ```
 
-SPACEでジャンプ，`q`で終了します．`mb` は標準入力を文字単位・非エコー・非ブロッキングに切り替え，`read()` と `msleep()` で入力と画面更新を扱います．通常終了時に保存した端末設定とFDフラグを復元します．
+SPACEでジャンプ，`q`で終了します．`mb` は標準入力を文字単位・非エコー・非ブロッキングに切り替え，`read()` と `msleep()` で入力と画面更新を扱います．終了時にFDフラグを戻し，TTY設定の復元はカーネルに任せます．
 
 ## `reset`（端末表示の初期化）
 
@@ -43,7 +43,7 @@ reset
 
 ## 注意点と関連資料
 
-端末モードは端末側で共有されます．非標準設定のままシェルに戻ると入力が難しくなるため，対話型アプリでは終了時の復元を徹底してください．端末の所属，`getty`，Ctrl+C／Ctrl+D，USB CDCとUART1の相違は[UART1と端末](UART.md)を参照してください．
+端末モードは端末側で共有されます．フォアグラウンドアプリのTTY設定はカーネルが終了時に復元します．スクリーン制御（カーソル表示，代替画面，文字属性）はTTY設定とは別で，アプリが通常終了時に復元します．異常時に表示が乱れた場合は `reset` を利用します．端末の所属，`getty`，Ctrl+C／Ctrl+D，USB CDCとUART1の相違は[UART1と端末](UART.md)を参照してください．
 
 ## TTY出力の改行変換（ONLCR）
 

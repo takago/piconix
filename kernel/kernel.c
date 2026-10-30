@@ -55,9 +55,21 @@ static int tty_shell_pid[2];
 static uint8_t tty_canonical[2]={1,1}, tty_echo[2]={1,1};
 static uint8_t tty_onlcr[2]={1,1}, tty_last_cr[2];
 static int tty_mode_owner[2];
+/* Foreground task gets a temporary TTY mode; restore what its parent had. */
+static int tty_restore_pid[2];
+static uint8_t tty_saved_canon[2], tty_saved_echo[2], tty_saved_onlcr[2];
+static int tty_saved_owner[2];
 /* Temporary exclusive control of an otherwise idle terminal. */
 static int tty_claim_pid[2];
 static void tty_mode_reset(int dev);
+/* TTY line buffers must be declared before finish_task() uses them. */
+#define TTY_LINES 8u
+typedef struct {
+    char line[128]; unsigned len;
+    struct {char text[128];uint8_t len;} lines[TTY_LINES];
+    unsigned head,tail,used,offset;
+} tty_buffer_t;
+static tty_buffer_t tty_buf[2];
 /* Fixed 32-KiB trace ring, 1024 records of 32 bytes. */
 #define TRACE_CAPACITY 1024u
 _Static_assert(sizeof(trace_event_t) == 32, "trace record must be 32 bytes");
@@ -144,8 +156,18 @@ static void finish_task(int slot, int status) {
         if(exited[i].parent_pid==t->pid) exited[i].pid=0;
     t->state=DEAD;
     for(int dev=0;dev<2;dev++) {
-        if(tty_claim_pid[dev]==t->pid) tty_claim_pid[dev]=0;
-        if(tty_mode_owner[dev]==t->pid) tty_mode_reset(dev);
+        if(tty_claim_pid[dev]==t->pid) {
+            tty_claim_pid[dev]=0;
+            tty_mode_reset(dev);
+        } else if(tty_restore_pid[dev]==t->pid) {
+            tty_canonical[dev]=tty_saved_canon[dev];
+            tty_echo[dev]=tty_saved_echo[dev];
+            tty_onlcr[dev]=tty_saved_onlcr[dev];
+            tty_last_cr[dev]=0;
+            tty_mode_owner[dev]=tty_saved_owner[dev];
+            tty_restore_pid[dev]=0;
+            memset(&tty_buf[dev],0,sizeof tty_buf[dev]);
+        } else if(tty_mode_owner[dev]==t->pid) tty_mode_reset(dev);
     }
     if(foreground_pid[t->tty]==t->pid) foreground_pid[t->tty]=0;
     if(tty_shell_pid[t->tty]==t->pid) tty_shell_pid[t->tty]=0;
@@ -192,13 +214,6 @@ int os_register_ram_image(int id, const void *image, size_t size,
 static struct { uint8_t buf[RX_CAP]; volatile uint16_t head, tail; } rx[2];
 /* Keep completed lines separate from the line currently being edited.
  * Stop polling USB when the FIFO fills, allowing USB backpressure. */
-#define TTY_LINES 8u
-typedef struct {
-    char line[128]; unsigned len;
-    struct {char text[128];uint8_t len;} lines[TTY_LINES];
-    unsigned head,tail,used,offset;
-} tty_buffer_t;
-static tty_buffer_t tty_buf[2];
 static void tty_mode_reset(int dev) {
     tty_canonical[dev]=tty_echo[dev]=tty_onlcr[dev]=1;
     tty_last_cr[dev]=0;
@@ -314,7 +329,7 @@ static void tty_input_char(int dev,uint8_t c) {
         return;
     }
     if(c==3){
-        if(!tty_canonical[dev])tty_mode_reset(dev);
+        /* finish_task restores the foreground task's saved TTY mode. */
         memset(t,0,sizeof *t);
         int pid=foreground_pid[dev];
         for(int i=0;i<OS_MAX_TASKS;i++)if(pid && tasks[i].pid==pid){finish_task(i,130);break;}
@@ -415,7 +430,7 @@ void os_init(void) {
 #if !PICONIX_CONSOLE_USB
     console_irq_count=0;
 #endif
-    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); tty_canonical[0]=tty_canonical[1]=1; tty_echo[0]=tty_echo[1]=1; tty_onlcr[0]=tty_onlcr[1]=1; tty_last_cr[0]=tty_last_cr[1]=0; tty_mode_owner[0]=tty_mode_owner[1]=0; tty_claim_pid[0]=tty_claim_pid[1]=0; 
+    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); tty_canonical[0]=tty_canonical[1]=1; tty_echo[0]=tty_echo[1]=1; tty_onlcr[0]=tty_onlcr[1]=1; tty_last_cr[0]=tty_last_cr[1]=0; tty_mode_owner[0]=tty_mode_owner[1]=0; tty_claim_pid[0]=tty_claim_pid[1]=0; tty_restore_pid[0]=tty_restore_pid[1]=0; tty_saved_owner[0]=tty_saved_owner[1]=0; 
     memset(rx, 0, sizeof(rx));
 #if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
@@ -1290,7 +1305,12 @@ static int device_ioctl(int fd,int cmd,int arg) {
             return 0;
         }
         if(tty_owner_pid(tty)!=tasks[current].pid)return OS_EIO;
-        if(cmd==OS_TTY_PERSIST){tty_mode_owner[tty]=0;return 0;}
+        if(cmd==OS_TTY_PERSIST){
+            tty_mode_owner[tty]=0;
+            /* stty/reset intentionally changes the terminal beyond its lifetime. */
+            if(tty_restore_pid[tty]==tasks[current].pid) tty_restore_pid[tty]=0;
+            return 0;
+        }
         if(cmd==OS_TTY_GET_CANON)return tty_canonical[tty];
         if(cmd==OS_TTY_GET_ECHO)return tty_echo[tty];
         if(cmd==OS_TTY_GET_ONLCR)return tty_onlcr[tty];
@@ -1411,6 +1431,13 @@ void os_svc_dispatch(uint32_t *f) {
             result=OS_ESRCH;
             for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==a &&
                 tasks[i].parent_pid==tasks[current].pid && tasks[i].state!=DEAD) {
+                if(foreground_pid[tty]!=a && !tty_restore_pid[tty]) {
+                    tty_saved_canon[tty]=tty_canonical[tty];
+                    tty_saved_echo[tty]=tty_echo[tty];
+                    tty_saved_onlcr[tty]=tty_onlcr[tty];
+                    tty_saved_owner[tty]=tty_mode_owner[tty];
+                    tty_restore_pid[tty]=a;
+                }
                 foreground_pid[tty]=a; result=0; break;
             }
             break;

@@ -28,7 +28,7 @@ if(NOT CMAKE_READELF)
 endif()
 # Freestanding slot-linked images. All user program images are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
   set(APP_ORIGIN 0x20018000)
@@ -65,12 +65,12 @@ foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello 
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
-            -I "${CMAKE_CURRENT_LIST_DIR}/ram_apps"
+            -I "${CMAKE_CURRENT_LIST_DIR}/userland"
             -c "${CMAKE_CURRENT_LIST_DIR}/userland/syscalls.c" -o "${SYSCALLS_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
-            -I "${CMAKE_CURRENT_LIST_DIR}/ram_apps"
+            -I "${CMAKE_CURRENT_LIST_DIR}/userland"
             -c "${CMAKE_CURRENT_LIST_DIR}/userland/libc.c" -o "${LIBC_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -nostdlib
             -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD}"

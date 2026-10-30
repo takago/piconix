@@ -52,8 +52,7 @@ int main(void) {
         if(dirty && write(fb,pixels,8)!=8){puts("fbed: write failed");break;}
         if(refresh)draw(pixels,pos);
     }
-    printf("\033[?25h\033[?1049l");
-    ioctl(0,OS_TTY_SET_ECHO,echo);ioctl(0,OS_TTY_SET_CANON,canon);
+    printf("\033[0m\033[?1049l\033[?25h");
     close(fb);
     return 0;
 }

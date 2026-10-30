@@ -101,10 +101,8 @@ int main(void) {
           }
       } else again=0;
     }
-    printf("\033[?25h\033[?1049l"); /* Restore cursor and original screen. */
+    printf("\033[0m\033[?1049l\033[?25h"); /* Restore cursor and original screen. */
     fcntl(0,F_SETFL,flags);
-    ioctl(0,OS_TTY_SET_ECHO,echo);
-    ioctl(0,OS_TTY_SET_CANON,canon);
     printf("\r\nScore: %d\r\n",score);
     return 0;
 }

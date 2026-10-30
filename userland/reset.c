@@ -10,7 +10,8 @@ int main(void) {
         puts("reset: console terminal required");
         return 1;
     }
-    /* Reset rendition, show cursor, clear screen, and move home. */
-    printf("\033[0m\033[?25h\033[2J\033[H");
+    /* Leave alternate screens, disable alternate scroll, and restore display. */
+    printf("\033[?47l\033[?1047l\033[?1049l\033[?1007l"
+           "\033[r\033[0m\033[?25h\033[2J\033[H");
     return 0;
 }

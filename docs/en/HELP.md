@@ -20,3 +20,8 @@ The list covers all 29 registered RAM commands and shell built-ins (`cd`, `getty
 - `pwmctl`: `status`, `freq HZ`, `a DUTY`, `b DUTY`, `off`.
 - `stty`: `raw`, `cooked`, `icanon`, `echo`, `onlcr` and their supported `-` forms.
 - `kitesys`: Kanazawa Institute of Tech. Embedded System Test Program.
+
+
+### echo -e / -n
+
+`echo -e` interprets `\n`, `\r`, `\t`, `\\`, `\033` (octal), and `\x1b` (hex). `echo -n` suppresses the trailing newline. The shell has limited quoting, but `echo -e '\033[?1049l'` works.

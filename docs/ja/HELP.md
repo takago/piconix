@@ -22,3 +22,8 @@ piconix# help reset
 - `help pwmctl`：`status`，`freq HZ`，`a DUTY`，`b DUTY`，`off`．
 - `help stty`：`raw`／`cooked`，`icanon`，`echo`，`onlcr`と各`-`指定．
 - `kitesys`：Kanazawa Institute of Tech. Embedded System Test Program．
+
+
+### echo -e / -n
+
+`echo -e` は `\n`，`\r`，`\t`，`\\`，`\033`（8進），`\x1b`（16進）を解釈します．`echo -n` は末尾の改行を省略します．シェルの引用符処理は限定的ですが，`echo -e '\033[?1049l'` の形式が使えます．

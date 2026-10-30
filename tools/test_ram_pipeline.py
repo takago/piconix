@@ -102,6 +102,8 @@ def main():
         test_app(tmp, 'echo', 0x20018000)
         test_app(tmp, 'kill', 0x20018000)
         test_app(tmp, 'tty', 0x20018000)
+        test_app(tmp, 'edit', 0x20018000)
+        test_app(tmp, 'mem', 0x20018000)
     print('PASS: All position-independent RAM images have no unresolved references or relocations')
 
 

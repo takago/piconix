@@ -19,7 +19,7 @@ stty cooked
 - `echo` / `-echo` enables / disables input echo.
 - `raw` is shorthand for `-icanon -echo`; `cooked` is shorthand for `icanon echo`. These are not the full POSIX raw/cooked configurations.
 
-C applications can use `ioctl()` with `OS_TTY_GET_CANON`, `OS_TTY_GET_ECHO`, `OS_TTY_SET_CANON`, and `OS_TTY_SET_ECHO`. `stty` calls `OS_TTY_PERSIST` to retain settings after it exits. Interactive applications should generally change settings temporarily and restore them on exit. `VMIN` and `VTIME` are not supported.
+C applications can use `ioctl()` with `OS_TTY_GET_CANON`, `OS_TTY_GET_ECHO`, `OS_TTY_SET_CANON`, and `OS_TTY_SET_ECHO`. `stty` calls `OS_TTY_PERSIST` to retain settings after it exits. For foreground applications, the kernel restores saved TTY settings when the task exits; `edit`, `mem`, `gpio`, `mb`, `pong`, and `fbed` therefore do not restore these settings on normal exit. Applications retain startup-failure rollback. `VMIN` and `VTIME` are not supported.
 
 ## Nonblocking I/O: `fcntl()`
 
@@ -31,7 +31,7 @@ Use `fcntl(fd, F_GETFL, 0)` to read FD flags, and `fcntl(fd, F_SETFL, flags)` to
 mb
 ```
 
-Press SPACE to jump and `q` to quit. `mb` temporarily uses character-based, no-echo, nonblocking input and combines `read()` with `msleep()` for interaction and updates. On normal exit, it restores the saved terminal settings and input FD flags.
+Press SPACE to jump and `q` to quit. `mb` temporarily uses character-based, no-echo, nonblocking input and combines `read()` with `msleep()` for interaction and updates. On normal exit, it restores the input FD flags; the kernel restores the TTY settings.
 
 ## `reset` (restore terminal display)
 
@@ -43,7 +43,7 @@ reset
 
 ## Notes and related guides
 
-Terminal modes are shared by users of a terminal. An interactive application should restore its previous settings so that the shell remains usable. For terminal affiliation, `getty`, Ctrl+C/Ctrl+D, and USB CDC versus UART1, see [UART1 and terminals](UART.md).
+Terminal modes are shared by users of a terminal. For foreground applications, the kernel restores the prior TTY settings so the shell remains usable. Screen control (cursor visibility, alternate screen and character attributes) is separate and remains the responsibility of the application. Use `reset` for exceptional display problems. For terminal affiliation, `getty`, Ctrl+C/Ctrl+D, and USB CDC versus UART1, see [UART1 and terminals](UART.md).
 
 ## TTY output newline conversion (ONLCR)
 
@@ -64,3 +64,7 @@ TAB (`0x09`) is accepted by shell line editing and canonical input and is preser
 ## Ctrl+L in the shell
 
 During shell line editing, Ctrl+L clears the terminal screen using ANSI sequences and redraws the prompt and current input. The line, selected history entry, and cursor position are preserved. Unlike `reset`, this does not change terminal settings.
+
+## Foreground TTY restoration
+
+When a foreground application is selected, the kernel saves that TTY's canonical, echo, and ONLCR settings. It restores them when the application exits, is killed, or is interrupted by Ctrl+C. `stty` and `reset` use `OS_TTY_PERSIST` to keep intentional changes. USB CDC and UART1 are independent. ANSI screen state (cursor visibility, alternate screen, attributes) is managed by the terminal emulator, not by these TTY settings.

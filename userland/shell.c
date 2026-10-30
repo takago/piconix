@@ -180,6 +180,10 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
         set_foreground(pid);
         waitpid(pid,&status,0);
         set_foreground(0);
+        /* Full-screen programs may be killed before restoring the screen. */
+        if(eq(name,"mb") || eq(name,"gpio") || eq(name,"pong") ||
+           eq(name,"fbed") || eq(name,"edit") || eq(name,"mem"))
+            put("\033[?1049l");
     }
     return 1;
 }
@@ -371,7 +375,7 @@ int main(int argc, char *argv[]) {
         "PicoNIX-2026-10-30 (TAKAGO_LAB.)\r\n"
         "Type 'help' for commands.\r\n"
         "--------------------------------------------------------\r\n"
-        "piconix# ");
+        "\033[0m\033[?25h" SHELL_PROMPT);
     for(;;) {
         shell_readline(line);
         /* Reap completed background children (no status display yet). */
@@ -398,6 +402,6 @@ int main(int argc, char *argv[]) {
             put("["); printf("%d", bg_pid);
             put("] "); put(bg_name?bg_name:"program"); put(" started\r\n");
         }
-        put("piconix# ");
+        put("\033[0m\033[?25h" SHELL_PROMPT);
     }
 }

@@ -133,10 +133,8 @@ int main(int argc,char **argv) {
         initial=0;
         msleep(90);
     }
-    message(1,other,"\033[?25h\033[?1049l");
+    message(1,other,"\033[0m\033[?1049l\033[?25h");
     fcntl(0,F_SETFL,flags);
-    ioctl(0,OS_TTY_SET_ECHO,echo);
-    ioctl(0,OS_TTY_SET_CANON,canon);
     if(two){ioctl(other,OS_TTY_RELEASE,0);close(other);}
     printf("\r\nPong finished: %d - %d\r\n",score0,score1);
     return 0;

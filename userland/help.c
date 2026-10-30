@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"pwd")) puts("pwd: Print working directory\nusage: pwd");
     else if(!strcmp(argv[1],"ls")) puts("ls: List files / sizes\nusage: ls [-l] [path]");
     else if(!strcmp(argv[1],"rm")) puts("rm: Remove a /tmp file\nusage: rm path");
-    else if(!strcmp(argv[1],"echo")) puts("echo: Print text\nusage: echo text");
+    else if(!strcmp(argv[1],"echo")) puts("echo: Print text\nusage: echo [-n] [-e] [text...]\n-e: interpret \\n, \\r, \\t, \\\\, \\033 (octal), \\x1b (hex)\n-n: omit trailing newline");
     else if(!strcmp(argv[1],"kill")) puts("kill: Stop a process\nusage: kill PID");
     else if(!strcmp(argv[1],"tty")) puts("tty: Show controlling terminal\nusage: tty");
     else if(!strcmp(argv[1],"kitesys")) puts("kitesys: Kanazawa Institute of Tech. Embedded System Test Program\nusage: kitesys\nFB display, GP16/17 buttons and GP18 PWM");

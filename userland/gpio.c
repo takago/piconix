@@ -147,9 +147,7 @@ int main(void) {
         if(redraw)draw(status_fd,pin);
         msleep(50);
     }
-    printf("\033[?25h\033[?1049l");
+    printf("\033[0m\033[?1049l\033[?25h");
     fcntl(0,F_SETFL,flags);
-    ioctl(0,OS_TTY_SET_ECHO,echo);
-    ioctl(0,OS_TTY_SET_CANON,canon);
     close(status_fd);return 0;
 }
