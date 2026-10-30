@@ -8,8 +8,8 @@ ctl=(root/'userland/pwmctl.c').read_text()
 for name in ('freq','a','b'):
     path=f'/dev/pwm/1/{name}'
     assert path in k and path in ctl
-assert '/dev/pwm/1' in k and '/dev/pwm/1' in ls
-assert 'entry(path,"1/",1)' in ls or 'put("1/\\r\\n")' in ls
+assert '/dev/pwm/1' in k and 'getdents(fd,&e,sizeof e)' in ls
+assert 'case VDIR_PWM:' in k and 'EMIT("1",1)' in k
 for old in ('/dev/pwm/freq','/dev/pwm/18','/dev/pwm/19'):
     for source in root.rglob('*'):
         if source.is_file() and source.suffix in ('.c','.h','.md'):

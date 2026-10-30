@@ -9,7 +9,7 @@ assert 'int spawn(int program, int argc, const char *const argv[]);' in api
 assert 'argc<1 || argc>8' in k
 assert 'unsigned total=0;' in k and 'len<128-total' in k
 assert 'argv[argc]=NULL;' in k and 'char *strings=(char *)(top-192);' in k
-assert 'DEV_BIN_LIST' in k and 'bin_list_read' in k
+assert 'case VDIR_BIN: case VDIR_USERLAND:' in k and 'getdents' in (root/'userland/ls.c').read_text()
 assert 'program_id(name)' in sh and 'run_external(s,cwd,requested_bg' in sh
 assert 'args[argc++]="31"' in sh
 assert 'int count=argc-1;' in (root/'userland/hexdump.c').read_text()

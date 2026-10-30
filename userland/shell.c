@@ -116,21 +116,13 @@ static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
 }
 /* /bin listing is the executable registry; IDs follow the registration order. */
 static int program_id(const char *name) {
-    /* /bin lists registered commands, one per line, in program ID order. */
     int fd=open("/bin",0);
     if(fd<0) return -1;
-    char line[32],buf[64];
-    int used=0,id=1,found=-1,n;
-    while((n=read(fd,buf,sizeof buf))>0) {
-        for(int i=0;i<n;i++) {
-            char c=buf[i];
-            if(c=='\n') {
-                line[used]=0;
-                if(eq(name,line)) {found=id;break;}
-                id++;used=0;
-            } else if(used<(int)sizeof line-1) line[used++]=c;
-        }
-        if(found>=0) break;
+    piconix_dirent_t ent;
+    int id=1,found=-1,n;
+    while((n=getdents(fd,&ent,sizeof ent))>0) {
+        if(eq(name,ent.name)) {found=id;break;}
+        id++;
     }
     close(fd);
     return found;

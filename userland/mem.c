@@ -260,11 +260,9 @@ static int list_symbol_sources(void){
  puts("  kernel");
  int fd=open("/bin",O_RDONLY);
  if(fd<0)return -1;
- char c;int at_start=1,count=1,n;
- while((n=read(fd,&c,1))==1){
-  if(at_start){printf("  ");at_start=0;count++;}
-  putchar(c);
-  if(c=='\n')at_start=1;
+ piconix_dirent_t ent;int count=1,n;
+ while((n=getdents(fd,&ent,sizeof ent))>0){
+  printf("  %s\n",ent.name);count++;
  }
  close(fd);
  return n<0?-1:count;

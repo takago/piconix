@@ -9,16 +9,11 @@
 static int program_id(const char *name) {
     int fd=open("/bin",O_RDONLY);
     if(fd<0) return -1;
-    char buf[64],line[32]; int id=1,used=0,found=-1,n;
-    while((n=read(fd,buf,sizeof buf))>0) {
-        for(int i=0;i<n;i++) {
-            if(buf[i]=='\n') {
-                line[used]=0;
-                if(!strcmp(name,line)) {found=id;break;}
-                id++;used=0;
-            } else if(used<(int)sizeof line-1) line[used++]=buf[i];
-        }
-        if(found>0) break;
+    piconix_dirent_t ent;
+    int id=1,found=-1,n;
+    while((n=getdents(fd,&ent,sizeof ent))>0) {
+        if(!strcmp(name,ent.name)) {found=id;break;}
+        id++;
     }
     close(fd);
     return found;

@@ -92,6 +92,7 @@ foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello 
             "${CMAKE_CURRENT_LIST_DIR}/userland/crt0.c"
             "${CMAKE_CURRENT_LIST_DIR}/userland/syscalls.c"
             "${CMAKE_CURRENT_LIST_DIR}/userland/unistd.h"
+            "${CMAKE_CURRENT_LIST_DIR}/include/piconix_dirent.h"
             "${CMAKE_CURRENT_LIST_DIR}/userland/fcntl.h"
             "${CMAKE_CURRENT_LIST_DIR}/userland/libc.c"
             "${CMAKE_CURRENT_LIST_DIR}/userland/stdio.h"

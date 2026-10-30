@@ -33,12 +33,13 @@ static const char *syscall_name(unsigned n) {
         case 23: return "getcwd";
         case 24: return "fcntl";
         case 25: return "spawn_tmp";
+        case 26: return "getdents";
         default: return "unknown";
     }
 }
 /* /bin lists registered applications in program-ID order.  Resolve names
  * once at display time; the ID itself was recorded before the task exited. */
-#define PROGRAM_COUNT 32
+#define PROGRAM_COUNT 65  /* match kernel PROGRAM_CAPACITY (IDs 0..64) */
 #define NAMES_CAP 768
 static char names[NAMES_CAP];
 static const char *program_names[PROGRAM_COUNT];
@@ -49,20 +50,16 @@ static void load_program_names(void) {
     int fd=open("/bin",O_RDONLY);
     if(fd<0) return;
     unsigned pos=0;
-    int n;
-    while(pos<NAMES_CAP-1 && (n=read(fd,names+pos,NAMES_CAP-1-pos))>0)
-        pos+=(unsigned)n;
-    close(fd);
-    names[pos]=0;
-    int id=1;
-    unsigned start=0;
-    for(unsigned i=0;i<pos && id<PROGRAM_COUNT;i++) {
-        if(names[i]=='\n') {
-            names[i]=0;
-            program_names[id++]=names+start;
-            start=i+1;
-        }
+    piconix_dirent_t ent;
+    int id=1, n;
+    while(id<PROGRAM_COUNT && (n=getdents(fd,&ent,sizeof ent))>0) {
+        unsigned len=(unsigned)strlen(ent.name)+1u;
+        if(pos+len>sizeof names) break;
+        memcpy(names+pos,ent.name,len);
+        program_names[id++]=names+pos;
+        pos+=len;
     }
+    close(fd);
 }
 
 static const char *program_name(unsigned id) {
@@ -191,7 +188,7 @@ static void print_event(const trace_event_t *e) {
             if(prior) strcpy(target,prior);
         }
     } else {
-        if(call==7 || call==8 || call==9 || call==10 || call==21)
+        if(call==7 || call==8 || call==9 || call==10 || call==21 || call==26)
             format_target(target,e->pid,e->detail,e->file_id);
         else if(call==6) strcpy(target,"path");
         else if(call==13) numeric(target,(int32_t)e->detail);

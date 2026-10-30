@@ -2,6 +2,7 @@
 #ifndef PICONIX_UNISTD_H
 #define PICONIX_UNISTD_H
 #include <stddef.h>
+#include "../include/piconix_dirent.h"
 #define FB_ENABLE  0x100
 /* PicoNIX console ioctl commands (minimal, not POSIX termios). */
 #define OS_TTY_GET_CANON 0x200
@@ -23,6 +24,8 @@ int close(int fd);
 long lseek(int fd, long offset, int whence);
 int open(const char *path, int flags);
 int unlink(const char *path);
+/* 1: entry returned, 0: end of directory, negative: error. */
+int getdents(int fd, piconix_dirent_t *entry, size_t size);
 int dup2(int oldfd, int newfd);
 int getpid(void);
 int chdir(const char *path);

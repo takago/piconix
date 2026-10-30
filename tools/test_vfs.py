@@ -5,7 +5,7 @@ import re
 k=(Path(__file__).resolve().parents[1]/'kernel/kernel.c').read_text()
 section=k.split('static const struct { const char *path; int id; } vfs_registry[] = {',1)[1].split('};',1)[0]
 entries=re.findall(r'\{"([^"\n]+)",(DEV_\w+)\}',section)
-assert len(entries)==16 and len(set(p for p,_ in entries))==len(entries)
+assert len(entries)==14 and len(set(p for p,_ in entries))==len(entries)
 assert len(set(i for _,i in entries))==len(entries)
 for path,dev in entries:
     assert path.startswith(('/bin','/tmp','/proc/','/dev/'))

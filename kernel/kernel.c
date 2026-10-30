@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "../userland/trace.h"
+#include "../include/piconix_dirent.h"
 #if PICONIX_CONSOLE_USB
 #include "pico/stdio_usb.h"
 #include "tusb.h"
@@ -22,7 +23,7 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP };
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP, SYS_GETDENTS };
 typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint32_t fd_pos[8]; int fd_task_pid[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; char cwd[128]; uint16_t adc_values[8]; } task_t;
 // Five fixed 32-KiB SRAM slots, not a .bss reservation.
 // The linker must restrict the kernel to kernel SRAM (0x20000000..0x20017fff).
@@ -662,12 +663,10 @@ enum {
     DEV_PWM_FREQ = 125,
     DEV_PWM_18 = 126,
     DEV_PWM_19 = 127,
-    DEV_TMP_LIST = 97,
     DEV_MEM = 98,
     DEV_SYMS_KERNEL = 135,
     DEV_SYMS_USER_BASE = 200, /* 200..263: registered user programs */
     DEV_TRACE = 99,
-    DEV_BIN_LIST = 120,
     DEV_FB = 128,
     DEV_PROC_FB = 129,
     DEV_PROC_TASK_BASE = 130, /* 130..134: physical task slots */
@@ -760,43 +759,6 @@ static int tmp_rw(int fd,void *p,size_t n,int writing) {
     tasks[current].fd_pos[fd]=(uint32_t)(pos+count);
     return (int)count;
 }
-static int tmp_list_read(int fd,void *p,size_t n) {
-    size_t offset=0,pos=tasks[current].fd_pos[fd],done=0;
-    for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) {
-        size_t len=strlen(tmp_files[i].name)+1;
-        if(pos<offset+len && done<n) {
-            size_t start=pos>offset?pos-offset:0;
-            size_t count=len-start;
-            if(count>n-done) count=n-done;
-            for(size_t j=0;j<count;j++) ((char*)p)[done+j]=start+j==len-1?'\n':tmp_files[i].name[start+j];
-            done+=count;pos+=count;
-        }
-        offset+=len;
-        if(done==n) break;
-    }
-    tasks[current].fd_pos[fd]=(uint16_t)pos;
-    return (int)done;
-}
-/* /bin is a read-only view of the registered PIC application names. */
-static int bin_list_read(int fd,void *p,size_t n) {
-    size_t pos=tasks[current].fd_pos[fd], offset=0,done=0;
-    for(int id=1;id<PROGRAM_CAPACITY;id++) if(programs[id].entry && programs[id].name) {
-        const char *name=programs[id].name;
-        size_t len=strlen(name)+1;
-        if(pos<offset+len && done<n) {
-            size_t start=pos>offset?pos-offset:0;
-            size_t count=len-start;
-            if(count>n-done) count=n-done;
-            for(size_t j=0;j<count;j++)
-                ((char *)p)[done+j]=(start+j==len-1)?'\n':name[start+j];
-            done+=count;pos+=count;
-        }
-        offset+=len;
-        if(done==n) break;
-    }
-    tasks[current].fd_pos[fd]=(uint32_t)pos;
-    return (int)done;
-}
 /* Fixed device registry shared by open() and /proc/devices listing. */
 static const struct { const char *path; int id; } dev_registry[] = {
     {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
@@ -804,7 +766,6 @@ static const struct { const char *path; int id; } dev_registry[] = {
 #define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
 /* Fixed virtual files share one path-to-ID mapping for open and FD display. */
 static const struct { const char *path; int id; } vfs_registry[] = {
-    {"/bin",DEV_BIN_LIST}, {"/tmp",DEV_TMP_LIST},
     {"/proc/uptime",DEV_PROC_UPTIME}, {"/proc/ticks",DEV_PROC_TICKS},
     {"/proc/interrupts",DEV_PROC_INTERRUPTS},
     {"/proc/context_switches",DEV_PROC_SWITCHES},
@@ -859,15 +820,96 @@ static int valid_directory(const char *path) {
            (pin_any_pwm() && !strcmp(path,"/dev/pwm/1")) || !strcmp(path,"/proc") || !strcmp(path,"/proc/task") ||
            !strcmp(path,"/proc/sym") || !strcmp(path,"/proc/sym/userland");
 }
+/* Directory descriptor IDs are separate from devices and regular files. */
+enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
+       VDIR_PWM, VDIR_PWM1, VDIR_PROC, VDIR_TASK, VDIR_SYM,
+       VDIR_USERLAND, VDIR_TMP };
+static const char *const vdir_paths[] = {
+    "/", "/bin", "/dev", "/dev/gpio", "/dev/adc",
+    "/dev/pwm", "/dev/pwm/1", "/proc", "/proc/task",
+    "/proc/sym", "/proc/sym/userland", "/tmp"
+};
+static int vdir_id(const char *path) {
+    for(unsigned i=0;i<sizeof(vdir_paths)/sizeof(vdir_paths[0]);i++)
+        if(!strcmp(path,vdir_paths[i])) return VDIR_ROOT+(int)i;
+    return -1;
+}
+/* Return one entry by ordinal, without allocating or keeping a directory cache. */
+static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
+    unsigned count=0;
+#define EMIT(n,d) do { if(count++==nth) { snprintf(ent->name,sizeof(ent->name),"%s",(n)); ent->is_dir=(d); return 1; } } while(0)
+    char name[32];
+    switch(dir) {
+    case VDIR_ROOT:
+        EMIT("bin",1); EMIT("dev",1); EMIT("proc",1); EMIT("tmp",1); break;
+    case VDIR_BIN: case VDIR_USERLAND:
+        for(int i=1;i<PROGRAM_CAPACITY;i++)
+            if(programs[i].entry && programs[i].name) { EMIT(programs[i].name,0); }
+        break;
+    case VDIR_TMP:
+        for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) { EMIT(tmp_files[i].name,0); }
+        break;
+    case VDIR_DEV:
+        for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++) {
+            const char *path=dev_registry[i].path;
+            if(!strncmp(path,"/dev/",5) && !strchr(path+5,'/')) EMIT(path+5,0);
+        }
+        EMIT("gpio",1); EMIT("adc",1); EMIT("pwm",1); break;
+    case VDIR_GPIO:
+        EMIT("fb",0);
+        for(unsigned i=0;i<=28;i++) if(pin_gpio(i)) {
+            snprintf(name,sizeof name,"%u",i); EMIT(name,0);
+            snprintf(name,sizeof name,"%u.dir",i); EMIT(name,0);
+            snprintf(name,sizeof name,"%u.pull",i); EMIT(name,0);
+        }
+        break;
+    case VDIR_ADC:
+        for(unsigned i=0;i<3;i++) if(pin_adc(i)) {
+            snprintf(name,sizeof name,"%u",i); EMIT(name,0);
+        }
+        EMIT("temp",0); break;
+    case VDIR_PWM:
+        if(pin_any_pwm()) { EMIT("1",1); } break;
+    case VDIR_PWM1:
+        if(pin_any_pwm()) { EMIT("freq",0); }
+        if(pin_pwm(18)) { EMIT("a",0); }
+        if(pin_pwm(19)) { EMIT("b",0); } break;
+    case VDIR_PROC:
+        EMIT("uptime",0); EMIT("ticks",0); EMIT("interrupts",0);
+        EMIT("context_switches",0); EMIT("memory",0);
+        EMIT("ramfiles",0); EMIT("devices",0); EMIT("tasks",0);
+        EMIT("fb",0); EMIT("task",1); EMIT("sym",1); break;
+    case VDIR_TASK:
+        for(int i=0;i<OS_MAX_TASKS;i++)
+            if(tasks[i].state!=UNUSED && tasks[i].state!=DEAD) {
+                snprintf(name,sizeof name,"%d",tasks[i].pid); EMIT(name,0);
+            }
+        break;
+    case VDIR_SYM:
+        EMIT("kernel",0); EMIT("userland",1); break;
+    default: break;
+    }
+#undef EMIT
+    return 0;
+}
+static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
+    if(fd<0 || fd>=8) return OS_EBADF;
+    int dir=tasks[current].fd[fd];
+    if(dir<VDIR_ROOT || dir>VDIR_TMP) return OS_EBADF;
+    if(n<sizeof(*out) || !in_task_range(out,sizeof(*out))) return OS_EINVAL;
+    piconix_dirent_t entry={0};
+    int found=vdir_nth(dir,tasks[current].fd_pos[fd],&entry);
+    if(found) { memcpy(out,&entry,sizeof entry); tasks[current].fd_pos[fd]++; }
+    return found;
+}
 /* Minimal VFS dispatch: keep the established FD IDs and backends. */
 static int vfs_open(const char *p, int flags) {
     if(flags<0 || (flags & ~(OS_O_WRONLY | OS_O_RDWR | OS_O_NONBLOCK | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) != 0 || (flags & 3)==3) return OS_EINVAL;
-    if(path_match(p,"/bin") || path_match(p,"/tmp")) {
-        if(flags!=OS_O_RDONLY) return OS_EINVAL;
-        int fd=free_fd();
-        if(fd<0) return OS_EMFILE;
-        fd_set(&tasks[current],fd,path_match(p,"/bin")?DEV_BIN_LIST:DEV_TMP_LIST,0,0,0);
-        return fd;
+    int dir=vdir_id(p);
+    if(dir>=0) {
+        if(flags!=OS_O_RDONLY || (dir==VDIR_PWM1 && !pin_any_pwm())) return OS_EINVAL;
+        int fd=free_fd(); if(fd<0) return OS_EMFILE;
+        fd_set(&tasks[current],fd,dir,0,0,0); return fd;
     }
     if(!strncmp(p,"/tmp/",5)) return tmp_open(p,flags);
     if(flags & (OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) return OS_EINVAL;
@@ -1000,6 +1042,7 @@ static int proc_fb_read(int fd, void *dst, size_t n) {
 }
 /* Resolve an open descriptor from the kernel's authoritative device IDs. */
 static const char *fd_path(int dev, int task_pid, char *buf, size_t size) {
+    if(dev>=VDIR_ROOT && dev<=VDIR_TMP) return vdir_paths[dev-VDIR_ROOT];
     for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
         if(dev_registry[i].id==dev) return dev_registry[i].path;
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) {
@@ -1265,9 +1308,8 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
     if(n>0 && !in_task_range(p,n)) return OS_EINVAL;
     int dev=tasks[current].fd[fd];
+    if(dev>=VDIR_ROOT && dev<=VDIR_TMP) return OS_EBADF;
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) return tmp_rw(fd,p,n,writing);
-    if(dev==DEV_TMP_LIST) return writing?OS_EBADF:tmp_list_read(fd,p,n);
-    if(dev==DEV_BIN_LIST) return writing?OS_EBADF:bin_list_read(fd,p,n);
     if(dev==DEV_TRACE) {
         if(writing) return OS_EBADF;
         if(n < sizeof(trace_event_t)) return n ? OS_EINVAL : 0;
@@ -1456,7 +1498,7 @@ void os_svc_dispatch(uint32_t *f) {
     if(current<0) { f[0]=OS_EINVAL; return; }
     /* Snapshot the file ID before close() releases its descriptor. */
     int8_t file_id = -1;
-    if((num==SYS_READ || num==SYS_WRITE || num==SYS_CLOSE || num==SYS_IOCTL || num==SYS_LSEEK) &&
+    if((num==SYS_READ || num==SYS_WRITE || num==SYS_CLOSE || num==SYS_IOCTL || num==SYS_LSEEK || num==SYS_GETDENTS) &&
        a>=0 && a<8 && tasks[current].fd[a]>=0 && tasks[current].fd[a]<=127)
         file_id = (int8_t)tasks[current].fd[a];
     trace_record(TRACE_SVC_ENTER, (uint8_t)tasks[current].pid, (uint32_t)num,
@@ -1626,6 +1668,7 @@ void os_svc_dispatch(uint32_t *f) {
         }
         case SYS_CLOSE: if(a<3 || a>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
             else {fd_set(&tasks[current],a,-1,0,0,0); result=0;} break;
+        case SYS_GETDENTS: result=vfs_getdents(a,(piconix_dirent_t *)(uintptr_t)b,(size_t)c); break;
         case SYS_READ: result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,0); break;
         case SYS_WRITE: result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,1); break;
         case SYS_IOCTL: result=device_ioctl(a,b,c); break;
