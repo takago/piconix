@@ -3,6 +3,8 @@
 #define NO_SYS 1
 #define LWIP_SOCKET 0
 #define LWIP_NETCONN 0
+/* Permit a restarted TCP listener to bind while old connections are in TIME_WAIT. */
+#define SO_REUSE 1
 #define LWIP_TCP 1
 #define LWIP_UDP 1
 #define LWIP_DHCP 0

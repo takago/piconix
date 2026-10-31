@@ -150,6 +150,8 @@ int net_socket_tcp_listen(int id, uint16_t port) {
     if(!s || !s->allocated || s->listener || s->client || !port) return -1;
     struct tcp_pcb *pcb=tcp_new_ip_type(IPADDR_TYPE_V4);
     if(!pcb) return -1;
+    /* Allow an immediate server restart after accepted connections close. */
+    ip_set_option(pcb, SOF_REUSEADDR);
     if(tcp_bind(pcb,IP_ANY_TYPE,port)!=ERR_OK) { tcp_close(pcb); return -1; }
     struct tcp_pcb *listener=tcp_listen_with_backlog(pcb,1);
     if(!listener) { tcp_close(pcb); return -1; }
