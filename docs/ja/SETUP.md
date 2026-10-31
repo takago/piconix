@@ -2,7 +2,7 @@
 
 [English](../en/SETUP.md) | [概要](README.md)
 
-Ubuntu／Debian系Linuxを想定した導入手順です．Raspberry Pi Pico（RP2040）とデータ通信可能なUSBケーブルを用意してください．
+Ubuntu／Debian系Linuxを想定した導入手順です．Raspberry Pi PicoまたはPico W（RP2040）とデータ通信可能なUSBケーブルを用意してください．
 
 ## 1．開発ツールのインストール
 
@@ -44,12 +44,14 @@ Gitから取得した場合は，PicoNIXリポジトリのルートディレク�
 
 ## 4．ビルド（MinSizeRel）
 
+使用するボードに応じて，`-DPICO_BOARD=pico`または`-DPICO_BOARD=pico_w`を指定します．以下は通常のPico向けの例です．
+
 UbuntuのパッケージでインストールしたARM GCCを使う場合は，次のコマンドでビルドします．
 
 ```sh
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 LC_ALL=C LANG=C \
-./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
 **ARM GCC 14.2を別途`~/.pico-sdk/toolchain/14_2_Rel1`に導入済みの場合**は，次のようにツールチェーンを明示できます．このディレクトリはSDKの`git clone`や上記の`apt install`では自動的に作成されません．
@@ -58,17 +60,27 @@ LC_ALL=C LANG=C \
 PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 LC_ALL=C LANG=C \
-./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-`MinSizeRel`（通常`-Os`）を明示してください．ビルドスクリプトはホスト側の監査とPIC検証も実行します．別のツールチェーンに切り替えた場合は，CMakeのキャッシュを避けるため`build/`を削除してから再ビルドしてください．
+**Pico W向け**には，どちらのコマンドでも`-DPICO_BOARD=pico`を`-DPICO_BOARD=pico_w`に置き換えてください．
 
-ビルド成果物は通常，`build/piconix.uf2`と`build/piconix.elf`です．
+```sh
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+LC_ALL=C LANG=C \
+./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
+```
 
-## 5．Picoへの書き込み
+実機では，**Pico W向けにビルドしたファームウェアが通常のPicoでも起動・動作することを確認しています**．ただし通常のPicoにはWi-Fiチップがないため，Wi-Fi機能は利用できません．この互換動作は現在の実装で確認されたものであり，すべての将来の版で保証されるものではありません．ボードごとの正式なビルド指定は上記のとおりです．
 
-1. BOOTSELボタンを押しながらPicoをUSB接続します．
-2. 現れた`RPI-RP2`ドライブに`build/piconix.uf2`をコピーします．
+`MinSizeRel`（通常`-Os`）を明示してください．ビルドスクリプトはホスト側の監査とPIC検証も実行します．別のツールチェーンに切り替えた場合は，CMakeのキャッシュを避けるため該当する`build-pico/`または`build-pico_w/`を削除してから再ビルドしてください．
+
+ビルド成果物は，Pico向けでは`build-pico/piconix.uf2`と`build-pico/piconix.elf`，Pico W向けでは`build-pico_w/piconix.uf2`と`build-pico_w/piconix.elf`です．
+
+## 5．Pico／Pico Wへの書き込み
+
+1. BOOTSELボタンを押しながらPicoまたはPico WをUSB接続します．
+2. 現れた`RPI-RP2`ドライブに対象ボードに応じて`build-pico/piconix.uf2`または`build-pico_w/piconix.uf2`をコピーします．
 3. Picoが再起動したら，Linux側のUSB CDCポートを確認します．
 
 ```sh

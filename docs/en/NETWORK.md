@@ -2,7 +2,7 @@
 
 [日本語](../ja/NETWORK.md) | [Setup](SETUP.md)
 
-The Pico W build runs a Wi-Fi access point with a small DHCP server and a remote shell independent of the USB CDC console. The ordinary Pico has no Wi-Fi support.
+The Pico W build runs a Wi-Fi access point with a small DHCP server and a remote shell independent of the USB CDC console. The ordinary Pico has no Wi-Fi support. The current Pico W firmware has also been tested successfully on a regular Pico, but Wi-Fi is unavailable on that hardware.
 
 ## Build
 

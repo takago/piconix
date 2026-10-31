@@ -2,7 +2,7 @@
 
 [English](../en/NETWORK.md) | [セットアップ](SETUP.md)
 
-Pico W版のPicoNIXはWi-Fiアクセスポイントとして動作し，DHCPで接続端末へIPアドレスを割り当てます．USB CDCコンソールとは別に，ネットワーク経由のシェルを利用できます．通常のPicoにはWi-Fi機能はありません．
+Pico W版のPicoNIXはWi-Fiアクセスポイントとして動作し，DHCPで接続端末へIPアドレスを割り当てます．USB CDCコンソールとは別に，ネットワーク経由のシェルを利用できます．通常のPicoにはWi-Fi機能はありません．なお，現在のPico W向けファームウェアは通常のPicoでも動作確認済みですが，Wi-Fi機能は利用できません．
 
 ## ビルド
 

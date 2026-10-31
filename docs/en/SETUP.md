@@ -2,7 +2,7 @@
 
 [日本語](../ja/SETUP.md) | [Overview](README.md)
 
-These instructions target Ubuntu/Debian-based Linux. Prepare a Raspberry Pi Pico (RP2040) and a data-capable USB cable.
+These instructions target Ubuntu/Debian-based Linux. Prepare a Raspberry Pi Pico or Pico W (RP2040) and a data-capable USB cable.
 
 ## 1. Install build tools
 
@@ -44,12 +44,14 @@ If you are using Git, change to the root of the PicoNIX repository instead.
 
 ## 4. Build with MinSizeRel
 
+Select the board with `-DPICO_BOARD=pico` or `-DPICO_BOARD=pico_w`. The following examples target the regular Pico.
+
 To use the ARM GCC toolchain installed by the distribution packages:
 
 ```sh
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 LC_ALL=C LANG=C \
-./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
 **If you have separately installed ARM GCC 14.2 at `~/.pico-sdk/toolchain/14_2_Rel1`**, select it explicitly as follows. The directory is *not* created by the SDK Git clone or the `apt install` commands above.
@@ -58,17 +60,27 @@ LC_ALL=C LANG=C \
 PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 LC_ALL=C LANG=C \
-./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-Always specify `MinSizeRel` (normally `-Os`). The build script also runs host-side audits and PIC checks. If switching toolchains, delete `build/` first to avoid stale CMake configuration.
+**For Pico W**, replace `-DPICO_BOARD=pico` with `-DPICO_BOARD=pico_w` in either command. For example:
 
-Typical outputs are `build-pico/piconix.uf2` and `build-pico/piconix.elf`.
+```sh
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+LC_ALL=C LANG=C \
+./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
+```
 
-## 5. Flash the Pico
+Hardware testing has confirmed that **the current Pico W firmware also boots and runs on a regular Pico**. However, the regular Pico has no Wi-Fi hardware, so networking is unavailable. This observed compatibility is not a guarantee for future versions; use the board-specific options above for supported builds.
 
-1. Hold BOOTSEL while connecting the Pico over USB.
-2. Copy `build-pico/piconix.uf2` onto the `RPI-RP2` drive.
+Always specify `MinSizeRel` (normally `-Os`). The build script also runs host-side audits and PIC checks. If switching toolchains, delete the corresponding `build-pico/` or `build-pico_w/` directory first to avoid stale CMake configuration.
+
+Outputs are `build-pico/piconix.uf2` and `build-pico/piconix.elf` for Pico, or `build-pico_w/piconix.uf2` and `build-pico_w/piconix.elf` for Pico W.
+
+## 5. Flash the Pico or Pico W
+
+1. Hold BOOTSEL while connecting the Pico or Pico W over USB.
+2. Copy `build-pico/piconix.uf2` (Pico) or `build-pico_w/piconix.uf2` (Pico W) onto the `RPI-RP2` drive.
 3. After the Pico restarts, locate its USB CDC device on Linux.
 
 ```sh
