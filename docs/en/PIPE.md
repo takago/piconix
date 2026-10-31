@@ -35,3 +35,7 @@ Pipelines may contain two or three commands; four or more stages are not support
 Pipes carry byte streams and are not stored as files under `/tmp`. The shell interprets `|`; individual commands do not need to parse it.
 
 This is a deliberately small UNIX-like implementation, not a complete POSIX shell. Complex quoting, combinations of redirection and pipes, and arbitrary-length pipelines are not guaranteed.
+
+## Ctrl+C and network pipelines
+
+Ctrl+C interrupts registered foreground pipeline tasks (up to three stages) directly in the kernel, without POSIX signal delivery. For one-shot UDP transmission such as `echo hello | nc -u -N 192.168.4.2 12345`, see the [nc guide](NC.md).

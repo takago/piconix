@@ -70,3 +70,5 @@ cat /proc/tasks
 - Actual behavior also depends on terminal software and serial connection settings.
 
 See also [Setup](SETUP.md), [Internals](INTERNAL.md), and [Python-like interpreter](PYTHON.md).
+
+Foreground pipelines: Ctrl+C interrupts the registered foreground pipeline stages, not just one command. This is not POSIX signal delivery.

@@ -12,6 +12,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, and `udp_echod` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
 - **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`.
+- **Foreground interruption** — Ctrl+C terminates registered foreground tasks, including pipeline stages; `nc -u -N` exits on stdin EOF for one-shot UDP sends.
 - **Pipes and redirection** — Two- and three-command pipelines using `|`, with `pipe()`, `dup()`, and `dup2()` support.
 - **Device files** — Access GPIO, ADC, PWM, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **Programming on the device** — An editor (`edit`), assembler (`as`), and small Python-like interpreter (`python`).
@@ -25,6 +26,9 @@ Connect a Linux PC to the Pico W access point:
 - SSID: `PicoNIX-XXXXXXXX` (device-specific suffix)
 - Password: `piconix1234`
 - Pico W address: `192.168.4.1`
+- Linux PC address: `192.168.4.2` (single-client DHCP configuration; verify the assigned address)
+
+These addresses apply to AP mode. In STA mode, use the addresses assigned by the existing network.
 
 Open the PicoNIX shell from the PC:
 
@@ -56,6 +60,8 @@ For UDP, start `udp_echod 1234` on PicoNIX and run:
 ```sh
 printf 'hello\n' | nc -u -w 2 192.168.4.1 1234
 ```
+
+To send a one-shot UDP message in the other direction, run `nc -u -l 12345` on Linux and `echo hello | nc -u -N 192.168.4.2 12345` on PicoNIX.
 
 **Security:** The built-in Telnet and remote device-control services do not provide authentication or encryption. Use them only on a trusted experimental network.
 
@@ -98,6 +104,7 @@ Detailed guides are available in English and Japanese．詳細な説明は英語
 | [ネットワーク接続](docs/ja/NETWORK.md) | [Network access](docs/en/NETWORK.md) |
 | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) | [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) |
 | [パイプと標準入出力](docs/ja/PIPE.md) | [Pipes and standard I/O](docs/en/PIPE.md) |
+| [ncと通信の終了](docs/ja/NC.md) | [nc and termination](docs/en/NC.md) |
 | [Cアプリ開発](docs/ja/PROGRAMMING.md) | [C application development](docs/en/PROGRAMMING.md) |
 | [デバイス](docs/ja/DEVICES.md) | [Devices](docs/en/DEVICES.md) |
 | [内部構造](docs/ja/INTERNAL.md) | [Internals](docs/en/INTERNAL.md) |

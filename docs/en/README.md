@@ -16,6 +16,8 @@ PicoNIX is a **small UNIX-like operating system for the Raspberry Pi Pico (RP204
 - Basic stdin/stdout redirection (`<`, `>`, `>>`) and pipelines (`|`) of up to three commands
 - A tiny Python-like interpreter supporting integer expressions and GPIO
 
+`nc -u -N` exits on stdin EOF for UDP, and Ctrl+C interrupts foreground commands and pipelines. See the [nc guide](NC.md).
+
 ## Quick start
 
 Build on Linux with Pico SDK 2.1.1 and ARM GCC. Adjust the paths to your environment:

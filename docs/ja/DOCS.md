@@ -14,6 +14,7 @@ PicoNIXを初めて使う場合は，**セットアップ → READMEのコマン
 | LEDマトリクス・`fbctl` | [デバイスガイド（フレームバッファ）](DEVICES.md) |
 | `python`を使う | [Python風インタプリタ](PYTHON.md) |
 | パイプ・`grep`・FDを使う | [パイプと標準入出力](PIPE.md) |
+| `nc`，UDP送信，Ctrl+C | [ncと通信の終了](NC.md) |
 | 自作Cアプリを追加する | [Cアプリ開発](PROGRAMMING.md) |
 | RAM配置，タスク，SVC，FDなど | [内部構造](INTERNAL.md) |
 | トレースの記録と解析 | [トレース](TRACE.md) |

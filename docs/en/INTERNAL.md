@@ -74,9 +74,9 @@ hello
 piconix# ps
 ```
 
-The Shell implements `<`, `>` and `>>` by setting standard descriptors 0, 1 and 2 before starting a child. `dup2()` is simplified and does not implement POSIX shared file offsets. Pipes, quoted argument grouping and `2>` are unsupported.
+The Shell implements `<`, `>` and `>>` by setting standard descriptors 0, 1 and 2 before starting a child. `dup2()` is simplified and does not implement POSIX shared file offsets. Pipelines of up to three commands are supported. Quoted argument grouping and `2>` are unsupported.
 
-With `command &`, the Shell returns without waiting for the external command. `Ctrl+C` directly terminates the foreground PID of the respective terminal; it does not deliver POSIX signals to process groups.
+With `command &`, the Shell returns without waiting for the external command. `Ctrl+C` directly terminates the registered foreground tasks of the respective terminal (up to three pipeline stages); it does not deliver POSIX signals to process groups.
 
 ## 6. TTY and I/O
 
