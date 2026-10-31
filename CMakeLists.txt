@@ -30,7 +30,7 @@ endif()
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
   set(APP_ORIGIN 0x20010000)
@@ -167,7 +167,7 @@ if(NOT PICONIX_LD_RESULT EQUAL 0)
   message(FATAL_ERROR "Cannot derive safe SDK XIP linker script: ${PICONIX_LD_ERROR}")
 endif()
 message(STATUS "PicoNIX XIP linker: ${PICONIX_CUSTOM_LD}")
-add_executable(piconix kernel/net.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/pwm.c kernel/context.S kernel/main.c
+add_executable(piconix kernel/net.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 pico_set_linker_script(piconix "${PICONIX_CUSTOM_LD}")
 # Wi-Fi follows the selected board. Both boards use the same five-slot layout.

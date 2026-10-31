@@ -30,7 +30,6 @@ Connect to the AP; the IP address is normally assigned automatically. This AP do
 | Protocol | Port | Command |
 |---|---:|---|
 | Telnet | TCP 23 | `telnet 192.168.4.1` |
-| Raw TCP | TCP 2323 | `socat STDIO,raw,echo=0,escape=0x1d TCP:192.168.4.1:2323` |
 
 Both ports share the `/dev/wifi` TTY and allow only one active network session at a time. USB CDC remains independent.
 
@@ -43,3 +42,7 @@ On Linux, install clients as needed (e.g. `sudo apt install telnet socat`). On W
 ## Security
 
 Telnet and raw TCP are unencrypted. Use only on a trusted experimental network. The AP password is a published fixed value; do not send secrets.
+
+## TCP/UDP applications and remote device control
+
+Alongside Telnet (TCP 23), Pico W supports user-space `nc`, `httpd` (TCP 80), `tcp_echod`, and `udp_echod`. UDP 2000 offers remote access to permitted device paths. See [Socket API and network applications](NETWORK-PROGRAMMING.md).

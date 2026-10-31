@@ -40,6 +40,14 @@
 #define OS_ENOSYS (-38)
 #define OS_ESRCH (-3)
 #define OS_EMFILE (-24)
+/* IPv4 address is in lwIP network-order representation (uint32_t). */
+typedef struct {
+    const void *data;
+    uint32_t length;
+    uint32_t peer_ip;
+    uint16_t peer_port;
+    uint16_t reserved;
+} piconix_udp_packet_t;
 typedef void (*os_entry_t)(void);
 #define OS_TASK_UNUSED 0
 #define OS_TASK_READY 1
@@ -49,6 +57,18 @@ typedef void (*os_entry_t)(void);
 #define OS_EINTR (-4)
 #define OS_EIO (-5)
 #define OS_ENOENT (-2)
+/* Experimental IPv4 socket interface: TCP server only, UDP backend separate. */
+#define OS_AF_INET 2
+#define OS_SOCK_STREAM 1
+#define OS_SOCK_DGRAM 2
+int os_socket(int domain,int type,int protocol);
+int os_tcp_listen(int fd,uint16_t port);
+/* Nonblocking: returns accepted FD or OS_EAGAIN. */
+int os_tcp_accept(int fd);
+/* Experimental TCP client endpoint. IPv4 uses the same representation as UDP peer_ip. */
+typedef struct { uint32_t peer_ip; uint16_t peer_port; } piconix_tcp_endpoint_t;
+int os_tcp_connect(int fd,const piconix_tcp_endpoint_t *endpoint);
+int os_tcp_status(int fd);
 void os_init(void);
 // Poll SDK USB stdio input from the idle task; UART builds are a no-op.
 void os_console_poll(void);

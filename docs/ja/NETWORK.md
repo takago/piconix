@@ -30,7 +30,6 @@ Wi-Fiに接続すると，通常はDHCPでIPアドレスが自動設定されま
 | 方式 | ポート | コマンド |
 |---|---:|---|
 | Telnet | TCP 23 | `telnet 192.168.4.1` |
-| 生TCP | TCP 2323 | `socat STDIO,raw,echo=0,escape=0x1d TCP:192.168.4.1:2323` |
 
 ネットワークTTYは`/dev/wifi`です．Telnetと生TCPは同じシェルを共用するため，ネットワーク接続は同時に1つだけ利用できます．USB CDCコンソールは独立しています．
 
@@ -47,3 +46,7 @@ Linuxでは必要に応じて`sudo apt install telnet socat`でクライアン�
 Telnetと生TCPのシェル通信は暗号化されません．信頼できる実験用ネットワークでのみ使用してください．APのパスワードは公開された固定値なので，機密情報を送信しないでください．端末の操作性はTelnetクライアントの実装によって異なる場合があります．
 
 開発・保守向けのDHCP障害調査記録は[NETWORK-DHCP-NOTES.md](NETWORK-DHCP-NOTES.md)にまとめています．
+
+## TCP/UDPアプリケーションとリモートデバイス制御
+
+Pico WではTelnet（TCP 23）に加え，ユーザプロセスの`nc`，`httpd`（TCP 80），`tcp_echod`，`udp_echod`が利用できます．UDP 2000では許可されたデバイスを遠隔操作できます．APIとテスト方法は[ソケットAPIとネットワークアプリケーション](NETWORK-PROGRAMMING.md)を参照してください．

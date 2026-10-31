@@ -120,3 +120,5 @@ USBと別にUART1からShellを利用するには`getty /dev/uart1 sh &`を実�
 ## Pico Wのネットワーク接続
 
 Pico Wのビルド，Wi-Fi設定，Telnet／socatの接続と終了方法は[Pico WのWi-Fi・Telnet・生TCP接続](NETWORK.md)を参照してください．
+
+PWMデューティ比は `/dev/pwm/1/a` と `/dev/pwm/1/b` に `7.5` のような0.1％刻みの値を書き込めます．読み取りも `7.5` のように小数1桁で返します．周波数 `/dev/pwm/1/freq` は従来どおり整数Hzです．

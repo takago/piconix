@@ -120,3 +120,5 @@ For a separate UART1 shell, run `getty /dev/uart1 sh &`. See [UART and terminals
 ## Pico W network access
 
 For Pico W builds, Wi-Fi settings, Telnet/socat access and disconnect instructions, see [Pico W Wi-Fi, Telnet and raw TCP](NETWORK.md).
+
+PWM duty cycle files `/dev/pwm/1/a` and `/dev/pwm/1/b` accept values such as `7.5` in 0.1% increments and return one decimal place. `/dev/pwm/1/freq` remains integer Hz.

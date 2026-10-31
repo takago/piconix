@@ -42,6 +42,10 @@ int main(int argc, char **argv) {
         puts("\nProgramming:");
         puts("  as         Assemble Thumb source");
         puts("  python     Tiny Python interpreter");
+        puts("  nc         TCP/UDP network client or listener");
+        puts("  httpd      HTTP/1.0 server on TCP port 80");
+        puts("  tcp_echod  TCP echo server (default port 7)");
+        puts("  udp_echod  UDP echo server (default port 7)");
         puts("  hello      Print a greeting");
         puts("\nGames and demos:");
         puts("  mb         Moon Buggy game");
@@ -64,6 +68,10 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command\nusage: watch [seconds] command [args...]");
     else if(!strcmp(argv[1],"pwd")) puts("pwd: Print working directory\nusage: pwd");
     else if(!strcmp(argv[1],"tree")) puts("tree: Display directory tree\nusage: tree [-L 0..8] [path]");
+    else if(!strcmp(argv[1],"tcp_echod")) puts("tcp_echod [PORT]: TCP echo server (default 7)");
+    else if(!strcmp(argv[1],"udp_echod")) puts("udp_echod [PORT]: UDP echo server (default 7)");
+    else if(!strcmp(argv[1],"httpd")) puts("httpd: Serve /etc/index.html on TCP 80 (GET / only)");
+    else if(!strcmp(argv[1],"nc")) puts("nc: Minimal IPv4 netcat\nusage: nc [-u] -l PORT | nc [-u] IPv4 PORT");
     else if(!strcmp(argv[1],"find")) puts("find: Search directory entries\nusage: find [path] [-name pattern]");
     else if(!strcmp(argv[1],"edit")) puts("edit: Edit a /tmp file\nusage: edit [path]");
     else if(!strcmp(argv[1],"mem")) puts("mem: Live memory viewer\nusage: mem [address] | mem -s [app]\ninteractive: arrows, PgUp/PgDn, g goto, q quit");

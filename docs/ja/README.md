@@ -6,6 +6,8 @@ PicoNIXは，**Raspberry Pi Pico（RP2040）向けの小型UNIX風OS**です．L
 
 ## できること
 
+- **Pico WのユーザプロセスでTCP/UDP通信**：`socket()`，`send()`，`recv()`，`sendto()`，`recvfrom()`などを提供し，`nc`，`httpd`，`tcp_echod`，`udp_echod`を実行できます．詳細は[ソケットAPIとネットワークアプリケーション](NETWORK-PROGRAMMING.md)を参照してください．
+
 - SysTick／PendSVによるプリエンプティブなタスク切り替え
 - SVCによるカーネルとRAMアプリケーションの呼び出し境界
 - `ps`，`kill`，`sh`，`getty`，`blink`，`omikuji`，`python`，`hello`，`hexdump`などのコマンド
@@ -59,6 +61,7 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 | 必要な環境を準備し，書き込む | [セットアップ](SETUP.md) |
 | RAM配置，タスク，システムコールを理解する | [内部構造](INTERNAL.md) |
 | CでRAMアプリケーションを作る | [アプリ開発](PROGRAMMING.md) |
+| TCP/UDPソケットとネットワークサーバを使う | [ソケットAPIとネットワークアプリケーション](NETWORK-PROGRAMMING.md) |
 | GPIO・ADC・PWMなどのデバイスを使用する | [デバイスガイド](DEVICES.md) |
 | UART1，`getty`，Ctrl+C／Ctrl+Dを理解する | [UARTと端末操作](UART.md) |
 | `python`コマンドを使う | [Python風インタプリタ](PYTHON.md) |

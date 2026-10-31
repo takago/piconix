@@ -34,6 +34,15 @@ static const char *syscall_name(unsigned n) {
         case 24: return "fcntl";
         case 25: return "spawn_tmp";
         case 26: return "getdents";
+        case 27: return "flash_id";
+        case 28: return "socket";
+        case 29: return "bind";
+        case 30: return "sendto";
+        case 31: return "recvfrom";
+        case 32: return "listen";
+        case 33: return "connect";
+        case 34: return "tcp_status";
+        case 35: return "accept";
         default: return "unknown";
     }
 }
@@ -188,7 +197,8 @@ static void print_event(const trace_event_t *e) {
             if(prior) strcpy(target,prior);
         }
     } else {
-        if(call==7 || call==8 || call==9 || call==10 || call==21 || call==26)
+        if(call==7 || call==8 || call==9 || call==10 || call==21 || call==26 ||
+           call==29 || call==30 || call==31 || call==32 || call==33 || call==34 || call==35)
             format_target(target,e->pid,e->detail,e->file_id);
         else if(call==6) strcpy(target,"path");
         else if(call==13) numeric(target,(int32_t)e->detail);

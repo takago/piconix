@@ -137,3 +137,7 @@ python3 tools/test_ram_pipeline.py
 - [ ] 実機で引数・入出力・終了動作を確認した
 
 **次に読む文書：** OS全体の実装は[内部構造](INTERNAL.md)，デバイス固有の操作は[デバイスと配線](DEVICES.md)を参照してください．
+
+## ネットワークプログラミング
+
+Pico Wでは通常のユーザプロセスからTCP/UDPソケットAPIを利用できます．[ソケットAPIとネットワークアプリケーション](NETWORK-PROGRAMMING.md)を参照してください．

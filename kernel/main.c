@@ -50,6 +50,10 @@ extern const unsigned char piconix_edit_image_start[], piconix_edit_image_end[];
 extern const unsigned char piconix_mem_image_start[], piconix_mem_image_end[];
 extern const unsigned char piconix_tree_image_start[], piconix_tree_image_end[];
 extern const unsigned char piconix_find_image_start[], piconix_find_image_end[];
+extern const unsigned char piconix_nc_image_start[], piconix_nc_image_end[];
+extern const unsigned char piconix_httpd_image_start[], piconix_httpd_image_end[];
+extern const unsigned char piconix_tcp_echod_image_start[], piconix_tcp_echod_image_end[];
+extern const unsigned char piconix_udp_echod_image_start[], piconix_udp_echod_image_end[];
 #define RAM_APP_ORIGIN 0x20010000u
 
 static void register_image(int id, const char *name,
@@ -101,6 +105,10 @@ int main(void) {
     register_image(31,"mem",piconix_mem_image_start,piconix_mem_image_end);
     register_image(32,"tree",piconix_tree_image_start,piconix_tree_image_end);
     register_image(33,"find",piconix_find_image_start,piconix_find_image_end);
+    register_image(34,"nc",piconix_nc_image_start,piconix_nc_image_end);
+    register_image(35,"httpd",piconix_httpd_image_start,piconix_httpd_image_end);
+    register_image(36,"tcp_echod",piconix_tcp_echod_image_start,piconix_tcp_echod_image_end);
+    register_image(37,"udp_echod",piconix_udp_echod_image_start,piconix_udp_echod_image_end);
     net_init();
     os_init_idle(idle_task);
     if(os_start_program(2)<0) panic("PicoNIX: shell start failed");

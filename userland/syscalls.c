@@ -36,3 +36,82 @@ int console_ready(void) { return call(16,0,0,0); }
 int get_tty(void) { return call(20,0,0,0); }
 
 int spawn_tmp(const char *path) { return call(25,(uintptr_t)path,0,0); }
+
+int socket(int domain,int type,int protocol) { return call(28,domain,type,protocol); }
+int bind_udp(int fd,unsigned port) { return call(29,fd,port,0); }
+int sendto_udp(int fd,const piconix_udp_packet_t *packet) { return call(30,fd,(uintptr_t)packet,0); }
+int recvfrom_udp(int fd,piconix_udp_packet_t *packet) { return call(31,fd,(uintptr_t)packet,0); }
+
+/* Keep syscall numbers synchronized with kernel/kernel.c. */
+int tcp_listen(int fd,unsigned port) { return call(32,fd,port,0); }
+int tcp_connect(int fd,const piconix_tcp_endpoint_t *ep) { return call(33,fd,(uintptr_t)ep,0); }
+int tcp_status(int fd) { return call(34,fd,0,0); }
+int tcp_accept(int fd) { return call(35,fd,0,0); }
+
+/* Minimal BSD-style adapters; no dynamic allocation and no libc dependency. */
+static int ipv4_addr(const struct sockaddr *addr, socklen_t len,
+                     const struct sockaddr_in **out) {
+    if (!addr || len < sizeof(struct sockaddr_in)) return OS_EINVAL;
+    *out = (const struct sockaddr_in *)addr;
+    return (*out)->sin_family == AF_INET ? 0 : OS_EINVAL;
+}
+int bind(int fd, const struct sockaddr *addr, socklen_t len) {
+    const struct sockaddr_in *in;
+    int r = ipv4_addr(addr, len, &in);
+    if (r < 0) return r;
+    unsigned port = ntohs(in->sin_port);
+    if (!port || in->sin_addr.s_addr != INADDR_ANY) return OS_EINVAL;
+    /* The underlying TCP syscall combines bind and listen. */
+    r = bind_udp(fd, port);
+    if (r == OS_EBADF || r == OS_EINVAL) return tcp_listen(fd, port);
+    return r;
+}
+int listen(int fd, int backlog) {
+    (void)fd;
+    return backlog < 0 ? OS_EINVAL : 0; /* TCP bind() already listens. */
+}
+int accept(int fd, struct sockaddr *addr, socklen_t *len) {
+    if (addr || len) return OS_EINVAL; /* Peer address query not yet supported. */
+    return tcp_accept(fd);
+}
+int connect(int fd, const struct sockaddr *addr, socklen_t len) {
+    const struct sockaddr_in *in;
+    int r = ipv4_addr(addr, len, &in);
+    if (r < 0) return r;
+    piconix_tcp_endpoint_t ep = {in->sin_addr.s_addr, ntohs(in->sin_port)};
+    return tcp_connect(fd, &ep);
+}
+int send(int fd, const void *buf, size_t len, int flags) {
+    if (flags || (len && !buf)) return OS_EINVAL;
+    return write(fd, buf, len);
+}
+int recv(int fd, void *buf, size_t len, int flags) {
+    if (flags || (len && !buf)) return OS_EINVAL;
+    return read(fd, buf, len);
+}
+int sendto(int fd, const void *buf, size_t len, int flags,
+           const struct sockaddr *to, socklen_t tolen) {
+    const struct sockaddr_in *in;
+    int r = ipv4_addr(to, tolen, &in);
+    if (r < 0) return r;
+    if (flags || len > UINT32_MAX || (len && !buf)) return OS_EINVAL;
+    piconix_udp_packet_t pkt = {buf, (uint32_t)len, in->sin_addr.s_addr,
+                                ntohs(in->sin_port), 0};
+    return sendto_udp(fd, &pkt);
+}
+int recvfrom(int fd, void *buf, size_t len, int flags,
+             struct sockaddr *from, socklen_t *fromlen) {
+    if (flags || len > UINT32_MAX || (len && !buf)) return OS_EINVAL;
+    if (from && (!fromlen || *fromlen < sizeof(struct sockaddr_in))) return OS_EINVAL;
+    piconix_udp_packet_t pkt = {buf, (uint32_t)len, 0, 0, 0};
+    int r = recvfrom_udp(fd, &pkt);
+    if (r >= 0 && from) {
+        struct sockaddr_in *in = (struct sockaddr_in *)from;
+        *in = (struct sockaddr_in){0};
+        in->sin_family = AF_INET;
+        in->sin_port = htons(pkt.peer_port);
+        in->sin_addr.s_addr = pkt.peer_ip;
+        *fromlen = sizeof(*in);
+    }
+    return r;
+}

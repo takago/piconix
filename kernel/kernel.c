@@ -12,6 +12,7 @@
 #include "hardware/sync.h"
 #include "hardware/irq.h"
 #include "net.h"
+#include "net_socket.h"
 #include <string.h>
 #include <stdio.h>
 #include "../userland/trace.h"
@@ -34,6 +35,9 @@ uint32_t piconix_flash_id(void) {
 /* Internal VFS path and directory IDs (no separate translation unit). */
 enum {
     DEV_CONSOLE = 0,
+    DEV_SOCKET_UDP = 400,
+    DEV_SOCKET_TCP = 401,
+    DEV_SOCKET_TCP_ACCEPTED = 402,
     DEV_GPIO_VALUE_BASE = 1,
     DEV_GPIO_VALUE_END = 29,
     DEV_UART1 = 30,
@@ -68,7 +72,7 @@ enum {
 };
 enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
        VDIR_PWM, VDIR_PWM1, VDIR_PROC, VDIR_TASK, VDIR_SYM,
-       VDIR_USERLAND, VDIR_TMP };
+       VDIR_USERLAND, VDIR_TMP, VDIR_ETC };
 
 static int path_match(const char *p, const char *s);
 
@@ -105,7 +109,7 @@ static int vfs_fixed_path_id(const char *path) {
 static const char *const vdir_paths[] = {
     "/", "/bin", "/dev", "/dev/gpio", "/dev/adc",
     "/dev/pwm", "/dev/pwm/1", "/proc", "/proc/task",
-    "/proc/sym", "/proc/sym/userland", "/tmp"
+    "/proc/sym", "/proc/sym/userland", "/tmp", "/etc"
 };
 static int vfs_directory_id(const char *path) {
     for(unsigned i=0;i<sizeof(vdir_paths)/sizeof(vdir_paths[0]);i++)
@@ -114,7 +118,7 @@ static int vfs_directory_id(const char *path) {
 }
 
 static const char *vfs_directory_path(int id) {
-    return id>=VDIR_ROOT && id<=VDIR_TMP ? vdir_paths[id-VDIR_ROOT] : 0;
+    return id>=VDIR_ROOT && id<=VDIR_ETC ? vdir_paths[id-VDIR_ROOT] : 0;
 }
 static const char *vfs_fixed_id_path(int id) {
     for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
@@ -132,7 +136,7 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP, SYS_GETDENTS, SYS_FLASH_ID };
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP, SYS_GETDENTS, SYS_FLASH_ID, SYS_SOCKET, SYS_BIND, SYS_SENDTO, SYS_RECVFROM, SYS_LISTEN_TCP, SYS_CONNECT_TCP, SYS_TCP_STATUS, SYS_ACCEPT_TCP };
 typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint32_t fd_pos[8]; int fd_task_pid[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; char cwd[128]; uint16_t adc_values[8]; } task_t;
 // Five fixed 32-KiB SRAM slots, not a .bss reservation.
 // The linker must restrict the kernel to kernel SRAM (0x20000000..0x2000ffff).
@@ -249,6 +253,8 @@ static void fd_set(task_t *t, int fd, int dev, uint32_t pos, int flags, int targ
     t->fd_task_pid[fd]=target_pid;
     t->fd_flags[fd]=(uint8_t)flags;
 }
+static int udp_owner_pid;
+static int tcp_owner_pid;
 static void finish_task(int slot, int status) {
     (void)status; /* PicoNIX retains PIDs, not exit status. */
     task_t *t=&tasks[slot];
@@ -269,6 +275,8 @@ static void finish_task(int slot, int status) {
     /* A dead parent cannot collect notifications. */
     for(int i=0;i<OS_MAX_TASKS;i++)
         if(exited[i].parent_pid==t->pid) exited[i].pid=0;
+    if (udp_owner_pid == t->pid) { net_socket_udp_close(); udp_owner_pid=0; }
+    if (tcp_owner_pid == t->pid) { net_socket_tcp_close(); tcp_owner_pid=0; }
     t->state=DEAD;
     for(int dev=0;dev<OS_TTY_COUNT;dev++) {
         if(tty_claim_pid[dev]==t->pid) {
@@ -864,27 +872,49 @@ static int path_match(const char *p, const char *s) {
     return strcmp(p,s)==0;
 }
 /* Small volatile regular-file store; IDs are disjoint from devices. */
-#define TMP_FILES 4
+#define TMP_FILES 8
 /* Keep the RAM filesystem within the 64-KiB kernel SRAM region. */
 #define TMP_BYTES 1024
 static struct { char name[16]; uint16_t size; uint8_t used; uint8_t data[TMP_BYTES]; } tmp_files[TMP_FILES];
 /* Check a user path without reading outside the caller's address range. */
+/* /tmp and /etc share eight volatile file slots. Names are stored with
+ * a short directory prefix so the existing descriptor scheme stays intact. */
 static int tmp_name(const char *p, char name[16]) {
-    static const char dir[]="/tmp/";
-    for(unsigned i=0;i<sizeof(dir)-1;i++) {
-        if(p[i]!=dir[i]) return 0;
-    }
+    const char *prefix;
+    if(!strncmp(p,"/tmp/",5)) prefix="tmp/";
+    else if(!strncmp(p,"/etc/",5)) prefix="etc/";
+    else return 0;
+    p+=5;
     unsigned len=0;
-    for(;len<16;len++) {
-        char c=p[5+len];
-        if(!c) { if(!len) return 0; name[len]=0; return 1; }
-        if(c=='/') return 0;
-        if(len==15) return 0;
-        name[len]=c;
-    }
-    return 0;
+    while(p[len] && p[len]!='/' && len<11) len++;
+    if(!len || p[len]) return 0;
+    memcpy(name,prefix,4);
+    memcpy(name+4,p,len);
+    name[4+len]=0;
+    return 1;
+}
+static void tmp_init(void) {
+    static const char html[] =
+        "<!doctype html>\n"
+        "<html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<title>PicoNIX</title></head><body>\n"
+        "<h1>PicoNIX</h1>\n"
+        "<p>A tiny UNIX-like OS for Raspberry Pi Pico / Pico W.</p>\n"
+        "<p>Created by Daisuke Takago.</p>\n"
+        "<p>Source code: <a href=\"https://github.com/takago/PicoNIX\">"
+        "github.com/takago/PicoNIX</a></p>\n"
+        "<p>Edit /etc/index.html on PicoNIX to change this page.</p>\n"
+        "</body></html>\n";
+    static int initialized;
+    if(initialized) return;
+    initialized=1;
+    strcpy(tmp_files[0].name,"etc/index.html");
+    tmp_files[0].used=1;
+    tmp_files[0].size=sizeof(html)-1;
+    memcpy(tmp_files[0].data,html,sizeof(html)-1);
 }
 static int tmp_lookup(const char *name) {
+    tmp_init();
     for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used && !strcmp(name,tmp_files[i].name)) return i;
     return -1;
 }
@@ -900,6 +930,7 @@ static int proc_device(int dev) {
            (dev>=DEV_PROC_TASK_BASE && dev<DEV_PROC_TASK_BASE+OS_MAX_TASKS);
 }
 static int tmp_open(const char *p,int flags) {
+    tmp_init();
     char name[16];
     if(!tmp_name(p,name)) return OS_ENOENT;
     int index=tmp_lookup(name);
@@ -921,6 +952,7 @@ static int tmp_open(const char *p,int flags) {
     return fd;
 }
 static int tmp_unlink(const char *p) {
+    tmp_init();
     char name[16];
     if(!tmp_name(p,name)) return OS_ENOENT;
     int index=tmp_lookup(name);
@@ -932,6 +964,7 @@ static int tmp_unlink(const char *p) {
     return 0;
 }
 static int tmp_rw(int fd,void *p,size_t n,int writing) {
+    tmp_init();
     int id=tasks[current].fd[fd]-DEV_TMP_FIRST;
     if(id<0 || id>=TMP_FILES || !tmp_files[id].used) return OS_EBADF;
     int mode=tasks[current].fd_flags[fd] & 3;
@@ -988,13 +1021,18 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
     char name[32];
     switch(dir) {
     case VDIR_ROOT:
-        EMIT("bin",1); EMIT("dev",1); EMIT("proc",1); EMIT("tmp",1); break;
+        EMIT("bin",1); EMIT("dev",1); EMIT("proc",1); EMIT("tmp",1); EMIT("etc",1); break;
     case VDIR_BIN: case VDIR_USERLAND:
         for(int i=1;i<PROGRAM_CAPACITY;i++)
             if(programs[i].entry && programs[i].name) { EMIT(programs[i].name,0); }
         break;
-    case VDIR_TMP:
-        for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) { EMIT(tmp_files[i].name,0); }
+    case VDIR_TMP: case VDIR_ETC:
+        tmp_init();
+        tmp_init();
+    for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) {
+            const char *prefix=dir==VDIR_TMP?"tmp/":"etc/";
+            if(!strncmp(tmp_files[i].name,prefix,4)) EMIT(tmp_files[i].name+4,0);
+        }
         break;
     case VDIR_DEV:
         for(unsigned i=0;i<vfs_device_count();i++) {
@@ -1042,7 +1080,7 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
 static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
     if(fd<0 || fd>=8) return OS_EBADF;
     int dir=tasks[current].fd[fd];
-    if(dir<VDIR_ROOT || dir>VDIR_TMP) return OS_EBADF;
+    if(dir<VDIR_ROOT || dir>VDIR_ETC) return OS_EBADF;
     if(n<sizeof(*out) || !in_task_range(out,sizeof(*out))) return OS_EINVAL;
     piconix_dirent_t entry={0};
     int found=vdir_nth(dir,tasks[current].fd_pos[fd],&entry);
@@ -1058,7 +1096,7 @@ static int vfs_open(const char *p, int flags) {
         int fd=free_fd(); if(fd<0) return OS_EMFILE;
         fd_set(&tasks[current],fd,dir,0,0,0); return fd;
     }
-    if(!strncmp(p,"/tmp/",5)) return tmp_open(p,flags);
+    if(!strncmp(p,"/tmp/",5) || !strncmp(p,"/etc/",5)) return tmp_open(p,flags);
     if(flags & (OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) return OS_EINVAL;
     int dev=vfs_fixed_path_id(p);
     if(dev<0 && !strncmp(p,"/proc/task/",11)) {
@@ -1112,9 +1150,6 @@ static int vfs_open(const char *p, int flags) {
            dev==DEV_TRACE ? trace_serial-trace_count : 0,flags,
            (dev>=DEV_PROC_TASK_BASE && dev<DEV_PROC_TASK_BASE+OS_MAX_TASKS)
            ? tasks[dev-DEV_PROC_TASK_BASE].pid : 0);
-    if(dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) {
-        tasks[current].adc_values[fd]=(uint16_t)adc_driver_read(dev==DEV_ADC_END ? 4u : (unsigned)(dev-DEV_ADC_BASE));
-    }
     return fd;
 }
 static int device_rw_rand(void *p, size_t n, int writing) {
@@ -1189,13 +1224,22 @@ static int proc_fb_read(int fd, void *dst, size_t n) {
 }
 /* Resolve an open descriptor from the kernel's authoritative device IDs. */
 static const char *fd_path(int dev, int task_pid, char *buf, size_t size) {
-    if(dev>=VDIR_ROOT && dev<=VDIR_TMP) return vfs_directory_path(dev);
+    if(dev>=VDIR_ROOT && dev<=VDIR_ETC) return vfs_directory_path(dev);
     const char *fixed=vfs_fixed_id_path(dev);
     if(fixed) return fixed;
+    /* Socket descriptors are not VFS paths; expose meaningful /proc names. */
+    if(dev==DEV_SOCKET_UDP || dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
+        int kind=dev==DEV_SOCKET_UDP ? 0 : dev==DEV_SOCKET_TCP ? 1 : 2;
+        const char *type=kind==0 ? "udp" : kind==1 ? "tcp" : "tcp-peer";
+        uint16_t port=net_socket_local_port(kind);
+        if(port) snprintf(buf,size,"socket:[%s]:%u",type,(unsigned)port);
+        else snprintf(buf,size,"socket:[%s]",type);
+        return buf;
+    }
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) {
         int index=dev-DEV_TMP_FIRST;
         if(tmp_files[index].used) {
-            snprintf(buf,size,"/tmp/%s",tmp_files[index].name);
+            snprintf(buf,size,"/%s",tmp_files[index].name);
             return buf;
         }
     }
@@ -1272,6 +1316,7 @@ static int proc_task_read(int fd, int slot, void *dst, size_t n) {
  * metadata only; the contents remain accessible through /dev/mem. */
 static int proc_ramfiles_read(int fd, void *p, size_t n) {
     size_t pos=tasks[current].fd_pos[fd], done=0, skip=0;
+    tmp_init();
     for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) {
         char line[80];
         int len=snprintf(line,sizeof line,"%08lX %s\n",
@@ -1397,23 +1442,15 @@ static int device_rw_pwm(int fd, int dev, void *p, size_t n, int writing) {
     if(!n) return 0;
     unsigned which=(dev==DEV_PWM_FREQ) ? 0u : (unsigned)(dev-DEV_PWM_18+1);
     if(writing) {
-        if(n>12) return OS_EINVAL;
-        unsigned x=0; size_t i=0;
-        const char *b=p;
-        while(i<n && b[i]>='0' && b[i]<='9') {
-            x=x*10u+(unsigned)(b[i]-'0');
-            if(x>1000000u) return OS_EINVAL;
-            i++;
-        }
-        if(i==0 || (i<n && !(i+1==n && b[i]=='\n'))) return OS_EINVAL;
-        /* Integer divider + 16-bit counter at RP2040 default clock. */
-        if(dev==DEV_PWM_FREQ) {
-            if(x<8 || x>100000) return OS_EINVAL;
-        } else if(x>100) return OS_EINVAL;
+        unsigned x;
+        if(pwm_parse_value(which,p,n,&x)<0) return OS_EINVAL;
         if(pwm_driver_set(which,x)<0) return OS_EINVAL;
         return (int)n;
     }
-    char b[16]; int len=snprintf(b,sizeof b,"%u\n",pwm_driver_get(which));
+    char b[20];
+    unsigned x=pwm_driver_get(which);
+    int len=dev==DEV_PWM_FREQ ? snprintf(b,sizeof b,"%u\n",x)
+                              : snprintf(b,sizeof b,"%u.%u\n",x/10u,x%10u);
     size_t pos=tasks[current].fd_pos[fd];
     if(pos>=(size_t)len) return 0;
     size_t count=(size_t)len-pos;
@@ -1422,11 +1459,12 @@ static int device_rw_pwm(int fd, int dev, void *p, size_t n, int writing) {
     tasks[current].fd_pos[fd]+=(uint32_t)count;
     return (int)count;
 }
-/* A fresh ADC sample is obtained on open/read; subsequent reads return EOF.
- * Use a regular read cursor so cat() terminates and watch can reopen. */
+/* Sample on the first read, not open; subsequent reads drain the cached text. */
 static int device_rw_adc(int fd, int dev, void *p, size_t n, int writing) {
     if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;
     if(!n) return 0;
+    if(tasks[current].fd_pos[fd]==0)
+        tasks[current].adc_values[fd]=(uint16_t)adc_driver_read(dev==DEV_ADC_END ? 4u : (unsigned)(dev-DEV_ADC_BASE));
     unsigned raw=tasks[current].adc_values[fd];
     char text[20];
     int len=adc_driver_format(raw,dev==DEV_ADC_END,text,sizeof text);
@@ -1444,7 +1482,20 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
     if(n>0 && !in_task_range(p,n)) return OS_EINVAL;
     int dev=tasks[current].fd[fd];
-    if(dev>=VDIR_ROOT && dev<=VDIR_TMP) return OS_EBADF;
+    if(dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
+        if(tcp_owner_pid!=tasks[current].pid) return OS_EBADF;
+        /* A listening descriptor is not a connected byte stream. */
+        if(dev==DEV_SOCKET_TCP && net_socket_tcp_listening()) return OS_EBADF;
+        if(n==0) return 0;
+        if(!net_socket_tcp_connected()) {
+            int status=net_socket_tcp_status();
+            if(status==-2) return writing ? OS_EIO : 0;
+            return status<0 ? OS_EIO : OS_EAGAIN;
+        }
+        int r=writing ? net_socket_tcp_write(p,(unsigned)n) : net_socket_tcp_read(p,(unsigned)n);
+        return r==-2 ? (writing ? OS_EIO : 0) : r<0 ? OS_EIO : r==0 ? OS_EAGAIN : r;
+    }
+    if(dev>=VDIR_ROOT && dev<=VDIR_ETC) return OS_EBADF;
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) return tmp_rw(fd,p,n,writing);
     if(dev==DEV_TRACE) {
         if(writing) return OS_EBADF;
@@ -1640,6 +1691,75 @@ void os_svc_dispatch(uint32_t *f) {
     trace_record(TRACE_SVC_ENTER, (uint8_t)tasks[current].pid, (uint32_t)num,
                  (uint32_t)a, tasks[current].program_id, file_id, NULL, 0);
     switch(num) {
+        case SYS_SOCKET: { /* AF_INET=2, SOCK_DGRAM=2; one UDP socket */
+            if(a!=2 || (b!=1 && b!=2) || c!=0) { result=OS_EINVAL; break; }
+            if((b==1 ? tcp_owner_pid : udp_owner_pid)) { result=OS_EBUSY; break; }
+            int fd=-1;
+            for(int i=3;i<8;i++) if(tasks[current].fd[i]<0) { fd=i; break; }
+            if(fd<0) { result=OS_EMFILE; break; }
+            fd_set(&tasks[current],fd,b==1 ? DEV_SOCKET_TCP : DEV_SOCKET_UDP,0,OS_O_RDWR,0);
+            if(b==1) tcp_owner_pid=tasks[current].pid;
+            else udp_owner_pid=tasks[current].pid;
+            result=fd;
+            break;
+        }
+        case SYS_LISTEN_TCP:
+            if(a<0 || a>=8 || tasks[current].fd[a]!=DEV_SOCKET_TCP || tcp_owner_pid!=tasks[current].pid)
+                result=OS_EBADF;
+            else if(b<=0 || b>65535) result=OS_EINVAL;
+            else result=net_socket_tcp_listen((uint16_t)b)==0 ? 0 : OS_EBUSY;
+            break;
+        case SYS_ACCEPT_TCP: {
+            if(a<0 || a>=8 || tasks[current].fd[a]!=DEV_SOCKET_TCP ||
+               tcp_owner_pid!=tasks[current].pid || !net_socket_tcp_listening()) {
+                result=OS_EBADF; break;
+            }
+            int fd=-1;
+            for(int i=3;i<8;i++) if(tasks[current].fd[i]<0) { fd=i; break; }
+            if(fd<0) { result=OS_EMFILE; break; }
+            if(!net_socket_tcp_accept_ready()) { result=OS_EAGAIN; break; }
+            fd_set(&tasks[current],fd,DEV_SOCKET_TCP_ACCEPTED,0,OS_O_RDWR,0);
+            result=fd;
+            break;
+        }
+        case SYS_CONNECT_TCP:
+            if(a<0 || a>=8 || tasks[current].fd[a]!=DEV_SOCKET_TCP || tcp_owner_pid!=tasks[current].pid)
+                result=OS_EBADF;
+            else {
+                const piconix_tcp_endpoint_t *ep=(const piconix_tcp_endpoint_t *)(uintptr_t)b;
+                if(!ep || !in_task_range(ep,sizeof(*ep)) || !ep->peer_port) result=OS_EINVAL;
+                else result=net_socket_tcp_connect(ep->peer_ip,ep->peer_port)==0 ? 0 : OS_EIO;
+            }
+            break;
+        case SYS_TCP_STATUS:
+            if(a<0 || a>=8 || tasks[current].fd[a]!=DEV_SOCKET_TCP || tcp_owner_pid!=tasks[current].pid)
+                result=OS_EBADF;
+            else result=net_socket_tcp_status();
+            break;
+        case SYS_BIND:
+            if(a<0 || a>=8 || tasks[current].fd[a]!=DEV_SOCKET_UDP || udp_owner_pid!=tasks[current].pid)
+                result=OS_EBADF;
+            else if(b<=0 || b>65535) result=OS_EINVAL;
+            else result=net_socket_udp_bind((uint16_t)b)==0 ? 0 : OS_EINVAL;
+            break;
+        case SYS_SENDTO: {
+            if(a<0 || a>=8 || tasks[current].fd[a]!=DEV_SOCKET_UDP || udp_owner_pid!=tasks[current].pid) { result=OS_EBADF; break; }
+            const piconix_udp_packet_t *pkt=(const piconix_udp_packet_t *)(uintptr_t)b;
+            if(!pkt || !in_task_range(pkt,sizeof(*pkt)) || pkt->length>NET_SOCKET_UDP_MAX ||
+               (pkt->length && (!pkt->data || !in_task_range(pkt->data,pkt->length)))) { result=OS_EINVAL; break; }
+            int n=net_socket_udp_send(pkt->data,pkt->length,pkt->peer_ip,pkt->peer_port);
+            result=n<0 ? OS_EIO : n;
+            break;
+        }
+        case SYS_RECVFROM: {
+            if(a<0 || a>=8 || tasks[current].fd[a]!=DEV_SOCKET_UDP || udp_owner_pid!=tasks[current].pid) { result=OS_EBADF; break; }
+            piconix_udp_packet_t *pkt=(piconix_udp_packet_t *)(uintptr_t)b;
+            if(!pkt || !in_task_range(pkt,sizeof(*pkt)) || !pkt->data ||
+               pkt->length>NET_SOCKET_UDP_MAX || !in_task_range(pkt->data,pkt->length)) { result=OS_EINVAL; break; }
+            int n=net_socket_udp_recv((void *)pkt->data,pkt->length,&pkt->peer_ip,&pkt->peer_port);
+            result=n==-2 ? OS_EINVAL : n==-3 ? OS_EAGAIN : n<0 ? OS_EIO : n;
+            break;
+        }
         case SYS_GETPID: result=tasks[current].pid; break;
         case SYS_FLASH_ID: result=(int)piconix_flash_id(); break;
         case SYS_GET_TTY: result=tasks[current].tty; break;
@@ -1790,6 +1910,8 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_DUP2:
+            if((a>=0 && a<8 && (tasks[current].fd[a]==DEV_SOCKET_UDP || tasks[current].fd[a]==DEV_SOCKET_TCP || tasks[current].fd[a]==DEV_SOCKET_TCP_ACCEPTED)) ||
+               (b>=0 && b<8 && (tasks[current].fd[b]==DEV_SOCKET_UDP || tasks[current].fd[b]==DEV_SOCKET_TCP || tasks[current].fd[b]==DEV_SOCKET_TCP_ACCEPTED))) { result=OS_EINVAL; break; }
             if(a<0 || a>=8 || b<0 || b>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
             else {
                 fd_set(&tasks[current],b,tasks[current].fd[a],
@@ -1804,7 +1926,23 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_CLOSE: if(a<3 || a>=8 || tasks[current].fd[a]<0) result=OS_EBADF;
-            else {fd_set(&tasks[current],a,-1,0,0,0); result=0;} break;
+            else { if(tasks[current].fd[a]==DEV_SOCKET_UDP) { net_socket_udp_close(); udp_owner_pid=0; }
+                   if(tasks[current].fd[a]==DEV_SOCKET_TCP) {
+                       if(net_socket_tcp_listening()) {
+                           net_socket_tcp_close_listener();
+                           int has_accepted=0;
+                           for(int j=3;j<8;j++) if(j!=a && tasks[current].fd[j]==DEV_SOCKET_TCP_ACCEPTED) has_accepted=1;
+                           if(!has_accepted) { net_socket_tcp_close_client(); tcp_owner_pid=0; }
+                       }
+                       else { net_socket_tcp_close_client(); tcp_owner_pid=0; }
+                   }
+                   if(tasks[current].fd[a]==DEV_SOCKET_TCP_ACCEPTED) {
+                       net_socket_tcp_close_client();
+                       int has_listener=0;
+                       for(int j=3;j<8;j++) if(j!=a && tasks[current].fd[j]==DEV_SOCKET_TCP) has_listener=1;
+                       if(!has_listener) tcp_owner_pid=0;
+                   }
+                   fd_set(&tasks[current],a,-1,0,0,0); result=0;} break;
         case SYS_GETDENTS: result=vfs_getdents(a,(piconix_dirent_t *)(uintptr_t)b,(size_t)c); break;
         case SYS_READ: result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,0); break;
         case SYS_WRITE: result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,1); break;
@@ -1814,7 +1952,7 @@ void os_svc_dispatch(uint32_t *f) {
             else if(b==1) result=tasks[current].fd_flags[a]; /* F_GETFL */
             else if(b==2) { /* F_SETFL: only O_NONBLOCK is mutable */
                 if(c & ~(OS_O_NONBLOCK | OS_O_RDWR | OS_O_WRONLY | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) result=OS_EINVAL;
-                else if(tasks[current].fd[a]!=DEV_CONSOLE && tasks[current].fd[a]!=DEV_UART1 && !(PICONIX_WIFI && tasks[current].fd[a]==DEV_WIFI_TTY)) result=OS_EINVAL;
+                else if(tasks[current].fd[a]!=DEV_SOCKET_TCP && tasks[current].fd[a]!=DEV_SOCKET_TCP_ACCEPTED && tasks[current].fd[a]!=DEV_SOCKET_UDP && tasks[current].fd[a]!=DEV_CONSOLE && tasks[current].fd[a]!=DEV_UART1 && !(PICONIX_WIFI && tasks[current].fd[a]==DEV_WIFI_TTY)) result=OS_EINVAL;
                 else {
                     tasks[current].fd_flags[a]=(tasks[current].fd_flags[a] & ~OS_O_NONBLOCK) | (c & OS_O_NONBLOCK);
                     result=0;
@@ -1890,3 +2028,10 @@ int os_fcntl(int fd,int cmd,int value) { return call(SYS_FCNTL,fd,cmd,value); }
 
 int os_dup2(int oldfd,int newfd) { return call(SYS_DUP2,oldfd,newfd,0); }
 int os_unlink(const char *p) { return call(SYS_UNLINK,(uintptr_t)p,0,0); }
+
+/* Experimental socket syscalls: TCP server-side listener only. */
+int os_socket(int domain,int type,int protocol) { return call(SYS_SOCKET,domain,type,protocol); }
+int os_tcp_listen(int fd,uint16_t port) { return call(SYS_LISTEN_TCP,fd,port,0); }
+int os_tcp_connect(int fd,const piconix_tcp_endpoint_t *ep) { return call(SYS_CONNECT_TCP,fd,(uintptr_t)ep,0); }
+int os_tcp_status(int fd) { return call(SYS_TCP_STATUS,fd,0,0); }
+int os_tcp_accept(int fd) { return call(SYS_ACCEPT_TCP,fd,0,0); }

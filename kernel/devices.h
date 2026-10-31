@@ -16,4 +16,5 @@ int adc_driver_format(unsigned raw, int temperature, char *text, size_t size);
 void pwm_driver_init(void);
 unsigned pwm_driver_get(unsigned which);
 int pwm_driver_set(unsigned which, unsigned value);
+int pwm_parse_value(unsigned which, const void *data, size_t n, unsigned *value);
 #endif

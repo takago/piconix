@@ -237,7 +237,7 @@ static void refresh_ram_labels(unsigned addr) {
   unsigned row=(a-addr)/BYTES_PER_ROW;
   char *dst=labels[row];size_t n=strlen(dst);
   if(n+2<sizeof labels[row] && n){dst[n++]=',';dst[n++]=' ';dst[n]=0;}
-  snprintf(dst+n,sizeof labels[row]-n,"RAM_FILE: /tmp/%s",line+9);
+  snprintf(dst+n,sizeof labels[row]-n,"RAM_FILE: /%s",line+9);
  }
  close(fd);
 }

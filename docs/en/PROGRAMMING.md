@@ -137,3 +137,7 @@ For runtime diagnostics, use `ps`, `cat /proc/tasks`, `cat /proc/memory` and `tr
 - [ ] Arguments, I/O and termination have been tested on hardware
 
 **Next:** Read [Internals](INTERNAL.md) for the OS architecture or [Devices and wiring](DEVICES.md) for hardware-specific access.
+
+## Network programming
+
+Pico W user applications can access TCP/UDP sockets. See [Socket API and network applications](NETWORK-PROGRAMMING.md).

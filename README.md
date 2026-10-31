@@ -1,91 +1,87 @@
 # PicoNIX
 
-**A tiny UNIX-like operating system for Raspberry Pi Pico / Pico W**  
-**Raspberry Pi Pico／Pico Wで動く小さなUNIX風OS**
+**A tiny UNIX-like OS with user-space TCP/IP networking for Raspberry Pi Pico / Pico W**  
+**Raspberry Pi Pico／Pico Wで動く，ソケット通信対応の小さなUNIX風OS**
 
-PicoNIXは，Raspberry Pi Pico（RP2040）およびPico Wで動作する，学習・実験向けの小さなUNIX風オペレーティングシステムです．Linuxの移植版ではなく，限られたメモリでシェル，ファイルシステム，マルチタスク，デバイス操作などを体験できます．
+PicoNIXは，RP2040の限られたRAM上で，シェル，マルチタスク，仮想ファイルシステム，デバイスファイル，**ユーザプロセスから利用できるTCP/IPソケット**を実現する実験的なUNIX風OSです．Linuxの移植ではありません．
 
-PicoNIX is a small UNIX-like operating system for the Raspberry Pi Pico (RP2040) and Pico W. Built for learning and experimentation rather than as a Linux port, it brings a shell, file system, multitasking, and device access to a resource-constrained microcontroller.
+PicoNIX is an experimental UNIX-like OS for RP2040 microcontrollers. Beyond a shell, multitasking, a virtual file system, and device files, it now offers **TCP/UDP sockets to ordinary user applications**. It is not a Linux port.
 
-## 主な特徴 / Key features
+## Highlights / 主な特徴
 
-- **Pico／Pico W対応 / Pico and Pico W support**  
-  両方のボードに対応しています．Pico W向けファームウェアが通常のPicoでも動作することを実機で確認しています（Wi-Fi機能は利用不可）．  
-  Supports both boards. The Pico W firmware has also been tested on a standard Pico, without Wi-Fi functionality.
+- **User-space TCP/IP networking / ユーザプロセスからのTCP/IP通信** — Pico WでlwIPを利用し，`socket()`，`bind()`，`listen()`，`accept()`，`connect()`，`send()`，`recv()`，`sendto()`，`recvfrom()`を利用できます．TCP/UDPのクライアントとサーバをユーザプログラムとして作成できます． / A compact BSD-style IPv4 socket API lets user programs implement TCP and UDP clients and servers.
+- **Networking tools / ネットワークコマンド** — `nc`，`httpd`，`tcp_echod`，`udp_echod`．`httpd`はユーザプロセスで動作し，`/etc/index.html`を配信します． / User-space HTTP and echo servers, plus netcat-like testing.
+- **Built-in network services / カーネル標準サービス** — TCP 23のTelnetシェルと，UDP 2000のリモートデバイス制御．サービスは`net_service_telnet.c`と`net_service_remote_devctl.c`に分離しています． / Telnet shell on TCP 23 and remote device control on UDP 2000.
+- **UNIX-like environment / UNIX風の環境** — `sh`，`ls`，`cat`，`ps`，`kill`，`find`，`tree`と，`/bin`，`/dev`，`/proc`，`/tmp`，`/etc`． / Shell commands and a small virtual file system.
+- **Device files / デバイスファイル** — GPIO，ADC，PWM，UART，LEDマトリクス用フレームバッファをファイル経由で操作．UDP 2000からも対応デバイスを遠隔操作できます． / File-like device access and remote device control.
+- **Programming on the Pico / 本体上でプログラミング** — `python`，`as`，`edit`． / Small Python-like interpreter, assembler, and editor.
+- **Inspect the OS / OS内部の観察** — `mem`，`trace`，`lsof`（ソケットのポート番号表示に対応）． / Memory viewer, syscall tracing, and open-descriptor inspection.
+- **Terminal games / 端末ゲーム** — `mb`（Moon Buggy），`pong`．
 
-- **Wi-FiとTelnet / Wi-Fi and Telnet**  
-  Pico W自身がWi-Fiアクセスポイントとなり，外部ルータなしでPCからTelnet接続してシェルを操作できます．生TCP端末にも対応します．  
-  Pico W provides its own Wi-Fi access point, allowing a PC to access the shell via Telnet without a router. A raw TCP terminal is also available.
+## Network demo / ネットワークのデモ
 
-- **UNIX風のコマンドとファイルシステム / UNIX-like commands and file system**  
-  `sh`，`ls`，`cat`，`ps`，`kill`，`find`，`tree`などのコマンドと，`/bin`，`/dev`，`/proc`，`/tmp`を備えています．  
-  Includes commands such as `sh`, `ls`, `cat`, `ps`, `kill`, `find`, and `tree`, plus `/bin`, `/dev`, `/proc`, and `/tmp`.
+Pico WのWi-FiアクセスポイントにPCを接続します． / Connect your PC to the Pico W access point.
 
-- **デバイスファイル / Device files**  
-  GPIOやUARTなどのデバイスをファイルとして操作できます．  
-  Access devices such as GPIO and UART through file-like interfaces.
-
-- **本体上でプログラミング / On-device programming**  
-  `python`，`as`（アセンブラ），`edit`（エディタ）を搭載しています．  
-  Includes `python`, `as` (assembler), and `edit` (text editor).
-
-- **OS内部の観察 / Explore OS internals**  
-  `mem`，`trace`，`lsof`などでメモリや実行中のシステムを調べられます．  
-  Inspect memory and runtime behavior with `mem`, `trace`, and `lsof`.
-
-- **端末ゲーム / Terminal games**  
-  `moonbuggy`や`pong`も楽しめます．  
-  Includes terminal games such as `moonbuggy` and `pong`.
-
-## Pico WにTelnetで接続 / Connect to Pico W via Telnet
-
-Pico WのアクセスポイントにPCを接続してから，以下を実行します．外部Wi-Fiルータは不要です．  
-Connect your PC to the Pico W access point, then run the following. No external Wi-Fi router is required.
-
-- **SSID:** `PicoNIX-XXXXXXXX`（末尾はデバイスごとに異なります / device-specific suffix）
-- **Password:** `piconix1234`
-- **IP address:** `192.168.4.1`
+- SSID: `PicoNIX-XXXXXXXX`（デバイスごとに異なります / device-specific suffix）
+- Password: `piconix1234`
+- Pico W address: `192.168.4.1`
 
 ```sh
+# Linux PC: PicoNIX shell / PicoNIXのシェルへ接続
 telnet 192.168.4.1
 ```
 
-生TCP接続はポート2323を利用します．USB CDC端末はネットワーク端末と独立しています．  
-Raw TCP is also available on port 2323. The USB CDC console remains independent of the network terminal.
-
-**注意 / Security:** Telnetと生TCPは暗号化されません．信頼できる実験環境でのみ使用してください．  
-Telnet and raw TCP are unencrypted. Use them only on a trusted experimental network.
-
-詳細 / Details: [日本語：ネットワーク接続](docs/ja/NETWORK.md) | [English: Network access](docs/en/NETWORK.md)
-
-## ビルド / Build
-
-使用するボードに応じて`PICO_BOARD`を指定します．  
-Select the target board with `PICO_BOARD`.
+PicoNIXのシェルで`httpd`を起動すると，PCのブラウザから`http://192.168.4.1/`へアクセスできます．`/etc/index.html`は`edit`で変更できます． / Start `httpd` in the PicoNIX shell, then open `http://192.168.4.1/` in a browser. Edit `/etc/index.html` to change the page.
 
 ```sh
-# Raspberry Pi Pico
+# PicoNIX shell
+httpd
+# Or run a user-space TCP echo server / TCP Echoサーバ
+tcp_echod 1234
+```
+
+```sh
+# Linux PC (while tcp_echod is running)
+nc 192.168.4.1 1234
+```
+
+UDP echo can be tested with `udp_echod 1234` on PicoNIX and `printf 'hello\n' | nc -u -w 2 192.168.4.1 1234` on Linux.
+
+**Security / セキュリティ：** TelnetとUDP 2000のリモートデバイス制御には暗号化・認証がありません．信頼できる実験用ネットワークだけで利用してください． / Telnet and remote device control are unauthenticated and unencrypted; use only on a trusted lab network.
+
+## Build / ビルド
+
+```sh
+# Pico (no Wi-Fi / Wi-Fiなし)
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 
-# Raspberry Pi Pico W
+# Pico W (Wi-Fi enabled / Wi-Fiあり)
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-上記はPico SDKとツールチェーンのセットアップ後の例です．詳しい手順はセットアップガイドを参照してください．  
-These commands assume that the Pico SDK and toolchain are configured. See the setup guides for prerequisites and detailed instructions.
+Pico SDKとARMツールチェーンが必要です． / Requires the Pico SDK and an ARM toolchain.
 
-## ドキュメント / Documentation
+## Architecture / 構成
 
-- [日本語：概要・使い方・文書一覧](docs/ja/README.md)
-- [English: Overview, quick start, and documentation](docs/en/README.md)
+- `kernel/kernel.c` — タスク，システムコール，VFS / tasks, syscalls, VFS
+- `kernel/net.c` — Wi-FiとlwIPの初期化・管理 / Wi-Fi and lwIP integration
+- `kernel/net_socket.c` — ユーザプロセス用ソケットバックエンド / user-process socket backend
+- `kernel/net_service_telnet.c` — Telnet（TCP 23）
+- `kernel/net_service_remote_devctl.c` — リモートデバイス制御（UDP 2000）
+- `userland/httpd.c`，`userland/nc.c`，`userland/tcp_echod.c`，`userland/udp_echod.c` — 通常のユーザプログラム / ordinary user applications
+
+ソケットAPIは小規模な実装であり，Linux/POSIXの完全互換ではありません．`send()`と`recv()`のflagsは0のみ対応します． / The socket API is intentionally limited, not fully POSIX-compatible; `send()` and `recv()` support flags=0 only.
+
+## Documentation / ドキュメント
 
 | 日本語 | English |
 |---|---|
+| [概要・文書一覧](docs/ja/README.md) | [Overview and guides](docs/en/README.md) |
 | [セットアップ](docs/ja/SETUP.md) | [Setup](docs/en/SETUP.md) |
 | [ネットワーク接続](docs/ja/NETWORK.md) | [Network access](docs/en/NETWORK.md) |
+| [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) | [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) |
 | [Cアプリ開発](docs/ja/PROGRAMMING.md) | [C application development](docs/en/PROGRAMMING.md) |
-| [デバイス・ピン配置](docs/ja/DEVICES.md) | [Devices and pin assignment](docs/en/DEVICES.md) |
+| [デバイス](docs/ja/DEVICES.md) | [Devices](docs/en/DEVICES.md) |
 | [内部構造](docs/ja/INTERNAL.md) | [Internals](docs/en/INTERNAL.md) |
 
-`/tmp`のファイル上限は1KiB（最大4ファイル）です．`ls -l`ではファイル種別と，取得可能な場合はサイズを表示します．  
-The `/tmp` file limit is 1 KiB per file (up to four files). `ls -l` shows file types and sizes when available.
+`/tmp`と`/etc`は揮発性RAMファイル領域を共有し，合計最大8ファイル，各1 KiBです． / `/tmp` and `/etc` share up to eight volatile RAM files of 1 KiB each.

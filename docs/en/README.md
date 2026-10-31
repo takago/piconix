@@ -6,6 +6,8 @@ PicoNIX is a **small UNIX-like operating system for the Raspberry Pi Pico (RP204
 
 ## What it can do
 
+- **User-process TCP/UDP networking on Pico W:** `socket()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` with `nc`, `httpd`, `tcp_echod`, and `udp_echod`. See [Socket API and network applications](NETWORK-PROGRAMMING.md).
+
 - Preemptive task switching using SysTick and PendSV
 - An SVC boundary between the kernel and RAM applications
 - Commands including `ps`, `kill`, `sh`, `getty`, `blink`, `omikuji`, `python`, `hello`, and `hexdump`
@@ -48,7 +50,7 @@ The default setup uses a USB CDC console and an 8×8 LED matrix. UART1 uses GP20
 
 ## Design and limitations
 
-PicoNIX has a 96 KiB kernel region and five 32 KiB application slots. PIC application images are embedded in flash and loaded into a free slot on launch. Up to five application tasks can run concurrently.
+PicoNIX has a 64 KiB kernel region and five 32 KiB application slots. PIC application images are embedded in flash and loaded into a free slot on launch. Up to five application tasks can run concurrently.
 
 PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, signal handlers, pipes, per-process memory protection, or dynamic ELF loading. `Ctrl+C` and `kill` terminate tasks directly in the kernel; they do not send UNIX signals. `/tmp` is lost on reboot.
 
@@ -61,6 +63,7 @@ PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, si
 | Prepare, build, and flash | [Setup](SETUP.md) |
 | Understand RAM, tasks, and syscalls | [Internals](INTERNAL.md) |
 | Write a C RAM application | [Application programming](PROGRAMMING.md) |
+| Build TCP/UDP clients and servers | [Sockets and network applications](NETWORK-PROGRAMMING.md) |
 | Understand UART1, `getty`, Ctrl+C/Ctrl+D | [UART and terminals](UART.md) |
 | Use the `python` command | [Python-like interpreter](PYTHON.md) |
 | Configure TTY input and play `mb` | [Terminal settings and interactive input](TTY.md) |
@@ -74,7 +77,7 @@ GPL-3.0-or-later. See `LICENSE`.
 
 - [Tiny Thumb assembler](ASM.md) — `as` / `./a.out`
 
-`/tmp` supports four files of up to 1 KiB each. `ls -l` shows the node type and file size where available.
+`/tmp` and `/etc` share up to eight volatile files of 1 KiB each. `ls -l` shows the node type and file size where available.
 
 ## Pico W network access
 

@@ -18,9 +18,9 @@
 #define LWIP_RAM_HEAP_POINTER ((void *)0x20038000u)
 #define PBUF_POOL_SIZE 4
 #define PBUF_POOL_BUFSIZE 512
-#define MEMP_NUM_TCP_PCB 1
-#define MEMP_NUM_TCP_PCB_LISTEN 2
-#define MEMP_NUM_UDP_PCB 1
+#define MEMP_NUM_TCP_PCB 2
+#define MEMP_NUM_TCP_PCB_LISTEN 2 /* Telnet + user TCP; HTTP will require another */
+#define MEMP_NUM_UDP_PCB 3 /* DHCP + device service + user UDP */
 #define TCP_MSS 536
 #define TCP_WND (2 * TCP_MSS)
 #define TCP_SND_BUF (2 * TCP_MSS)
