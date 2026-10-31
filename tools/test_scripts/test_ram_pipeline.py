@@ -71,10 +71,10 @@ def test_app(tmp, name, base):
     alt_ld = tmp / f'{name}_alt.ld'
     alt_elf = tmp / f'{name}_alt.elf'
     alt_bin = tmp / f'{name}_alt.bin'
-    alt_ld.write_text((ROOT / 'userland' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base+32768:#x}'))
+    alt_ld.write_text((ROOT / 'userland' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base+24576:#x}'))
     run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T', alt_ld, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, LIBGCC, '-o', alt_elf)
     run(OBJCOPY, '-O', 'binary', alt_elf, alt_bin)
-    run(sys.executable, ROOT / 'tools' / 'check_slot_image.py', alt_elf, alt_bin, hex(base+32768), '--readelf', READELF)
+    run(sys.executable, ROOT / 'tools' / 'check_slot_image.py', alt_elf, alt_bin, hex(base+24576), '--readelf', READELF)
     run(sys.executable, ROOT / 'tools' / 'check_pic.py', elf, binary, alt_elf, alt_bin, '--readelf', READELF)
     print(f'PASS: {name} PIC image ({binary.stat().st_size} bytes)')
 

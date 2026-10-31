@@ -32,7 +32,7 @@ set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
 foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod)
   # Compile each application once for the same canonical address.
-  # Every image must also link identically at the next 32-KiB slot address.
+  # Every image must also link identically at the next 24-KiB slot address.
   set(APP_ORIGIN 0x20010000)
   set(APP_DIR "${CMAKE_CURRENT_BINARY_DIR}/ram_${APP}")
   file(MAKE_DIRECTORY "${APP_DIR}")
@@ -43,7 +43,7 @@ foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello 
   set(SYSCALLS_OBJ "${APP_DIR}/syscalls.o")
   set(LIBC_OBJ "${APP_DIR}/libc.o")
   set(APP_LD_ALT "${APP_DIR}/slot_alt.ld")
-  set(APP_ORIGIN 0x20018000)
+  set(APP_ORIGIN 0x20016000)
   configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/slot.ld" "${APP_LD_ALT}" @ONLY)
   set(APP_ORIGIN 0x20010000)
   set(APP_ELF_ALT "${APP_DIR}/${APP}_alt.elf")
@@ -226,13 +226,13 @@ endif()
 pico_enable_stdio_uart(piconix 0)
 pico_add_extra_outputs(piconix)
 
-# Post-link inspection of five fixed 32-KiB task slots.
+# Post-link inspection of six fixed 24-KiB task slots.
 # Enable explicitly while transitioning from SDK's default XIP linker script.
 option(PICONIX_VERIFY_LAYOUT "Check task RAM placement in linked ELF" ON)
 if(PICONIX_VERIFY_LAYOUT)
   add_custom_command(TARGET piconix POST_BUILD
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/verify_layout.py"
-            "$<TARGET_FILE:piconix>" --slots "5" --nm "${CMAKE_NM}"
+            "$<TARGET_FILE:piconix>" --slots "6" --nm "${CMAKE_NM}"
     VERBATIM)
 endif()
 
@@ -244,7 +244,7 @@ option(PICONIX_AUDIT_FIRMWARE "Audit SDK boot2/vectors and fixed RAM slots" ON)
 if(PICONIX_AUDIT_FIRMWARE)
   add_custom_command(TARGET piconix POST_BUILD
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/audit_firmware.py"
-            "$<TARGET_FILE:piconix>" --slots "5" --nm "${CMAKE_NM}"
+            "$<TARGET_FILE:piconix>" --slots "6" --nm "${CMAKE_NM}"
             --objdump "${CMAKE_OBJDUMP}"
     VERBATIM)
 endif()

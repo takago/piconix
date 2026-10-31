@@ -23,7 +23,8 @@ for token in ('wifi_session_poll();', 'if(wifi_session_active && epoch!=wifi_ses
     assert token in kern, token
 assert 'unsigned net_terminal_epoch(void);' in hdr
 assert '#define TCP_MSS 536' in opts
-assert re.search(r'#define\s+MEMP_NUM_TCP_PCB_LISTEN\s+2\b', opts)
+listen_match = re.search(r'#define\s+MEMP_NUM_TCP_PCB_LISTEN\s+(\d+)\b', opts)
+assert listen_match and int(listen_match.group(1)) >= 5, 'TCP listen PCB pool must cover Telnet and four user sockets'
 assert net.count('++terminal_epoch;') >= 3
 receive = net.split('static err_t client_recv(', 1)[1].split('\nstatic ', 1)[0]
 assert 'tcp_write(' not in receive and 'tcp_output(' not in receive

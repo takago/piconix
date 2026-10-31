@@ -12,7 +12,7 @@ p.add_argument('binary')
 p.add_argument('origin',type=lambda s:int(s,0))
 p.add_argument('--readelf',default='readelf')
 a=p.parse_args()
-end=a.origin+32768
+end=a.origin+24576
 out=subprocess.check_output([a.readelf,'-lW',a.elf],text=True)
 segments=[]
 for line in out.splitlines():

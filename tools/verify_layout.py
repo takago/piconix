@@ -9,7 +9,7 @@ import sys
 
 MAIN_START = 0x20000000
 MAIN_END = 0x20040000
-SLOT_SIZE = 0x8000
+SLOT_SIZE = 0x6000
 
 
 def symbols(elf, nm):
@@ -28,7 +28,7 @@ def symbols(elf, nm):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('elf')
-    ap.add_argument('--slots', type=int, choices=(5,), default=5)
+    ap.add_argument('--slots', type=int, choices=(6,), default=6)
     ap.add_argument('--nm', default='arm-none-eabi-nm')
     args = ap.parse_args()
     try:
@@ -39,11 +39,9 @@ def main():
     if start is None:
         sys.exit('ERROR: task_ram symbol not found; cannot verify layout')
     end = start + args.slots * SLOT_SIZE
-    print(f'task_ram: 0x{start:08x}..0x{end-1:08x} ({args.slots} x 32 KiB)')
+    print(f'task_ram: 0x{start:08x}..0x{end-1:08x} ({args.slots} x 24 KiB)')
     if start != 0x20010000:
         sys.exit('ERROR: fixed image requires task_ram at 0x20010000 ; SDK default linker may not satisfy this')
-    if start % SLOT_SIZE:
-        sys.exit('ERROR: task_ram is not 32-KiB aligned')
     if start < MAIN_START or end > MAIN_END:
         sys.exit('ERROR: task slots do not fit into 256-KiB main SRAM')
     for key in ('tasks', 'idle_stack'):
@@ -53,11 +51,12 @@ def main():
         if start <= addr < end:
             sys.exit(f'ERROR: {key} overlaps task slots')
         print(f'{key}: 0x{addr:08x}')
-    if args.slots == 5:
+    if args.slots == 6:
         reserve_start = 0x20038000
         reserve_end = MAIN_END
-        if end != reserve_start:
-            sys.exit('ERROR: network reserve must immediately follow five task slots')
+        if end > reserve_start:
+            sys.exit('ERROR: task slots overlap the network reserve')
+        print(f'Unallocated gap: 0x{end:08x}..0x{reserve_start-1:08x} ({reserve_start-end} bytes)')
         # The lwIP heap is an absolute address, not an ELF symbol. Verify the
         # intended reservation and heap definition together, before trusting it.
         from pathlib import Path
@@ -71,7 +70,7 @@ def main():
         heap_start = int(ptr.group(1), 16)
         if heap_start < reserve_start or heap_start + heap_size > reserve_end:
             sys.exit('ERROR: lwIP heap is outside the reserved network bank')
-        print(f'Wi-Fi reserve: 0x{reserve_start:08x}..0x{reserve_end-1:08x} (32 KiB)')
+        print(f'Wi-Fi reserve: 0x{reserve_start:08x}..0x{reserve_end-1:08x} (24 KiB)')
         print(f'lwIP heap: 0x{heap_start:08x}..0x{heap_start+heap_size-1:08x} ({heap_size} bytes)')
         print('NOTE: CYW43 and lwIP static RAM still consume kernel RAM; verify map and runtime usage')
     print('PASS: fixed physical task slots and selected kernel objects are nonoverlapping')

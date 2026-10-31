@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 SLOT_BASE = 0x20010000
-SLOT_BYTES = 5 * 0x8000
+SLOT_BYTES = 6 * 0x6000
 
 def run(*argv):
     return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT)
@@ -43,8 +43,8 @@ def parse_sections(output):
             result[name] = tuple(int(x, 16) for x in (size, vma, lma))
     return result
 
-def audit(symbols, sections, slots=5):
-    slot_bytes = slots * 0x8000
+def audit(symbols, sections, slots=6):
+    slot_bytes = slots * 0x6000
     problems = []
     def require(cond, message):
         if not cond: problems.append(message)
@@ -72,7 +72,7 @@ def audit(symbols, sections, slots=5):
     require(symbols.get('ram_vector_table') == 0x20000000,
             'ram_vector_table symbol must start at 0x20000000')
     base = symbols.get('task_ram')
-    require(base == SLOT_BASE, f'task_ram must start at 0x20010000 ({slots} x 32-KiB slots)')
+    require(base == SLOT_BASE, f'task_ram must start at 0x20010000 ({slots} x 24-KiB slots)')
     for name in ('tasks', 'idle_stack'):
         address = symbols.get(name)
         require(address is not None, f'missing {name} symbol')
@@ -114,7 +114,7 @@ def audit(symbols, sections, slots=5):
                     f'{name} crosses kernel 64-KiB boundary')
     return problems
 
-def memory_report(sections, symbol_sizes, slots=5):
+def memory_report(sections, symbol_sizes, slots=6):
     """Kernel high-water mark from allocated ELF SRAM sections (includes heap/stack)."""
     kernel_base, kernel_end = 0x20000000, SLOT_BASE
     ram_sections = [(name, size, addr) for name, (size, addr, _) in sections.items()
@@ -128,9 +128,9 @@ def memory_report(sections, symbol_sizes, slots=5):
     print(f'Kernel (64 KiB)      0x{kernel_base:08x}..0x{kernel_end - 1:08x}     {used:6d} / {capacity:6d} bytes')
     print(f'Kernel headroom      (after allocated sections)   {max(0, capacity-used):6d} bytes')
     for i in range(slots):
-        base = SLOT_BASE + i * 0x8000
-        print(f'User slot {i+1} (32 KiB)  0x{base:08x}..0x{base+0x7fff:08x}     reserved (runtime)')
-    if slots == 5:
+        base = SLOT_BASE + i * 0x6000
+        print(f'User slot {i+1} (24 KiB)  0x{base:08x}..0x{base+0x5fff:08x}     reserved (runtime)')
+    if slots == 6:
         print('Network reserved     0x20038000..0x2003ffff      32768 bytes (not allocated)')
     trace_bytes = symbol_sizes.get('trace_ring')
     print(f'Trace ring            {trace_bytes} bytes (inside kernel .bss)'
@@ -145,7 +145,7 @@ def memory_report(sections, symbol_sizes, slots=5):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('elf')
-    p.add_argument('--slots', type=int, choices=(5,), default=5)
+    p.add_argument('--slots', type=int, choices=(6,), default=6)
     p.add_argument('--nm', default='arm-none-eabi-nm')
     p.add_argument('--objdump', default='arm-none-eabi-objdump')
     args = p.parse_args()

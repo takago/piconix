@@ -14,7 +14,7 @@ static unsigned char previous[COUNT],current[COUNT];
 static char labels[ROWS][SYMBOL_NAME_MAX];
 static char symbol_app[96];
 static int symbols_available;
-static char slot_names[5][20];
+static char slot_names[6][20];
 static int valid(unsigned a){return (a>=0x20000000u&&a<=0x2003ffffu)||(a>=0x10000000u&&a<=0x101fffffu);}
 static void hex(unsigned v,int digits){const char *h="0123456789ABCDEF";for(int i=(digits-1)*4;i>=0;i-=4)putchar(h[(v>>i)&15]);}
 static int fetch(int fd,unsigned address){if(!valid(address)||!valid(address+COUNT-1))return -1;if(lseek(fd,(long)address,SEEK_SET)<0)return -1;return read(fd,current,COUNT)==COUNT?0:-1;}
@@ -37,7 +37,7 @@ static int symbol_record(char *line,char **app,unsigned *offset,char *kind,char 
  if(!strcmp(line,"kernel")){
   if(!((unsigned)v>=0x10000000u&&(unsigned)v<0x10200000u) &&
      !((unsigned)v>=0x20000000u&&(unsigned)v<0x20010000u))return 0;
- }else if((unsigned)v>=0x8000u)return 0;
+ }else if((unsigned)v>=0x6000u)return 0;
  *app=line;*offset=(unsigned)v;*kind=*b;*name=c;return 1;
 }
 /* Process a catalog as a stream, with fixed-size memory and no malloc.
@@ -82,8 +82,8 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
        }
       }
       else if(slot_hint>=0x20010000u&&slot_hint<0x20038000u){
-       /* A task may occupy one of five 32-KiB slots. */
-       unsigned slot_base=0x20010000u+((slot_hint-0x20010000u)/0x8000u)*0x8000u;
+       /* A task may occupy one of six 24-KiB slots. */
+       unsigned slot_base=0x20010000u+((slot_hint-0x20010000u)/0x6000u)*0x6000u;
        unsigned actual=slot_base+offset;
        if(actual>=base&&actual<base+COUNT){
         unsigned row=(actual-base)/BYTES_PER_ROW;
@@ -117,7 +117,7 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
    no labels, never an unsafe guess about a slot occupant. */
 static int task_program(unsigned addr,char *name,unsigned capacity){
  if(addr<0x20010000u||addr>=0x20038000u)return 0;
- unsigned slot=(addr-0x20010000u)/0x8000u+1;
+ unsigned slot=(addr-0x20010000u)/0x6000u+1;
  int fd=open("/proc/tasks",O_RDONLY);
  if(fd<0)return 0;
  char line[160];unsigned used=0;int found=0,overflow=0;
@@ -159,7 +159,7 @@ static int task_program(unsigned addr,char *name,unsigned capacity){
 }
 /* Read the slot occupancy once per refresh from the authoritative proc file. */
 static int refresh_slots(void){
- char next[5][20]={{0}};
+ char next[6][20]={{0}};
  int fd=open("/proc/tasks",O_RDONLY);
  if(fd<0)return 0;
  char line[160];unsigned used=0;int overflow=0;
@@ -184,7 +184,7 @@ static int refresh_slots(void){
     }
     if(nf==5&&strcmp(fields[0],"PID")){
      char *end;long slot=strtol(fields[4],&end,10);
-     if(!*end&&slot>=1&&slot<=5){
+     if(!*end&&slot>=1&&slot<=6){
       const char *app=fields[1];
       if(!strcmp(app,"shell"))app="sh";
       if(!strcmp(app,"asm"))app="as";
@@ -294,9 +294,9 @@ static void draw(unsigned addr,int pause,int have,int changed){
   printf("| %s\033[K\r\n",labels[r]);
  }
  printf("\033[7mArrows: 16B  PgUp/Dn: 256B  SPACE Pause  [q] Quit\033[K\033[0m\r\n");
- printf("[k] Kernel RAM  [K] Kernel XIP  [1-5] Slots  [g] Goto  Symbols: %s\033[K\r\n",symbol_app[0]?(symbols_available?"loaded":"unavailable"):"none");
+ printf("[k] Kernel RAM  [K] Kernel XIP  [1-6] Slots  [g] Goto  Symbols: %s\033[K\r\n",symbol_app[0]?(symbols_available?"loaded":"unavailable"):"none");
  printf("Slots:");
- for(int i=0;i<5;i++)printf(" %d:%s",i+1,slot_names[i][0]?slot_names[i]:"free");
+ for(int i=0;i<6;i++)printf(" %d:%s",i+1,slot_names[i][0]?slot_names[i]:"free");
  printf("\033[K\r\n\033[K");
 }
 static int parse(const char *s,unsigned *out){char *end;long n=strtol(s,&end,0);if(!*s||*end||n<0||!valid((unsigned)n))return -1;*out=(unsigned)n&~15u;return 0;}
@@ -377,8 +377,8 @@ int main(int argc,char **argv){
    if(c=='q'||c=='Q'||c==3){run=0;break;}
    if(c=='g'||c=='G'){goto_mode=1;goto_len=0;goto_buf[0]=0;printf("\033[23;1HGoto HEX: _  (Enter / Esc)\033[K");continue;}
    if(c==' '){pause=!pause;dirty=1;}
-   if(c=='k'||c=='K'||c=='f'||(c>='1'&&c<='5')){
-    addr=c=='k'?0x20000000u:(c=='K'||c=='f')?0x10000000u:0x20010000u+(unsigned)(c-'1')*0x8000u;
+   if(c=='k'||c=='K'||c=='f'||(c>='1'&&c<='6')){
+    addr=c=='k'?0x20000000u:(c=='K'||c=='f')?0x10000000u:0x20010000u+(unsigned)(c-'1')*0x6000u;
     have=0;dirty=1;
    }
   }

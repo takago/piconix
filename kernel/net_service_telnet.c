@@ -130,9 +130,9 @@ static void net_receive_byte(unsigned char c) {
         } else if (c == 255) { telnet_state = 1; return; }
         if (telnet_cr) {
             telnet_cr = 0;
-            if (c == 0 || c == '\\n') return;
+            if (c == 0 || c == '\n') return;
         }
-        if (c == '\\r') telnet_cr = 1;
+        if (c == '\r') telnet_cr = 1;
     }
     net_rx[net_rx_head] = c;
     net_rx_head = (net_rx_head + 1u) & (NET_TTY_QUEUE_SIZE - 1u);

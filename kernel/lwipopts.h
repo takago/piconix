@@ -11,15 +11,15 @@
 #define LWIP_DNS 0
 #define MEM_ALIGNMENT 4
 /* Place the lwIP dynamic heap in the released fifth task slot.
- * RP2040 main SRAM: slot 5 = 0x20038000..0x2003ffff.
+ * RP2040 main SRAM: network reserve = 0x20038000..0x2003ffff.
  * This relocates ONLY lwIP's MEM_SIZE heap, not all CYW43/lwIP globals.
  * The linker/slot-count audit must remain enabled. */
 #define MEM_SIZE (4 * 1024)
 #define LWIP_RAM_HEAP_POINTER ((void *)0x20038000u)
 #define PBUF_POOL_SIZE 4
 #define PBUF_POOL_BUFSIZE 512
-#define MEMP_NUM_TCP_PCB 2
-#define MEMP_NUM_TCP_PCB_LISTEN 2 /* Telnet + user TCP; HTTP will require another */
+#define MEMP_NUM_TCP_PCB 5
+#define MEMP_NUM_TCP_PCB_LISTEN 5 /* Telnet + user TCP; HTTP will require another */
 #define MEMP_NUM_UDP_PCB 3 /* DHCP + device service + user UDP */
 #define TCP_MSS 536
 #define TCP_WND (2 * TCP_MSS)

@@ -179,9 +179,9 @@ static int pipe_transfer(pipe_t *p, void *buffer, size_t size, int writing) {
     return (int)count;
 }
 typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[OS_FD_MAX]; uint32_t fd_pos[OS_FD_MAX]; int fd_task_pid[OS_FD_MAX]; uint8_t fd_flags[OS_FD_MAX]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; char cwd[128]; uint16_t adc_values[8]; } task_t;
-// Five fixed 32-KiB SRAM slots, not a .bss reservation.
+// Six fixed 24-KiB SRAM slots, not a .bss reservation.
 // The linker must restrict the kernel to kernel SRAM (0x20000000..0x2000ffff).
-_Static_assert((OS_MAX_TASKS == 4 || OS_MAX_TASKS == 5) && OS_TASK_BYTES == 32768u,
+_Static_assert(OS_MAX_TASKS == 6 && OS_TASK_BYTES == 24576u,
                "fixed RP2040 SRAM slot geometry changed");
 __asm__(".global task_ram\n.set task_ram, 0x20010000");
 extern uint8_t task_ram[OS_MAX_TASKS][OS_TASK_BYTES];
@@ -299,27 +299,35 @@ static void fd_set(task_t *t, int fd, int dev, uint32_t pos, int flags, int targ
 /* Release one descriptor. Socket endpoints have a single owning task;
  * pipes alone use per-endpoint reference counts. */
 static int udp_owner_pid;
-static int tcp_owner_pid;
-static void fd_release(task_t *t, int fd) {
+#define TCP_USER_SLOTS 4
+static int tcp_owner_pid[TCP_USER_SLOTS];
+static int tcp_fd_slot(task_t *t,int fd) {
+    if(fd<0 || fd>=OS_FD_MAX ||
+       (t->fd[fd]!=DEV_SOCKET_TCP && t->fd[fd]!=DEV_SOCKET_TCP_ACCEPTED)) return -1;
+    unsigned id=t->fd_pos[fd];
+    return id<TCP_USER_SLOTS && tcp_owner_pid[id]==t->pid ? (int)id : -1;
+}
+static int tcp_other_fd(task_t *t,int id,int except) {
+    for(int j=3;j<OS_FD_MAX;j++)
+        if(j!=except && (t->fd[j]==DEV_SOCKET_TCP || t->fd[j]==DEV_SOCKET_TCP_ACCEPTED) &&
+           t->fd_pos[j]==(unsigned)id) return 1;
+    return 0;
+}
+static void fd_release(task_t *t,int fd) {
     int dev=t->fd[fd];
     if(dev<0) return;
     if(dev==DEV_SOCKET_UDP) {
-        net_socket_udp_close();
-        udp_owner_pid=0;
-    } else if(dev==DEV_SOCKET_TCP) {
-        if(net_socket_tcp_listening()) {
-            net_socket_tcp_close_listener();
-            int has_accepted=0;
-            for(int j=3;j<OS_FD_MAX;j++)
-                if(j!=fd && t->fd[j]==DEV_SOCKET_TCP_ACCEPTED) has_accepted=1;
-            if(!has_accepted) { net_socket_tcp_close_client(); tcp_owner_pid=0; }
-        } else { net_socket_tcp_close_client(); tcp_owner_pid=0; }
-    } else if(dev==DEV_SOCKET_TCP_ACCEPTED) {
-        net_socket_tcp_close_client();
-        int has_listener=0;
-        for(int j=3;j<OS_FD_MAX;j++)
-            if(j!=fd && t->fd[j]==DEV_SOCKET_TCP) has_listener=1;
-        if(!has_listener) tcp_owner_pid=0;
+        net_socket_udp_close(); udp_owner_pid=0;
+    } else if(dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
+        int id=tcp_fd_slot(t,fd);
+        if(id>=0) {
+            if(dev==DEV_SOCKET_TCP) net_socket_tcp_close_listener(id);
+            else net_socket_tcp_close_client(id);
+            if(!tcp_other_fd(t,id,fd)) {
+                net_socket_tcp_close(id);
+                tcp_owner_pid[id]=0;
+            }
+        }
     }
     pipe_ref(dev,-1);
     fd_set(t,fd,-1,0,0,0);
@@ -353,7 +361,7 @@ static void finish_task(int slot, int status) {
     for(int fd=0;fd<OS_FD_MAX;fd++) fd_release(t,fd);
     /* Also clean up a socket owned by this task if its FD was lost. */
     if(udp_owner_pid==t->pid) { net_socket_udp_close(); udp_owner_pid=0; }
-    if(tcp_owner_pid==t->pid) { net_socket_tcp_close(); tcp_owner_pid=0; }
+    for(int id=0;id<TCP_USER_SLOTS;id++) if(tcp_owner_pid[id]==t->pid) { net_socket_tcp_close(id); tcp_owner_pid[id]=0; }
     t->state=DEAD;
     for(int dev=0;dev<OS_TTY_COUNT;dev++) {
         if(tty_claim_pid[dev]==t->pid) {
@@ -1391,7 +1399,7 @@ static int proc_fb_read(int fd, void *dst, size_t n) {
     return (int)done;
 }
 /* Resolve an open descriptor from the kernel's authoritative device IDs. */
-static const char *fd_path(int dev, int task_pid, char *buf, size_t size) {
+static const char *fd_path(int dev, int task_pid, int tcp_id, char *buf, size_t size) {
     if(dev>=VDIR_ROOT && dev<=VDIR_ETC) return vfs_directory_path(dev);
     const char *fixed=vfs_fixed_id_path(dev);
     if(fixed) return fixed;
@@ -1399,7 +1407,7 @@ static const char *fd_path(int dev, int task_pid, char *buf, size_t size) {
     if(dev==DEV_SOCKET_UDP || dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
         int kind=dev==DEV_SOCKET_UDP ? 0 : dev==DEV_SOCKET_TCP ? 1 : 2;
         const char *type=kind==0 ? "udp" : kind==1 ? "tcp" : "tcp-peer";
-        uint16_t port=net_socket_local_port(kind);
+        uint16_t port=net_socket_local_port(kind,tcp_id);
         if(port) snprintf(buf,size,"socket:[%s]:%u",type,(unsigned)port);
         else snprintf(buf,size,"socket:[%s]",type);
         return buf;
@@ -1473,7 +1481,7 @@ static int proc_task_read(int fd, int slot, void *dst, size_t n) {
     PROC_LINE("Open files:\n");
     for(int i=0;i<OS_FD_MAX;i++) if(t->fd[i]>=0) {
         char path[48];
-        const char *name=fd_path(t->fd[i],t->fd_task_pid[i],path,sizeof path);
+        const char *name=fd_path(t->fd[i],t->fd_task_pid[i],(int)t->fd_pos[i],path,sizeof path);
         PROC_LINE("  fd %d: device=%d flags=%u pos=%lu name=%s\n",i,t->fd[i],
                   (unsigned)t->fd_flags[i],(unsigned long)t->fd_pos[i],name);
     }
@@ -1546,7 +1554,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
 #endif
             break;
         case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
-        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-%08lX (%d x 32 KiB)\n%s", (unsigned long)(0x20010000u + OS_MAX_TASKS * OS_TASK_BYTES - 1u), OS_MAX_TASKS, "net    20038000-2003FFFF (32 KiB reserved)\n"); break;
+        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-%08lX (%d x 24 KiB)\n%s", (unsigned long)(0x20010000u + OS_MAX_TASKS * OS_TASK_BYTES - 1u), OS_MAX_TASKS, "net    20038000-2003FFFF (32 KiB reserved)\n"); break;
     }
     if(len<0) return OS_EINVAL;
     if((size_t)len>=sizeof text) len=sizeof text-1;
@@ -1652,16 +1660,16 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
     if(n>0 && !in_task_range(p,n)) return OS_EINVAL;
     int dev=tasks[current].fd[fd];
     if(dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
-        if(tcp_owner_pid!=tasks[current].pid) return OS_EBADF;
-        /* A listening descriptor is not a connected byte stream. */
-        if(dev==DEV_SOCKET_TCP && net_socket_tcp_listening()) return OS_EBADF;
+        int id=tcp_fd_slot(&tasks[current],fd);
+        if(id<0) return OS_EBADF;
+        if(dev==DEV_SOCKET_TCP && net_socket_tcp_listening(id)) return OS_EBADF;
         if(n==0) return 0;
-        if(!net_socket_tcp_connected()) {
-            int status=net_socket_tcp_status();
+        if(!net_socket_tcp_connected(id)) {
+            int status=net_socket_tcp_status(id);
             if(status==-2) return writing ? OS_EIO : 0;
             return status<0 ? OS_EIO : OS_EAGAIN;
         }
-        int r=writing ? net_socket_tcp_write(p,(unsigned)n) : net_socket_tcp_read(p,(unsigned)n);
+        int r=writing ? net_socket_tcp_write(id,p,(unsigned)n) : net_socket_tcp_read(id,p,(unsigned)n);
         return r==-2 ? (writing ? OS_EIO : 0) : r<0 ? OS_EIO : r==0 ? OS_EAGAIN : r;
     }
     if(dev>=VDIR_ROOT && dev<=VDIR_ETC) return OS_EBADF;
@@ -1860,51 +1868,58 @@ void os_svc_dispatch(uint32_t *f) {
     trace_record(TRACE_SVC_ENTER, (uint8_t)tasks[current].pid, (uint32_t)num,
                  (uint32_t)a, tasks[current].program_id, file_id, NULL, 0);
     switch(num) {
-        case SYS_SOCKET: { /* AF_INET=2, SOCK_DGRAM=2; one UDP socket */
+        case SYS_SOCKET: {
             if(a!=2 || (b!=1 && b!=2) || c!=0) { result=OS_EINVAL; break; }
-            if((b==1 ? tcp_owner_pid : udp_owner_pid)) { result=OS_EBUSY; break; }
+            if(b==2 && udp_owner_pid) { result=OS_EBUSY; break; }
             int fd=-1;
             for(int i=3;i<OS_FD_MAX;i++) if(tasks[current].fd[i]<0) { fd=i; break; }
             if(fd<0) { result=OS_EMFILE; break; }
-            fd_set(&tasks[current],fd,b==1 ? DEV_SOCKET_TCP : DEV_SOCKET_UDP,0,OS_O_RDWR,0);
-            if(b==1) tcp_owner_pid=tasks[current].pid;
-            else udp_owner_pid=tasks[current].pid;
+            int id=0;
+            if(b==1) {
+                id=net_socket_tcp_alloc();
+                if(id<0) { result=OS_EBUSY; break; }
+                tcp_owner_pid[id]=tasks[current].pid;
+            } else udp_owner_pid=tasks[current].pid;
+            fd_set(&tasks[current],fd,b==1 ? DEV_SOCKET_TCP : DEV_SOCKET_UDP,(uint32_t)id,OS_O_RDWR,0);
             result=fd;
             break;
         }
-        case SYS_LISTEN_TCP:
-            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]!=DEV_SOCKET_TCP || tcp_owner_pid!=tasks[current].pid)
-                result=OS_EBADF;
+        case SYS_LISTEN_TCP: {
+            int id=tcp_fd_slot(&tasks[current],a);
+            if(id<0 || tasks[current].fd[a]!=DEV_SOCKET_TCP) result=OS_EBADF;
             else if(b<=0 || b>65535) result=OS_EINVAL;
-            else result=net_socket_tcp_listen((uint16_t)b)==0 ? 0 : OS_EBUSY;
+            else result=net_socket_tcp_listen(id,(uint16_t)b)==0 ? 0 : OS_EBUSY;
             break;
+        }
         case SYS_ACCEPT_TCP: {
-            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]!=DEV_SOCKET_TCP ||
-               tcp_owner_pid!=tasks[current].pid || !net_socket_tcp_listening()) {
+            int id=tcp_fd_slot(&tasks[current],a);
+            if(id<0 || tasks[current].fd[a]!=DEV_SOCKET_TCP || !net_socket_tcp_listening(id)) {
                 result=OS_EBADF; break;
             }
             int fd=-1;
             for(int i=3;i<OS_FD_MAX;i++) if(tasks[current].fd[i]<0) { fd=i; break; }
             if(fd<0) { result=OS_EMFILE; break; }
-            if(!net_socket_tcp_accept_ready()) { result=OS_EAGAIN; break; }
-            fd_set(&tasks[current],fd,DEV_SOCKET_TCP_ACCEPTED,0,OS_O_RDWR,0);
+            if(!net_socket_tcp_accept_ready(id)) { result=OS_EAGAIN; break; }
+            fd_set(&tasks[current],fd,DEV_SOCKET_TCP_ACCEPTED,(uint32_t)id,OS_O_RDWR,0);
             result=fd;
             break;
         }
-        case SYS_CONNECT_TCP:
-            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]!=DEV_SOCKET_TCP || tcp_owner_pid!=tasks[current].pid)
-                result=OS_EBADF;
+        case SYS_CONNECT_TCP: {
+            int id=tcp_fd_slot(&tasks[current],a);
+            if(id<0 || tasks[current].fd[a]!=DEV_SOCKET_TCP) result=OS_EBADF;
             else {
                 const piconix_tcp_endpoint_t *ep=(const piconix_tcp_endpoint_t *)(uintptr_t)b;
                 if(!ep || !in_task_range(ep,sizeof(*ep)) || !ep->peer_port) result=OS_EINVAL;
-                else result=net_socket_tcp_connect(ep->peer_ip,ep->peer_port)==0 ? 0 : OS_EIO;
+                else result=net_socket_tcp_connect(id,ep->peer_ip,ep->peer_port)==0 ? 0 : OS_EIO;
             }
             break;
-        case SYS_TCP_STATUS:
-            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]!=DEV_SOCKET_TCP || tcp_owner_pid!=tasks[current].pid)
-                result=OS_EBADF;
-            else result=net_socket_tcp_status();
+        }
+        case SYS_TCP_STATUS: {
+            int id=tcp_fd_slot(&tasks[current],a);
+            if(id<0 || tasks[current].fd[a]!=DEV_SOCKET_TCP) result=OS_EBADF;
+            else result=net_socket_tcp_status(id);
             break;
+        }
         case SYS_BIND:
             if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]!=DEV_SOCKET_UDP || udp_owner_pid!=tasks[current].pid)
                 result=OS_EBADF;
@@ -1973,9 +1988,16 @@ void os_svc_dispatch(uint32_t *f) {
         }
         case SYS_SET_FG: {
             int tty=tasks[current].tty;
-            if(a==0) { foreground_pid[tty]=0;
+            if(a==0) {
+                /* Restore this shell's foreground ownership after waitpid.
+                 * A nested shell must not clear its parent's foreground. */
+                int owner=tasks[current].pid;
+                int parent=tasks[current].parent_pid;
+                foreground_pid[tty]=parent ? owner : 0;
                 for(int g=0;g<3;g++) foreground_group[tty][g]=0;
-                result=0; break; }
+                if(parent) foreground_group[tty][0]=owner;
+                result=0; break;
+            }
             result=OS_ESRCH;
             for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==a &&
                 tasks[i].parent_pid==tasks[current].pid && tasks[i].state!=DEAD) {
@@ -1985,6 +2007,11 @@ void os_svc_dispatch(uint32_t *f) {
                     tty_saved_onlcr[tty]=tty_onlcr[tty];
                     tty_saved_owner[tty]=tty_mode_owner[tty];
                     tty_restore_pid[tty]=a;
+                }
+                /* A nested shell replaces its own foreground membership;
+                 * otherwise Ctrl+C may terminate the waiting parent too. */
+                if(foreground_pid[tty]==tasks[current].pid) {
+                    for(int g=0;g<3;g++) foreground_group[tty][g]=0;
                 }
                 foreground_pid[tty]=a;
                 int present=0;
