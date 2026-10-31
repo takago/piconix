@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
-r=Path(__file__).resolve().parents[1]
+r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
 v=k
 h=k

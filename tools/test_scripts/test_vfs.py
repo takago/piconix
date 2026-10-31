@@ -2,7 +2,7 @@
 """VFS static lookup and dispatch coverage after splitting the path registry."""
 from pathlib import Path
 import re
-root=Path(__file__).resolve().parents[1]
+root=Path(__file__).resolve().parents[2]
 k=(root/'kernel/kernel.c').read_text()
 v=k
 h=k

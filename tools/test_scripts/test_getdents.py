@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Check one shared directory ABI replaces userspace namespace knowledge."""
 from pathlib import Path
-r=Path(__file__).resolve().parents[1]
+r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
 u=(r/'userland/unistd.h').read_text()
 s=(r/'userland/syscalls.c').read_text()
@@ -19,4 +19,11 @@ assert 'getdents(fd,&e,sizeof e)' in l
 assert 'getdents(fd,&entry,sizeof entry)' in w
 assert 'walk_stream(' not in w and 'pin_gpio(' not in w
 assert '#include "../include/piconix_dirent.h"' in k
-print('PASS: getdents API, centralized namespace and clients')
+root = r
+
+for app in ('shell', 'watch', 'trace', 'mem'):
+    source = (root / 'userland' / f'{app}.c').read_text()
+    assert 'getdents(fd,' in source, app
+    assert 'open("/bin"' in source, app
+assert 'case 26: return "getdents";' in (root / 'userland/trace.c').read_text()
+print('PASS: getdents API, centralized namespace and consumers')

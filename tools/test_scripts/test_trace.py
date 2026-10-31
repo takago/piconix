@@ -3,7 +3,7 @@
 from pathlib import Path
 import subprocess
 import tempfile
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 with tempfile.TemporaryDirectory() as d:
     f = Path(d) / 'trace_size.c'
     f.write_text('#include "trace.h"\n_Static_assert(sizeof(trace_event_t)==32,"trace ABI");\nint main(void){return 0;}\n')
@@ -40,5 +40,5 @@ assert 'register_image(7,' in (ROOT/'kernel/main.c').read_text()
 assert 'run_external(s,cwd,requested_bg' in (ROOT/'userland/shell.c').read_text()
 assert 'spawn(id,argc,(const char *const *)args)' in (ROOT/'userland/shell.c').read_text()
 assert 'spawn_in_slot(slot,a,programs[a].entry,programs[a].name,argc,argv,NULL,0)' in source
-assert 'test_app(tmp, \'trace\'' in (ROOT/'tools/test_ram_pipeline.py').read_text()
+assert 'test_app(tmp, \'trace\'' in (ROOT/'tools/test_scripts/test_ram_pipeline.py').read_text()
 print('PASS: trace ABI and device integration')

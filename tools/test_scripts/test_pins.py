@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regression checks: pins uses existing GPIO/PWM devices, not /dev/pins."""
 from pathlib import Path
-r=Path(__file__).resolve().parents[1]
+r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
 a=(r/'userland/pins.c').read_text()
 h=(r/'include/gpio_status.h').read_text()

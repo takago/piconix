@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Host-only unit checks for the two supported embedded image placements."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from audit_firmware import audit
 
 APPS = ('pins', 'fbctl', 'kitesys', 'shell', 'blink', 'omikuji', 'python', 'hello', 'hexdump', 'trace', 'ps', 'cat', 'watch', 'pwd', 'ls', 'rm', 'echo', 'kill', 'tty')

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Source-level guards for the small, blocking PicoNIX waitpid design."""
 from pathlib import Path
-root = Path(__file__).resolve().parents[1]
+root = Path(__file__).resolve().parents[2]
 k = (root / 'kernel/kernel.c').read_text()
 s = (root / 'userland/shell.c').read_text()
 u = (root / 'userland/unistd.h').read_text()

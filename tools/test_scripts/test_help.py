@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 from pathlib import Path
 import re
-root = Path(__file__).resolve().parent.parent
+root = Path(__file__).resolve().parents[2]
 main = (root/'kernel/main.c').read_text()
 help_src = (root/'userland/help.c').read_text()
 shell = (root/'userland/shell.c').read_text()

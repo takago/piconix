@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import shutil
 
-root = pathlib.Path(__file__).resolve().parents[1]
+root = pathlib.Path(__file__).resolve().parents[2]
 cc = shutil.which('cc')
 if not cc:
     raise SystemExit('Missing native C compiler')

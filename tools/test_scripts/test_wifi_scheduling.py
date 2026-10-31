@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Static regression guard for the Pico W polling service window."""
 from pathlib import Path
-root = Path(__file__).resolve().parent.parent
+root = Path(__file__).resolve().parents[2]
 kernel = (root / 'kernel/kernel.c').read_text()
 main = (root / 'kernel/main.c').read_text()
 assert '#if PICONIX_WIFI\n    /* Give the polling lwIP/CYW43' in kernel

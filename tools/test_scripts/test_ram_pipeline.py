@@ -10,7 +10,7 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = pathlib.Path(__file__).resolve().parents[1]
+ROOT = pathlib.Path(__file__).resolve().parents[2]
 CLANG = shutil.which('clang')
 LLD = shutil.which('ld.lld')
 OBJCOPY = shutil.which('llvm-objcopy')

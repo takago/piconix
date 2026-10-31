@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Source-level checks for external commands and working directory syscalls."""
 from pathlib import Path
-r=Path(__file__).resolve().parents[1]
+r=Path(__file__).resolve().parents[2]
 s=(r/'userland/shell.c').read_text(); k=(r/'kernel/kernel.c').read_text()
 for old in ('else if(eq(s,"pwd"))','else if(eq(s,"pid"))','else if(eq(s,"tty"))','else if(prefix(s,"kill "))','else if(eq(s,"ls")','else if(prefix(s,"rm "))','else if(prefix(s,"echo "))'):
     assert old not in s, old

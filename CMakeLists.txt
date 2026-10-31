@@ -232,7 +232,7 @@ endif()
 # Stage 20: explicit host-only RAM image regression target.
 # Does not depend on Pico SDK runtime or RP2040 hardware. Requires LLVM tools.
 add_custom_target(piconix_ram_image_selftest
-  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/test_ram_pipeline.py"
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/test_scripts/test_ram_pipeline.py"
   WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
   COMMENT "Check all six PIC Cortex-M0+ images with LLVM"
   VERBATIM)

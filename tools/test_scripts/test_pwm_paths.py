@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """PWM slice 1 namespace and client consistency checks."""
 from pathlib import Path
-root=Path(__file__).resolve().parents[1]
+root=Path(__file__).resolve().parents[2]
 k=(root/'kernel/kernel.c').read_text()
 v=k
 h=k

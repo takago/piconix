@@ -3,13 +3,15 @@ set -euo pipefail
 : "${PICO_SDK_PATH:?Set PICO_SDK_PATH to a Pico SDK checkout}"
 cd "$(dirname "$0")/.."
 python3 tools/check_program_capacity.py
-python3 tools/test_audit.py
-python3 tools/test_pwm_paths.py
-python3 tools/test_ram_pipeline.py
-python3 tools/test_libc.py
-python3 tools/test_trace.py
-python3 tools/test_spawn_args.py
-python3 tools/test_wifi_elf_audit.py
+python3 tools/test_scripts/test_audit.py
+python3 tools/test_scripts/test_pwm_paths.py
+python3 tools/test_scripts/test_ram_pipeline.py
+python3 tools/test_scripts/test_libc.py
+python3 tools/test_scripts/test_trace.py
+python3 tools/test_scripts/test_spawn_args.py
+python3 tools/test_scripts/test_wifi_elf_audit.py
+python3 tools/test_scripts/test_wifi_dhcp.py
+python3 tools/test_scripts/test_wifi_terminal.py
 # Optional escape hatch for builds where flashing is not wanted.
 flash=1
 cmake_args=()

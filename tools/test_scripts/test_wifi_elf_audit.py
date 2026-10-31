@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Unit tests for Stage 8 readelf parser and overlap checks (no SDK needed)."""
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from audit_wifi_elf import parse_sections, audit
 sample = '''  [ 1] .data PROGBITS 20001000 001000 000200 00 WA 0 0 4
   [ 2] .bss NOBITS 20002000 001200 001000 00 WA 0 0 4

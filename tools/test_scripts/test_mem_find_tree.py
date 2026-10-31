@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Structural regressions for interactive goto, RAM labels and new commands."""
 from pathlib import Path
-r=Path(__file__).resolve().parents[1]
+r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
 m=(r/'userland/mem.c').read_text()
 main=(r/'kernel/main.c').read_text()

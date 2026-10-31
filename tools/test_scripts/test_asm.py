@@ -2,7 +2,7 @@
 """Test the native Thumb subset encoder without running an RP2040 firmware image."""
 from pathlib import Path
 import subprocess, tempfile
-root=Path(__file__).resolve().parents[1]
+root=Path(__file__).resolve().parents[2]
 source=r'''
 #define main asm_app_main
 #include "asm.c"

@@ -1,6 +1,6 @@
 """Static integration checks for the compact watch/ps/cat update."""
 from pathlib import Path
-r=Path(__file__).resolve().parents[1]
+r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
 m=(r/'kernel/main.c').read_text()
 sh=(r/'userland/shell.c').read_text()
