@@ -138,7 +138,7 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP, SYS_GETDENTS, SYS_FLASH_ID, SYS_SOCKET, SYS_BIND, SYS_SENDTO, SYS_RECVFROM, SYS_LISTEN_TCP, SYS_CONNECT_TCP, SYS_TCP_STATUS, SYS_ACCEPT_TCP, SYS_PIPE, SYS_DUP };
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP, SYS_GETDENTS, SYS_FLASH_ID, SYS_SOCKET, SYS_BIND, SYS_SENDTO, SYS_RECVFROM, SYS_LISTEN_TCP, SYS_CONNECT_TCP, SYS_TCP_STATUS, SYS_ACCEPT_TCP, SYS_PIPE, SYS_DUP, SYS_PROGRAM_ID };
 /* Per-task descriptor table (independent of hardware GPIO counts). */
 #define OS_FD_MAX 16
 /* Anonymous pipe descriptors and storage (fixed SRAM budget). */
@@ -1996,6 +1996,28 @@ void os_svc_dispatch(uint32_t *f) {
             int slot=free_program_slot();
             result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,0,
                 (os_entry_t)((uintptr_t)task_ram[slot]|1u),"a.out",0,NULL,image+8,length);
+            break;
+        }
+        case SYS_PROGRAM_ID: {
+            /* Resolve /bin program names against the actual registry IDs. */
+            const char *name=(const char *)(uintptr_t)a;
+            char key[33];
+            unsigned n=0;
+            result=OS_EINVAL;
+            if(!in_task_range(name,1)) break;
+            while(n<sizeof(key)-1 && in_task_range(name+n,1) && name[n]) {
+                key[n]=name[n]; n++;
+            }
+            if(n==sizeof(key)-1 || !in_task_range(name+n,1)) break;
+            key[n]=0;
+            const char *lookup=key;
+            if(!strncmp(lookup,"/bin/",5)) lookup+=5;
+            result=OS_ENOENT;
+            if(!*lookup) break;
+            for(int id=1;id<PROGRAM_CAPACITY;id++) {
+                if(programs[id].entry && programs[id].name &&
+                   !strcmp(lookup,programs[id].name)) { result=id; break; }
+            }
             break;
         }
         case SYS_SPAWN: {

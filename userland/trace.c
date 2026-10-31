@@ -43,6 +43,9 @@ static const char *syscall_name(unsigned n) {
         case 33: return "connect";
         case 34: return "tcp_status";
         case 35: return "accept";
+        case 36: return "pipe";
+        case 37: return "dup";
+        case 38: return "program_id";
         default: return "unknown";
     }
 }
@@ -65,7 +68,9 @@ static void load_program_names(void) {
         unsigned len=(unsigned)strlen(ent.name)+1u;
         if(pos+len>sizeof names) break;
         memcpy(names+pos,ent.name,len);
-        program_names[id++]=names+pos;
+        int actual_id=program_id(ent.name);
+        if(actual_id>0 && actual_id<PROGRAM_COUNT) program_names[actual_id]=names+pos;
+        id++;
         pos+=len;
     }
     close(fd);
@@ -219,13 +224,6 @@ static void print_event(const trace_event_t *e) {
     putchar('\n');
     if(!enter && call==7 && (int)e->detail==0 && close_pid==e->pid)
         forget_fd(close_pid,close_fd);
-}
-/* Resolve a command against the registered /bin image list. */
-static int program_id(const char *name) {
-    if(!strncmp(name,"/bin/",5)) name+=5;
-    for(int id=1;id<PROGRAM_COUNT;id++)
-        if(!strcmp(name,program_names[id])) return id;
-    return -1;
 }
 /* Trace reads use a per-FD event cursor.  Advancing it to the current
  * end avoids mixing previously recorded events into a new run. */

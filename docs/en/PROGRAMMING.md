@@ -141,3 +141,5 @@ For runtime diagnostics, use `ps`, `cat /proc/tasks`, `cat /proc/memory` and `tr
 ## Network programming
 
 Pico W user applications can access TCP/UDP sockets. See [Socket API and network applications](NETWORK-PROGRAMMING.md).
+
+Registered /bin programs can be resolved with `program_id(name)` (syscall 38). This returns the actual kernel registry ID, independent of directory enumeration order. `spawn(id, argc, argv)` remains available.

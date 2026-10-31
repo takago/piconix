@@ -141,3 +141,5 @@ python3 tools/test_ram_pipeline.py
 ## ネットワークプログラミング
 
 Pico Wでは通常のユーザプロセスからTCP/UDPソケットAPIを利用できます．[ソケットAPIとネットワークアプリケーション](NETWORK-PROGRAMMING.md)を参照してください．
+
+`program_id(name)`（システムコール38）は，`/bin` の列挙順序ではなくカーネルの登録テーブルから実際のプログラムIDを取得します．従来の `spawn(id, argc, argv)` はそのまま利用できます．

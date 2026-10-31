@@ -31,6 +31,7 @@ int pipe(int fds[2]) { return call(36,(uintptr_t)fds,0,0); }
 int dup(int oldfd) { return call(37,(uintptr_t)oldfd,0,0); }
 int dup2(int oldfd,int newfd) { return call(18,(uintptr_t)oldfd,(uintptr_t)newfd,0); }
 
+int program_id(const char *name) { return call(38,(uintptr_t)name,0,0); }
 int spawn(int program,int argc,const char *const argv[]) { return call(12,(uintptr_t)program,(uintptr_t)argc,(uintptr_t)argv); }
 int tty_spawn(int tty,int program) { return call(19,(uintptr_t)tty,(uintptr_t)program,0); }
 int set_foreground(int pid) { return call(14,(uintptr_t)pid,0,0); }

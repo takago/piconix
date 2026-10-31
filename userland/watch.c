@@ -6,18 +6,6 @@
 #include "stdlib.h"
 #include "string.h"
 
-static int program_id(const char *name) {
-    int fd=open("/bin",O_RDONLY);
-    if(fd<0) return -1;
-    piconix_dirent_t ent;
-    int id=1,found=-1,n;
-    while((n=getdents(fd,&ent,sizeof ent))>0) {
-        if(!strcmp(name,ent.name)) {found=id;break;}
-        id++;
-    }
-    close(fd);
-    return found;
-}
 int main(int argc, char *argv[]) {
     unsigned interval=1;
     int first=1;

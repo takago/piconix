@@ -85,6 +85,7 @@ int yield(void);
 int waitpid(int pid, int *status, int options);
 int ioctl(int fd, int command, int value);
 /* PicoNIX-specific process and terminal operations. */
+int program_id(const char *name); /* Registered /bin ID, or negative error. */
 int spawn(int program, int argc, const char *const argv[]);
 int tty_spawn(int tty, int program);
 int spawn_tmp(const char *path);

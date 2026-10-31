@@ -126,19 +126,6 @@ static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
     *first=0;
     return 0;
 }
-/* /bin listing is the executable registry; IDs follow the registration order. */
-static int program_id(const char *name) {
-    int fd=open("/bin",0);
-    if(fd<0) return -1;
-    piconix_dirent_t ent;
-    int id=1,found=-1,n;
-    while((n=getdents(fd,&ent,sizeof ent))>0) {
-        if(eq(name,ent.name)) {found=id;break;}
-        id++;
-    }
-    close(fd);
-    return found;
-}
 static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,const char **bg_name) {
     char *args[8];int argc=0;
     char *q=cmd;
@@ -166,10 +153,10 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     if(id<0) return 0;
     args[0]=(char *)name;
     char path[128];
-    if(id==3 && background && argc==1) {
+    if(eq(name,"omikuji") && background && argc==1) {
         args[argc++]="31"; /* Original noninteractive Omikuji default. */
     }
-    if((id==4 || id==6 || id==9) && argc>1) {
+    if((eq(name,"python") || eq(name,"hexdump") || eq(name,"cat")) && argc>1) {
         if(resolve(cwd,args[1],path)<0) {put("invalid path\r\n");return 1;}
         args[1]=path;
     }
@@ -214,7 +201,7 @@ static int pipeline_spawn(char *cmd, const char *cwd) {
     if(id<0) return -1;
     args[0]=(char *)name;
     char path[128];
-    if((id==4 || id==6 || id==9) && argc>1) {
+    if((eq(name,"python") || eq(name,"hexdump") || eq(name,"cat")) && argc>1) {
         if(resolve(cwd,args[1],path)<0) return -1;
         args[1]=path;
     }

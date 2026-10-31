@@ -21,9 +21,14 @@ assert 'walk_stream(' not in w and 'pin_gpio(' not in w
 assert '#include "../include/piconix_dirent.h"' in k
 root = r
 
-for app in ('shell', 'watch', 'trace', 'mem'):
+for app in ('trace', 'mem'):
     source = (root / 'userland' / f'{app}.c').read_text()
     assert 'getdents(fd,' in source, app
     assert 'open("/bin"' in source, app
 assert 'case 26: return "getdents";' in (root / 'userland/trace.c').read_text()
-print('PASS: getdents API, centralized namespace and consumers')
+assert 'int program_id(const char *name)' in u
+assert 'return call(38,' in s
+for app in ('shell', 'watch', 'trace'):
+    source=(root/'userland'/f'{app}.c').read_text()
+    assert 'program_id(' in source, app
+print('PASS: getdents API and centralized program-ID lookup')
