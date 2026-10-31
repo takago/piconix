@@ -2,12 +2,17 @@
 #pragma once
 #define NO_SYS 1
 #define LWIP_SOCKET 0
-#define LWIP_NETCONN 0
-/* Permit a restarted TCP listener to bind while old connections are in TIME_WAIT. */
+/* Allow immediate listener rebind after previous TCP connections close. */
 #define SO_REUSE 1
+#define LWIP_NETCONN 0
 #define LWIP_TCP 1
 #define LWIP_UDP 1
+/* STA needs the lwIP DHCP client; AP uses PicoNIX's own DHCP server. */
+#if defined(PICONIX_WIFI_STA) && PICONIX_WIFI_STA
+#define LWIP_DHCP 1
+#else
 #define LWIP_DHCP 0
+#endif
 /* Permit DHCP clients to send IPv4 packets from 0.0.0.0 before leasing. */
 #define LWIP_IP_ACCEPT_UDP_PORT(port) ((port) == PP_NTOHS(67))
 #define LWIP_DNS 0
