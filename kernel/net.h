@@ -9,3 +9,6 @@ int net_terminal_connected(void);
 unsigned net_terminal_epoch(void);
 int net_terminal_read(void *dst, unsigned size);
 int net_terminal_write(const void *src, unsigned size);
+
+/* Format the current Wi-Fi interface state for /proc/net/wifi. */
+int net_wifi_info(char *out, unsigned size);

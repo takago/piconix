@@ -67,6 +67,17 @@ static char *trim(char *s) {
     while(end>s && (end[-1]==' ' || end[-1]=='\t')) *--end=0;
     return s;
 }
+/* Restore a temporarily redirected standard descriptor and release its copy. */
+static void restore_fd(int target, int saved) {
+    if(saved>=0) {
+        dup2(saved,target);
+        close(saved);
+    }
+}
+static void restore_stdio(int saved_in, int saved_out) {
+    restore_fd(0,saved_in);
+    restore_fd(1,saved_out);
+}
 /* Redirection applies to builtins and spawned processes alike.  Return the
  * temporary descriptor so that the caller can restore the standard stream. */
 static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
@@ -97,13 +108,14 @@ static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
         if(valid<0) return -1;
         /* Device nodes are not regular files: creation/truncation is invalid. */
         int flag=output?(1|(prefix(path,"/dev/")?0:O_CREAT|(append?O_APPEND:O_TRUNC))):0;
-        int target=output?1:0, saved=output?7:6;
+        int target=output?1:0, saved=-1;
         if(seen & (1<<target)) return -1;
         seen|=1<<target;
         int fd=open(path, flag);
         if(fd<0) return -1;
-        if(fd==saved || dup2(target, saved)<0 ||
-           dup2(fd, target)<0) {
+        saved=dup(target);
+        if(saved<0 || dup2(fd, target)<0) {
+            if(saved>=0) close(saved);
             close(fd); return -1;
         }
         close(fd);
@@ -178,6 +190,75 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
             put("\033[?1049l");
     }
     return 1;
+}
+/* Pipeline stages inherit only descriptors 0..2 from the shell. */
+static int pipeline_spawn(char *cmd, const char *cwd) {
+    char *args[8]; int argc=0;
+    for(char *q=cmd;*q;) {
+        while(*q==' ' || *q=='\t') q++;
+        if(!*q) break;
+        if(argc==8) return -1;
+        args[argc++]=q;
+        while(*q && *q!=' ' && *q!='\t') q++;
+        if(*q) *q++=0;
+    }
+    if(!argc) return -1;
+    const char *name=args[0];
+    if(prefix(name,"/bin/")) name+=5;
+    if(prefix(name,"./") || prefix(name,"/tmp/")) {
+        char path[128];
+        if(argc!=1 || resolve(cwd,name,path)<0) return -1;
+        return spawn_tmp(path);
+    }
+    int id=program_id(name);
+    if(id<0) return -1;
+    args[0]=(char *)name;
+    char path[128];
+    if((id==4 || id==6 || id==9) && argc>1) {
+        if(resolve(cwd,args[1],path)<0) return -1;
+        args[1]=path;
+    }
+    unsigned total=0;
+    for(int i=0;i<argc;i++) total+=(unsigned)strlen(args[i])+1;
+    if(total>128) return -1;
+    return spawn(id,argc,(const char *const *)args);
+}
+/* At most three commands, connected by the two kernel pipe buffers.
+ * All children are started before waiting, so full buffers can drain. */
+static void run_pipeline(char *stage[3], int count, const char *cwd) {
+    int saved_in=-1, saved_out=-1, previous_read=-1;
+    int pid[3]={-1,-1,-1}, failed=0;
+    saved_in=dup(0);
+    if(saved_in<0) {failed=1;goto cleanup;}
+    saved_out=dup(1);
+    if(saved_out<0) {failed=1;goto cleanup;}
+    /* Allocate the next pipe as each stage starts. Close unused ends
+     * promptly so the reader sees EOF when the last writer exits. */
+    for(int i=0;i<count;i++) {
+        int next[2]={-1,-1};
+        if(i<count-1 && pipe(next)<0) {failed=1;break;}
+        int input=i ? previous_read : saved_in;
+        int output=i<count-1 ? next[1] : saved_out;
+        if(dup2(input,0)<0 || dup2(output,1)<0) {
+            if(next[0]>=0) close(next[0]);
+            if(next[1]>=0) close(next[1]);
+            failed=1;break;
+        }
+        pid[i]=pipeline_spawn(stage[i],cwd);
+        if(next[1]>=0) close(next[1]);
+        if(pid[i]<0) {
+            if(next[0]>=0) close(next[0]);
+            failed=1;break;
+        }
+        if(previous_read>=0) close(previous_read);
+        previous_read=next[0];
+    }
+cleanup:
+    restore_stdio(saved_in,saved_out);
+    if(previous_read>=0) close(previous_read);
+    if(failed) put("pipe: cannot start command\r\n");
+    int status;
+    for(int i=0;i<count;i++) if(pid[i]>0) waitpid(pid[i],&status,0);
 }
 static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const char **bg_name) {
     while(*s==' ') s++;
@@ -388,12 +469,31 @@ int main(int argc, char *argv[]) {
             cmd=trim(cmd);
             requested_bg=1;
         }
+        if(strchr(cmd,'|')) {
+            char *stage[3]; int count=0, invalid=requested_bg;
+            char *start=cmd;
+            for(char *q=cmd;;q++) {
+                if(*q!='|' && *q) continue;
+                char sep=*q;
+                *q=0;
+                char *part=trim(start);
+                if(!*part || strchr(part,'<') || strchr(part,'>') || count==3)
+                    invalid=1;
+                else stage[count++]=part;
+                if(!sep) break;
+                start=q+1;
+            }
+            if(invalid || count<2)
+                put("pipe: expected 2 or 3 commands (no redirects/background)\r\n");
+            else run_pipeline(stage,count,cwd);
+            put("\033[0m\033[?25h" SHELL_PROMPT);
+            continue;
+        }
         int saved_in=-1,saved_out=-1, bg_pid=0;
         const char *bg_name=0;
         int redir_ok=redirect(cmd,cwd,&saved_in,&saved_out);
         if(redir_ok==0) command(trim(cmd),cwd,requested_bg,&bg_pid,&bg_name);
-        if(saved_in>=0) { dup2(saved_in, 0); close(saved_in); }
-        if(saved_out>=0) { dup2(saved_out, 1); close(saved_out); }
+        restore_stdio(saved_in,saved_out);
         if(redir_ok<0) put("redirect: invalid path or cannot open file\r\n");
         /* Background notification must go to the console, not the file. */
         if(bg_pid>0) {

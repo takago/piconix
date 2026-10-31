@@ -26,6 +26,7 @@ extern const unsigned char piconix_trace_image_start[], piconix_trace_image_end[
 
 extern const unsigned char piconix_ps_image_start[], piconix_ps_image_end[];
 extern const unsigned char piconix_cat_image_start[], piconix_cat_image_end[];
+extern const unsigned char piconix_grep_image_start[], piconix_grep_image_end[];
 extern const unsigned char piconix_watch_image_start[], piconix_watch_image_end[];
 extern const unsigned char piconix_pwd_image_start[], piconix_pwd_image_end[];
 extern const unsigned char piconix_ls_image_start[], piconix_ls_image_end[];
@@ -81,6 +82,7 @@ int main(void) {
     register_image(7,"trace",piconix_trace_image_start,piconix_trace_image_end);
     register_image(8,"ps",piconix_ps_image_start,piconix_ps_image_end);
     register_image(9,"cat",piconix_cat_image_start,piconix_cat_image_end);
+    register_image(38,"grep",piconix_grep_image_start,piconix_grep_image_end);
     register_image(10,"watch",piconix_watch_image_start,piconix_watch_image_end);
     register_image(11,"pwd",piconix_pwd_image_start,piconix_pwd_image_end);
     register_image(12,"ls",piconix_ls_image_start,piconix_ls_image_end);

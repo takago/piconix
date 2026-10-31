@@ -27,6 +27,8 @@ int fcntl(int fd,int cmd,int value) { return call(24,(uintptr_t)fd,(uintptr_t)cm
 int waitpid(int pid,int *status,int options) { return call(13,(uintptr_t)pid,(uintptr_t)status,(uintptr_t)options); }
 int getdents(int fd,piconix_dirent_t *entry,size_t size) { return call(26,(uintptr_t)fd,(uintptr_t)entry,size); }
 int unlink(const char *path) { return call(17,(uintptr_t)path,0,0); }
+int pipe(int fds[2]) { return call(36,(uintptr_t)fds,0,0); }
+int dup(int oldfd) { return call(37,(uintptr_t)oldfd,0,0); }
 int dup2(int oldfd,int newfd) { return call(18,(uintptr_t)oldfd,(uintptr_t)newfd,0); }
 
 int spawn(int program,int argc,const char *const argv[]) { return call(12,(uintptr_t)program,(uintptr_t)argc,(uintptr_t)argv); }

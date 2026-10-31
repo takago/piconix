@@ -94,6 +94,7 @@ void os_yield(void);
 int os_open(const char *path, int flags);
 int os_close(int fd);
 int os_unlink(const char *path);
+int os_pipe(int fds[2]);
 int os_dup2(int oldfd,int newfd);
 int os_read(int fd, void *buf, size_t n);
 int os_write(int fd, const void *buf, size_t n);

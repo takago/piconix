@@ -11,7 +11,8 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **User-space TCP/IP networking** — A compact BSD-style IPv4 socket interface provides `socket()`, `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` on Pico W.
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, and `udp_echod` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
-- **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`.
+- **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`.
+- **Pipes and redirection** — Two- and three-command pipelines using `|`, with `pipe()`, `dup()`, and `dup2()` support.
 - **Device files** — Access GPIO, ADC, PWM, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **Programming on the device** — An editor (`edit`), assembler (`as`), and small Python-like interpreter (`python`).
 - **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call tracing, and open-descriptor reporting, including socket ports.
@@ -96,6 +97,11 @@ Detailed guides are available in English and Japanese．詳細な説明は英語
 | [セットアップ](docs/ja/SETUP.md) | [Setup](docs/en/SETUP.md) |
 | [ネットワーク接続](docs/ja/NETWORK.md) | [Network access](docs/en/NETWORK.md) |
 | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) | [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) |
+| [パイプと標準入出力](docs/ja/PIPE.md) | [Pipes and standard I/O](docs/en/PIPE.md) |
 | [Cアプリ開発](docs/ja/PROGRAMMING.md) | [C application development](docs/en/PROGRAMMING.md) |
 | [デバイス](docs/ja/DEVICES.md) | [Devices](docs/en/DEVICES.md) |
 | [内部構造](docs/ja/INTERNAL.md) | [Internals](docs/en/INTERNAL.md) |
+
+## Wi-Fi modes and sample programs
+
+Pico W supports AP mode (default) and build-time STA mode for joining an existing Wi-Fi network. Inspect connection information using `cat /proc/net/wifi`. Two editable startup examples, `/tmp/test.s` and `/tmp/test.py`, demonstrate output, sleep, and loops. See [Wi-Fi modes](docs/en/WIFI-MODES.md) and [Wi-Fiモード](docs/ja/WIFI-MODES.md).

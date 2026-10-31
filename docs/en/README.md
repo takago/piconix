@@ -13,7 +13,7 @@ PicoNIX is a **small UNIX-like operating system for the Raspberry Pi Pico (RP204
 - Commands including `ps`, `kill`, `sh`, `getty`, `blink`, `omikuji`, `python`, `hello`, and `hexdump`
 - Simple background execution with `&` and foreground interruption via `Ctrl+C`
 - Virtual files under `/dev` and `/proc`, and volatile files under `/tmp`
-- Basic stdin/stdout redirection (`<`, `>`, `>>`)
+- Basic stdin/stdout redirection (`<`, `>`, `>>`) and pipelines (`|`) of up to three commands
 - A tiny Python-like interpreter supporting integer expressions and GPIO
 
 ## Quick start
@@ -52,7 +52,7 @@ The default setup uses a USB CDC console and an 8×8 LED matrix. UART1 uses GP20
 
 PicoNIX has a 64 KiB kernel region and five 32 KiB application slots. PIC application images are embedded in flash and loaded into a free slot on launch. Up to five application tasks can run concurrently.
 
-PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, signal handlers, pipes, per-process memory protection, or dynamic ELF loading. `Ctrl+C` and `kill` terminate tasks directly in the kernel; they do not send UNIX signals. `/tmp` is lost on reboot.
+PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, signal handlers, per-process memory protection, or dynamic ELF loading. `Ctrl+C` and `kill` terminate tasks directly in the kernel; they do not send UNIX signals. `/tmp` is lost on reboot.
 
 [Device guide](DEVICES.md) — GPIO, ADC, PWM, and virtual devices.
 
@@ -62,6 +62,7 @@ PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, si
 |---|---|
 | Prepare, build, and flash | [Setup](SETUP.md) |
 | Understand RAM, tasks, and syscalls | [Internals](INTERNAL.md) |
+| Learn about pipes, `grep`, and descriptors | [Pipes and standard I/O](PIPE.md) |
 | Write a C RAM application | [Application programming](PROGRAMMING.md) |
 | Build TCP/UDP clients and servers | [Sockets and network applications](NETWORK-PROGRAMMING.md) |
 | Understand UART1, `getty`, Ctrl+C/Ctrl+D | [UART and terminals](UART.md) |

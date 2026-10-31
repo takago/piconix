@@ -30,7 +30,7 @@ endif()
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
   set(APP_ORIGIN 0x20010000)
@@ -185,6 +185,26 @@ else()
 endif()
 message(STATUS "PicoNIX Wi-Fi: ${PICONIX_WIFI_ENABLED} (PICO_BOARD=${PICO_BOARD})")
 # Validate writable sections against fixed task and network regions on Pico W.
+# AP is the default; STA credentials are provided only for a STA build.
+set(PICONIX_WIFI_MODE "AP" CACHE STRING "Wi-Fi mode: AP or STA")
+set_property(CACHE PICONIX_WIFI_MODE PROPERTY STRINGS AP STA)
+if(NOT PICONIX_WIFI_MODE STREQUAL "AP" AND NOT PICONIX_WIFI_MODE STREQUAL "STA")
+  message(FATAL_ERROR "PICONIX_WIFI_MODE must be AP or STA")
+endif()
+if(PICONIX_WIFI_ENABLED AND PICONIX_WIFI_MODE STREQUAL "STA")
+  set(PICONIX_WIFI_SSID "" CACHE STRING "STA network SSID")
+  set(PICONIX_WIFI_PASSWORD "" CACHE STRING "STA network password")
+  if(PICONIX_WIFI_SSID STREQUAL "" OR PICONIX_WIFI_PASSWORD STREQUAL "")
+    message(FATAL_ERROR "STA mode requires PICONIX_WIFI_SSID and PICONIX_WIFI_PASSWORD")
+  endif()
+  # Quote strings for C preprocessing; credentials are embedded in the UF2.
+  target_compile_definitions(piconix PRIVATE PICONIX_WIFI_STA=1
+    PICONIX_STA_SSID=\"${PICONIX_WIFI_SSID}\"
+    PICONIX_STA_PASSWORD=\"${PICONIX_WIFI_PASSWORD}\")
+else()
+  target_compile_definitions(piconix PRIVATE PICONIX_WIFI_STA=0)
+endif()
+message(STATUS "PicoNIX Wi-Fi mode: ${PICONIX_WIFI_MODE}")
 if(PICONIX_WIFI_ENABLED)
   add_custom_command(TARGET piconix POST_BUILD
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/audit_wifi_elf.py"

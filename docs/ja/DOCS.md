@@ -13,6 +13,7 @@ PicoNIXを初めて使う場合は，**セットアップ → READMEのコマン
 | `stty`，`fcntl`，`mb`，`reset` | [端末設定と対話型入力](TTY.md) |
 | LEDマトリクス・`fbctl` | [デバイスガイド（フレームバッファ）](DEVICES.md) |
 | `python`を使う | [Python風インタプリタ](PYTHON.md) |
+| パイプ・`grep`・FDを使う | [パイプと標準入出力](PIPE.md) |
 | 自作Cアプリを追加する | [Cアプリ開発](PROGRAMMING.md) |
 | RAM配置，タスク，SVC，FDなど | [内部構造](INTERNAL.md) |
 | トレースの記録と解析 | [トレース](TRACE.md) |

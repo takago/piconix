@@ -71,6 +71,8 @@ int open(const char *path, int flags);
 int unlink(const char *path);
 /* 1: entry returned, 0: end of directory, negative: error. */
 int getdents(int fd, piconix_dirent_t *entry, size_t size);
+int pipe(int fds[2]);
+int dup(int oldfd);
 int dup2(int oldfd, int newfd);
 int getpid(void);
 unsigned flash_id(void);

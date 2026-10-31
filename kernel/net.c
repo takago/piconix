@@ -8,6 +8,7 @@
 #include "pico/cyw43_arch.h"
 #include "pico/stdlib.h"
 #include "lwip/netif.h"
+#include "lwip/dhcp.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/tcp.h"
 #include "lwip/udp.h"
@@ -18,6 +19,9 @@
 /* One DHCP lease and one TCP connection.
  * Stage 18: bounded queues for the independent network TTY. */
 static int wifi_ready;
+static char wifi_ssid[33];
+
+#if !PICONIX_WIFI_STA
 static struct udp_pcb *dhcp_pcb;
 #define DHCP_OPTIONS_OFFSET 240u
 /* Reply options are fixed; avoid a padded 300-byte stack buffer. */
@@ -153,35 +157,55 @@ static int dhcp_start(void) {
 }
 
 
+#endif /* AP DHCP server */
 extern uint32_t piconix_flash_id(void);
 void net_init(void) {
     if (cyw43_arch_init() != 0) {
         puts("PicoNIX: CYW43 initialization failed");
         return;
     }
-    char ssid[20];
+#if PICONIX_WIFI_STA
+    strncpy(wifi_ssid, PICONIX_STA_SSID, sizeof(wifi_ssid)-1);
+    wifi_ssid[sizeof(wifi_ssid)-1] = 0;
+    cyw43_arch_enable_sta_mode();
+    if (cyw43_arch_wifi_connect_timeout_ms(PICONIX_STA_SSID,
+            PICONIX_STA_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 15000) != 0) {
+        puts("PicoNIX: STA connection failed");
+        return;
+    }
+#else
     static const char hex[] = "0123456789ABCDEF";
     uint32_t id = piconix_flash_id();
-    memcpy(ssid, "PicoNIX-", 8);
+    memcpy(wifi_ssid, "PicoNIX-", 8);
     for (unsigned i=0; i<8; ++i)
-        ssid[8+i] = hex[(id >> (28-4*i)) & 15u];
-    ssid[16] = 0;
-    cyw43_arch_enable_ap_mode(ssid, "piconix1234", CYW43_AUTH_WPA2_AES_PSK);
+        wifi_ssid[8+i] = hex[(id >> (28-4*i)) & 15u];
+    wifi_ssid[16] = 0;
+    cyw43_arch_enable_ap_mode(wifi_ssid, "piconix1234", CYW43_AUTH_WPA2_AES_PSK);
     ip4_addr_t ip, mask, gw;
     IP4_ADDR(&ip, 192, 168, 4, 1);
     IP4_ADDR(&mask, 255, 255, 255, 0);
     IP4_ADDR(&gw, 192, 168, 4, 1);
     netif_set_addr(&cyw43_state.netif[CYW43_ITF_AP], &ip, &mask, &gw);
+#endif
     int telnet_ready = net_service_telnet_init();
+#if PICONIX_WIFI_STA
+    int dhcp_ready = 1; /* STA uses lwIP's DHCP client. */
+#else
     int dhcp_ready = dhcp_start();
+#endif
     int device_ready = net_service_remote_devctl_init();
     /* Start servicing the stack only after AP and listener setup. */
     wifi_ready = 1;
     puts(device_ready ? "PicoNIX: UDP device service port 2000" : "PicoNIX: UDP device service failed");
+#if PICONIX_WIFI_STA
+    puts("PicoNIX: STA connected (DHCP client)");
+#else
     puts(dhcp_ready ? "PicoNIX: DHCP server active (192.168.4.2)"
                     : "PicoNIX: DHCP server initialization failed");
+#endif
     puts(telnet_ready ? "PicoNIX: Telnet terminal port 23" : "PicoNIX: Telnet listener failed");
 }
+#if !PICONIX_WIFI_STA
 /* Called outside cyw43_arch_poll(), never from an lwIP callback. */
 static void dhcp_send_pending(void) {
     if (!dhcp_pending || !dhcp_pcb) return;
@@ -213,16 +237,57 @@ static void dhcp_send_pending(void) {
     dhcp_pending = 0;
 }
 
+#endif /* AP DHCP server */
 void net_poll(void) {
     if (!wifi_ready) return;
     cyw43_arch_poll();
     /* Never transmit DHCP replies from a lwIP receive callback. */
+#if !PICONIX_WIFI_STA
     dhcp_send_pending();
+#endif
     net_service_remote_devctl_poll();
+#if !PICONIX_WIFI_STA
     dhcp_expire_offer();
+#endif
     net_service_telnet_poll();
 }
 #else
 void net_init(void) {}
 void net_poll(void) {}
+#endif
+
+/* Read-only /proc/net/wifi snapshot. */
+#if PICONIX_WIFI
+int net_wifi_info(char *out, unsigned size) {
+    if (!size) return 0;
+    if (!wifi_ready) return snprintf(out,size,"MODE: %s\nSTATUS: DOWN\n", PICONIX_WIFI_STA ? "STA" : "AP");
+    struct netif *iface = &cyw43_state.netif[PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP];
+    unsigned char mac[6] = {0};
+    cyw43_wifi_get_mac(&cyw43_state, PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP, mac);
+    char rssi[24] = "N/A";
+#if PICONIX_WIFI_STA
+    int32_t dbm;
+    if (cyw43_wifi_get_rssi(&cyw43_state, &dbm) == 0)
+        snprintf(rssi, sizeof(rssi), "%ld dBm", (long)dbm);
+#endif
+    char ip[20], mask[20], gw[20];
+    ip4addr_ntoa_r(netif_ip4_addr(iface), ip, sizeof(ip));
+    ip4addr_ntoa_r(netif_ip4_netmask(iface), mask, sizeof(mask));
+    ip4addr_ntoa_r(netif_ip4_gw(iface), gw, sizeof(gw));
+    return snprintf(out,size,
+        "MODE: %s\nSSID: %s\nMAC: %02X:%02X:%02X:%02X:%02X:%02X\n"
+        "IP: %s\nNETMASK: %s\nGATEWAY: %s\nRSSI: %s\n",
+        PICONIX_WIFI_STA ? "STA" : "AP", wifi_ssid,
+        mac[0],mac[1],mac[2],mac[3],mac[4],mac[5],
+        ip, mask, gw, rssi);
+}
+#else
+int net_wifi_info(char *out, unsigned size) {
+    static const char msg[] = "MODE: N/A\n";
+    unsigned n = sizeof(msg)-1;
+    if (n >= size) n = size ? size-1 : 0;
+    for (unsigned i=0; i<n; ++i) out[i]=msg[i];
+    if (size) out[n] = 0;
+    return (int)n;
+}
 #endif
