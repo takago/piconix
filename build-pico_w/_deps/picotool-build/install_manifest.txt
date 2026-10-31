@@ -1,7 +1,0 @@
-/tmp/PicoNIX/build-pico_w/_deps/picotool/picotool
-/tmp/PicoNIX/build-pico_w/_deps/picotool/picotoolTargets.cmake
-/tmp/PicoNIX/build-pico_w/_deps/picotool/picotoolTargets-release.cmake
-/tmp/PicoNIX/build-pico_w/_deps/picotool/picotoolConfig.cmake
-/tmp/PicoNIX/build-pico_w/_deps/picotool/picotoolConfigVersion.cmake
-/tmp/PicoNIX/build-pico_w/_deps/picotool/enc_bootloader.elf
-/tmp/PicoNIX/build-pico_w/_deps/picotool/enc_bootloader_mbedtls.elf

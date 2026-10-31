@@ -1,5 +1,0 @@
-/tmp/PicoNIX/build-pico_w/pioasm-install/pioasm/pioasm
-/tmp/PicoNIX/build-pico_w/pioasm-install/pioasm/pioasmTargets.cmake
-/tmp/PicoNIX/build-pico_w/pioasm-install/pioasm/pioasmTargets-release.cmake
-/tmp/PicoNIX/build-pico_w/pioasm-install/pioasm/pioasmConfig.cmake
-/tmp/PicoNIX/build-pico_w/pioasm-install/pioasm/pioasmConfigVersion.cmake
