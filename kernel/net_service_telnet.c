@@ -175,12 +175,19 @@ static err_t client_recv(void *arg, struct tcp_pcb *pcb,
 }
 
 static err_t client_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
+    /* AP mode permits only its designated terminal client.  STA mode
+     * accepts clients from the LAN, where their addresses are assigned
+     * by the external access point rather than PicoNIX. */
+#if !PICONIX_WIFI_STA
     ip4_addr_t allowed;
     IP4_ADDR(&allowed, 192, 168, 4, 2);
-    /* Static-IP clients must be allowed even without a DHCP lease. */
+#endif
     if (err != ERR_OK || client ||
-        !IP_IS_V4(&pcb->remote_ip) ||
-        !ip4_addr_cmp(ip_2_ip4(&pcb->remote_ip), &allowed)) {
+        !IP_IS_V4(&pcb->remote_ip)
+#if !PICONIX_WIFI_STA
+        || !ip4_addr_cmp(ip_2_ip4(&pcb->remote_ip), &allowed)
+#endif
+        ) {
         tcp_abort(pcb);
         return ERR_ABRT;
     }
