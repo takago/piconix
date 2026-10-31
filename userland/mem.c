@@ -20,12 +20,13 @@ static void hex(unsigned v,int digits){const char *h="0123456789ABCDEF";for(int 
 static int fetch(int fd,unsigned address){if(!valid(address)||!valid(address+COUNT-1))return -1;if(lseek(fd,(long)address,SEEK_SET)<0)return -1;return read(fd,current,COUNT)==COUNT?0:-1;}
 static const char *region(unsigned addr){
  if(addr>=0x10000000u&&addr<=0x101fffffu)return "XIP FLASH";
- if(addr<0x20018000u)return "KERNEL SRAM";
- if(addr<=0x2003ffffu)return "TASK SRAM";
+ if(addr<0x20010000u)return "KERNEL SRAM";
+ if(addr<0x20038000u)return "TASK SRAM";
+ if(addr<=0x2003ffffu)return "NETWORK SRAM";
  return "UNKNOWN";
 }
 /* Catalog records: application<TAB>hex_offset<TAB>type<TAB>name<LF>.
-   Each application is linked at 0x20018000; offsets are slot-relative.
+   Each application is linked at 0x20010000; offsets are slot-relative.
    Read through /proc/sym, never dereference an ELF symbol table. */
 static int symbol_record(char *line,char **app,unsigned *offset,char *kind,char **name){
  char *a=strchr(line,'\t');if(!a)return 0;*a++=0;
@@ -35,7 +36,7 @@ static int symbol_record(char *line,char **app,unsigned *offset,char *kind,char 
  if(!*a||*end||v<0||!*c)return 0;
  if(!strcmp(line,"kernel")){
   if(!((unsigned)v>=0x10000000u&&(unsigned)v<0x10200000u) &&
-     !((unsigned)v>=0x20000000u&&(unsigned)v<0x20018000u))return 0;
+     !((unsigned)v>=0x20000000u&&(unsigned)v<0x20010000u))return 0;
  }else if((unsigned)v>=0x8000u)return 0;
  *app=line;*offset=(unsigned)v;*kind=*b;*name=c;return 1;
 }
@@ -80,9 +81,9 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
         }
        }
       }
-      else if(slot_hint>=0x20018000u&&slot_hint<0x20040000u){
+      else if(slot_hint>=0x20010000u&&slot_hint<0x20038000u){
        /* A task may occupy one of five 32-KiB slots. */
-       unsigned slot_base=0x20018000u+((slot_hint-0x20018000u)/0x8000u)*0x8000u;
+       unsigned slot_base=0x20010000u+((slot_hint-0x20010000u)/0x8000u)*0x8000u;
        unsigned actual=slot_base+offset;
        if(actual>=base&&actual<base+COUNT){
         unsigned row=(actual-base)/BYTES_PER_ROW;
@@ -115,8 +116,8 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
    Parse a line as whitespace-separated fields; a failed lookup simply means
    no labels, never an unsafe guess about a slot occupant. */
 static int task_program(unsigned addr,char *name,unsigned capacity){
- if(addr<0x20018000u||addr>=0x20040000u)return 0;
- unsigned slot=(addr-0x20018000u)/0x8000u+1;
+ if(addr<0x20010000u||addr>=0x20038000u)return 0;
+ unsigned slot=(addr-0x20010000u)/0x8000u+1;
  int fd=open("/proc/tasks",O_RDONLY);
  if(fd<0)return 0;
  char line[160];unsigned used=0;int found=0,overflow=0;
@@ -251,7 +252,7 @@ static int refresh_labels(unsigned addr){
  for(unsigned off=0;off<COUNT;off+=BYTES_PER_ROW){
   unsigned a=addr+off;
   char app[32]={0};
-  if(a<0x20018000u || (a>=0x10000000u&&a<0x10200000u)){
+  if(a<0x20010000u || (a>=0x10000000u&&a<0x10200000u)){
    strncpy(app,"kernel",sizeof app-1);
   }else task_program(a,app,sizeof app);
   if(!app[0])continue;
@@ -292,8 +293,8 @@ static void draw(unsigned addr,int pause,int have,int changed){
   }
   printf("| %s\033[K\r\n",labels[r]);
  }
- printf("\033[7mArrows: 16B  PgUp/Dn: 256B  [g] Goto  SPACE Pause  [q] Quit\033[K\033[0m\r\n");
- printf("[k] Kernel  [1-5] Slots  [f] Flash   Symbols: %s\033[K\r\n",symbol_app[0]?(symbols_available?"loaded":"unavailable"):"none");
+ printf("\033[7mArrows: 16B  PgUp/Dn: 256B  SPACE Pause  [q] Quit\033[K\033[0m\r\n");
+ printf("[k] Kernel RAM  [K] Kernel XIP  [1-5] Slots  [g] Goto  Symbols: %s\033[K\r\n",symbol_app[0]?(symbols_available?"loaded":"unavailable"):"none");
  printf("Slots:");
  for(int i=0;i<5;i++)printf(" %d:%s",i+1,slot_names[i][0]?slot_names[i]:"free");
  printf("\033[K\r\n\033[K");
@@ -376,8 +377,8 @@ int main(int argc,char **argv){
    if(c=='q'||c=='Q'||c==3){run=0;break;}
    if(c=='g'||c=='G'){goto_mode=1;goto_len=0;goto_buf[0]=0;printf("\033[23;1HGoto HEX: _  (Enter / Esc)\033[K");continue;}
    if(c==' '){pause=!pause;dirty=1;}
-   if(c=='k'||c=='f'||(c>='1'&&c<='5')){
-    addr=c=='k'?0x20000000u:c=='f'?0x10000000u:0x20018000u+(unsigned)(c-'1')*0x8000u;
+   if(c=='k'||c=='K'||c=='f'||(c>='1'&&c<='5')){
+    addr=c=='k'?0x20000000u:(c=='K'||c=='f')?0x10000000u:0x20010000u+(unsigned)(c-'1')*0x8000u;
     have=0;dirty=1;
    }
   }

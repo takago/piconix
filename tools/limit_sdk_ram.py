@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive RP2040 SDK copy_to_ram linker script with a 96-KiB kernel.
+"""Derive RP2040 SDK copy_to_ram linker script with a 64-KiB kernel.
 
 Embedded user images stay in XIP flash, rather than the RAM .data output
 section.  Reject unknown SDK script layouts instead of silently mislinking.
@@ -18,7 +18,7 @@ def transform(source):
     if not (re.search(r'(?m)^\s*INCLUDE\s+["\']?pico_flash_region\.ld', source)
             or re.search(r'(?m)^\s*FLASH\s*\(', source)):
         raise ValueError('missing FLASH region or pico_flash_region.ld include')
-    source = pat.sub(lambda m: m['pre'] + '96k' + m['post'], source, count=1)
+    source = pat.sub(lambda m: m['pre'] + '64k' + m['post'], source, count=1)
     # Insert before RAM-resident .text. The FLASH output section advances the
     # FLASH load region so subsequent AT> FLASH sections do not overlap it.
     text_pat = re.compile(r'(?m)^(?P<indent>[ \t]*)\.text[ \t]*:')
@@ -39,7 +39,7 @@ def transform(source):
                + m['indent'] + '    . = ALIGN(4);\n'
                + m['indent'] + '    __piconix_app_images_end = .;\n'
                + m['indent'] + '} > FLASH\n\n')
-    return ('/* PicoNIX: 96-KiB RAM kernel; user binaries resident in FLASH. */\n'
+    return ('/* PicoNIX: 64-KiB RAM kernel; user binaries resident in FLASH. */\n'
             + source[:m.start()] + section + source[m.start():])
 
 

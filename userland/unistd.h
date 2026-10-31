@@ -28,6 +28,7 @@ int unlink(const char *path);
 int getdents(int fd, piconix_dirent_t *entry, size_t size);
 int dup2(int oldfd, int newfd);
 int getpid(void);
+unsigned flash_id(void);
 int chdir(const char *path);
 char *getcwd(char *buf, size_t size);
 int kill(int pid);

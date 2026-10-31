@@ -12,6 +12,7 @@ static inline int call(int n, uintptr_t a, uintptr_t b, uintptr_t c) {
 int chdir(const char *path) { return call(22,(uintptr_t)path,0,0); }
 char *getcwd(char *buf,size_t size) { return call(23,(uintptr_t)buf,size,0)<0 ? 0 : buf; }
 int getpid(void) { return call(1,0,0,0); }
+unsigned flash_id(void) { return (unsigned)call(27,0,0,0); }
 int kill(int pid) { return call(2,(uintptr_t)pid,0,0); }
 void _exit(int status) { call(3,(uintptr_t)status,0,0); for(;;) {} }
 int msleep(unsigned ms) { return call(4,ms,0,0); }

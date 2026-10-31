@@ -75,3 +75,7 @@ GPL-3.0-or-later. See `LICENSE`.
 - [Tiny Thumb assembler](ASM.md) — `as` / `./a.out`
 
 `/tmp` supports four files of up to 1 KiB each. `ls -l` shows the node type and file size where available.
+
+## Pico W network access
+
+For Pico W builds, Wi-Fi settings, Telnet/socat access and disconnect instructions, see [Pico W Wi-Fi, Telnet and raw TCP](NETWORK.md).

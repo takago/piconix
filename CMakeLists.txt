@@ -33,7 +33,7 @@ set(PICONIX_SYMBOL_BINS "")
 foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 32-KiB slot address.
-  set(APP_ORIGIN 0x20018000)
+  set(APP_ORIGIN 0x20010000)
   set(APP_DIR "${CMAKE_CURRENT_BINARY_DIR}/ram_${APP}")
   file(MAKE_DIRECTORY "${APP_DIR}")
   set(APP_LD "${APP_DIR}/slot.ld")
@@ -43,9 +43,9 @@ foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello 
   set(SYSCALLS_OBJ "${APP_DIR}/syscalls.o")
   set(LIBC_OBJ "${APP_DIR}/libc.o")
   set(APP_LD_ALT "${APP_DIR}/slot_alt.ld")
-  set(APP_ORIGIN 0x20020000)
-  configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/slot.ld" "${APP_LD_ALT}" @ONLY)
   set(APP_ORIGIN 0x20018000)
+  configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/slot.ld" "${APP_LD_ALT}" @ONLY)
+  set(APP_ORIGIN 0x20010000)
   set(APP_ELF_ALT "${APP_DIR}/${APP}_alt.elf")
   set(APP_BIN_ALT "${APP_DIR}/${APP}_alt.bin")
   set(APP_ELF "${APP_DIR}/${APP}.elf")
@@ -129,10 +129,17 @@ list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_symbols.S")
 # Fixed-size Flash reservation for kernel symbols. A post-link pass fills it
 # without shifting kernel code/data addresses.
 set(PICONIX_KERNEL_SYMBOL_FILE "${CMAKE_CURRENT_BINARY_DIR}/piconix_kernel_symbols.bin")
-if(NOT EXISTS "${PICONIX_KERNEL_SYMBOL_FILE}")
-  file(WRITE "${PICONIX_KERNEL_SYMBOL_FILE}" "")
+# Keep the reservation consistent when upgrading an existing build directory.
+# A size change forces the first link to rebuild the embedded catalog.
+set(PICONIX_KERNEL_SYMBOL_CAPACITY 65536)
+if(EXISTS "${PICONIX_KERNEL_SYMBOL_FILE}")
+  file(SIZE "${PICONIX_KERNEL_SYMBOL_FILE}" PICONIX_KERNEL_SYMBOL_CURRENT_SIZE)
+endif()
+if(NOT EXISTS "${PICONIX_KERNEL_SYMBOL_FILE}" OR
+   NOT PICONIX_KERNEL_SYMBOL_CURRENT_SIZE EQUAL PICONIX_KERNEL_SYMBOL_CAPACITY)
   execute_process(COMMAND "${Python3_EXECUTABLE}" -c
-    "import pathlib,struct;pathlib.Path(r'${PICONIX_KERNEL_SYMBOL_FILE}').write_bytes(bytes(32768))")
+    "import pathlib;pathlib.Path(r'${PICONIX_KERNEL_SYMBOL_FILE}').write_bytes(bytes(${PICONIX_KERNEL_SYMBOL_CAPACITY}))"
+    COMMAND_ERROR_IS_FATAL ANY)
 endif()
 configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/embed_kernel_symbols.S.in"
                "${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S" @ONLY)
@@ -140,39 +147,51 @@ set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S"
   PROPERTIES OBJECT_DEPENDS "${PICONIX_KERNEL_SYMBOL_FILE}")
 list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S")
 
-# Stage 17: experimental *real* SDK RAM execution path.
-# Pico SDK's copy_to_ram boot path retains the SDK boot2 and startup support.
-# We generate a copy of the SDK script with RAM restricted to 96 KiB.
-# The remaining 160 KiB provide five fixed 32-KiB task slots.
-option(PICONIX_KERNEL_RAM "Run SDK firmware from the 96-KiB kernel SRAM region" ON)
-if(PICONIX_KERNEL_RAM)
-  set(PICONIX_SDK_RAM_LD "${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2040/memmap_copy_to_ram.ld")
-  if(NOT EXISTS "${PICONIX_SDK_RAM_LD}")
-    set(PICONIX_SDK_RAM_LD "${PICO_SDK_PATH}/src/rp2_common/pico_standard_link/memmap_copy_to_ram.ld")
-  endif()
-  if(NOT EXISTS "${PICONIX_SDK_RAM_LD}")
-    message(FATAL_ERROR "Missing Pico SDK RAM linker script: ${PICONIX_SDK_RAM_LD}")
-  endif()
-  set(PICONIX_CUSTOM_LD "${CMAKE_CURRENT_BINARY_DIR}/piconix_kernel_ram.ld")
-  execute_process(
-    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/limit_sdk_ram.py"
-            "${PICONIX_SDK_RAM_LD}" "${PICONIX_CUSTOM_LD}"
-    RESULT_VARIABLE PICONIX_LD_RESULT
-    OUTPUT_VARIABLE PICONIX_LD_OUTPUT
-    ERROR_VARIABLE PICONIX_LD_ERROR)
-  if(NOT PICONIX_LD_RESULT EQUAL 0)
-    message(FATAL_ERROR "Cannot derive safe SDK linker script: ${PICONIX_LD_ERROR}")
-  endif()
-  message(STATUS "PicoNIX RAM linker: ${PICONIX_CUSTOM_LD}")
+# Kernel .text/.rodata execute from XIP flash on both Pico and Pico W.
+# Only .data/.bss/time-critical code/stacks use the first 64 KiB SRAM.
+# The default SDK startup initializes writable sections and RAM vectors.
+set(PICONIX_SDK_XIP_LD "${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2040/memmap_default.ld")
+if(NOT EXISTS "${PICONIX_SDK_XIP_LD}")
+  set(PICONIX_SDK_XIP_LD "${PICO_SDK_PATH}/src/rp2_common/pico_standard_link/memmap_default.ld")
 endif()
-add_executable(piconix kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/pwm.c kernel/context.S kernel/main.c
+if(NOT EXISTS "${PICONIX_SDK_XIP_LD}")
+  message(FATAL_ERROR "Missing Pico SDK RP2040 XIP linker script: ${PICONIX_SDK_XIP_LD}")
+endif()
+set(PICONIX_CUSTOM_LD "${CMAKE_CURRENT_BINARY_DIR}/piconix_kernel_xip.ld")
+execute_process(
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/limit_sdk_xip.py"
+          "${PICONIX_SDK_XIP_LD}" "${PICONIX_CUSTOM_LD}"
+  RESULT_VARIABLE PICONIX_LD_RESULT
+  ERROR_VARIABLE PICONIX_LD_ERROR)
+if(NOT PICONIX_LD_RESULT EQUAL 0)
+  message(FATAL_ERROR "Cannot derive safe SDK XIP linker script: ${PICONIX_LD_ERROR}")
+endif()
+message(STATUS "PicoNIX XIP linker: ${PICONIX_CUSTOM_LD}")
+add_executable(piconix kernel/net.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
-if(PICONIX_KERNEL_RAM)
-  # SDK supplies boot2, initial vectors and flash-to-RAM relocation.
-  pico_set_binary_type(piconix copy_to_ram)
-  pico_set_linker_script(piconix "${PICONIX_CUSTOM_LD}")
+pico_set_linker_script(piconix "${PICONIX_CUSTOM_LD}")
+# Wi-Fi follows the selected board. Both boards use the same five-slot layout.
+# Reject stale cache options instead of silently retaining an old Wi-Fi setting.
+if(DEFINED PICONIX_WIFI_LAYOUT)
+  message(FATAL_ERROR "PICONIX_WIFI_LAYOUT has been removed. Delete the build directory or unset the cached option (-U PICONIX_WIFI_LAYOUT); select -DPICO_BOARD=pico_w instead.")
 endif()
-target_include_directories(piconix PRIVATE include)
+if(PICO_BOARD STREQUAL "pico_w")
+  set(PICONIX_WIFI_ENABLED ON)
+  target_compile_definitions(piconix PRIVATE PICONIX_WIFI=1)
+  target_link_libraries(piconix pico_cyw43_arch_lwip_poll)
+else()
+  set(PICONIX_WIFI_ENABLED OFF)
+  target_compile_definitions(piconix PRIVATE PICONIX_WIFI=0)
+endif()
+message(STATUS "PicoNIX Wi-Fi: ${PICONIX_WIFI_ENABLED} (PICO_BOARD=${PICO_BOARD})")
+# Validate writable sections against fixed task and network regions on Pico W.
+if(PICONIX_WIFI_ENABLED)
+  add_custom_command(TARGET piconix POST_BUILD
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/audit_wifi_elf.py"
+            "$<TARGET_FILE:piconix>" --readelf "${CMAKE_READELF}"
+    VERBATIM)
+endif()
+target_include_directories(piconix PRIVATE include "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/kernel")
 option(PICONIX_CONSOLE_USB "Use onboard USB CDC instead of UART0 console" ON)
 target_compile_definitions(piconix PRIVATE PICONIX_CONSOLE_USB=$<BOOL:${PICONIX_CONSOLE_USB}>)
 target_link_libraries(piconix pico_stdlib hardware_uart hardware_gpio hardware_adc hardware_pwm)
@@ -187,13 +206,13 @@ endif()
 pico_enable_stdio_uart(piconix 0)
 pico_add_extra_outputs(piconix)
 
-# Post-link inspection of the five fixed 32-KiB task slots.
+# Post-link inspection of five fixed 32-KiB task slots.
 # Enable explicitly while transitioning from SDK's default XIP linker script.
 option(PICONIX_VERIFY_LAYOUT "Check task RAM placement in linked ELF" ON)
 if(PICONIX_VERIFY_LAYOUT)
   add_custom_command(TARGET piconix POST_BUILD
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/verify_layout.py"
-            "$<TARGET_FILE:piconix>" --nm "${CMAKE_NM}"
+            "$<TARGET_FILE:piconix>" --slots "5" --nm "${CMAKE_NM}"
     VERBATIM)
 endif()
 
@@ -205,7 +224,7 @@ option(PICONIX_AUDIT_FIRMWARE "Audit SDK boot2/vectors and fixed RAM slots" ON)
 if(PICONIX_AUDIT_FIRMWARE)
   add_custom_command(TARGET piconix POST_BUILD
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/audit_firmware.py"
-            "$<TARGET_FILE:piconix>" --nm "${CMAKE_NM}"
+            "$<TARGET_FILE:piconix>" --slots "5" --nm "${CMAKE_NM}"
             --objdump "${CMAKE_OBJDUMP}"
     VERBATIM)
 endif()

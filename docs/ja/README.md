@@ -25,7 +25,7 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 ./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-生成した`build/piconix.uf2`をBOOTSELモードのPicoへコピーし，USB CDC端末に接続します．詳細は[セットアップ](SETUP.md)を参照してください．
+生成した`build-pico/piconix.uf2`をBOOTSELモードのPicoへコピーし，USB CDC端末に接続します．詳細は[セットアップ](SETUP.md)を参照してください．
 
 ```text
 piconix# help
@@ -48,7 +48,7 @@ USBコンソールのShellから`getty /dev/uart1 sh &`を実行すると，UART
 
 ## 設計の特徴と制限
 
-RP2040のRAMのうち，カーネルに96 KiB，アプリケーション用に32 KiBスロット5個を割り当てます．アプリケーションはPICとしてFlashに埋め込まれ，起動時に空きスロットで動作します．同時実行は最大5タスクです．
+RP2040のRAMのうち，カーネルに64 KiB，アプリケーション用に32 KiBスロット5個を割り当てます．アプリケーションはPICとしてFlashに埋め込まれ，起動時に空きスロットで動作します．同時実行は最大5タスクです．
 
 PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送，シグナルハンドラ，パイプ，プロセスごとのメモリ保護，ELF実行ファイルの動的読み込みは実装していません．`Ctrl+C`と`kill`は，UNIXのシグナル送信ではなく，カーネルによるタスクの直接終了です．`/tmp`の内容は再起動すると消えます．
 
@@ -72,3 +72,7 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 GPL-3.0-or-later．詳細は`LICENSE`を参照してください．
 
 - [Thumbアセンブラ](ASM.md) — `as` / `./a.out`
+
+## Pico Wのネットワーク接続
+
+Pico Wのビルド，Wi-Fi設定，Telnet／socatの接続と終了方法は[Pico WのWi-Fi・Telnet・生TCP接続](NETWORK.md)を参照してください．

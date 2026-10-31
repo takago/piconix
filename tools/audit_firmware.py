@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-SLOT_BASE = 0x20018000
+SLOT_BASE = 0x20010000
 SLOT_BYTES = 5 * 0x8000
 
 def run(*argv):
@@ -43,7 +43,8 @@ def parse_sections(output):
             result[name] = tuple(int(x, 16) for x in (size, vma, lma))
     return result
 
-def audit(symbols, sections):
+def audit(symbols, sections, slots=5):
+    slot_bytes = slots * 0x8000
     problems = []
     def require(cond, message):
         if not cond: problems.append(message)
@@ -71,19 +72,19 @@ def audit(symbols, sections):
     require(symbols.get('ram_vector_table') == 0x20000000,
             'ram_vector_table symbol must start at 0x20000000')
     base = symbols.get('task_ram')
-    require(base == SLOT_BASE, 'task_ram must start at 0x20018000 (5 x 32-KiB slots)')
+    require(base == SLOT_BASE, f'task_ram must start at 0x20010000 ({slots} x 32-KiB slots)')
     for name in ('tasks', 'idle_stack'):
         address = symbols.get(name)
         require(address is not None, f'missing {name} symbol')
         if address is not None:
-            require(not (SLOT_BASE <= address < SLOT_BASE + SLOT_BYTES),
+            require(not (SLOT_BASE <= address < SLOT_BASE + slot_bytes),
                     f'{name} overlaps task memory')
     # Reject other allocatable SRAM sections intersecting task slots.
     # Ignore .bss.task_slots itself (it reserves the whole slot range).
     for name, (size, vma, _) in sections.items():
         if not size or name == '.bss.task_slots': continue
         if name.startswith('.debug') or name.startswith('.comment'): continue
-        if max(vma, SLOT_BASE) < min(vma + size, SLOT_BASE + SLOT_BYTES):
+        if max(vma, SLOT_BASE) < min(vma + size, SLOT_BASE + slot_bytes):
             require(False, f'{name} overlaps reserved task slots: 0x{vma:08x}+0x{size:x}')
     # Every embedded user image must remain in XIP FLASH.  A RAM VMA here
     # silently consumes kernel SRAM and grows with the application count.
@@ -103,17 +104,17 @@ def audit(symbols, sections):
                 and image_end <= app_section[1] + app_section[0]
                 and app_section[2] == app_section[1],
                 f'embedded {app} image is not in flash-backed .piconix_app_images')
-    # Every allocated kernel SRAM section must fit within 96 KiB; no accidental
+    # Every allocated kernel SRAM section must fit within 64 KiB; no accidental
     # use of task banks by SDK sections, and no stack spill into the slots.
     for name, (size, vma, lma) in sections.items():
         if not size or name.startswith(('.debug', '.comment')):
             continue
-        if 0x20000000 <= vma < 0x20018000:
-            require(vma + size <= 0x20018000,
-                    f'{name} crosses kernel 96-KiB boundary')
+        if 0x20000000 <= vma < 0x20010000:
+            require(vma + size <= 0x20010000,
+                    f'{name} crosses kernel 64-KiB boundary')
     return problems
 
-def memory_report(sections, symbol_sizes):
+def memory_report(sections, symbol_sizes, slots=5):
     """Kernel high-water mark from allocated ELF SRAM sections (includes heap/stack)."""
     kernel_base, kernel_end = 0x20000000, SLOT_BASE
     ram_sections = [(name, size, addr) for name, (size, addr, _) in sections.items()
@@ -124,11 +125,13 @@ def memory_report(sections, symbol_sizes):
     capacity = kernel_end - kernel_base
     print('\n=== PicoNIX RP2040 SRAM layout ===')
     print('Region               Address range                Allocated / Capacity')
-    print(f'Kernel (96 KiB)      0x{kernel_base:08x}..0x{kernel_end - 1:08x}     {used:6d} / {capacity:6d} bytes')
+    print(f'Kernel (64 KiB)      0x{kernel_base:08x}..0x{kernel_end - 1:08x}     {used:6d} / {capacity:6d} bytes')
     print(f'Kernel headroom      (after allocated sections)   {max(0, capacity-used):6d} bytes')
-    for i in range(5):
+    for i in range(slots):
         base = SLOT_BASE + i * 0x8000
         print(f'User slot {i+1} (32 KiB)  0x{base:08x}..0x{base+0x7fff:08x}     reserved (runtime)')
+    if slots == 5:
+        print('Network reserved     0x20038000..0x2003ffff      32768 bytes (not allocated)')
     trace_bytes = symbol_sizes.get('trace_ring')
     print(f'Trace ring            {trace_bytes} bytes (inside kernel .bss)'
           if trace_bytes is not None else
@@ -142,6 +145,7 @@ def memory_report(sections, symbol_sizes):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('elf')
+    p.add_argument('--slots', type=int, choices=(5,), default=5)
     p.add_argument('--nm', default='arm-none-eabi-nm')
     p.add_argument('--objdump', default='arm-none-eabi-objdump')
     args = p.parse_args()
@@ -151,10 +155,10 @@ def main():
         sections = parse_sections(run(args.objdump, '-h', args.elf))
     except (OSError, subprocess.CalledProcessError) as e:
         sys.exit(f'FAIL: cannot inspect firmware ELF: {e}')
-    problems = audit(symbols, sections)
+    problems = audit(symbols, sections, args.slots)
     if symbol_sizes.get('trace_ring') is None:
         problems.append('missing trace_ring symbol size in linked ELF')
-    memory_report(sections, symbol_sizes)
+    memory_report(sections, symbol_sizes, args.slots)
     for name in ('.boot2', '.flashtext', '.ram_vector_table'):
         print(f'{name}: {sections.get(name, "MISSING")}')
     print(f'__vectors: {symbols.get("__vectors", "MISSING")}')

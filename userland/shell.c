@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* PicoNIX shell: freestanding, slot-linked at 0x20018000.
+/* PicoNIX shell: freestanding, slot-linked at 0x20010000.
  * Small user libc; no SDK or kernel RAM data references.
  * Syscalls use SVC ABI: r0=number, r1..r3=arguments.
  */
@@ -363,9 +363,15 @@ int main(int argc, char *argv[]) {
     strcpy(cwd,"/tmp");
     /* USB CDC may enumerate after the shell task starts.  Do not discard the banner. */
     while(!console_ready()) msleep(10);
+    char id_line[] = "FlashID: 00000000\r\n";
+    static const char hex[] = "0123456789ABCDEF";
+    unsigned id = flash_id();
+    for (unsigned i=0; i<8; ++i)
+        id_line[9+i] = hex[(id >> (28-4*i)) & 15u];
     put("\r\n--------------------------------------------------------\r\n"
-        "PicoNIX-2026-10-30 (TAKAGO_LAB.)\r\n"
-        "Type 'help' for commands.\r\n"
+        "PicoNIX-2026-10-30 (TAKAGO_LAB.)\r\n");
+    put(id_line);
+    put("Type 'help' for commands.\r\n"
         "--------------------------------------------------------\r\n"
         "\033[0m\033[?25h" SHELL_PROMPT);
     for(;;) {

@@ -5,11 +5,15 @@
 #include "hardware/sync.h"
 #include <stdint.h>
 #include <stddef.h>
+#include "net.h"
 
 static void idle_task(void) {
     for (;;) {
+        net_poll();
         os_console_poll();
+#if !PICONIX_WIFI
         __wfi();
+#endif
     }
 }
 extern const unsigned char piconix_shell_image_start[], piconix_shell_image_end[];
@@ -46,7 +50,7 @@ extern const unsigned char piconix_edit_image_start[], piconix_edit_image_end[];
 extern const unsigned char piconix_mem_image_start[], piconix_mem_image_end[];
 extern const unsigned char piconix_tree_image_start[], piconix_tree_image_end[];
 extern const unsigned char piconix_find_image_start[], piconix_find_image_end[];
-#define RAM_APP_ORIGIN 0x20018000u
+#define RAM_APP_ORIGIN 0x20010000u
 
 static void register_image(int id, const char *name,
                            const unsigned char *start, const unsigned char *end) {
@@ -97,6 +101,7 @@ int main(void) {
     register_image(31,"mem",piconix_mem_image_start,piconix_mem_image_end);
     register_image(32,"tree",piconix_tree_image_start,piconix_tree_image_end);
     register_image(33,"find",piconix_find_image_start,piconix_find_image_end);
+    net_init();
     os_init_idle(idle_task);
     if(os_start_program(2)<0) panic("PicoNIX: shell start failed");
     // Do not start Blink here: verify the `blink` shell command path.

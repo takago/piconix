@@ -12,7 +12,7 @@ import struct
 import subprocess
 import sys
 
-CAPACITY = 32768
+CAPACITY = 65536
 p = argparse.ArgumentParser()
 p.add_argument('--nm', required=True)
 p.add_argument('--elf', required=True)
@@ -29,7 +29,7 @@ for line in result.stdout.splitlines():
         continue
     addr, kind, name = m.groups()
     addr = int(addr, 16)
-    if not (0x10000000 <= addr < 0x10200000 or 0x20000000 <= addr < 0x20018000):
+    if not (0x10000000 <= addr < 0x10200000 or 0x20000000 <= addr < 0x20010000):
         continue
     if name.startswith(('__', '$')) or name.startswith('piconix_kernel_syms_'):
         continue

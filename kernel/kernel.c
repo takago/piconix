@@ -4,12 +4,14 @@
 #include "devices.h"
 #include "pins.h"
 #include "pico/stdlib.h"
+#include "pico/unique_id.h"
 #include "hardware/uart.h"
 #include "hardware/clocks.h"
 #include "hardware/structs/scb.h"
 #include "hardware/structs/systick.h"
 #include "hardware/sync.h"
 #include "hardware/irq.h"
+#include "net.h"
 #include <string.h>
 #include <stdio.h>
 #include "../userland/trace.h"
@@ -19,12 +21,23 @@
 #include "tusb.h"
 #endif
 
+/* Lower 32 bits of the external Flash unique ID, shared with the AP SSID. */
+uint32_t piconix_flash_id(void) {
+    pico_unique_board_id_t id;
+    pico_get_unique_board_id(&id);
+    return ((uint32_t)id.id[PICO_UNIQUE_BOARD_ID_SIZE_BYTES-4] << 24) |
+           ((uint32_t)id.id[PICO_UNIQUE_BOARD_ID_SIZE_BYTES-3] << 16) |
+           ((uint32_t)id.id[PICO_UNIQUE_BOARD_ID_SIZE_BYTES-2] << 8) |
+           (uint32_t)id.id[PICO_UNIQUE_BOARD_ID_SIZE_BYTES-1];
+}
+
 /* Internal VFS path and directory IDs (no separate translation unit). */
 enum {
     DEV_CONSOLE = 0,
     DEV_GPIO_VALUE_BASE = 1,
     DEV_GPIO_VALUE_END = 29,
     DEV_UART1 = 30,
+    DEV_WIFI_TTY = 97,
     DEV_PROC_UPTIME = 31,
     DEV_PROC_TICKS = 32,
     DEV_PROC_INTERRUPTS = 33,
@@ -61,7 +74,11 @@ static int path_match(const char *p, const char *s);
 
 /* Fixed device registry shared by open() and /proc/devices listing. */
 static const struct { const char *path; int id; } dev_registry[] = {
-    {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/uart1",DEV_UART1}, {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
+    {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/uart1",DEV_UART1},
+#if PICONIX_WIFI
+    {"/dev/wifi",DEV_WIFI_TTY},
+#endif
+    {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
 };
 #define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
 /* Fixed virtual files share one path-to-ID mapping for open and FD display. */
@@ -115,13 +132,13 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP, SYS_GETDENTS };
+       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP, SYS_GETDENTS, SYS_FLASH_ID };
 typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[8]; uint32_t fd_pos[8]; int fd_task_pid[8]; uint8_t fd_flags[8]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; char cwd[128]; uint16_t adc_values[8]; } task_t;
 // Five fixed 32-KiB SRAM slots, not a .bss reservation.
-// The linker must restrict the kernel to kernel SRAM (0x20000000..0x20017fff).
-_Static_assert(OS_MAX_TASKS == 5 && OS_TASK_BYTES == 32768u,
+// The linker must restrict the kernel to kernel SRAM (0x20000000..0x2000ffff).
+_Static_assert((OS_MAX_TASKS == 4 || OS_MAX_TASKS == 5) && OS_TASK_BYTES == 32768u,
                "fixed RP2040 SRAM slot geometry changed");
-__asm__(".global task_ram\n.set task_ram, 0x20018000");
+__asm__(".global task_ram\n.set task_ram, 0x20010000");
 extern uint8_t task_ram[OS_MAX_TASKS][OS_TASK_BYTES];
 // Slots are intentionally NOLOAD/unallocated: no linker section occupies them.
 static task_t tasks[TOTAL_SLOTS];
@@ -142,18 +159,23 @@ static uint32_t rand32(void) {
 static volatile uint32_t svc_count, pendsv_count, context_switch_count;
 static int started;
 static int next_pid=1;
-static volatile int foreground_pid[2];
-static int tty_shell_pid[2];
+#if PICONIX_WIFI
+#define OS_TTY_COUNT 3
+#else
+#define OS_TTY_COUNT 2
+#endif
+static volatile int foreground_pid[OS_TTY_COUNT];
+static int tty_shell_pid[OS_TTY_COUNT];
 /* Console mode is owned by the foreground application and reset on exit. */
-static uint8_t tty_canonical[2]={1,1}, tty_echo[2]={1,1};
-static uint8_t tty_onlcr[2]={1,1}, tty_last_cr[2];
-static int tty_mode_owner[2];
+static uint8_t tty_canonical[OS_TTY_COUNT]={1,1,1}, tty_echo[OS_TTY_COUNT]={1,1,1};
+static uint8_t tty_onlcr[OS_TTY_COUNT]={1,1,1}, tty_last_cr[OS_TTY_COUNT];
+static int tty_mode_owner[OS_TTY_COUNT];
 /* Foreground task gets a temporary TTY mode; restore what its parent had. */
-static int tty_restore_pid[2];
-static uint8_t tty_saved_canon[2], tty_saved_echo[2], tty_saved_onlcr[2];
-static int tty_saved_owner[2];
+static int tty_restore_pid[OS_TTY_COUNT];
+static uint8_t tty_saved_canon[OS_TTY_COUNT], tty_saved_echo[OS_TTY_COUNT], tty_saved_onlcr[OS_TTY_COUNT];
+static int tty_saved_owner[OS_TTY_COUNT];
 /* Temporary exclusive control of an otherwise idle terminal. */
-static int tty_claim_pid[2];
+static int tty_claim_pid[OS_TTY_COUNT];
 static void tty_mode_reset(int dev);
 /* TTY line buffers must be declared before finish_task() uses them. */
 #define TTY_LINES 8u
@@ -162,9 +184,9 @@ typedef struct {
     struct {char text[128];uint8_t len;} lines[TTY_LINES];
     unsigned head,tail,used,offset;
 } tty_buffer_t;
-static tty_buffer_t tty_buf[2];
+static tty_buffer_t tty_buf[OS_TTY_COUNT];
 /* Fixed 32-KiB trace ring, 1024 records of 32 bytes. */
-#define TRACE_CAPACITY 1024u
+#define TRACE_CAPACITY 512u
 _Static_assert(sizeof(trace_event_t) == 32, "trace record must be 32 bytes");
 static trace_event_t trace_ring[TRACE_CAPACITY];
 static uint32_t trace_head;
@@ -248,7 +270,7 @@ static void finish_task(int slot, int status) {
     for(int i=0;i<OS_MAX_TASKS;i++)
         if(exited[i].parent_pid==t->pid) exited[i].pid=0;
     t->state=DEAD;
-    for(int dev=0;dev<2;dev++) {
+    for(int dev=0;dev<OS_TTY_COUNT;dev++) {
         if(tty_claim_pid[dev]==t->pid) {
             tty_claim_pid[dev]=0;
             tty_mode_reset(dev);
@@ -405,7 +427,33 @@ static void tty_put(uint8_t c) {
 }
 static void tty_put_dev(int dev,uint8_t c) {
     if(dev==0)tty_put(c);
-    else uart_putc_raw(uart1,c);
+    else if(dev==1)uart_putc_raw(uart1,c);
+#if PICONIX_WIFI
+    else if(dev==2)(void)net_terminal_write(&c,1);
+#endif
+}
+/* Write one logical TTY character, including optional NL->CRLF conversion.
+ * Return 1 only if the entire character was accepted, 0 on backpressure.
+ * Keep device-specific queue/transport handling below this boundary. */
+static int tty_tx_char(int dev, uint8_t c, int insert_cr) {
+#if PICONIX_CONSOLE_USB
+    if(dev==0) {
+        unsigned used=(console_tx_head+CONSOLE_TX_CAP-console_tx_tail)%CONSOLE_TX_CAP;
+        if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) return 0;
+        if(insert_cr) tty_put('\r');
+        tty_put(c);
+        return 1;
+    }
+#endif
+#if PICONIX_WIFI
+    if(dev==2) {
+        uint8_t bytes[2]={'\r',c};
+        return net_terminal_write(bytes+(!insert_cr),1+insert_cr)==1+insert_cr;
+    }
+#endif
+    if(insert_cr) tty_put_dev(dev,'\r');
+    tty_put_dev(dev,c);
+    return 1;
 }
 /* Canonical input keeps TAB (0x09); only the echo uses four-column stops. */
 static unsigned tty_line_columns(const tty_buffer_t *t) {
@@ -453,6 +501,60 @@ static void tty_input_char(int dev,uint8_t c) {
 // pico_stdio_usb owns the TinyUSB CDC interface and its callbacks.
 // Read through the SDK stdio interface rather than overriding tud_cdc_rx_cb.
 // The idle task polls this function while the shell waits for input.
+/* Network terminal lifecycle is managed in the idle task, not lwIP callbacks.
+ * Each connection owns its own shell and task group (TTY2). */
+#if PICONIX_WIFI
+static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char *name,
+                         int argc, const char *const *args, const uint8_t *raw, unsigned raw_size);
+static int wifi_session_active;
+static unsigned wifi_session_epoch;
+static void wifi_session_stop(void) {
+    uint32_t irq_state=save_and_disable_interrupts();
+    for(int i=0;i<OS_MAX_TASKS;i++) {
+        if(tasks[i].tty==2 && tasks[i].state!=UNUSED && tasks[i].state!=DEAD)
+            finish_task(i,130);
+    }
+    foreground_pid[2]=0;
+    tty_shell_pid[2]=0;
+    tty_claim_pid[2]=0;
+    tty_restore_pid[2]=0;
+    tty_mode_reset(2);
+    memset(&tty_buf[2],0,sizeof tty_buf[2]);
+    restore_interrupts(irq_state);
+}
+static void wifi_session_poll(void) {
+    int connected=net_terminal_connected();
+    unsigned epoch=net_terminal_epoch();
+    /* A fast reconnect must not inherit the previous session's shell. */
+    if(wifi_session_active && epoch!=wifi_session_epoch) {
+        wifi_session_stop();
+        wifi_session_active=0;
+    }
+    if(!connected) {
+        if(wifi_session_active) wifi_session_stop();
+        wifi_session_active=0;
+        return;
+    }
+    if(wifi_session_active) return;
+    /* One dedicated shell per TCP session; never consume the USB shell slot. */
+    uint32_t irq_state=save_and_disable_interrupts();
+    int slot=free_program_slot();
+    int pid=slot<0 ? OS_EAGAIN :
+        spawn_in_slot(slot,2,programs[2].entry,programs[2].name,0,NULL,NULL,0);
+    if(pid>0) {
+        task_t *child=&tasks[slot];
+        /* spawn_in_slot inherits the idle task's default TTY0. */
+        if(tty_shell_pid[0]==pid) tty_shell_pid[0]=0;
+        child->tty=2;
+        child->parent_pid=0;
+        for(int j=0;j<3;j++) fd_set(child,j,DEV_WIFI_TTY,0,0,0);
+        tty_shell_pid[2]=pid;
+        wifi_session_active=1;
+        wifi_session_epoch=epoch;
+    }
+    restore_interrupts(irq_state);
+}
+#endif
 void os_console_poll(void) {
 #if PICONIX_CONSOLE_USB
     console_tx_poll();
@@ -464,21 +566,36 @@ void os_console_poll(void) {
     }
     if (received) wake_readers(0);
 #endif
+#if PICONIX_WIFI
+    /* Called by idle task after net_poll: deliver TCP bytes through TTY2. */
+    wifi_session_poll();
+    if(wifi_session_active) {
+        uint8_t b[1]; int n;
+        while(tty_buf[2].used<TTY_LINES && (n=net_terminal_read(b,sizeof b))>0) {
+            for(int i=0;i<n;i++)tty_input_char(2,b[i]);
+            wake_readers(2);
+        }
+    }
+#endif
+}
+/* Shared TTY receive path. UART1 remains a raw byte stream when unowned. */
+static int tty_rx_ready(int tty) {
+    if(tty<0 || tty>=OS_TTY_COUNT) return 0;
+    if(tty==1 && !tty_owner_pid(1)) return rx[1].head!=rx[1].tail;
+    return tty_buf[tty].used!=0;
+}
+static int tty_rx_read(int tty,void *dst,size_t size) {
+    if(tty==1) return uart1_read(dst,size);
+    return tty_dequeue(tty,dst,size);
 }
 static void wake_readers(int dev) {
     for(int i=0;i<OS_MAX_TASKS;i++) {
         task_t *t=&tasks[i];
         if(t->state!=BLOCKED || t->wait_dev!=dev || !t->wait_frame_ready) continue;
-        int n=0;
-        if(dev==0) {
-            if(!tty_buf[0].used || t->pid!=tty_owner_pid(0)) continue;
-            n=tty_dequeue(0,t->wait_buf, t->wait_size);
-        } else {
-            if(tty_owner_pid(1) && t->pid!=tty_owner_pid(1)) continue;
-            uint8_t *b=t->wait_buf;
-            if(tty_owner_pid(1) ? !tty_buf[1].used : rx[1].head==rx[1].tail) continue;
-            n=uart1_read(b,t->wait_size); /* A zero-length read can be EOF. */
-        }
+        if(dev<0 || dev>=OS_TTY_COUNT) continue;
+        if(tty_owner_pid(dev) && t->pid!=tty_owner_pid(dev)) continue;
+        if(!tty_rx_ready(dev)) continue;
+        int n=tty_rx_read(dev,t->wait_buf,t->wait_size);
         // Never touch the saved r0 until PendSV has saved the PSP frame.
         /* Terminal reads finish here, not at the initial blocking SVC. */
         trace_record(TRACE_SVC_EXIT, (uint8_t)t->pid, SYS_READ,
@@ -523,7 +640,7 @@ void os_init(void) {
 #if !PICONIX_CONSOLE_USB
     console_irq_count=0;
 #endif
-    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; foreground_pid[0]=foreground_pid[1]=0; tty_shell_pid[0]=tty_shell_pid[1]=0; memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); tty_canonical[0]=tty_canonical[1]=1; tty_echo[0]=tty_echo[1]=1; tty_onlcr[0]=tty_onlcr[1]=1; tty_last_cr[0]=tty_last_cr[1]=0; tty_mode_owner[0]=tty_mode_owner[1]=0; tty_claim_pid[0]=tty_claim_pid[1]=0; tty_restore_pid[0]=tty_restore_pid[1]=0; tty_saved_owner[0]=tty_saved_owner[1]=0; 
+    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
     memset(rx, 0, sizeof(rx));
 #if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
@@ -691,6 +808,21 @@ uint32_t *os_schedule(uint32_t *oldsp) {
         if(i==IDLE_SLOT) continue;
         if(tasks[i].state==READY) { next=i; break; }
     }
+#if PICONIX_WIFI
+    /* Give the polling lwIP/CYW43 stack a kernel-owned execution window
+     * even when all application tasks are continuously READY.  This runs
+     * in thread mode (never in SysTick/PendSV) and costs at most one normal
+     * 10-ms scheduling slice per 50 ms.  It is not a hard real-time guarantee:
+     * long interrupt-disabled sections can still delay service. */
+    static uint32_t last_net_slice;
+    if (next >= 0 && previous != IDLE_SLOT &&
+        (uint32_t)(ticks - last_net_slice) >= 50u) {
+        next = IDLE_SLOT;
+        last_net_slice = ticks;
+    } else if (previous == IDLE_SLOT) {
+        last_net_slice = ticks;
+    }
+#endif
     if(next<0) {
         next=IDLE_SLOT;
     }
@@ -733,7 +865,7 @@ static int path_match(const char *p, const char *s) {
 }
 /* Small volatile regular-file store; IDs are disjoint from devices. */
 #define TMP_FILES 4
-/* Keep the RAM filesystem within the 96-KiB kernel SRAM region. */
+/* Keep the RAM filesystem within the 64-KiB kernel SRAM region. */
 #define TMP_BYTES 1024
 static struct { char name[16]; uint16_t size; uint8_t used; uint8_t data[TMP_BYTES]; } tmp_files[TMP_FILES];
 /* Check a user path without reading outside the caller's address range. */
@@ -1030,7 +1162,7 @@ static int proc_tasks_read(int fd, void *p, size_t n) {
         uintptr_t base=(uintptr_t)task_ram[row];
         char line[128];
         int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX\n",
-            t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":"-",row+1,
+            t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":t->tty==2?"wifi":"-",row+1,
             (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
             (unsigned long)(uintptr_t)t->sp);
         if(len<0 || (size_t)len>=sizeof line) return OS_EINVAL;
@@ -1200,7 +1332,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
 #endif
             break;
         case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
-        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-20017FFF\nslots  20018000-2003FFFF (5 x 32 KiB)\n"); break;
+        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-%08lX (%d x 32 KiB)\n%s", (unsigned long)(0x20010000u + OS_MAX_TASKS * OS_TASK_BYTES - 1u), OS_MAX_TASKS, "net    20038000-2003FFFF (32 KiB reserved)\n"); break;
     }
     if(len<0) return OS_EINVAL;
     if((size_t)len>=sizeof text) len=sizeof text-1;
@@ -1215,7 +1347,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     return (int)count;
 }
 static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
-    int uartdev=(dev==DEV_CONSOLE)?0:1;
+    int uartdev=(dev==DEV_CONSOLE)?0:(dev==DEV_WIFI_TTY?2:1);
 #if !PICONIX_CONSOLE_USB
     uart_inst_t *u=(dev==DEV_CONSOLE)?uart0:uart1;
 #endif
@@ -1229,37 +1361,27 @@ static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
         for(;i<n;i++) {
             uint8_t c=b[i];
             int insert_cr=tty_onlcr[uartdev] && c=='\n' && !tty_last_cr[uartdev];
-#if PICONIX_CONSOLE_USB
-            if(dev==DEV_CONSOLE) {
-                /* Reserve both bytes before accepting an LF. */
-                unsigned used=(console_tx_head+CONSOLE_TX_CAP-console_tx_tail)%CONSOLE_TX_CAP;
-                if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) break;
-                if(insert_cr) tty_put('\r');
-                tty_put(c);
-            } else
-#endif
-            {
-                if(insert_cr) tty_put_dev(uartdev,'\r');
-                tty_put_dev(uartdev,c);
-            }
+            if(!tty_tx_char(uartdev,c,insert_cr)) break;
             tty_last_cr[uartdev]=(c=='\r');
         }
+        /* A zero-length successful write would silently discard shell output
+         * when the network TX queue is full.  Report retryable backpressure
+         * instead; short positive writes retain normal POSIX semantics.
+         * Full blocking-write suspension remains future work. */
+#if PICONIX_WIFI
+        if(uartdev==2 && n!=0 && i==0)
+            return net_terminal_connected() ? OS_EAGAIN : OS_EIO;
+#endif
         return (int)i;
     }
     if(n==0) return 0;
     if(tty_owner_pid(uartdev) && tasks[current].pid!=tty_owner_pid(uartdev)) return OS_EIO;
     uint32_t irq_state=save_and_disable_interrupts();
-    int count=0;
-    if(uartdev==DEV_CONSOLE && tty_buf[0].used) {
-        count=tty_dequeue(0,b,n);
+    if(tty_rx_ready(uartdev)) {
+        int count=tty_rx_read(uartdev,b,n);
         restore_interrupts(irq_state);
-        return count; /* Zero is EOF from Ctrl+D on an empty line. */
-    } else if(uartdev==1 && (tty_owner_pid(1) ? tty_buf[1].used : rx[1].head!=rx[1].tail)) {
-        count=uart1_read(b,n);
-        restore_interrupts(irq_state);
-        return count; /* Zero means terminal Ctrl+D, not no data. */
+        return count; /* Zero can mean Ctrl+D (EOF). */
     }
-    if(count) { restore_interrupts(irq_state); return count; }
     if(tasks[current].fd_flags[fd] & OS_O_NONBLOCK) {
         restore_interrupts(irq_state); return 0;
     }
@@ -1405,7 +1527,7 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
     if(dev>=DEV_PWM_FREQ && dev<=DEV_PWM_19) return device_rw_pwm(fd,dev,p,n,writing);
     if(dev==DEV_RAND) return device_rw_rand(p,n,writing);
     if(proc_device(dev)) return device_rw_proc(fd,dev,p,n,writing);
-    if(dev==DEV_CONSOLE || dev==DEV_UART1) return device_rw_tty(fd,dev,p,n,writing);
+    if(dev==DEV_CONSOLE || dev==DEV_UART1 || (PICONIX_WIFI && dev==DEV_WIFI_TTY)) return device_rw_tty(fd,dev,p,n,writing);
     if(dev>=DEV_GPIO_DIR_BASE && dev<=DEV_GPIO_DIR_END)
         return gpio_driver_rw(1,(unsigned)(dev-DEV_GPIO_DIR_BASE),p,n,writing);
     if(dev>=DEV_GPIO_PULL_BASE && dev<=DEV_GPIO_PULL_END)
@@ -1416,12 +1538,12 @@ static int device_ioctl(int fd,int cmd,int arg) {
     if(fd<0 || fd>=8 || tasks[current].fd[fd]<0) return OS_EBADF;
     int dev=tasks[current].fd[fd];
     if(cmd>=OS_TTY_GET_CANON && cmd<=OS_TTY_RELEASE) {
-        if(dev!=DEV_CONSOLE && dev!=DEV_UART1)return OS_EINVAL;
-        int tty=(dev==DEV_CONSOLE)?0:1;
+        if(dev!=DEV_CONSOLE && dev!=DEV_UART1 && !(PICONIX_WIFI && dev==DEV_WIFI_TTY))return OS_EINVAL;
+        int tty=(dev==DEV_CONSOLE)?0:(dev==DEV_WIFI_TTY?2:1);
         if(cmd==OS_TTY_CLAIM) {
             if(tty_owner_pid(tty)) return OS_EBUSY;
             /* A background user with an open descriptor also makes it busy. */
-            int id=tty ? DEV_UART1 : DEV_CONSOLE;
+            int id=tty==2 ? DEV_WIFI_TTY : (tty ? DEV_UART1 : DEV_CONSOLE);
             for(int i=0;i<OS_MAX_TASKS;i++) {
                 if(i==current || tasks[i].state==UNUSED || tasks[i].state==DEAD) continue;
                 for(int f=0;f<8;f++) if(tasks[i].fd[f]==id) return OS_EBUSY;
@@ -1429,7 +1551,7 @@ static int device_ioctl(int fd,int cmd,int arg) {
             tty_claim_pid[tty]=tasks[current].pid;
             tty_mode_reset(tty);
             /* Discard input received before the terminal was claimed. */
-            rx[tty].tail=rx[tty].head;
+            if(tty<2)rx[tty].tail=rx[tty].head;
             return 0;
         }
         if(cmd==OS_TTY_RELEASE) {
@@ -1519,6 +1641,7 @@ void os_svc_dispatch(uint32_t *f) {
                  (uint32_t)a, tasks[current].program_id, file_id, NULL, 0);
     switch(num) {
         case SYS_GETPID: result=tasks[current].pid; break;
+        case SYS_FLASH_ID: result=(int)piconix_flash_id(); break;
         case SYS_GET_TTY: result=tasks[current].tty; break;
         case SYS_KILL:
             {int slot=slot_from_pid(a);
@@ -1691,7 +1814,7 @@ void os_svc_dispatch(uint32_t *f) {
             else if(b==1) result=tasks[current].fd_flags[a]; /* F_GETFL */
             else if(b==2) { /* F_SETFL: only O_NONBLOCK is mutable */
                 if(c & ~(OS_O_NONBLOCK | OS_O_RDWR | OS_O_WRONLY | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) result=OS_EINVAL;
-                else if(tasks[current].fd[a]!=DEV_CONSOLE && tasks[current].fd[a]!=DEV_UART1) result=OS_EINVAL;
+                else if(tasks[current].fd[a]!=DEV_CONSOLE && tasks[current].fd[a]!=DEV_UART1 && !(PICONIX_WIFI && tasks[current].fd[a]==DEV_WIFI_TTY)) result=OS_EINVAL;
                 else {
                     tasks[current].fd_flags[a]=(tasks[current].fd_flags[a] & ~OS_O_NONBLOCK) | (c & OS_O_NONBLOCK);
                     result=0;

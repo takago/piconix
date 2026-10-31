@@ -32,9 +32,9 @@ for elf_file in a.elf:
         if match is None: continue
         address, kind, name = match.groups()
         address = int(address, 16)
-        if not 0x20018000 <= address < 0x20020000: continue
+        if not 0x20010000 <= address < 0x20018000: continue
         if name.startswith('__') or name.startswith('$'): continue
-        lines.append((app, address - 0x20018000, kind, name))
+        lines.append((app, address - 0x20010000, kind, name))
 lines.sort(key=lambda x: (x[0], x[1], x[3]))
 raw = ''.join(f'{app}\t{offset:04x}\t{kind}\t{name}\n' for app, offset, kind, name in lines).encode('ascii')
 # Avoid replacing existing output when identical, preventing unnecessary relinks.

@@ -17,3 +17,8 @@ Quick links / クイックリンク：
 | [内部構造](docs/ja/INTERNAL.md) | [Internals](docs/en/INTERNAL.md) |
 
 `/tmp` のファイル上限は1KiB（最大4ファイル）です．`ls -l` ではファイル種別と，取得可能な場合はサイズを表示します．
+
+## Pico W Wi-Fi / Pico Wネットワーク接続
+
+- [日本語：Wi-Fi・Telnet・生TCP](docs/ja/NETWORK.md)
+- [English: Wi-Fi, Telnet and raw TCP](docs/en/NETWORK.md)

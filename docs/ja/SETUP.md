@@ -104,3 +104,7 @@ piconix# ps
 | GPIO25が動かない | Raspberry Pi Picoのボード種別 |
 
 USBと別にUART1からShellを利用するには`getty /dev/uart1 sh &`を実行します．UART1の設定とCtrl+C／Ctrl+Dは[UARTと端末操作](UART.md)を参照してください．内部のRAM配置は[内部構造](INTERNAL.md)を参照してください．
+
+## Pico Wのネットワーク接続
+
+Pico Wのビルド，Wi-Fi設定，Telnet／socatの接続と終了方法は[Pico WのWi-Fi・Telnet・生TCP接続](NETWORK.md)を参照してください．

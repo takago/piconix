@@ -63,12 +63,12 @@ LC_ALL=C LANG=C \
 
 Always specify `MinSizeRel` (normally `-Os`). The build script also runs host-side audits and PIC checks. If switching toolchains, delete `build/` first to avoid stale CMake configuration.
 
-Typical outputs are `build/piconix.uf2` and `build/piconix.elf`.
+Typical outputs are `build-pico/piconix.uf2` and `build-pico/piconix.elf`.
 
 ## 5. Flash the Pico
 
 1. Hold BOOTSEL while connecting the Pico over USB.
-2. Copy `build/piconix.uf2` onto the `RPI-RP2` drive.
+2. Copy `build-pico/piconix.uf2` onto the `RPI-RP2` drive.
 3. After the Pico restarts, locate its USB CDC device on Linux.
 
 ```sh
@@ -104,3 +104,7 @@ Use Ctrl+C to interrupt a foreground program. When using `kill`, obtain the PID 
 | GPIO25 does not work | Confirm the Raspberry Pi Pico board variant |
 
 For a separate UART1 shell, run `getty /dev/uart1 sh &`. See [UART and terminals](UART.md) for serial configuration and Ctrl+C/Ctrl+D behavior, and [Internals](INTERNAL.md) for RAM layout.
+
+## Pico W network access
+
+For Pico W builds, Wi-Fi settings, Telnet/socat access and disconnect instructions, see [Pico W Wi-Fi, Telnet and raw TCP](NETWORK.md).
