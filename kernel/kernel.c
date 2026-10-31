@@ -210,6 +210,8 @@ static int next_pid=1;
 #define OS_TTY_COUNT 2
 #endif
 static volatile int foreground_pid[OS_TTY_COUNT];
+/* Explicit foreground members (up to three pipeline stages per terminal). */
+static int foreground_group[OS_TTY_COUNT][3];
 static int tty_shell_pid[OS_TTY_COUNT];
 /* Console mode is owned by the foreground application and reset on exit. */
 static uint8_t tty_canonical[OS_TTY_COUNT]={1,1,1}, tty_echo[OS_TTY_COUNT]={1,1,1};
@@ -294,8 +296,32 @@ static void fd_set(task_t *t, int fd, int dev, uint32_t pos, int flags, int targ
     t->fd_task_pid[fd]=target_pid;
     t->fd_flags[fd]=(uint8_t)flags;
 }
-static void pipe_fd_release(task_t *t, int fd) {
-    pipe_ref(t->fd[fd],-1);
+/* Release one descriptor. Socket endpoints have a single owning task;
+ * pipes alone use per-endpoint reference counts. */
+static int udp_owner_pid;
+static int tcp_owner_pid;
+static void fd_release(task_t *t, int fd) {
+    int dev=t->fd[fd];
+    if(dev<0) return;
+    if(dev==DEV_SOCKET_UDP) {
+        net_socket_udp_close();
+        udp_owner_pid=0;
+    } else if(dev==DEV_SOCKET_TCP) {
+        if(net_socket_tcp_listening()) {
+            net_socket_tcp_close_listener();
+            int has_accepted=0;
+            for(int j=3;j<OS_FD_MAX;j++)
+                if(j!=fd && t->fd[j]==DEV_SOCKET_TCP_ACCEPTED) has_accepted=1;
+            if(!has_accepted) { net_socket_tcp_close_client(); tcp_owner_pid=0; }
+        } else { net_socket_tcp_close_client(); tcp_owner_pid=0; }
+    } else if(dev==DEV_SOCKET_TCP_ACCEPTED) {
+        net_socket_tcp_close_client();
+        int has_listener=0;
+        for(int j=3;j<OS_FD_MAX;j++)
+            if(j!=fd && t->fd[j]==DEV_SOCKET_TCP) has_listener=1;
+        if(!has_listener) tcp_owner_pid=0;
+    }
+    pipe_ref(dev,-1);
     fd_set(t,fd,-1,0,0,0);
 }
 /* Copy an open descriptor, retaining a pipe endpoint exactly once. */
@@ -304,8 +330,6 @@ static void fd_copy(task_t *t, int dst, int src) {
     fd_set(t,dst,t->fd[src],t->fd_pos[src],t->fd_flags[src],t->fd_task_pid[src]);
 }
 
-static int udp_owner_pid;
-static int tcp_owner_pid;
 static void finish_task(int slot, int status) {
     (void)status; /* PicoNIX retains PIDs, not exit status. */
     task_t *t=&tasks[slot];
@@ -326,9 +350,10 @@ static void finish_task(int slot, int status) {
     /* A dead parent cannot collect notifications. */
     for(int i=0;i<OS_MAX_TASKS;i++)
         if(exited[i].parent_pid==t->pid) exited[i].pid=0;
-    if (udp_owner_pid == t->pid) { net_socket_udp_close(); udp_owner_pid=0; }
-    if (tcp_owner_pid == t->pid) { net_socket_tcp_close(); tcp_owner_pid=0; }
-    for(int fd=0;fd<OS_FD_MAX;fd++) pipe_fd_release(t,fd);
+    for(int fd=0;fd<OS_FD_MAX;fd++) fd_release(t,fd);
+    /* Also clean up a socket owned by this task if its FD was lost. */
+    if(udp_owner_pid==t->pid) { net_socket_udp_close(); udp_owner_pid=0; }
+    if(tcp_owner_pid==t->pid) { net_socket_tcp_close(); tcp_owner_pid=0; }
     t->state=DEAD;
     for(int dev=0;dev<OS_TTY_COUNT;dev++) {
         if(tty_claim_pid[dev]==t->pid) {
@@ -565,8 +590,13 @@ static void tty_input_char(int dev,uint8_t c) {
     if(c==3){
         /* finish_task restores the foreground task's saved TTY mode. */
         memset(t,0,sizeof *t);
-        int pid=foreground_pid[dev];
-        for(int i=0;i<OS_MAX_TASKS;i++)if(pid && tasks[i].pid==pid){finish_task(i,130);break;}
+        /* Terminate all registered foreground pipeline members, not the shell. */
+        for(int g=0;g<3;g++) {
+            int pid=foreground_group[dev][g];
+            for(int i=0;i<OS_MAX_TASKS;i++)
+                if(pid && tasks[i].pid==pid) { finish_task(i,130); break; }
+            foreground_group[dev][g]=0;
+        }
         tty_put_dev(dev,'^');tty_put_dev(dev,'C');tty_put_dev(dev,'\r');tty_put_dev(dev,'\n');
     }else if(c==8||c==127){
         if(t->len){
@@ -733,7 +763,7 @@ void os_init(void) {
 #if !PICONIX_CONSOLE_USB
     console_irq_count=0;
 #endif
-    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
+    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(foreground_group,0,sizeof foreground_group); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
     memset(rx, 0, sizeof(rx));
 #if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
@@ -1943,7 +1973,9 @@ void os_svc_dispatch(uint32_t *f) {
         }
         case SYS_SET_FG: {
             int tty=tasks[current].tty;
-            if(a==0) { foreground_pid[tty]=0; result=0; break; }
+            if(a==0) { foreground_pid[tty]=0;
+                for(int g=0;g<3;g++) foreground_group[tty][g]=0;
+                result=0; break; }
             result=OS_ESRCH;
             for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==a &&
                 tasks[i].parent_pid==tasks[current].pid && tasks[i].state!=DEAD) {
@@ -1954,7 +1986,13 @@ void os_svc_dispatch(uint32_t *f) {
                     tty_saved_owner[tty]=tty_mode_owner[tty];
                     tty_restore_pid[tty]=a;
                 }
-                foreground_pid[tty]=a; result=0; break;
+                foreground_pid[tty]=a;
+                int present=0;
+                for(int g=0;g<3;g++) if(foreground_group[tty][g]==a) present=1;
+                if(!present) for(int g=0;g<3;g++) if(!foreground_group[tty][g]) {
+                    foreground_group[tty][g]=a; break;
+                }
+                result=0; break;
             }
             break;
         }
@@ -2106,7 +2144,7 @@ void os_svc_dispatch(uint32_t *f) {
             if(a<0 || a>=OS_FD_MAX || b<0 || b>=OS_FD_MAX || tasks[current].fd[a]<0) result=OS_EBADF;
             else {
                 if(a!=b) {
-                    pipe_fd_release(&tasks[current],b);
+                    fd_release(&tasks[current],b);
                     fd_copy(&tasks[current],b,a);
                 }
                 result=b;
@@ -2117,24 +2155,10 @@ void os_svc_dispatch(uint32_t *f) {
             result=absolute_path((const char *)(uintptr_t)a,path)<0 ? OS_EINVAL : vfs_open(path,b);
             break;
         }
-        case SYS_CLOSE: if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]<0) result=OS_EBADF;
-            else { if(tasks[current].fd[a]==DEV_SOCKET_UDP) { net_socket_udp_close(); udp_owner_pid=0; }
-                   if(tasks[current].fd[a]==DEV_SOCKET_TCP) {
-                       if(net_socket_tcp_listening()) {
-                           net_socket_tcp_close_listener();
-                           int has_accepted=0;
-                           for(int j=3;j<OS_FD_MAX;j++) if(j!=a && tasks[current].fd[j]==DEV_SOCKET_TCP_ACCEPTED) has_accepted=1;
-                           if(!has_accepted) { net_socket_tcp_close_client(); tcp_owner_pid=0; }
-                       }
-                       else { net_socket_tcp_close_client(); tcp_owner_pid=0; }
-                   }
-                   if(tasks[current].fd[a]==DEV_SOCKET_TCP_ACCEPTED) {
-                       net_socket_tcp_close_client();
-                       int has_listener=0;
-                       for(int j=3;j<OS_FD_MAX;j++) if(j!=a && tasks[current].fd[j]==DEV_SOCKET_TCP) has_listener=1;
-                       if(!has_listener) tcp_owner_pid=0;
-                   }
-                   pipe_fd_release(&tasks[current],a); result=0;} break;
+        case SYS_CLOSE:
+            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]<0) result=OS_EBADF;
+            else { fd_release(&tasks[current],a); result=0; }
+            break;
         case SYS_GETDENTS: result=vfs_getdents(a,(piconix_dirent_t *)(uintptr_t)b,(size_t)c); break;
         case SYS_READ:
         case SYS_WRITE: {

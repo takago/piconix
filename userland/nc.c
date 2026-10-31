@@ -30,14 +30,19 @@ static int send_all(int fd,const void *buf,unsigned n) {
     return 0;
 }
 static void usage(void) {
-    puts("usage: nc [-u] -l PORT | nc [-u] IPv4 PORT");
+    puts("usage: nc [-u] [-N] -l PORT | nc [-u] [-N] IPv4 PORT");
     puts("Ctrl+C / shell interrupt to exit; IPv4 numeric addresses only");
 }
 int main(int argc,char **argv) {
     unsigned char data[512];
-    int udp=0,listening=0,i=1,fd=-1,peer=-1,number;
-    if(i<argc&&!strcmp(argv[i],"-u")){udp=1;i++;}
-    if(i<argc&&!strcmp(argv[i],"-l")){listening=1;i++;}
+    int udp=0,exit_on_eof=0,listening=0,i=1,fd=-1,peer=-1,number;
+    while(i<argc) {
+        if(!strcmp(argv[i],"-u")) udp=1;
+        else if(!strcmp(argv[i],"-N")) exit_on_eof=1;
+        else if(!strcmp(argv[i],"-l")) listening=1;
+        else break;
+        i++;
+    }
     if((listening&&argc-i!=1)||(!listening&&argc-i!=2)){usage();return 1;}
     uint32_t ip=0;
     if(!listening&&ipv4(argv[i++],&ip)<0){usage();return 1;}
@@ -66,7 +71,8 @@ int main(int argc,char **argv) {
             r=read(0,data,sizeof(data));
             if(r>0&&remote.sin_port) {
                 if(sendto(fd,data,(size_t)r,0,(const struct sockaddr *)&remote,sizeof(remote))<0)break;
-            } else if(r<0&&r!=OS_EAGAIN)break;
+            } else if(r==0&&exit_on_eof)break;
+            else if(r<0&&r!=OS_EAGAIN)break;
             msleep(2);
         }
     } else {

@@ -237,6 +237,8 @@ static void run_pipeline(char *stage[3], int count, const char *cwd) {
             if(next[0]>=0) close(next[0]);
             failed=1;break;
         }
+        /* Register each pipeline member for terminal Ctrl+C. */
+        set_foreground(pid[i]);
         if(previous_read>=0) close(previous_read);
         previous_read=next[0];
     }
@@ -246,6 +248,7 @@ cleanup:
     if(failed) put("pipe: cannot start command\r\n");
     int status;
     for(int i=0;i<count;i++) if(pid[i]>0) waitpid(pid[i],&status,0);
+    set_foreground(0);
 }
 static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const char **bg_name) {
     while(*s==' ') s++;
