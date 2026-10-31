@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/CMakeFiles/picotool-populate"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/CMakeFiles/picotool-populate.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/CMakeFiles/picotool-populate-complete.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/picotool-populate-prefix/src/picotool-populate-stamp/picotool-populate-build.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/picotool-populate-prefix/src/picotool-populate-stamp/picotool-populate-configure.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/picotool-populate-prefix/src/picotool-populate-stamp/picotool-populate-download.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/picotool-populate-prefix/src/picotool-populate-stamp/picotool-populate-install.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/picotool-populate-prefix/src/picotool-populate-stamp/picotool-populate-mkdir.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/picotool-populate-prefix/src/picotool-populate-stamp/picotool-populate-patch.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/picotool-populate-prefix/src/picotool-populate-stamp/picotool-populate-test.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/_deps/picotool-subbuild/picotool-populate-prefix/src/picotool-populate-stamp/picotool-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"picotool-populate"
+		],
+		"name" : "picotool-populate"
+	}
+}

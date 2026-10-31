@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/CMakeFiles/picotoolBuild"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/CMakeFiles/picotoolBuild.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/CMakeFiles/picotoolBuild-complete.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/picotool/src/picotoolBuild-stamp/picotoolBuild-build.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/picotool/src/picotoolBuild-stamp/picotoolBuild-configure.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/picotool/src/picotoolBuild-stamp/picotoolBuild-download.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/picotool/src/picotoolBuild-stamp/picotoolBuild-install.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/picotool/src/picotoolBuild-stamp/picotoolBuild-mkdir.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/picotool/src/picotoolBuild-stamp/picotoolBuild-patch.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/picotool/src/picotoolBuild-stamp/picotoolBuild-test.rule"
+		},
+		{
+			"file" : "/tmp/PicoNIX/build-pico_w/picotool/src/picotoolBuild-stamp/picotoolBuild-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"picotoolBuild"
+		],
+		"name" : "picotoolBuild"
+	}
+}

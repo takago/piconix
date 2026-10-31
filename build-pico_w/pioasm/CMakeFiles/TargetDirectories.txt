@@ -1,0 +1,7 @@
+/tmp/PicoNIX/build-pico_w/pioasm/CMakeFiles/pioasm.dir
+/tmp/PicoNIX/build-pico_w/pioasm/CMakeFiles/edit_cache.dir
+/tmp/PicoNIX/build-pico_w/pioasm/CMakeFiles/rebuild_cache.dir
+/tmp/PicoNIX/build-pico_w/pioasm/CMakeFiles/list_install_components.dir
+/tmp/PicoNIX/build-pico_w/pioasm/CMakeFiles/install.dir
+/tmp/PicoNIX/build-pico_w/pioasm/CMakeFiles/install/local.dir
+/tmp/PicoNIX/build-pico_w/pioasm/CMakeFiles/install/strip.dir

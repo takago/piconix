@@ -1,0 +1,2 @@
+/tmp/PicoNIX/build-pico_w/_deps/picotool-build/enc_bootloader_mbedtls/CMakeFiles/edit_cache.dir
+/tmp/PicoNIX/build-pico_w/_deps/picotool-build/enc_bootloader_mbedtls/CMakeFiles/rebuild_cache.dir
