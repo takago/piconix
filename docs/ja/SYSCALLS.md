@@ -1,61 +1,81 @@
-# システムコール一覧（現行実装）
+# システムコール・ABIリファレンス
 
-この表は `kernel/kernel.c` の `SYS_*` 列挙と `userland/syscalls.c` を照合したものです．番号は内部ABIであり，POSIX互換性を保証しません．
-
-まずCプログラムから使う場合は[アプリ開発](PROGRAMMING.md)を参照してください．このページは，アセンブリ言語やカーネル内部を調べる人向けの**低水準APIの一覧**です．
+この資料は `kernel/kernel.c` の `os_svc_dispatch()`，`userland/syscalls.c`，`userland/unistd.h` に基づきます．Cアプリケーションでは通常ラッパー関数を使用します．一般的なPOSIX ABIとは異なります．
 
 ## 呼び出し規約
 
-- `svc #0`：`r0` = 番号，`r1`–`r3` = 引数，`r0` = 戻り値．
-- 番号11と15は予約済みで，通常の呼び出し先ではありません．
-- カーネルのディスパッチは `os_svc_dispatch()`，ユーザ側ラッパーは `userland/syscalls.c` にあります．
+`svc #0` を実行し，`r0` に番号，`r1`，`r2`，`r3` に下表の引数を左から順番に格納します．戻り値は `r0` に格納されます．第4引数が必要な場合は，構造体へのポインタを渡すか，ユーザ側ラッパーで変換します．引数欄のポインタはユーザタスクのアドレス空間を指します．
 
-## 番号一覧
+通常，失敗時には負の `OS_E*` エラー番号を直接返し，`errno` は使用しません．ただし `_exit()` は復帰せず，C版 `getcwd()` は成功時に `buf`，失敗時に `NULL` を返します．予約番号11，15には実装がありません．
 
-| 番号 | カーネル定数 | ユーザAPI | 機能 |
-|---:|---|---|---|
-| 1 | `SYS_GETPID` | `getpid` | 呼び出し元タスクのPIDを取得 |
-| 2 | `SYS_KILL` | `kill` | 指定PIDのタスクを終了 |
-| 3 | `SYS_EXIT` | `_exit` | 現在のタスクを終了 |
-| 4 | `SYS_SLEEP` | `msleep` | 指定ミリ秒だけ実行を休止 |
-| 5 | `SYS_YIELD` | `yield` | スケジューラにCPUを譲る |
-| 6 | `SYS_OPEN` | `open` | ファイル・デバイスを開いてFDを取得 |
-| 7 | `SYS_CLOSE` | `close` | FDを閉じる |
-| 8 | `SYS_READ` | `read` | FDからデータを読み取る |
-| 9 | `SYS_WRITE` | `write` | FDにデータを書き込む |
-| 10 | `SYS_IOCTL` | `ioctl` | デバイス・TTYの設定や制御を行う |
-| 11 | `SYS_RESERVED_TASK_INFO` | `reserved (task info)` | 予約番号（呼び出し不可） |
-| 12 | `SYS_SPAWN` | `spawn` | 登録済みユーザプログラムを起動 |
-| 13 | `SYS_WAITPID` | `waitpid` | 子タスクの終了を待つ |
-| 14 | `SYS_SET_FG` | `set_foreground` | TTYの前景タスクを設定 |
-| 15 | `SYS_RESERVED_GETARG` | `reserved (getarg)` | 予約番号（呼び出し不可） |
-| 16 | `SYS_CONSOLE_READY` | `console_ready` | コンソール接続の準備状態を調べる |
-| 17 | `SYS_UNLINK` | `unlink` | 書き込み可能なファイルを削除 |
-| 18 | `SYS_DUP2` | `dup2` | 指定番号へFDを複製 |
-| 19 | `SYS_TTY_SPAWN` | `tty_spawn` | 指定TTYでシェルまたはgettyを起動 |
-| 20 | `SYS_GET_TTY` | `get_tty` | 現在のタスクのTTY識別子を取得 |
-| 21 | `SYS_LSEEK` | `lseek` | ファイルの読み書き位置を変更 |
-| 22 | `SYS_CHDIR` | `chdir` | カレントディレクトリを変更 |
-| 23 | `SYS_GETCWD` | `getcwd` | カレントディレクトリを取得 |
-| 24 | `SYS_FCNTL` | `fcntl` | 非ブロッキングなどのFDフラグを取得・設定 |
-| 25 | `SYS_SPAWN_TMP` | `spawn_tmp` | /tmp内のThumb実行イメージを起動 |
-| 26 | `SYS_GETDENTS` | `getdents` | ディレクトリエントリを取得 |
-| 27 | `SYS_FLASH_ID` | `flash_id` | Flashの識別値を取得 |
-| 28 | `SYS_SOCKET` | `socket` | TCPまたはUDPソケットを生成 |
-| 29 | `SYS_BIND` | `bind_udp / TCP listen adapter` | UDPポートの割当，TCP待受のアダプター処理 |
-| 30 | `SYS_SENDTO` | `sendto_udp` | UDPデータグラムを送信 |
-| 31 | `SYS_RECVFROM` | `recvfrom_udp` | UDPデータグラムを受信 |
-| 32 | `SYS_LISTEN_TCP` | `tcp_listen` | TCPの待受を開始 |
-| 33 | `SYS_CONNECT_TCP` | `tcp_connect` | TCPの接続を開始 |
-| 34 | `SYS_TCP_STATUS` | `tcp_status` | TCP接続の状態を取得 |
-| 35 | `SYS_ACCEPT_TCP` | `tcp_accept` | TCP接続要求を受け付ける |
-| 36 | `SYS_PIPE` | `pipe` | パイプと読み書き用FDを生成 |
-| 37 | `SYS_DUP` | `dup` | 空いている番号にFDを複製 |
-| 38 | `SYS_PROGRAM_ID` | `program_id` | 登録済みプログラム名からIDを取得 |
+## 全システムコール一覧
 
-## 注意点
+| No. | Kernel constant | C wrapper | r1 / r2 / r3 arguments | Return | 機能 |
+|---:|---|---|---|---|---|
+| 1 | `SYS_GETPID` | `getpid()` | — | PID | 現在のPIDを返す |
+| 2 | `SYS_KILL` | `kill(pid)` | `pid` | 0 / 負のエラー | 指定タスクを終了（自分自身は不可） |
+| 3 | `SYS_EXIT` | `_exit(status)` | `status` | 復帰しない | タスクを終了する |
+| 4 | `SYS_SLEEP` | `msleep(ms)` | `ms` | 0 | 指定ミリ秒スリープ |
+| 5 | `SYS_YIELD` | `yield()` | — | 0 | CPUを譲る |
+| 6 | `SYS_OPEN` | `open(path, flags)` | `path`, `flags` | FD / 負のエラー | ファイル・デバイスを開く |
+| 7 | `SYS_CLOSE` | `close(fd)` | `fd` | 0 / 負のエラー | FDを閉じる |
+| 8 | `SYS_READ` | `read(fd, buf, count)` | `fd`, `buf`, `count` | 読取バイト数 / 負のエラー | FDから読み込む |
+| 9 | `SYS_WRITE` | `write(fd, buf, count)` | `fd`, `buf`, `count` | 書込バイト数 / 負のエラー | FDへ書き込む |
+| 10 | `SYS_IOCTL` | `ioctl(fd, cmd, value)` | `fd`, `cmd`, `value` | 要求ごと / 負のエラー | デバイス固有の制御 |
+| 11 | `SYS_RESERVED_TASK_INFO` | `—` | — | `OS_ENOSYS` | 予約番号 |
+| 12 | `SYS_SPAWN` | `spawn(program, argc, argv)` | `program`, `argc`, `argv` | 子PID / 負のエラー | 登録プログラムを起動 |
+| 13 | `SYS_WAITPID` | `waitpid(pid, status, options)` | `pid`, `status`, `options` | 子PID，0，または負のエラー | 子の終了を待つ |
+| 14 | `SYS_SET_FG` | `set_foreground(pid)` | `pid` | 0 / 負のエラー | TTYの前景タスクを指定 |
+| 15 | `SYS_RESERVED_GETARG` | `—` | — | `OS_ENOSYS` | 予約番号 |
+| 16 | `SYS_CONSOLE_READY` | `console_ready()` | — | 0 または 1 | コンソール接続を確認 |
+| 17 | `SYS_UNLINK` | `unlink(path)` | `path` | 0 / 負のエラー | RAMファイルを削除 |
+| 18 | `SYS_DUP2` | `dup2(oldfd, newfd)` | `oldfd`, `newfd` | newfd / 負のエラー | 指定番号にFDを複製 |
+| 19 | `SYS_TTY_SPAWN` | `tty_spawn(tty, program)` | `tty`, `program` | 子PID / 負のエラー | 指定TTYにタスクを起動 |
+| 20 | `SYS_GET_TTY` | `get_tty()` | — | TTY識別子 | 自身のTTYを取得 |
+| 21 | `SYS_LSEEK` | `lseek(fd, offset, whence)` | `fd`, `offset`, `whence` | 位置 / 負のエラー | ファイル位置を変更 |
+| 22 | `SYS_CHDIR` | `chdir(path)` | `path` | 0 / 負のエラー | 作業ディレクトリを変更 |
+| 23 | `SYS_GETCWD` | `getcwd(buf, size)` | `buf`, `size` | 低水準: 0 / 負のエラー | 作業ディレクトリをバッファに格納 |
+| 24 | `SYS_FCNTL` | `fcntl(fd, cmd, value)` | `fd`, `cmd`, `value` | フラグまたは0 / 負のエラー | FDフラグの取得・設定 |
+| 25 | `SYS_SPAWN_TMP` | `spawn_tmp(path)` | `path` | 子PID / 負のエラー | /tmpのPNX1プログラムを起動 |
+| 26 | `SYS_GETDENTS` | `getdents(fd, entry, size)` | `fd`, `entry`, `size` | 1，0，または負のエラー | ディレクトリエントリを取得 |
+| 27 | `SYS_FLASH_ID` | `flash_id()` | — | 識別値 | Flash識別値を取得 |
+| 28 | `SYS_SOCKET` | `socket(domain, type, protocol)` | `domain`, `type`, `protocol` | FD / 負のエラー | IPv4 TCP/UDPソケットを生成 |
+| 29 | `SYS_BIND` | `bind_udp(fd, port)` | `fd`, `port` | 0 / 負のエラー | UDPポートを割り当てる |
+| 30 | `SYS_SENDTO` | `sendto_udp(fd, packet)` | `fd`, `packet` | 送信バイト数 / 負のエラー | UDPパケットを送る |
+| 31 | `SYS_RECVFROM` | `recvfrom_udp(fd, packet)` | `fd`, `packet` | 受信バイト数 / 負のエラー | UDPパケットを受け取る |
+| 32 | `SYS_LISTEN_TCP` | `tcp_listen(fd, port)` | `fd`, `port` | 0 / 負のエラー | TCP接続を待ち受ける |
+| 33 | `SYS_CONNECT_TCP` | `tcp_connect(fd, endpoint)` | `fd`, `endpoint` | 0 / 負のエラー | TCP接続を開始する |
+| 34 | `SYS_TCP_STATUS` | `tcp_status(fd)` | `fd` | 状態値 / 負のエラー | TCP接続状態を取得 |
+| 35 | `SYS_ACCEPT_TCP` | `tcp_accept(fd)` | `fd` | 新FD / 負のエラー | 接続済みTCP FDを作成 |
+| 36 | `SYS_PIPE` | `pipe(fds)` | `fds` | 0 / 負のエラー | 読み／書きFDを一組作る |
+| 37 | `SYS_DUP` | `dup(oldfd)` | `oldfd` | 新FD / 負のエラー | 空き番号にFDを複製 |
+| 38 | `SYS_PROGRAM_ID` | `program_id(name)` | `name` | ID / 負のエラー | 登録プログラム名をIDに変換 |
 
-- `bind()`，`listen()`，`accept()`，`connect()`，`send()`，`recv()`，`sendto()`，`recvfrom()` は `userland/syscalls.c` のBSD風アダプターです．それぞれが独立したシステムコール番号を持つわけではありません．
-- TCP用 `bind()` は内部で待受開始も行い，`listen()` は通常のPOSIXバックログ管理を実装していません．`accept()` の相手アドレス取得も未対応です．
-- `pipe()`，`dup()`，`dup2()` はFD操作を提供しますが，POSIXの全機能を実装しているわけではありません．
-- アセンブラからは番号を `r0` に設定して `svc #0` を実行します．詳細は [ASM.md](ASM.md) を参照してください．
+## 引数の意味と重要な制約
+
+- `read(fd, buf, count)` / `write(fd, buf, count)`：`fd` はファイル記述子，`buf` はデータ領域，`count` は最大バイト数です．読取時の0はEOFを表す場合があります．
+- `spawn(program, argc, argv)`：`program` は登録済みプログラムID，`argc` は1〜8，`argv` は文字列ポインタ配列です．引数文字列の合計領域にも制限があります．`program_id(name)` で名前からIDを得られます．
+- `waitpid(pid, status, options)`：`pid` は子PIDまたは `-1`，`status` は終了情報の格納先（`NULL`可），`options` は0または `WNOHANG` (1) です．現在の実装では完了時の `*status` に0が入るため，通常のPOSIXの終了ステータス保持とは異なります．
+- `set_foreground(pid)`：`pid` は自分の子タスクのPIDです．`pid=0` は前景所有の復元要求です．
+- `tty_spawn(tty, program)`：`tty` は1または2，`program` は対応するシェル／gettyの登録ID（実装では2または4）です．
+- `getcwd(buf, size)`：ABIでは書き込み成功時に0を返します．Cラッパーは成功時に `buf` を返すよう変換しています．
+- `lseek(fd, offset, whence)`：`whence` は `SEEK_SET` (0) のみです．対応するファイルやデバイスも限定されます．
+- `fcntl(fd, cmd, value)`：`cmd=1` は `F_GETFL`，`cmd=2` は `F_SETFL` に相当します．変更できるフラグとFD種別は限定されます．TTY設定には `ioctl()` を使用します．
+- `pipe(fds)`：`fds[0]` に読み取り側，`fds[1]` に書き込み側のFDを設定します．`dup()`／`dup2()` はソケットFDを複製できません．
+- `socket(domain, type, protocol)`：`domain=AF_INET` (2)，`type=SOCK_STREAM` (1) または `SOCK_DGRAM` (2)，`protocol=0` のみです．
+- `bind_udp(fd, port)`，`tcp_listen(fd, port)`：`port` は1〜65535です．ソケットの種類によって呼び出し先が異なります．
+- `sendto_udp(fd, packet)`／`recvfrom_udp(fd, packet)`：`packet` は `piconix_udp_packet_t *` で，データポインタ，長さ，相手IPアドレスとポートを保持します．送受信長には実装上の上限があります．
+- `tcp_connect(fd, endpoint)`：`endpoint` は `piconix_tcp_endpoint_t *` です．接続処理は非同期であり，`tcp_status(fd)` で状態を確認します．`tcp_accept(fd)` は受け付け可能な接続がなければ `OS_EAGAIN` を返します．
+- `getdents(fd, entry, size)`：`entry` は `piconix_dirent_t *` です．1はエントリ取得，0は終端を表します．
+- `spawn_tmp(path)`：`path` は `/tmp` 内のPNX1形式のThumbイメージを指定します．
+
+## C APIと低水準ABIの違い
+
+`bind()`，`listen()`，`accept()`，`connect()`，`send()`，`recv()`，`sendto()`，`recvfrom()` はユーザ側のBSD風アダプターで，個々に独立したSVC番号はありません．特にTCPの `bind()` は待受開始を行い，`listen()` はバックログ管理を実装しません．`accept()` は相手アドレスの取得に対応していません．詳しくは [NETWORK-PROGRAMMING.md](NETWORK-PROGRAMMING.md) を参照してください．
+
+## 参照先
+
+- [LIBC.md](LIBC.md)：ユーザ向けCライブラリと関数群
+- [ASM.md](ASM.md)：アセンブリからのSVC呼び出し
+- [PROGRAMMING.md](PROGRAMMING.md)：アプリ開発の手順
+- [TTY.md](TTY.md)：TTY制御
