@@ -76,7 +76,7 @@ To send a one-shot UDP message in the other direction, run `nc -u -l 12345` on L
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-The Pico SDK and an ARM toolchain are required. See the setup guide below for installation details.
+The Pico SDK and an ARM toolchain are required. See the setup guide linked below for installation details. The firmware has not been verified on hardware by this documentation review.
 
 ## Architecture
 
@@ -108,6 +108,9 @@ For a suggested reading order, see the [English documentation guide](docs/en/DOC
 | [ncと通信の終了](docs/ja/NC.md) | [nc and termination](docs/en/NC.md) |
 | [Cアプリ開発](docs/ja/PROGRAMMING.md) | [C application development](docs/en/PROGRAMMING.md) |
 | [デバイス](docs/ja/DEVICES.md) | [Devices](docs/en/DEVICES.md) |
+| [全体構造](docs/ja/ARCHITECTURE.md) | [Architecture](docs/en/ARCHITECTURE.md) |
+| [端末と画面制御](docs/ja/TERMINAL.md) | [Terminal and screen](docs/en/TERMINAL.md) |
+| [TTY設定](docs/ja/TTY.md) | [TTY settings](docs/en/TTY.md) |
 | [内部構造](docs/ja/INTERNAL.md) | [Internals](docs/en/INTERNAL.md) |
 
 ## Wi-Fi modes and sample programs

@@ -13,6 +13,7 @@ int main(int argc, char **argv) {
         puts("  find       Search directory entries");
         puts("  edit       Edit a /tmp file");
         puts("  cat        Read file / standard input");
+        puts("  grep       Filter lines by matching text");
         puts("  rm         Remove a /tmp file");
         puts("  echo       Print text");
         puts("  pwd        Print working directory");
@@ -64,6 +65,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"hexdump")) puts("hexdump: Hex and ASCII dump\nusage: hexdump [file [offset [count]]]");
     else if(!strcmp(argv[1],"trace")) puts("trace: Trace system calls\nusage: trace on|off|show [PID]|follow [PID]|run CMD [args...]");
     else if(!strcmp(argv[1],"ps")) puts("ps: Show processes\nusage: ps");
+    else if(!strcmp(argv[1],"grep")) puts("grep: Filter matching lines from a file or standard input\nusage: grep PATTERN [file]");
     else if(!strcmp(argv[1],"cat")) puts("cat: Read file / standard input\nusage: cat [file]  (shell: cat > file)");
     else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command\nusage: watch [seconds] command [args...]");
     else if(!strcmp(argv[1],"pwd")) puts("pwd: Print working directory\nusage: pwd");

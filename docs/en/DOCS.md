@@ -32,6 +32,8 @@ PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup 
 3. [Socket programming](NETWORK-PROGRAMMING.md) — TCP/UDP user applications
 4. [nc](NC.md), [httpd](HTTPD.md), [UDP device control](UDP-DEVICES.md), [Remote GPIO](REMOTE_GPIO.md) — practical examples
 
+**[Architecture](ARCHITECTURE.md)** — the user/kernel boundary and a source-file map.
+
 ## 4. Write programs
 
 | Topic | Guide |

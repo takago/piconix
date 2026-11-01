@@ -10,21 +10,11 @@ USB CDCの`/dev/console`，UART1の`/dev/uart1`，対応するPico Wビルドの
 
 TTYでは入力の行編集（canonical），入力エコー（echo），出力の改行変換（ONLCR）を管理します．パイプや通常ファイル，ソケットはTTYではないため，これらの処理を受けません．
 
-## 2．`stty`で入力・出力を設定する
+## 2．TTY設定とFDのブロッキング設定
 
-```sh
-stty                 # 現在の設定を表示
-stty -icanon -echo   # 文字単位入力，エコーなし
-stty icanon echo     # 行入力とエコーを有効化
-stty raw             # -icanon -echo の簡易指定
-stty cooked          # icanon echo の簡易指定
-stty -onlcr          # LFからCRLFへの変換を無効化
-stty onlcr           # LFからCRLFへの変換を有効化
-```
+行入力（`icanon`），エコー（`echo`），改行変換（`onlcr`）はTTYごとの設定で，`stty`または`ioctl()`で変更します．一方，`fcntl()`の`O_NONBLOCK`はFDの入出力待機に関する設定です．両者は独立しています．`raw`は`-icanon -echo`の略記であり，POSIXの完全なrawモードではありません．
 
-`raw`は完全なPOSIX rawモードではありません．`stty`は`OS_TTY_PERSIST`を利用して設定を保持します．プログラムからは`ioctl()`の`OS_TTY_*`を使用します．具体的な呼び出しと制約は[TTY設定](TTY.md)を参照してください．
-
-`fcntl()`による`O_NONBLOCK`は**ファイルディスクリプタの待機方法**であり，`stty`のcanonical/echoとは別です．`VMIN`/`VTIME`は実装されていません．
+設定コマンド，`OS_TTY_*`，`OS_TTY_PERSIST`，復元規則と制限事項の正確な仕様は[TTY設定](TTY.md)を参照してください．この文書では，主にアプリケーション側の画面制御を説明します．
 
 ## 3．改行と画面表示
 

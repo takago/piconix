@@ -10,7 +10,7 @@ piconix# help mb
 piconix# help reset
 ```
 
-The list covers all 29 registered RAM commands and shell built-ins (`cd`, `getty`, `exit`, `logout`). Consult the topic-specific guides for full usage and limitations. `help` is no longer a shell built-in.
+The list covers registered RAM commands and shell built-ins (`cd`, `getty`, `exit`, `logout`), including `grep` and its `help grep` entry. Update the list whenever the set of commands changes. Consult the topic-specific guides for full usage and limitations. `help` is no longer a shell built-in.
 
 ## Verified command options
 

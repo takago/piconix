@@ -6,8 +6,8 @@ main = (root/'kernel/main.c').read_text()
 help_src = (root/'userland/help.c').read_text()
 shell = (root/'userland/shell.c').read_text()
 cmake = (root/'CMakeLists.txt').read_text()
-names = re.findall(r'register_image\(\d+,"([a-z]+)"', main)
-assert len(names) == 35 and len(set(names)) == 35
+names = re.findall(r'register_image\(\d+,"([a-z_]+)"', main)
+assert len(names) == 38 and len(set(names)) == 38
 for name in names + ['cd','getty','exit','logout']:
     assert f'!strcmp(argv[1],"{name}")' in help_src, name
     assert f'  {name}' in help_src, name

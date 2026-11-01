@@ -1,4 +1,4 @@
-# Kernel symbols in `mem` (experimental)
+# Kernel symbols in `mem` (current implementation)
 
 `mem -s kernel` lists kernel functions and data symbols at absolute addresses. Interactive `mem` automatically selects symbols for the visible kernel and task-slot address ranges and displays labels such as `SYMBOL: kernel, sh`. Multiple symbols in a 16-byte row are separated by commas.
 
@@ -18,4 +18,4 @@ mem 0x10000000
 mem -s sh
 ```
 
-**Note:** The original experimental patch documentation did not confirm a full ARM firmware build or hardware test. This is a historical verification caveat, not a claim about the current release. Verify the build's post-link checks before flashing.
+**Verification note:** Post-link checks are distinct from runtime validation on hardware. Run build checks before flashing and verify `mem -s kernel` on the device when needed.

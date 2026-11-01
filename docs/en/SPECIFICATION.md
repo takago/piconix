@@ -2,12 +2,14 @@
 
 This document summarizes the **current implementation and fixed resource limits** for developers. For usage instructions, see the [documentation index](DOCS.md). PicoNIX does not claim full POSIX compatibility. The source code of the relevant revision takes precedence if behavior differs from this document.
 
+[Architecture](ARCHITECTURE.md) maps the responsibilities to source files.
+
 ## 1. Platform and architecture
 
 - Targets: Raspberry Pi Pico (RP2040) and Pico W.
 - Kernel: code executes from flash via XIP; data and management structures reside in SRAM.
 - User programs: fixed physical RAM slots; no general-purpose virtual memory or process memory isolation is specified.
-- Directory structure: `/bin`, `/dev`, `/proc`, `/tmp`.
+- Directory structure: `/bin`, `/dev`, `/proc`, `/tmp`, `/etc`.
 
 ## 2. Memory and tasks
 

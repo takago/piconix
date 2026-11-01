@@ -10,4 +10,4 @@ Run `mem` or `mem 0x20018000`. This reads existing `/dev/mem` approximately ever
 
 Accessible ranges are the XIP Flash (0x10000000–0x101fffff) and SRAM (0x20000000–0x2003ffff) regions supported by `/dev/mem`. Concurrent modifications may prevent consistent snapshots.
 
-Use `mem -s sh` or `mem -s kernel` to inspect available symbols. The interactive memory viewer also shows symbols for occupied task slots.
+Use `mem -s` to list symbol sources, and `mem -s sh` or `mem -s kernel` to list application or kernel symbols. The interactive memory viewer displays relevant symbols for the current address. Keys `1`–`6` select 24 KiB task slots, `k` selects kernel RAM, `K` selects XIP Flash, and `g` prompts for a hexadecimal address. Memory browsing continues if symbols are unavailable.

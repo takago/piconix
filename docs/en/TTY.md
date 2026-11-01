@@ -25,25 +25,11 @@ C applications can use `ioctl()` with `OS_TTY_GET_CANON`, `OS_TTY_GET_ECHO`, `OS
 
 Use `fcntl(fd, F_GETFL, 0)` to read FD flags, and `fcntl(fd, F_SETFL, flags)` to change `O_NONBLOCK`. This is independent of canonical and echo modes. For immediate character input, select noncanonical mode and an appropriate blocking policy.
 
-## `mb` (moonbuggy)
+## Restoration and screen control
 
-```text
-mb
-```
+`stty` and `reset` use `OS_TTY_PERSIST` to retain deliberate configuration changes. When a foreground task exits or is interrupted, the kernel restores its saved terminal settings. Interactive programs such as `mb` combine noncanonical input with nonblocking descriptors. `reset` does not change `O_NONBLOCK`.
 
-Press SPACE to jump and `q` to quit. `mb` temporarily uses character-based, no-echo, nonblocking input and combines `read()` with `msleep()` for interaction and updates. On normal exit, it restores the input FD flags; the kernel restores the TTY settings.
-
-## `reset` (restore terminal display)
-
-```text
-reset
-```
-
-`reset` enables `icanon` and `echo` on standard input and emits ANSI escape sequences to reset character attributes, restore the cursor, clear the display, and move home. It does not change `O_NONBLOCK`. It cannot be used if input is no longer possible.
-
-## Notes and related guides
-
-Terminal modes are shared by users of a terminal. For foreground applications, the kernel restores the prior TTY settings so the shell remains usable. Screen control (cursor visibility, alternate screen and character attributes) is separate and remains the responsibility of the application. Use `reset` for exceptional display problems. For terminal affiliation, `getty`, Ctrl+C/Ctrl+D, and USB CDC versus UART1, see [UART1 and terminals](UART.md).
+Cursor visibility, alternate screens, and text attributes are separate from TTY settings. For application screen cleanup, practical `reset` use, and interruption caveats, see [Terminal usage and screen control](TERMINAL.md).
 
 ## TTY output newline conversion (ONLCR)
 

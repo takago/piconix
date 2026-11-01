@@ -32,6 +32,8 @@ PicoNIXは，RP2040上で動く小型UNIX風OSです．初めて使う方は，*
 3. [ソケットプログラミング](NETWORK-PROGRAMMING.md)：TCP／UDPのユーザアプリ
 4. [nc](NC.md)，[httpd](HTTPD.md)，[UDPデバイス制御](UDP-DEVICES.md)，[GPIO遠隔制御](REMOTE_GPIO.md)：具体例
 
+**[全体アーキテクチャ](ARCHITECTURE.md)**：ユーザ空間とカーネルの分担，ソースコードの対応表．
+
 ## 4．プログラムを作る
 
 | 内容 | 説明 |

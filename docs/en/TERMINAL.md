@@ -10,21 +10,11 @@ Shells can use the USB CDC `/dev/console`, UART1 `/dev/uart1`, or `/dev/wifi` in
 
 TTY processing includes canonical line input, local echo, and ONLCR output newline conversion. Pipes, ordinary files, and sockets are not TTYs and do not receive this processing.
 
-## 2. Configure input and output with `stty`
+## 2. TTY settings versus descriptor blocking
 
-```sh
-stty                 # Show current settings
-stty -icanon -echo   # Character input without echo
-stty icanon echo     # Line input with echo
-stty raw             # Shorthand for -icanon -echo
-stty cooked          # Shorthand for icanon echo
-stty -onlcr          # Disable LF-to-CRLF conversion
-stty onlcr           # Enable LF-to-CRLF conversion
-```
+Canonical input (`icanon`), input echo (`echo`), and output newline conversion (`onlcr`) are per-terminal settings configured by `stty` or `ioctl()`. In contrast, `fcntl()` with `O_NONBLOCK` controls descriptor I/O waiting behavior. These are independent. `raw` only means `-icanon -echo`; it is not full POSIX raw mode.
 
-`raw` is not full POSIX raw mode. `stty` uses `OS_TTY_PERSIST` to keep intentional settings after exit. Applications use `ioctl()` with `OS_TTY_*`; see [TTY settings](TTY.md) for calls and limitations.
-
-`O_NONBLOCK`, controlled by `fcntl()`, determines **descriptor I/O waiting behavior** and is independent of canonical/echo modes. `VMIN` and `VTIME` are not implemented.
+For exact commands, `OS_TTY_*`, `OS_TTY_PERSIST`, restoration rules, and limitations, see [TTY settings](TTY.md). This guide concentrates on application-managed screen control.
 
 ## 3. Newlines and screen display
 
