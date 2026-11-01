@@ -17,7 +17,7 @@ assert "symbol_sizes.get('trace_ring')" in audit_source
 assert 'Trace ring            16384 bytes' not in audit_source
 assert 'trace_enabled=0;' in source
 assert 'trace_enabled=1;' in source
-assert '{"/dev/trace",DEV_TRACE}' in v
+assert 'PICONIX_FIXED_DEVICES(DEVICE_ENTRY)' in v
 assert 'if(dev==DEV_TRACE)' in source
 assert 'if(tasks[current].fd[fd]==DEV_TRACE)' in source
 assert 'save_and_disable_interrupts()' in source
@@ -33,7 +33,7 @@ assert 'TICKx1K' in trace_app
 assert 'is_tmp ? spawn_tmp(image) : spawn(' in trace_app
 assert 'getcwd(cwd,sizeof cwd)' in trace_app
 assert 'case 25: return "spawn_tmp";' in trace_app
-assert 'console' in trace_app and 'uart1' in trace_app
+assert 'console' in trace_app and 'ttyS1' in trace_app and 'ttyN0' in trace_app
 assert 'print_event(&event)' in trace_app
 assert 'register_image(7,' in (ROOT/'kernel/main.c').read_text()
 # Trace is launched via the shared /bin lookup and bounded argv SVC.

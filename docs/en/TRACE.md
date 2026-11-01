@@ -45,7 +45,7 @@ The 16 KiB (512-event) ring buffer is still used. Long-running programs may over
 | `ENTER` / `EXIT` | System-call entry and exit |
 | `TICKx1K` | One record for every 1,000 ticks of the 1ms SysTick |
 
-The display contains time, PID, command, TTY (`console` / `uart1` / `-`), event, call, target, return value, and data columns. The trace command's own system calls and related context switches are excluded from capture.
+The display contains time, PID, command, TTY (`console` / `ttyS1` / `ttyN0` / `-`), event, call, target, return value, and data columns. The trace command's own system calls and related context switches are excluded from capture.
 
 ## Try it: observe system calls and task switches
 
@@ -63,8 +63,8 @@ For a longer capture, start with `trace on`, run another command, then inspect t
 Records are **32 bytes each**, as defined by `trace_event_t` in `userland/trace.h`. The kernel holds **16 KiB (512 events)** in a ring buffer; new events overwrite the oldest when full.
 
 - `tick`: milliseconds since boot
-- `kind`: event type
-- `pid` / `program_id`: task and registered program IDs (the latter also encodes the TTY)
+- `kind`: low six bits are event type; high two bits encode TTY (0=console, 1=ttyS1, 2=ttyN0)
+- `pid` / `program_id`: registered program ID (the event kind high bits encode TTY)
 - `file_id`: internal device/file ID, or -1 when absent/unknown
 - `value` / `detail`: syscall ID, arguments, return value, or destination task depending on event
 - `data[16]`: first 16 bytes of a successful `open()` path or successful `read()`/`write()` transfer; not necessarily NUL-terminated
@@ -74,3 +74,7 @@ The viewer associates successful open events with PID/FD paths. If that history 
 ## Timing and limitations
 
 SysTick runs every 1ms and the usual time slice is 10ms. A sleeping task can trigger rescheduling with 1ms granularity. Tracing has runtime overhead. A blocking `read()` EXIT is emitted when input arrives and the call completes, not when it first blocks. PID filtering does not reduce ring buffer consumption.
+
+### Device names and IDs
+
+Fixed device IDs and paths are shared between the kernel VFS and `trace` through `include/device_names.h`. `trace` prints a canonical path when available, falling back to `id=N` for unknown or dynamic devices. The TTY column shows `console`, `ttyS1`, or `ttyN0`. IDs are kernel implementation details and are not added to `ls -l`; use `/proc/task/<pid>` or `lsof` to inspect open descriptors. Existing binary trace logs from older firmware should not be mixed with this format because TTY metadata moved into the event-kind byte.

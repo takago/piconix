@@ -1,0 +1,25 @@
+/* Shared fixed device IDs and canonical paths: kernel VFS and trace viewer. */
+#ifndef PICONIX_DEVICE_NAMES_H
+#define PICONIX_DEVICE_NAMES_H
+enum {
+    DEV_CONSOLE = 0,
+    DEV_FB = 128,
+    DEV_UART1 = 30,
+    DEV_WIFI_TTY = 97,
+    DEV_WIFI_CTRL = 138,
+    DEV_RAND = 94,
+    DEV_MEM = 98,
+    DEV_TRACE = 99,
+};
+/* X(path, id): fixed entries, excluding build-specific guards. */
+#define PICONIX_FIXED_DEVICES(X) \
+    X("/dev/console", DEV_CONSOLE) \
+    X("/dev/gpio/fb", DEV_FB) \
+    X("/dev/ttyS1", DEV_UART1) \
+    X("/dev/rand", DEV_RAND) \
+    X("/dev/mem", DEV_MEM) \
+    X("/dev/trace", DEV_TRACE)
+#define PICONIX_WIFI_DEVICES(X) \
+    X("/dev/ttyN0", DEV_WIFI_TTY) \
+    X("/dev/net/wifi", DEV_WIFI_CTRL)
+#endif

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "../include/gpio_status.h"
+#include "../include/device_names.h"
 #include "piconix.h"
 #include "devices.h"
 #include "pins.h"
@@ -32,15 +33,11 @@ uint32_t piconix_flash_id(void) {
 
 /* Internal VFS path and directory IDs (no separate translation unit). */
 enum {
-    DEV_CONSOLE = 0,
     DEV_SOCKET_UDP = 400,
     DEV_SOCKET_TCP = 401,
     DEV_SOCKET_TCP_ACCEPTED = 402,
     DEV_GPIO_VALUE_BASE = 1,
     DEV_GPIO_VALUE_END = 29,
-    DEV_UART1 = 30,
-    DEV_WIFI_TTY = 97,
-    DEV_WIFI_CTRL = 138,
     DEV_PROC_UPTIME = 31,
     DEV_PROC_TICKS = 32,
     DEV_PROC_INTERRUPTS = 33,
@@ -52,7 +49,6 @@ enum {
     DEV_GPIO_DIR_END = 64,
     DEV_GPIO_PULL_BASE = 65,
     DEV_GPIO_PULL_END = 93,
-    DEV_RAND = 94,
     DEV_PROC_DEVICES = 95,
     DEV_PROC_TASKS = 96,
     DEV_ADC_BASE = 121,
@@ -60,11 +56,8 @@ enum {
     DEV_PWM_FREQ = 125,
     DEV_PWM_18 = 126,
     DEV_PWM_19 = 127,
-    DEV_MEM = 98,
     DEV_SYMS_KERNEL = 135,
     DEV_SYMS_USER_BASE = 200, /* 200..263: registered user programs */
-    DEV_TRACE = 99,
-    DEV_FB = 128,
     DEV_PROC_FB = 129,
     DEV_PROC_TASK_BASE = 130, /* 130..134: physical task slots */
     DEV_TMP_FIRST = 100,
@@ -77,13 +70,14 @@ enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
 static int path_match(const char *p, const char *s);
 
 /* Fixed device registry shared by open() and /proc/devices listing. */
+#define DEVICE_ENTRY(path, id) {path, id},
 static const struct { const char *path; int id; } dev_registry[] = {
-    {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/ttyS1",DEV_UART1},
+    PICONIX_FIXED_DEVICES(DEVICE_ENTRY)
 #if PICONIX_WIFI
-    {"/dev/ttyN0",DEV_WIFI_TTY}, {"/dev/net/wifi",DEV_WIFI_CTRL},
+    PICONIX_WIFI_DEVICES(DEVICE_ENTRY)
 #endif
-    {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
 };
+#undef DEVICE_ENTRY
 #define DEV_REGISTRY_COUNT (sizeof(dev_registry)/sizeof(dev_registry[0]))
 /* Fixed virtual files share one path-to-ID mapping for open and FD display. */
 static const struct { const char *path; int id; } vfs_registry[] = {
@@ -259,10 +253,13 @@ static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t det
     e->detail = detail;
     e->kind = kind;
     e->pid = pid;
-    /* Upper bit stores the task TTY; low bits remain the program ID. */
+    /* Upper two bits of kind encode the task TTY (0=CDC, 1=UART1, 2=Telnet).
+     * Keep program_id intact and preserve the 32-byte binary event ABI. */
     for(int i=0;i<OS_MAX_TASKS;i++)
-        if(pid && tasks[i].pid==pid && tasks[i].state!=UNUSED) {
-            if(tasks[i].tty) program_id |= 0x80u;
+        if((kind==TRACE_SWITCH ? value : pid) &&
+           tasks[i].pid==(int)(kind==TRACE_SWITCH ? value : pid) &&
+           tasks[i].state!=UNUSED) {
+            e->kind |= (uint8_t)((tasks[i].tty & 3u) << 6);
             break;
         }
     e->program_id = program_id;

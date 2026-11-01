@@ -4,6 +4,7 @@
 #include "stdio.h"
 #include "string.h"
 #include "trace.h"
+#include "../include/device_names.h"
 
 static const char *syscall_name(unsigned n) {
     switch(n) {
@@ -132,12 +133,19 @@ static void append(char *out, const char *s) {
     while(*s && n<sizeof(((trace_event_t *)0)->data)*4u-1u) out[n++]=*s++;
     out[n]=0;
 }
+/* Resolve IDs from the same fixed-device declarations as the kernel VFS. */
+static const char *device_path(int id) {
+#define DEVICE_CASE(path, dev) if(id==dev) return path;
+    PICONIX_FIXED_DEVICES(DEVICE_CASE)
+    PICONIX_WIFI_DEVICES(DEVICE_CASE)
+#undef DEVICE_CASE
+    return NULL;
+}
 static void format_target(char *out, unsigned pid, unsigned fd, int8_t id) {
     const char *name=find_fd(pid,fd);
     sprintf(out,"%u",fd);
     if(name) {append(out,":"); append(out,name);}
-    else if(id==0) append(out,":/dev/console");
-    else if(id==30) append(out,":/dev/ttyS1");
+    else if(id>=0 && device_path(id)) {append(out,":");append(out,device_path(id));}
     else if(id>=0) {char part[16];sprintf(part,":id=%d",(int)id);append(out,part);}
 }
 static void print_preview(const uint8_t *data, unsigned len, int shortened) {
@@ -175,22 +183,23 @@ static void pending_save(unsigned pid, unsigned call, const char *target) {
 }
 static void print_event(const trace_event_t *e) {
     char time[20],pid[16],target[64]="",ret[16]="";
-    unsigned shown_pid=e->kind==TRACE_SWITCH ? e->value : e->pid;
+    unsigned shown_pid=(e->kind&TRACE_KIND_MASK)==TRACE_SWITCH ? e->value : e->pid;
     format_short_time(time,e->tick);
     numeric(pid,(int)shown_pid);
-    const char *tty=shown_pid==0 ? "-" : (e->program_id&0x80u ? "uart1" : "console");
-    const char *name=(e->program_id&0x7fu)==0 && shown_pid!=0 ? "a.out" : program_name(e->program_id&0x7fu);
+    const char *tty=shown_pid==0 ? "-" :
+        (TRACE_TTY(e->kind)==1 ? "ttyS1" : TRACE_TTY(e->kind)==2 ? "ttyN0" : "console");
+    const char *name=e->program_id==0 && shown_pid!=0 ? "a.out" : program_name(e->program_id);
     col(time,7);col(pid,3);col(name,7);col(tty,7);
-    if(e->kind==TRACE_SWITCH) {
+    if((e->kind&TRACE_KIND_MASK)==TRACE_SWITCH) {
         col("SWITCH",8);col("",8);
         sprintf(target,"%u -> %u",e->pid,e->value);
         col(target,16);putchar('\n');return;
     }
-    if(e->kind==TRACE_TICK1K) {
+    if((e->kind&TRACE_KIND_MASK)==TRACE_TICK1K) {
         col("TICKx1K",8);col("",8);col("SysTick",16);putchar('\n');return;
     }
-    if(e->kind!=TRACE_SVC_ENTER && e->kind!=TRACE_SVC_EXIT) {puts("UNKNOWN");return;}
-    int enter=e->kind==TRACE_SVC_ENTER;
+    if((e->kind&TRACE_KIND_MASK)!=TRACE_SVC_ENTER && (e->kind&TRACE_KIND_MASK)!=TRACE_SVC_EXIT) {puts("UNKNOWN");return;}
+    int enter=(e->kind&TRACE_KIND_MASK)==TRACE_SVC_ENTER;
     unsigned call=e->value;
     if(!enter) {
         numeric(ret,(int)e->detail);
@@ -287,7 +296,7 @@ static int trace_run(int fd, int argc, char *argv[]) {
     trace_event_t e;
     int count=0,n;
     while((n=read(fd,&e,sizeof e))==(int)sizeof e) {
-        unsigned event_pid=e.kind==TRACE_SWITCH ? e.value : e.pid;
+        unsigned event_pid=(e.kind&TRACE_KIND_MASK)==TRACE_SWITCH ? e.value : e.pid;
         if(event_pid==(unsigned)pid) {print_event(&e);count++;}
     }
     if(n<0) puts("trace: read error");
@@ -353,7 +362,7 @@ int main(int argc, char *argv[]) {
         n=read(fd,&event,sizeof event);
         if(n==(int)sizeof event) {
             /* Switch events identify the destination task in value. */
-            unsigned event_pid=event.kind==TRACE_SWITCH ? event.value : event.pid;
+            unsigned event_pid=(event.kind&TRACE_KIND_MASK)==TRACE_SWITCH ? event.value : event.pid;
             if(filter_pid<0 || event_pid==(unsigned)filter_pid) {
                 print_event(&event);count++;
             }

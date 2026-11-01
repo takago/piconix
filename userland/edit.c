@@ -48,46 +48,57 @@ static void measure_screen(void){
  }
  visible_rows=screen_rows-4;
 }
-static void draw(const char *name,const char *notice){
+/* Redraw only what changed. Full refresh is needed for scrolling and
+ * changes to the number of lines; ordinary edits repaint just one row. */
+static void paint_row(int row){
+ int p=0,n=0,text_cols=screen_cols-4;
+ while(p<len&&n<top+row){if(data[p++]=='\n')n++;}
+ printf("\033[%d;1H",row+2);
+ int number=top+row+1;
+ if(number<=999)printf("\033[7m%03d \033[0m",number);
+ else printf("\033[7m--- \033[0m");
+ int c=0;
+ while(p<len&&data[p]!='\n'){
+  char ch=data[p++];int w=width(ch,c);
+  for(int i=0;i<w;i++){
+   if(c>=left_col&&c<left_col+text_cols){
+    char shown=ch=='\t'?' ':(ch>=32&&ch<127?ch:'.');
+    putchar(i==0?shown:' ');
+   }
+   c++;
+  }
+ }
+ printf("\033[K");
+}
+/* mode: 0 = full, 1 = edited row, 2 = cursor/status only. */
+static void draw(const char *name,const char *notice,int mode){
  int line=line_no(pos),column=col_no(pos),text_cols=screen_cols-4;
+ int old_top=top,old_left=left_col;
  if(line<top)top=line;
  if(line>=top+visible_rows)top=line-visible_rows+1;
  if(column<left_col)left_col=column;
  if(column>=left_col+text_cols)left_col=column-text_cols+1;
- /* Clear and repaint the whole usable screen; no scrolling or stale text. */
- const char *base=name;
- for(const char *q=name;*q;q++)if(*q=='/')base=q+1;
- char short_name[21];int i=0;
- while(base[i]&&i<20){short_name[i]=base[i];i++;}short_name[i]=0;
- printf("\033[H\033[J\033[7mPicoNIX edit  %-20s  %d/1024 bytes %c\033[K\033[0m\r\n",
-        short_name,len,changed?'*':' ');
- int p=0,n=0;
- while(p<len&&n<top){if(data[p++]=='\n')n++;}
- for(int row=0;row<visible_rows;row++){
-  int number=top+row+1;
-  if(number<=999)printf("\033[7m%03d \033[0m",number);
-  else printf("\033[7m--- \033[0m");
-  int c=0;
-  while(p<len&&data[p]!='\n'){
-   char ch=data[p++];int w=width(ch,c);
-   for(int i=0;i<w;i++){
-    if(c>=left_col&&c<left_col+text_cols){
-     char shown=ch=='\t'?' ':(ch>=32&&ch<127?ch:'.');
-     putchar(i==0?shown:' ');
-    }
-    c++;
-   }
-  }
-  if(p<len&&data[p]=='\n')p++;
-  printf("\033[K\r\n");
+ if(old_top!=top||old_left!=left_col)mode=0;
+ printf("\033[?25l");
+ if(mode!=2){
+  const char *base=name;
+  for(const char *q=name;*q;q++)if(*q=='/')base=q+1;
+  char short_name[21];int i=0;
+  while(base[i]&&i<20){short_name[i]=base[i];i++;}short_name[i]=0;
+  printf("\033[1;1H\033[7mPicoNIX edit  %-20s  %d/1024 bytes %c\033[K\033[0m",
+         short_name,len,changed?'*':' ');
+  if(mode==0){
+   for(int row=0;row<visible_rows;row++)paint_row(row);
+   printf("\033[%d;1H\033[7m^S Save  ^Q Quit  Arrows Move  Enter Newline  TAB=4\033[K\033[0m",visible_rows+2);
+  }else if(line>=top&&line<top+visible_rows)paint_row(line-top);
  }
- printf("\033[7m^S Save  ^Q Quit  Arrows Move  Enter Newline  TAB=4\033[K\033[0m\r\n");
- printf("\033[KLn %d Col %d  %s\033[K",line+1,column+1,notice?notice:"");
+ printf("\033[%d;1H\033[KLn %d Col %d  %s\033[K",visible_rows+3,line+1,column+1,notice?notice:"");
  int y=line-top+2,x=column-left_col+5;
  if(y<2)y=2;if(y>visible_rows+1)y=visible_rows+1;
  if(x<5)x=5;if(x>screen_cols)x=screen_cols;
- printf("\033[%d;%dH",y,x);
+ printf("\033[%d;%dH\033[?25h",y,x);
 }
+
 int main(int argc,char **argv){
  if(argc!=2){puts("usage: edit file");return 1;}
  /* Resolve relative names before accessing the virtual filesystem. */
@@ -119,23 +130,23 @@ int main(int argc,char **argv){
  }
  printf("\033[?1049h\033[?25h\033[2J");
  measure_screen();
- int esc=0,quit=0;const char *notice="";draw(path,notice);
- while(!quit){char c;if(read(0,&c,1)!=1)break;notice="";
+ int esc=0,quit=0;const char *notice="";draw(path,notice,0);
+ while(!quit){char c;if(read(0,&c,1)!=1)break;notice="";int mode=2;
   if(esc==1){esc=c=='['?2:0;continue;}
   if(esc==2){esc=0;int col=col_no(pos);if(c=='A'&&line_start(pos)>0)pos=position_col(line_start(line_start(pos)-1),col);
    else if(c=='B'&&line_end(pos)<len)pos=position_col(line_end(pos)+1,col);
    else if(c=='D'&&pos>0)pos--;
    else if(c=='C'&&pos<len)pos++;
    else if(c=='3'){esc=3;continue;}
-  }else if(esc==3){esc=0;if(c=='~')del();}
+  }else if(esc==3){esc=0;if(c=='~'){int oldlen=len;int newline=pos<len&&data[pos]=='\n';del();if(len!=oldlen)mode=newline?0:1;}}
   else if(c==27){esc=1;continue;}
   else if(c==3){quit=1;continue;} /* Ctrl+C: leave without saving; restore TTY below. */
   else if(c==17){if(!changed)quit=1;else {notice="Unsaved changes: Ctrl+S then Ctrl+Q";}}
-  else if(c==19){notice=save(path)==0?"Saved":"Save failed";}
-  else if(c==127||c==8)erase();
-  else if(c==13||c==10)insert('\n');
-  else if(c=='\t'||(c>=32&&c<127))insert(c);
-  draw(path,notice);
+  else if(c==19){notice=save(path)==0?"Saved":"Save failed";mode=1;}
+  else if(c==127||c==8){int newline=pos>0&&data[pos-1]=='\n';int oldlen=len;erase();if(len!=oldlen)mode=newline?0:1;}
+  else if(c==13||c==10){int oldlen=len;insert('\n');if(len!=oldlen)mode=0;}
+  else if(c=='\t'||(c>=32&&c<127)){int oldlen=len;insert(c);if(len!=oldlen)mode=1;}
+  draw(path,notice,mode);
  }
  printf("\033[0m\033[?1049l\033[?25h");
  return 0;
