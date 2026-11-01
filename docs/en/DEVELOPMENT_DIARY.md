@@ -1,0 +1,100 @@
+# PicoNIX Development Diary
+
+[Documentation index](DOCS.md) | [Overview](README.md) | [日本語](../ja/DEVELOPMENT_DIARY.md)
+
+## Purpose and scope
+
+PicoNIX grew into a small UNIX-like operating system for Raspberry Pi Pico (RP2040), intended to make operating-system mechanisms observable and understandable. This diary records **the development process through conversations between the developer and ChatGPT**: design choices, experiments, failures, revisions, and lessons learned. It is not a substitute for the current technical documentation.
+
+The primary period is **October 24 through November 2, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
+
+## October 24–25: Starting from a small operating system
+
+The project began with a practical question: how much of the UNIX model could be implemented on an RP2040? Rather than simulate a command line alone, the early design separated the kernel from user programs and introduced task execution, system calls, and basic process operations. SysTick, PendSV, and SVC formed the foundation for scheduling and kernel entry, alongside a USB CDC terminal, shell, and operations such as `spawn`, `waitpid`, `kill`, and `sleep`.
+
+Full POSIX compatibility was never the immediate goal. The priority was to expose core UNIX concepts—processes, files, and I/O—on a microcontroller without an MMU. Early versions used a relatively generous memory arrangement, including **three 64 KiB user RAM slots** at one stage. Later versions repeatedly changed the number and size of slots as executable placement improved.
+
+The initial shell, RAM files, device access, UART and USB I/O also revealed hardware-specific problems. USB CDC transmission waits and connection state could affect responsiveness. This made hardware testing essential from the beginning.
+
+## October 26: Naming PicoNIX and defining constraints
+
+The name **PicoNIX** was chosen on October 26. The startup banner, `piconix#` prompt, help text, and documentation were aligned with that identity. This marked a shift from an experiment to a maintained project.
+
+Compilation options had an immediate effect on RAM usage: an `-O3` build exceeded the kernel RAM limit, while `MinSizeRel` (`-Os`) fit the design into 64 KiB. Instead of reducing RAM file capacity immediately, the project favored revisiting memory placement and build settings first.
+
+A small Python-like interpreter was tested on real hardware. Integer arithmetic, variables, conditionals, loops, I/O, and GPIO25 control were exercised. Multi-line pasting into the terminal sometimes corrupted or lost input. A script consisting of a bare expression also failed, but that issue was separated from the VFS: it reflected the interpreter's syntax (for example, `print(1+2+3)` rather than a bare `1+2+3`).
+
+Another early lesson was consistency: a device that could be opened should also appear in directory listings. Differences between the device table and file listing behavior motivated later VFS consolidation.
+
+## October 27: PIC, XIP, and independent commands
+
+User programs moved toward **position-independent code (PIC)** so the same binary could run in different fixed RAM slots. Startup code (`crt0`), argument passing, linker configuration, and PIC-image checks were improved. The kernel remained fixed-address, while user applications were linked as PIC.
+
+To reduce SRAM pressure, kernel instructions and read-only data were moved toward execute-in-place (XIP) from Flash. User application images were stored in Flash and copied into RAM slots when launched. During this work the build encountered `.bss` overflows, `__aeabi_*` dependencies, `libgcc` linkage issues, and PIC validation failures. A proposed easy reduction in tracing capacity was not adopted; the preferred strategy was to improve placement and linkage instead.
+
+Commands previously embedded in the shell—including `ls`, `pwd`, `echo`, and `rm`—were separated into user programs. This required better `argv` handling, process startup, current-working-directory inheritance, and path resolution. At one stage external commands failed with `unknown command`, showing that making an environment more UNIX-like often requires changing the execution model, not merely adding utilities.
+
+Tools such as `/dev/mem`, memory inspection, and system-call tracing also emerged, laying the groundwork for an educational OS that could explain its own behavior.
+
+## October 28–29: Terminals, devices, and observability
+
+Terminal behavior was unified across USB CDC and UART1 where possible. The design gained `stty`, canonical and noncanonical input, and `O_NONBLOCK` via `fcntl`. The division of responsibilities mattered: the kernel manages TTY behavior, while applications manage screen presentation. LF-to-CRLF conversion was constrained to TTY output.
+
+Line editing, history, arrow keys, pasting, Ctrl+C, and terminal reset were not trivial. Real-device tests uncovered damaged paste input and unexpected newlines. These incidents shaped the terminal abstraction rather than being treated as isolated cosmetic bugs.
+
+Interactive `gpio`, `mem`, `trace`, and `lsof` tools made the system observable. `mem` evolved to show user and kernel symbols alongside memory contents; `trace run hello` could expose the system calls of a simple user program. These features were particularly valuable for teaching.
+
+Games such as `moonbuggy` (`mb`) and `pong` were also introduced. Their need for responsive keyboard input provided a practical reason to improve noncanonical terminal handling. GPIO, ADC, PWM, an LED matrix, and a buzzer were increasingly exposed through device-file interfaces.
+
+## October 29–30: VFS organization and scarce SRAM
+
+Path resolution, device listing, and repeated file-handling logic were reviewed while preserving `/bin`, `/dev`, `/proc`, and `/tmp`. Splitting the VFS into separate source files was explored, but parts were eventually folded back into the kernel because extra module boundaries did not always simplify a very small system. Utilities such as `find` and `tree` also helped exercise VFS behavior.
+
+Memory allocation remained a recurring design constraint. Task-slot size and count, the trace ring, the 64 KiB kernel region, and Wi-Fi reservations were reconsidered repeatedly. The guiding question became not simply what could be removed, but **what memory was actually allocated and where**. Intermediate 32 KiB-slot designs should not be confused with the later **six 24 KiB slots** used at the v1.1 stage.
+
+Device allocation also required coordination with real hardware: GPIO pins reserved for UART, PWM, and the LED matrix could not be presented as freely available general-purpose pins.
+
+## October 30–31: Pico W networking
+
+Pico W support introduced CYW43 and lwIP, Wi-Fi station and access-point modes, DHCP, TCP/UDP sockets, Telnet, HTTP, and remote device control. Responsibilities were deliberately separated: **Telnet (TCP 23) and UDP device control (UDP 2000) remained kernel services; HTTP became a user-space `httpd` program**.
+
+The initial networking work involved difficult debugging. DHCP DISCOVER packets reached PicoNIX, and the code could generate an OFFER, yet sending it sometimes led to a stop. Counters and packet captures were used to separate receive callbacks, DHCP processing, buffer handling, and transmission. Telnet initially failed because the configured lwIP listen-PCB pool had insufficient capacity, requiring a resource-setting change.
+
+As network use increased, partial writes and temporary inability to send data became relevant. Garbled or truncated `mem` and `trace` output over Telnet motivated retries on `EAGAIN` and adjustments to Telnet buffering.
+
+## October 31–November 1: Pipes, TTY recovery, and documentation
+
+The drive for UNIX-like behavior led to pipes, `dup2`, EOF handling, and file-descriptor management, allowing shell pipelines. Multi-line paste, nested shell processes, foreground termination, and lingering TTY state revealed interactions between otherwise working features. Some apparent runtime problems were also resolved by discarding stale build directories.
+
+Development practices became more explicit: changes should be based on the latest supplied source archive, not mixed with files from older ZIPs; deliverables should contain only changed files in their original directory structure; and Japanese and English documentation should remain aligned with the implementation. Developer instructions for adding system calls and device nodes were separated from user manuals.
+
+## November 1–2: ARP diagnosis, mDNS, and v1.1
+
+In STA mode, Linux sometimes failed to connect over Telnet after idle periods. Its neighbor entry could remain `INCOMPLETE`, while manually adding the Pico W's MAC address restored connectivity. The team tried periodic Gratuitous ARP (GARP), initially every 60 seconds. When GARP reached Linux, it could update the pending neighbor entry and allow Telnet to connect. The interval was temporarily reduced to five seconds for diagnosis.
+
+PicoNIX counters showed that GARP send requests were issued regularly, and further instrumentation counted ARP Requests and Replies passed to lwIP's link-output function. This demonstrated a crucial distinction: **a successful send API return does not prove the packet arrived at the receiving host**. In one experiment, 30 `arping` probes produced no replies on Linux, while the PicoNIX ARP Reply counter increased by 30 over the corresponding observation period.
+
+On the Linux Wi-Fi interface (`iwlwifi`), captured GARP packets sometimes disappeared for long periods and then arrived in bursts. Moving the **same Linux PC to a wired port on the BUFFALO router** produced precise five-second GARP arrivals. Switching to another access point also produced nearly regular five-second delivery over Linux Wi-Fi. This made an AP/client wireless interaction much more plausible than a simple fault in PicoNIX's 250 µs polling loop. The evidence did **not** establish whether the BUFFALO access point or the Linux driver was individually responsible. After the investigation, the intended normal GARP interval returned to 60 seconds.
+
+The project also introduced **mDNS**, allowing connection without memorizing an IP address. STA mode uses a Flash-ID-derived hostname such as `piconix-4353ba2e.local`; AP mode uses `piconix.local`. The first implementation encountered a panic caused by exhaustion of lwIP's `MEMP_SYS_TIMEOUT` pool. Increasing the timeout resources resolved that particular issue, and mDNS was subsequently confirmed to work on hardware. mDNS and ARP remain separate mechanisms: successful name resolution does not guarantee MAC-address resolution.
+
+mDNS also pushed the 64 KiB kernel RAM allocation beyond its limit. Reducing the number of RAM files was considered, but the adopted approach moved the 16 KiB trace ring to previously unused SRAM at `0x20034000..0x20037fff`. This preserved tracing and all six user slots while freeing room inside the kernel's primary memory region.
+
+## Lessons at the v1.1 milestone
+
+By v1.1, PicoNIX included a shell, independent user commands, VFS, device files, TTY handling, pipes, a small Python-like interpreter, an assembler, an editor, `trace`, `mem`, `lsof`, network services, and mDNS. Its purpose was not to reproduce Linux wholesale; it was to **make UNIX concepts visible in a small, inspectable implementation**.
+
+Recurring lessons included:
+
+1. **Test on hardware.** Compilation and successful API returns are not sufficient evidence.
+2. **Build observability.** Use `trace`, `mem`, `/proc`, tests, and packet counters to understand what happened.
+3. **Revisit placement before removing features.** XIP, PIC, and SRAM layout matter.
+4. **Clarify responsibility boundaries.** Keep kernel/user, TTY/screen, and VFS/device concerns distinct.
+5. **Change one variable at a time.** Relate experiments directly to hypotheses.
+6. **Design for teaching.** A system that students can inspect and modify matters more than an unchecked feature count.
+
+## Historical accuracy and references
+
+This is a narrative reconstruction from conversations, not an exhaustive Git audit. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.
+
+For the current behavior and usage, consult [Internal architecture](INTERNAL.md), [Networking](NETWORK.md), [TTY](TTY.md), [Pipes](PIPE.md), [Tracing](TRACE.md), and [Kernel development](KERNEL-DEVELOPMENT.md).
