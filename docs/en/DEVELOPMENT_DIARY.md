@@ -22,9 +22,9 @@ The initial shell, RAM files, device access, UART and USB I/O also revealed hard
 
 The name **PicoNIX** was chosen on October 26. The startup banner, `piconix#` prompt, help text, and documentation were aligned with that identity. This marked a shift from an experiment to a maintained project.
 
-Compilation options had an immediate effect on RAM usage: an `-O3` build exceeded the kernel RAM limit, while `MinSizeRel` (`-Os`) fit the design into 64 KiB. Instead of reducing RAM file capacity immediately, the project favored revisiting memory placement and build settings first.
+Compilation options had an immediate effect on RAM usage: build settings affected size and linker results, so the project adopted `MinSizeRel` (`-Os`) and emphasized size and SRAM-layout checks. Instead of reducing RAM file capacity immediately, the project favored revisiting memory placement and build settings first.
 
-A small Python-like interpreter was tested on real hardware. Integer arithmetic, variables, conditionals, loops, I/O, and GPIO25 control were exercised. Multi-line pasting into the terminal sometimes corrupted or lost input. A script consisting of a bare expression also failed, but that issue was separated from the VFS: it reflected the interpreter's syntax (for example, `print(1+2+3)` rather than a bare `1+2+3`).
+A small Python-like interpreter was tested on real hardware. Integer arithmetic, variables, conditionals, loops, I/O, and GPIO25 control were exercised. Multi-line pasting into the terminal sometimes corrupted or lost input. 
 
 Another early lesson was consistency: a device that could be opened should also appear in directory listings. Differences between the device table and file listing behavior motivated later VFS consolidation.
 
@@ -52,11 +52,13 @@ Games such as `moonbuggy` (`mb`) and `pong` were also introduced. Their need for
 
 Path resolution, device listing, and repeated file-handling logic were reviewed while preserving `/bin`, `/dev`, `/proc`, and `/tmp`. Splitting the VFS into separate source files was explored, but parts were eventually folded back into the kernel because extra module boundaries did not always simplify a very small system. Utilities such as `find` and `tree` also helped exercise VFS behavior.
 
-Memory allocation remained a recurring design constraint. Task-slot size and count, the trace ring, the 64 KiB kernel region, and Wi-Fi reservations were reconsidered repeatedly. The guiding question became not simply what could be removed, but **what memory was actually allocated and where**. Intermediate 32 KiB-slot designs should not be confused with the later **six 24 KiB slots** used at the v1.1 stage.
+Memory allocation remained a recurring design constraint. Task-slot size and count, the trace ring, the 64 KiB kernel region, and Wi-Fi reservations were reconsidered repeatedly. The guiding question became not simply what could be removed, but **what memory was actually allocated and where**. Intermediate 32 KiB-slot designs should not be confused with the later **six 24 KiB slots** used in the configuration leading up to v1.1.
 
 Device allocation also required coordination with real hardware: GPIO pins reserved for UART, PWM, and the LED matrix could not be presented as freely available general-purpose pins.
 
 ## October 30–31: Pico W networking
+
+In an October 30 test, a script containing the stand-alone expression `1+2+3` produced a syntax/runtime error when invoked as `python /tmp/test.py`. This highlighted the need to distinguish unsupported interpreter syntax from file-loading failures.
 
 Pico W support introduced CYW43 and lwIP, Wi-Fi station and access-point modes, DHCP, TCP/UDP sockets, Telnet, HTTP, and remote device control. Responsibilities were deliberately separated: **Telnet (TCP 23) and UDP device control (UDP 2000) remained kernel services; HTTP became a user-space `httpd` program**.
 
@@ -74,15 +76,15 @@ Development practices became more explicit: changes should be based on the lates
 
 In STA mode, Linux sometimes failed to connect over Telnet after idle periods. Its neighbor entry could remain `INCOMPLETE`, while manually adding the Pico W's MAC address restored connectivity. The team tried periodic Gratuitous ARP (GARP), initially every 60 seconds. When GARP reached Linux, it could update the pending neighbor entry and allow Telnet to connect. The interval was temporarily reduced to five seconds for diagnosis.
 
-PicoNIX counters showed that GARP send requests were issued regularly, and further instrumentation counted ARP Requests and Replies passed to lwIP's link-output function. This demonstrated a crucial distinction: **a successful send API return does not prove the packet arrived at the receiving host**. In one experiment, 30 `arping` probes produced no replies on Linux, while the PicoNIX ARP Reply counter increased by 30 over the corresponding observation period.
+PicoNIX counters showed that GARP send requests were issued regularly, and further instrumentation counted ARP Requests and Replies passed to lwIP's link-output function. This demonstrated a crucial distinction: **a successful send API return does not prove the packet arrived at the receiving host**. In one experiment, Linux received zero replies to 30 `arping` probes, while the PicoNIX ARP Reply counter increased by 30 between measurements. Those counts are consistent, but individual responses were not correlated with individual probes.
 
-On the Linux Wi-Fi interface (`iwlwifi`), captured GARP packets sometimes disappeared for long periods and then arrived in bursts. Moving the **same Linux PC to a wired port on the BUFFALO router** produced precise five-second GARP arrivals. Switching to another access point also produced nearly regular five-second delivery over Linux Wi-Fi. This made an AP/client wireless interaction much more plausible than a simple fault in PicoNIX's 250 µs polling loop. The evidence did **not** establish whether the BUFFALO access point or the Linux driver was individually responsible. After the investigation, the intended normal GARP interval returned to 60 seconds.
+On the Linux Wi-Fi interface (`iwlwifi`), captured GARP packets sometimes disappeared for long periods and then arrived in bursts. Moving the **same Linux PC to a wired port on the BUFFALO router** produced precise five-second GARP arrivals. Switching to another access point also produced nearly regular five-second delivery over Linux Wi-Fi. This made an AP/client wireless interaction much more plausible than a simple fault in PicoNIX's 250 µs polling loop. The evidence did **not** establish whether the BUFFALO access point or the Linux driver was individually responsible. The intended GARP interval was restored to 60 seconds. Setting Linux `arp_accept=1` also allowed GARP to create a neighbor entry, although this did not establish a root-cause fix.
 
-The project also introduced **mDNS**, allowing connection without memorizing an IP address. STA mode uses a Flash-ID-derived hostname such as `piconix-4353ba2e.local`; AP mode uses `piconix.local`. The first implementation encountered a panic caused by exhaustion of lwIP's `MEMP_SYS_TIMEOUT` pool. Increasing the timeout resources resolved that particular issue, and mDNS was subsequently confirmed to work on hardware. mDNS and ARP remain separate mechanisms: successful name resolution does not guarantee MAC-address resolution.
+The project also introduced **mDNS**, allowing connection without memorizing an IP address. STA mode uses a Flash-ID-derived hostname such as `piconix-4353ba2e.local`; AP mode uses `piconix.local`. The first implementation encountered a panic caused by exhaustion of lwIP's `MEMP_SYS_TIMEOUT` pool. Increasing the timeout resources resolved that particular issue, and the developer subsequently reported that mDNS worked on hardware. The available conversation does not independently establish successful tests of both STA and AP modes. mDNS and ARP remain separate mechanisms: successful name resolution does not guarantee MAC-address resolution.
 
 mDNS also pushed the 64 KiB kernel RAM allocation beyond its limit. Reducing the number of RAM files was considered, but the adopted approach moved the 16 KiB trace ring to previously unused SRAM at `0x20034000..0x20037fff`. This preserved tracing and all six user slots while freeing room inside the kernel's primary memory region.
 
-## Lessons at the v1.1 milestone
+## Lessons leading up to the v1.1 milestone
 
 By v1.1, PicoNIX included a shell, independent user commands, VFS, device files, TTY handling, pipes, a small Python-like interpreter, an assembler, an editor, `trace`, `mem`, `lsof`, network services, and mDNS. Its purpose was not to reproduce Linux wholesale; it was to **make UNIX concepts visible in a small, inspectable implementation**.
 
@@ -97,6 +99,6 @@ Recurring lessons included:
 
 ## Historical accuracy and references
 
-This is a narrative reconstruction from conversations, not an exhaustive Git audit. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.
+This is a narrative reconstruction from conversations, not an exhaustive Git audit. A code change proposed or produced by ChatGPT is not, by itself, evidence of a successful hardware test. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.
 
 For the current behavior and usage, consult [Internal architecture](INTERNAL.md), [Networking](NETWORK.md), [TTY](TTY.md), [Pipes](PIPE.md), [Tracing](TRACE.md), and [Kernel development](KERNEL-DEVELOPMENT.md).
