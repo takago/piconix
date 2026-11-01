@@ -125,9 +125,9 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 
 ## Documentation / ドキュメント
 
-**Start here / まずはこちら：** [Documentation Guide](docs/en/DOCS.md) / [文書案内](docs/ja/DOCS.md) — recommended reading order and links to detailed references.
+**Start here ：** [Documentation Guide](docs/en/DOCS.md) / [文書案内](docs/ja/DOCS.md) — recommended reading order and links to detailed references.
 
-### Setup / セットアップ
+### Setup
 
 | English | 日本語 |
 |---|---|
@@ -135,7 +135,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Network access](docs/en/NETWORK.md) | [ネットワーク接続](docs/ja/NETWORK.md) |
 | [Wi-Fi modes](docs/en/WIFI-MODES.md) | [Wi-Fiモード](docs/ja/WIFI-MODES.md) |
 
-### Understanding PicoNIX / PicoNIXを理解する
+### Understanding PicoNIX
 
 | English | 日本語 |
 |---|---|
@@ -149,7 +149,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [System-call and context-switch tracing](docs/en/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/TRACE.md) |
 | [Memory inspection](docs/en/MEM.md) | [メモリ参照](docs/ja/MEM.md) |
 
-### Development / 開発
+### Development
 
 | English | 日本語 |
 |---|---|
