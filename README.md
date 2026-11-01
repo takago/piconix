@@ -20,6 +20,23 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call tracing, and open-descriptor reporting, including socket ports.
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
+## Commands
+
+PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting the OS, programming the RP2040, and experimenting with networking. Run `help` in the PicoNIX shell for command descriptions.
+
+| Category | Commands |
+|---|---|
+| Shell & files | `sh`, `ls`, `cat`, `grep`, `pwd`, `echo`, `rm`, `find`, `tree` |
+| Processes & diagnostics | `ps`, `kill`, `lsof`, `trace`, `mem`, `hexdump`, `watch` |
+| Terminals | `tty`, `stty`, `reset` |
+| Programming | `edit`, `as`, `python` |
+| Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `blink` |
+| Networking | `nc`, `httpd`, `tcp_echod`, `udp_echod` |
+| Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
+| Help | `help` |
+
+Shell features include redirection (`<`, `>`) and pipelines (`|`); these are shell operators rather than separate commands. On Pico W, network applications use the user-space socket API. See the [programming guide](docs/en/PROGRAMMING.md) and [日本語の開発ガイド](docs/ja/PROGRAMMING.md) for more details.
+
 ## Network demo
 
 Connect a Linux PC to the Pico W access point:
@@ -103,6 +120,7 @@ For a suggested reading order, see the [English documentation guide](docs/en/DOC
 | [概要・文書一覧](docs/ja/README.md) | [Overview and guides](docs/en/README.md) |
 | [セットアップ](docs/ja/SETUP.md) | [Setup](docs/en/SETUP.md) |
 | [ネットワーク接続](docs/ja/NETWORK.md) | [Network access](docs/en/NETWORK.md) |
+| [Wi-Fiモード](docs/ja/WIFI-MODES.md) | [Wi-Fi modes](docs/en/WIFI-MODES.md) |
 | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) | [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) |
 | [パイプと標準入出力](docs/ja/PIPE.md) | [Pipes and standard I/O](docs/en/PIPE.md) |
 | [ncと通信の終了](docs/ja/NC.md) | [nc and termination](docs/en/NC.md) |
@@ -112,4 +130,3 @@ For a suggested reading order, see the [English documentation guide](docs/en/DOC
 | [端末と画面制御](docs/ja/TERMINAL.md) | [Terminal and screen](docs/en/TERMINAL.md) |
 | [TTY設定](docs/ja/TTY.md) | [TTY settings](docs/en/TTY.md) |
 | [内部構造](docs/ja/INTERNAL.md) | [Internals](docs/en/INTERNAL.md) |
-| [Wi-Fiモード](docs/ja/WIFI-MODES.md) | [Wi-Fi modes](docs/en/WIFI-MODES.md) |
