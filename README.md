@@ -21,7 +21,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Device files** — Access GPIO, ADC, PWM, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/SYSCALLS.md) ([日本語](docs/ja/SYSCALLS.md)).
 - **Programming on the device** — An editor (`edit`), assembler (`as`), and small Python-like interpreter (`python`).
-- **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call tracing, and open-descriptor reporting, including socket ports.
+- **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call and context-switch tracing, and open-descriptor reporting, including socket ports.
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
 ## Commands
@@ -136,10 +136,13 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) |
 | [Pipes and standard I/O](docs/en/PIPE.md) | [パイプと標準入出力](docs/ja/PIPE.md) |
 | [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
-| [Assembly programming](docs/en/ASM.md) | [アセンブリプログラミング](docs/ja/ASM.md) |
 | [C application development](docs/en/PROGRAMMING.md) | [Cアプリ開発](docs/ja/PROGRAMMING.md) |
+| [Assembly programming](docs/en/ASM.md) | [アセンブリプログラミング](docs/ja/ASM.md) |
 | [C library and APIs](docs/en/LIBC.md) | [CライブラリとAPI](docs/ja/LIBC.md) |
 | [System call reference](docs/en/SYSCALLS.md) | [システムコール一覧](docs/ja/SYSCALLS.md) |
+| [System-call and context-switch tracing](docs/en/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/TRACE.md) |
+| [Text editing](docs/en/EDIT.md) | [テキスト編集](docs/ja/EDIT.md) |
+| [Memory inspection](docs/en/MEM.md) | [メモリ参照](docs/ja/MEM.md) |
 | [Devices](docs/en/DEVICES.md) | [デバイス](docs/ja/DEVICES.md) |
 | [Architecture](docs/en/ARCHITECTURE.md) | [全体構造](docs/ja/ARCHITECTURE.md) |
 | [Terminal and screen](docs/en/TERMINAL.md) | [端末と画面制御](docs/ja/TERMINAL.md) |
