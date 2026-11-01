@@ -112,7 +112,4 @@ For a suggested reading order, see the [English documentation guide](docs/en/DOC
 | [端末と画面制御](docs/ja/TERMINAL.md) | [Terminal and screen](docs/en/TERMINAL.md) |
 | [TTY設定](docs/ja/TTY.md) | [TTY settings](docs/en/TTY.md) |
 | [内部構造](docs/ja/INTERNAL.md) | [Internals](docs/en/INTERNAL.md) |
-
-## Wi-Fi modes and sample programs
-
-Pico W supports AP mode (default) and build-time STA mode for joining an existing Wi-Fi network. Inspect connection information using `cat /proc/net/wifi`. Two editable startup examples, `/tmp/test.s` and `/tmp/test.py`, demonstrate output, sleep, and loops. See [Wi-Fi modes](docs/en/WIFI-MODES.md) and [Wi-Fiモード](docs/ja/WIFI-MODES.md).
+| [Wi-Fiモード](docs/ja/WIFI-MODES.md) | [Wi-Fi modes](docs/en/WIFI-MODES.md) |
