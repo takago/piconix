@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "net.h"
 #include "net_services.h"
+#include "piconix.h"
 #ifndef PICONIX_WIFI
 #define PICONIX_WIFI 0
 #endif
@@ -20,9 +21,13 @@
  * Stage 18: bounded queues for the independent network TTY. */
 static int wifi_ready;
 static char wifi_ssid[33];
+static uint64_t net_poll_last_us;
+static uint32_t net_poll_count;
+static uint32_t net_poll_max_gap_us;
 #if PICONIX_WIFI_STA
 /* Preserve diagnostics even if USB CDC was not attached during boot. */
 static int sta_error;
+static int sta_pm_error = -1;
 static int sta_link;
 static int sta_tcpip_link;
 static int sta_dhcp_bound;
@@ -79,6 +84,11 @@ static void sta_poll(void) {
     uint64_t now = time_us_64();
     struct netif *iface = &cyw43_state.netif[CYW43_ITF_STA];
     if (!sta_attempts) {
+        /* Configure STA power management from the idle/network thread,
+         * after the first CYW43 poll and before joining the network. */
+        sta_pm_error = cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
+        if (sta_pm_error != 0)
+            puts("PicoNIX: STA power management setup failed");
         sta_begin_connect();
         return;
     }
@@ -278,6 +288,8 @@ void net_init(void) {
     strncpy(wifi_ssid, PICONIX_STA_SSID, sizeof(wifi_ssid)-1);
     wifi_ssid[sizeof(wifi_ssid)-1] = 0;
     cyw43_arch_enable_sta_mode();
+    /* STA-only power management configuration is deferred to the first
+     * idle/net_poll call, keeping driver work off the boot stack. */
     /* Nonblocking: continue servicing Wi-Fi and the shell while joining. */
     wifi_ready = 1;
     /* Start association from the idle loop, not during boot. */
@@ -340,6 +352,16 @@ static void dhcp_send_pending(void) {
 #endif /* AP DHCP server */
 void net_poll(void) {
     if (!wifi_ready) return;
+    /* Measure the longest gap between network service opportunities.  This
+     * includes times when user tasks preempt the idle polling task. */
+    uint64_t now = time_us_64();
+    if (net_poll_last_us) {
+        uint64_t gap = now - net_poll_last_us;
+        if (gap > net_poll_max_gap_us)
+            net_poll_max_gap_us = gap > UINT32_MAX ? UINT32_MAX : (uint32_t)gap;
+    }
+    net_poll_last_us = now;
+    ++net_poll_count;
     cyw43_arch_poll();
 #if PICONIX_WIFI_STA
     sta_poll();
@@ -377,10 +399,14 @@ int net_wifi_info(char *out, unsigned size) {
         "MODE: STA\nSTATUS: %s\nSSID: %s\n"
         "ATTEMPTS: %u\nCONNECT_ERROR: %d\nLINK_CODE: %d\n"
         "WIFI_LINK: %d\nTCPIP_LINK: %d\nDHCP_BOUND: %d\n"
-        "LAST_RESET: %c\nIP: %s\nNETMASK: %s\nGATEWAY: %s\nMAC: N/A\nRSSI: %s\n",
+        "LAST_RESET: %c\nIP: %s\nNETMASK: %s\nGATEWAY: %s\nMAC: N/A\nRSSI: %s\n"
+        "PM_ERROR: %d\nPOLL_COUNT: %lu\nPOLL_MAX_GAP_MS: %lu\nIDLE_STACK: %u/%u\n",
         sta_link_name(sta_tcpip_link), wifi_ssid, sta_attempts, sta_error,
         sta_link, sta_link, sta_tcpip_link, sta_dhcp_bound,
-        sta_last_reset, ip, mask, gw, rssi);
+        sta_last_reset, ip, mask, gw, rssi,
+        sta_pm_error, (unsigned long)net_poll_count,
+        (unsigned long)(net_poll_max_gap_us / 1000u),
+        os_idle_stack_used_bytes(), os_idle_stack_capacity_bytes());
     if (len < 0) return 0;
     if ((unsigned)len >= size) return (int)(size - 1u);
     return len;

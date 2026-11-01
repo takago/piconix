@@ -73,6 +73,9 @@ void os_init(void);
 // Poll SDK USB stdio input from the idle task; UART builds are a no-op.
 void os_console_poll(void);
 void os_init_idle(os_entry_t entry);
+/* Approximate idle/CYW43 stack high-water mark for network diagnostics. */
+unsigned os_idle_stack_used_bytes(void);
+unsigned os_idle_stack_capacity_bytes(void);
 int os_spawn(os_entry_t entry);
 int os_spawn_named(os_entry_t entry, const char *name);
 int os_spawn_program(int program_id);

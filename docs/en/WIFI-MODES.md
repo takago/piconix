@@ -22,3 +22,29 @@ cat /proc/net/wifi
 ```
 
 The status includes `MODE`, `STATUS`, `SSID`, `ATTEMPTS`, `CONNECT_ERROR`, `WIFI_LINK`, `TCPIP_LINK`, `DHCP_BOUND`, `IP`, `NETMASK`, and `GATEWAY` (some fields depend on mode and connection state). In STA mode, successful connection detection uses the TCP/IP link and DHCP lease state. On non-Wi-Fi Pico builds, the file reports `MODE: N/A`.
+
+## STA communication diagnostics
+
+STA mode explicitly selects `CYW43_NONE_PM` after enabling the STA interface.
+This disables Wi-Fi power saving for a reproducible comparison with AP mode.
+AP mode is unchanged. The idle/network stack is 4 KiB; its use is sampled
+with a high-water mark when reading `/proc/net/wifi`.
+
+The additional STA-only fields are:
+
+- `PM_ERROR`: `0` means the SDK accepted the no-power-save setting.
+- `POLL_COUNT`: how often the idle task entered `net_poll()` since startup.
+- `POLL_MAX_GAP_MS`: largest elapsed time between calls to `net_poll()`;
+  the counter is not a packet reception/forwarding measurement.
+- `IDLE_STACK`: approximate peak stack bytes used / 4096 bytes reserved.
+  A value close to 4096 indicates a potential overflow. This watermark is
+  diagnostic only; it cannot rule out overflows or measure the boot stack.
+
+An `UP` status and a DHCP lease do **not** prove that ARP, ICMP, or TCP
+packets can be exchanged. Test `ping` and Telnet from the same network,
+repeat after several power cycles, and compare with the previous firmware.
+For stalled communication, capture ARP/ICMP traffic on the host.
+
+The firmware must still pass the linked ELF's 64-KiB kernel SRAM checks.
+Build and hardware validation are required before treating the workaround
+as a confirmed solution.

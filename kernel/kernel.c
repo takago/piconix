@@ -185,7 +185,10 @@ __asm__(".global task_ram\n.set task_ram, 0x20010000");
 extern uint8_t task_ram[OS_MAX_TASKS][OS_TASK_BYTES];
 // Slots are intentionally NOLOAD/unallocated: no linker section occupies them.
 static task_t tasks[TOTAL_SLOTS];
-static uint8_t idle_stack[1024] __attribute__((aligned(8)));
+/* CYW43/lwIP polling and its receive callbacks run on this stack.
+ * Keep it in the kernel's 64-KiB SRAM allocation (verified after linking). */
+#define IDLE_STACK_BYTES 4096u
+static uint8_t idle_stack[IDLE_STACK_BYTES] __attribute__((aligned(8)));
 static volatile int current = -1;
 
 static volatile uint32_t ticks;
@@ -828,6 +831,9 @@ static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char 
 }
 void os_init_idle(os_entry_t entry) {
     if(started || !entry) return;
+    /* Fill unused stack before preparing the initial exception frame, so a
+     * /proc/net/wifi read can report a high-water mark after boot. */
+    memset(idle_stack, 0xa5, sizeof(idle_stack));
     task_t *t = &tasks[IDLE_SLOT];
     uint32_t *s = (uint32_t *)(idle_stack + sizeof(idle_stack));
     *(--s)=0x01000000u;
@@ -838,6 +844,15 @@ void os_init_idle(os_entry_t entry) {
     t->sp=s; t->entry=entry; t->name="idle";
     t->pid=0; t->state=READY;
 }
+/* Stack grows down from the end of idle_stack.  This is a diagnostic
+ * high-water mark, not proof that an overflow has not occurred. */
+unsigned os_idle_stack_used_bytes(void) {
+    unsigned i=0;
+    while (i<sizeof(idle_stack) && idle_stack[i]==0xa5) ++i;
+    return (unsigned)sizeof(idle_stack)-i;
+}
+unsigned os_idle_stack_capacity_bytes(void) { return (unsigned)sizeof(idle_stack); }
+
 int os_spawn_named(os_entry_t entry, const char *name) {
     if (started) return OS_EINVAL;
     // Five application slots; the idle task has a separate kernel-owned stack.
@@ -1479,7 +1494,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     uint32_t t=ticks, svc=svc_count, psv=pendsv_count, switches=context_switch_count;
     uint32_t uart1_irqs=uart1_irq_count;
     restore_interrupts(irq_state);
-    char text[256]; int len=0;
+    char text[448]; int len=0;
     if(dev==DEV_PROC_WIFI) len=net_wifi_info(text,sizeof(text));
     if(dev==DEV_PROC_DEVICES) {
         /* Enumerate the same registry used by vfs_open(). */
