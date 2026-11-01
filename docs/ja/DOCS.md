@@ -39,6 +39,7 @@ PicoNIXは，RP2040上で動く小型UNIX風OSです．初めて使う方は，*
 | 内容 | 説明 |
 |---|---|
 | [Cアプリ開発](PROGRAMMING.md) | コマンド追加，ビルド，実行 |
+| [Cライブラリ](LIBC.md) | 利用できるC関数，引数，戻り値，制限 |
 | [システムコール一覧](SYSCALLS.md) | SVC呼び出し規約と番号 |
 | [簡易Thumbアセンブラ](ASM.md) | `as`，`svc #0`，命令と制限 |
 | [Python風インタプリタ](PYTHON.md) | `python`の機能と使い方 |

@@ -39,6 +39,7 @@ PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup 
 | Topic | Guide |
 |---|---|
 | Build a C application | [Programming](PROGRAMMING.md) |
+| Available C library and API functions | [C library](LIBC.md) |
 | SVC ABI and call numbers | [System calls](SYSCALLS.md) |
 | `as`, `svc #0`, and Thumb assembly | [Assembler](ASM.md) |
 | Use the Python-like interpreter | [Python](PYTHON.md) |
