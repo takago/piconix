@@ -52,7 +52,7 @@ Use PicoNIX's headers and minimal libc, rather than linking directly against the
 
 1. Create a C source under `userland/`; use `hello.c` as a starting point.
 2. Add the application build, PIC checks and Flash image embedding to `CMakeLists.txt`, following an existing entry.
-3. Add image start/end symbol declarations and a `register_image()` entry to `kernel/main.c`. Assign an **unused program ID** (capacity 32; ID 0 is reserved).
+3. Add image start/end symbol declarations and a `register_image()` entry to `kernel/main.c`. Assign an **unused program ID** (IDs 1–64 are available; ID 0 is reserved).
 4. Rebuild and confirm the PIC and slot-size checks pass.
 5. Flash the UF2 and run your new command from the Shell.
 
@@ -63,7 +63,7 @@ You do **not** need to add command-specific code to the Shell. The kernel regist
 | Item | Requirement |
 |---|---|
 | Entry | `main(int argc, char *argv[])` (through `crt0.c`) |
-| Slots | Five 32-KiB task slots |
+| Slots | Six 24-KiB task slots |
 | Stack | Last 4 KiB of each slot reserved |
 | Application | Build as PIC and embed in Flash |
 | Execution | Copy into a free RAM slot |
@@ -133,7 +133,7 @@ For runtime diagnostics, use `ps`, `cat /proc/tasks`, `cat /proc/memory` and `tr
 - [ ] `main(argc, argv)` is defined
 - [ ] Only PicoNIX user APIs are used
 - [ ] PIC and size checks pass
-- [ ] The five-slot limit is considered
+- [ ] The six-slot limit is considered
 - [ ] Arguments, I/O and termination have been tested on hardware
 
 **Next:** Read [Internals](INTERNAL.md) for the OS architecture or [Devices and wiring](DEVICES.md) for hardware-specific access.

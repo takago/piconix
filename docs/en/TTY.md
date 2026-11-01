@@ -51,9 +51,6 @@ TAB (`0x09`) is accepted by shell line editing and canonical input and is preser
 
 During shell line editing, Ctrl+L clears the terminal screen using ANSI sequences and redraws the prompt and current input. The line, selected history entry, and cursor position are preserved. Unlike `reset`, this does not change terminal settings.
 
-## Foreground TTY restoration
-
-When a foreground application is selected, the kernel saves that TTY's canonical, echo, and ONLCR settings. It restores them when the application exits, is killed, or is interrupted by Ctrl+C. `stty` and `reset` use `OS_TTY_PERSIST` to keep intentional changes. USB CDC and UART1 are independent. ANSI screen state (cursor visibility, alternate screen, attributes) is managed by the terminal emulator, not by these TTY settings.
 
 ## TTY versus pipes and sockets
 
@@ -65,8 +62,5 @@ When a foreground application is selected, the kernel saves that TTY's canonical
 - POSIX `termios` `VMIN` / `VTIME` are **not implemented**. Use `fcntl()` and handle `read()` results as appropriate.
 - USB CDC, UART1, and the Wi-Fi terminal are separate TTYs when enabled in the build.
 
-### Forced termination and screen restoration
-
-The kernel restores saved canonical, echo, and ONLCR settings when a foreground task terminates. ANSI/DEC **alternate-screen and cursor state** are separate and require screen-level cleanup. See [terminal usage and screen control](TERMINAL.md).
 
 **Implementation references:** `tty_canonical`, `tty_echo`, `tty_onlcr`, `tty_saved_*`, `foreground_group`, and `OS_TTY_*` handling in `kernel/kernel.c`; line editing and pipelines in `userland/shell.c`.

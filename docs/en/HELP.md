@@ -12,7 +12,7 @@ piconix# help reset
 
 The list covers registered RAM commands and shell built-ins (`cd`, `getty`, `exit`, `logout`), including `grep` and its `help grep` entry. Update the list whenever the set of commands changes. Consult the topic-specific guides for full usage and limitations. `help` is no longer a shell built-in.
 
-## Verified command options
+## Selected commands and options
 
 - `pong -2`: two-player Pong (not a Moon Buggy option).
 - `mb`: SPACE or `j` to jump, `q` to quit.

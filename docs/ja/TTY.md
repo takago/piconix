@@ -51,9 +51,6 @@ TAB（`0x09`）はシェルの行編集とcanonical入力で受け付け，フ�
 
 シェルの行編集中にCtrl+Lを押すと，ANSIシーケンスで画面を消去してプロンプトと入力中の行を再表示します．編集中の文字列，履歴から選んだ内容，カーソル位置は保持します．`reset` と異なりTTY設定は変更しません．
 
-## 前景タスク終了時のTTY設定復元
-
-前景アプリを起動すると，カーネルはそのTTYのcanonical・echo・ONLCR設定を保存し，アプリの正常終了，強制終了，Ctrl+Cによる中断時に復元します．`stty`と`reset`は`OS_TTY_PERSIST`を使用し，意図的な設定変更を保持します．USB CDCとUART1の設定は独立しています．ANSIの代替画面やカーソル表示などはTTY設定とは別に，アプリケーション側で復元する必要があります．
 
 ## パイプ・ソケットとTTYの違い
 
@@ -65,8 +62,5 @@ TAB（`0x09`）はシェルの行編集とcanonical入力で受け付け，フ�
 - `VMIN` / `VTIME`：POSIX `termios` の設定は実装されていません．非canonical入力の待機方法は `fcntl()` の設定と `read()` の結果で制御します．
 - USB CDC，UART1，Wi-Fi端末は，ビルド構成に応じて独立したTTYとして扱われます．
 
-### 強制終了と画面復帰
-
-前景タスクの終了時にカーネルが保存したcanonical・echo・ONLCRを復元しますが，ANSI/DECの**代替画面やカーソル表示**は別の状態です．全画面アプリの終了・中断後の復帰については[端末の使い方と画面制御](TERMINAL.md)を参照してください．
 
 **実装の参照先：** `kernel/kernel.c` の `tty_canonical`，`tty_echo`，`tty_onlcr`，`tty_saved_*`，`foreground_group` と `OS_TTY_*` の処理，`userland/shell.c` の行編集とパイプ処理．
