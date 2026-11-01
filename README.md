@@ -157,7 +157,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Assembly programming](docs/en/ASM.md) | [アセンブリプログラミング](docs/ja/ASM.md) |
 | [C library and APIs](docs/en/LIBC.md) | [CライブラリとAPI](docs/ja/LIBC.md) |
 | [System call reference](docs/en/SYSCALLS.md) | [システムコール一覧](docs/ja/SYSCALLS.md) |
-| [Kernel development](docs/en/KERNEL-DEVELOPMENT.md) | [カーネル拡張ガイド](docs/ja/KERNEL-DEVELOPMENT.md) |
 | [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) |
+| [Remote device control (UDP 2000)](docs/en/REMOTE-DEVICE.md) | [リモートデバイス制御（UDP 2000番）](docs/ja/REMOTE-DEVICE.md) |
 | [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
 | [Text editing](docs/en/EDIT.md) | [テキスト編集](docs/ja/EDIT.md) |

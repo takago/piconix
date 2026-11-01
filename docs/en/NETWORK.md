@@ -49,4 +49,4 @@ Telnet and raw TCP are unencrypted. Use only on a trusted experimental network. 
 
 ## TCP/UDP applications and remote device control
 
-Alongside Telnet (TCP 23), Pico W supports user-space `nc`, `httpd` (TCP 80), `tcp_echod`, and `udp_echod`. UDP 2000 offers remote access to permitted device paths. See [Socket API and network applications](NETWORK-PROGRAMMING.md).
+Alongside Telnet (TCP 23), Pico W supports user-space `nc`, `httpd` (TCP 80), `tcp_echod`, and `udp_echod`. UDP 2000 offers remote access to permitted device paths. See [Remote device control](REMOTE-DEVICE.md) for the UDP protocol and [Socket API and network applications](NETWORK-PROGRAMMING.md) for user-space sockets.

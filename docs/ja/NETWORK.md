@@ -52,3 +52,5 @@ Telnetと生TCPのシェル通信は暗号化されません．信頼できる�
 ## TCP/UDPアプリケーションとリモートデバイス制御
 
 Pico WではTelnet（TCP 23）に加え，ユーザプロセスの`nc`，`httpd`（TCP 80），`tcp_echod`，`udp_echod`が利用できます．UDP 2000では許可されたデバイスを遠隔操作できます．APIとテスト方法は[ソケットAPIとネットワークアプリケーション](NETWORK-PROGRAMMING.md)を参照してください．
+
+UDP 2000番の通信仕様と操作例は[リモートデバイス制御](REMOTE-DEVICE.md)を参照してください．

@@ -30,7 +30,7 @@ PicoNIXは，RP2040上で動く小型UNIX風OSです．初めて使う方は，*
 1. [Wi-Fi接続](WIFI-MODES.md)：AP／STAモード
 2. [ネットワークの使い方](NETWORK.md)：接続とサービス
 3. [ソケットプログラミング](NETWORK-PROGRAMMING.md)：TCP／UDPのユーザアプリ
-4. [nc](NC.md)，[httpd](HTTPD.md)，[UDPデバイス制御](UDP-DEVICES.md)，[GPIO遠隔制御](REMOTE_GPIO.md)：具体例
+4. [nc](NC.md)，[httpd](HTTPD.md)，[UDPデバイス制御](REMOTE-DEVICE.md)，[GPIO遠隔制御](REMOTE_GPIO.md)：具体例
 
 **[全体アーキテクチャ](ARCHITECTURE.md)**：ユーザ空間とカーネルの分担，ソースコードの対応表．
 
@@ -47,8 +47,6 @@ PicoNIXは，RP2040上で動く小型UNIX風OSです．初めて使う方は，*
 | [内部構造](INTERNAL.md) | タスク，メモリ，カーネル |
 
 Cアプリを作る場合は **Cアプリ開発 → Cライブラリ・API → システムコール** の順で参照すると便利です．アセンブリを使う場合は **簡易Thumbアセンブラ → システムコール** の順に確認してください．
-
-- [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)：システムコールとデバイスノードの追加方法
 
 ## 開発履歴
 

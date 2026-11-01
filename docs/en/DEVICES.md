@@ -192,3 +192,5 @@ GPIO pins are displayed as an eight-row, four-column grid (31–24, 23–16, 15�
 Labels such as `[FB]`, `[PWM]`, `[UART-TX]`, and `[UART-RX]` reflect live kernel-reported pin ownership. Such pins can be inspected but not edited. Releasing the framebuffer changes the displayed status automatically.
 
 GPIO defaults at boot: GP25 is output (LOW), GP16 and GP17 are inputs with pull-ups. They remain editable with `gpio`.
+
+For the kernel UDP 2000 remote-device interface, see [Remote device control](REMOTE-DEVICE.md).

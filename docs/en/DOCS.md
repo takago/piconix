@@ -30,7 +30,7 @@ PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup 
 1. [Wi-Fi modes](WIFI-MODES.md) — AP and STA
 2. [Networking](NETWORK.md) — connecting and using services
 3. [Socket programming](NETWORK-PROGRAMMING.md) — TCP/UDP user applications
-4. [nc](NC.md), [httpd](HTTPD.md), [UDP device control](UDP-DEVICES.md), [Remote GPIO](REMOTE_GPIO.md) — practical examples
+4. [nc](NC.md), [httpd](HTTPD.md), [UDP device control](REMOTE-DEVICE.md), [Remote GPIO](REMOTE_GPIO.md) — practical examples
 
 **[Architecture](ARCHITECTURE.md)** — the user/kernel boundary and a source-file map.
 
@@ -47,8 +47,6 @@ PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup 
 | Understand tasks, memory, and the kernel | [Internals](INTERNAL.md) |
 
 For C applications, a useful reading sequence is **Programming → C library and APIs → System calls**. For assembly, start with **Assembler → System calls**.
-
-- [Kernel development](KERNEL-DEVELOPMENT.md): Adding system calls and device nodes
 
 ## Development history
 
