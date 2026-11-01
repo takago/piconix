@@ -1,148 +1,152 @@
 # Developing C applications for PicoNIX
 
-[日本語](../ja/PROGRAMMING.md) | [Overview](README.md) | [Internals](INTERNAL.md)
+[日本語](../ja/PROGRAMMING.md) | [Documentation guide](DOCS.md) | [C library](LIBC.md)
 
-This guide takes you from modifying an existing program to **adding and running a new command**. PicoNIX applications are not ordinary Linux executables: they are PIC images embedded in Flash and copied into RAM when launched.
+This guide shows how to add a **new C command** to PicoNIX, build it on a host computer, and run it on a board. It documents the build mechanism in the current source tree. For the toolchain and board setup, first see [Setup](SETUP.md).
 
-## 1. Try an existing program
+PicoNIX applications are **not Linux executables**. The host compiler produces small position-independent (PIC) images. The firmware stores them in Flash; launching a command copies its image into an available RAM task slot. The kernel itself runs code from Flash using XIP.
 
-Follow [Setup](SETUP.md) to build and flash the UF2. Then try:
+## 1. Before writing a new command
+
+Once PicoNIX boots, try the existing example:
 
 ```text
 piconix# hello
 Hello, PicoNIX!
 piconix# hello Pico
 Hello, Pico!
-piconix# ls /bin
 ```
 
-To experiment with an existing source, change the `msleep(500)` value in `userland/blink.c`, rebuild and verify the behavior. LED behavior depends on the board and pin configuration.
+The source is `userland/hello.c`. Each application normally defines `main(int argc, char *argv[])`, and PicoNIX's shared `userland/crt0.c` handles termination after `main` returns. Applications use PicoNIX's headers and small C library, rather than a host libc or Pico SDK library directly.
 
-## 2. A minimal C program
+## 2. Create `greet.c`
 
-`userland/hello.c` is a simple output example:
+Create **`userland/greet.c`** with the following complete source:
 
 ```c
 #include "stdio.h"
 
-int main(int argc, char *argv[]) {
-    if (argc > 1)
-        printf("Hello, %s!\n", argv[1]);
-    else
-        puts("Hello, PicoNIX!");
+int main(int argc, char *argv[])
+{
+    const char *name = (argc > 1) ? argv[1] : "PicoNIX";
+    printf("Hello, %s!\n", name);
     return 0;
 }
 ```
 
-You can also print with just `write()` from `unistd.h`:
+The first argument, `argv[0]`, is the command name; an optional name is `argv[1]`. A normal return from `main` ends the application. The example uses `printf` from PicoNIX's `stdio.h`; consult [C library and APIs](LIBC.md) for the available functions and format limitations.
+
+## 3. Add the application to the firmware
+
+There are **two required changes** in the current build system.
+
+### 3.1 Add the source name to `CMakeLists.txt`
+
+Find `foreach(APP IN ITEMS ...)` near the top of `CMakeLists.txt` and append `greet` **without the `.c` suffix**:
+
+```cmake
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello ... udp_echod greet)
+```
+
+The `...` above is explanatory shorthand: **keep every existing application name** when editing the actual line. The common loop automatically compiles `userland/greet.c` with `crt0.c`, `syscalls.c`, and `libc.c`, links the RAM image, validates its PIC behavior and size, and embeds the binary in firmware Flash. No separate custom build rule is needed.
+
+### 3.2 Register the embedded image in `kernel/main.c`
+
+Add a symbol declaration beside the other application images:
 
 ```c
-#include "unistd.h"
-
-int main(int argc, char *argv[]) {
-    const char msg[] = "hello\n";
-    write(1, msg, sizeof(msg) - 1);
-    return 0;
-}
+extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[];
 ```
 
-Use PicoNIX's headers and minimal libc, rather than linking directly against the host libc or Pico SDK. When `main()` returns, the shared startup routine in `userland/crt0.c` performs termination.
+Add a call alongside the other `register_image(...)` calls in `main()`:
 
-## 3. Add a new command
+```c
+register_image(39, "greet", piconix_greet_image_start, piconix_greet_image_end);
+```
 
-1. Create a C source under `userland/`; use `hello.c` as a starting point.
-2. Add the application build, PIC checks and Flash image embedding to `CMakeLists.txt`, following an existing entry.
-3. Add image start/end symbol declarations and a `register_image()` entry to `kernel/main.c`. Assign an **unused program ID** (IDs 1–64 are available; ID 0 is reserved).
-4. Rebuild and confirm the PIC and slot-size checks pass.
-5. Flash the UF2 and run your new command from the Shell.
+**39 is unused in the source snapshot used for this example.** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
 
-You do **not** need to add command-specific code to the Shell. The kernel registers names and IDs, which the Shell discovers through `/bin`. Files placed in `/tmp` cannot be loaded as executable programs.
+## 4. Build and run
 
-## 4. RAM layout and build constraints
+From the repository root, after completing the SDK/toolchain setup:
 
-| Item | Requirement |
-|---|---|
-| Entry | `main(int argc, char *argv[])` (through `crt0.c`) |
-| Slots | Six 24-KiB task slots |
-| Stack | Last 4 KiB of each slot reserved |
-| Application | Build as PIC and embed in Flash |
-| Execution | Copy into a free RAM slot |
-| Kernel services | System calls through SVC |
+```sh
+PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
+```
 
-`userland/slot.ld` keeps code/data from overlapping the reserved stack area. The build compares images linked at different RAM addresses and rejects invalid PIC configurations such as problematic GOT or unresolved references. An ordinary host libc cannot be linked as-is.
-
-## 5. Arguments and return values
-
-External commands receive arguments through `argc` and `argv`. The Shell splits on spaces; it does not group quoted strings. Up to eight strings, including the command name, can be passed. Their combined storage is at most 128 bytes including NUL terminators. `argv[argc]` is `NULL`.
-
-Programs can also be started with `spawn(program_id, argc, argv)`. Starting one fails when all task slots are occupied. `waitpid()` implements simple child waiting, not full POSIX exit-status handling.
-
-## 6. Commonly used APIs
-
-| Header | Examples |
-|---|---|
-| `unistd.h` | `read`, `write`, `open`, `close`, `msleep`, `spawn`, `waitpid` |
-| `fcntl.h` | `O_RDONLY`, `O_WRONLY`, `O_CREAT`, `O_NONBLOCK`, `F_GETFL`, `F_SETFL` |
-| `stdio.h` | `printf`, `snprintf`, `puts`, `putchar`, `getchar`, `fgets` |
-| `string.h` | Basic string and memory operations |
-| `stdlib.h` | `atoi`, `strtol`, `abs` |
-
-`printf` supports `%s`, `%c`, `%d`, `%i`, `%u`, `%x`, `%X` and `%%`, but not width, precision or floating-point formats. `msleep()` takes milliseconds. These are deliberately limited APIs, not complete POSIX implementations.
-
-## 7. Files and redirection
-
-The Shell's `<`, `>` and `>>` operators work by setting the standard input/output descriptors:
+For Pico W, replace `pico` with `pico_w`. Follow [Setup](SETUP.md) if your installation paths differ, and for the resulting UF2 location and board flashing procedure. A successful firmware build includes PIC and task-slot checks. After flashing, try:
 
 ```text
-piconix# echo hello > /tmp/message
-piconix# cat /tmp/message
-hello
-piconix# hexdump /tmp/message
+piconix# greet
+Hello, PicoNIX!
+piconix# greet Alice
+Hello, Alice!
+piconix# ls /bin
 ```
 
-Applications can use `read(0, ...)` and `write(1, ...)` without knowing whether input/output has been redirected. `/tmp` files live in RAM and disappear on reboot. `lseek()` supports `SEEK_SET` for ordinary `/tmp` files and `/dev/mem`. Avoid using regular-file flags such as `O_CREAT` and `O_TRUNC` for devices.
+If `greet` is missing, confirm both the CMake list entry and `register_image` call, then rebuild and reflash. A host-only test does not install new commands into a running device.
 
-## 8. TTY and nonblocking input
+## 5. Arguments, file descriptors, and input/output
+
+The shell passes `argc` and `argv` to external programs. It uses space-separated tokens without quote grouping. It passes up to **eight strings including the command name**, with a total argument-string storage limit of **128 bytes including NUL terminators**; `argv[argc]` is `NULL`.
+
+Standard descriptors are 0 (input), 1 (output), and 2 (error). The same calls work with shell redirection and pipes:
 
 ```c
 #include "unistd.h"
-#include "fcntl.h"
 
-int flags = fcntl(0, F_GETFL, 0);
-if (flags >= 0)
-    fcntl(0, F_SETFL, flags | O_NONBLOCK);
-/* For character input, also disable canonical mode using ioctl. */
+int main(int argc, char *argv[])
+{
+    const char message[] = "hello\n";
+    write(1, message, sizeof(message) - 1);
+    return 0;
+}
 ```
 
-`O_NONBLOCK` controls a file descriptor, independently of canonical and echo terminal modes. The game in `userland/mb.c` demonstrates temporarily switching the input mode. See [Terminal settings and interactive input](TTY.md) for restoring settings and additional cautions.
+For example, `greet Alice > /tmp/message` redirects output to a RAM file. File and descriptor support is intentionally smaller than POSIX; see [Filesystem](FILESYSTEM.md) and [Pipes](PIPE.md). Device access is documented in [Devices](DEVICES.md).
 
-## 9. Debugging and verification
+## 6. APIs and execution constraints
+
+| Topic | Current behavior |
+|---|---|
+| Entry point | `main(argc, argv)` via `userland/crt0.c` |
+| RAM task slots | 6 slots × 24 KiB |
+| Stack reserve | Last 4 KiB in each slot; image must fit the remaining space |
+| Executable image | PIC, embedded in firmware Flash, copied into RAM at launch |
+| Kernel interface | C wrappers using SVC system calls |
+| Process creation | `spawn(program_id, argc, argv)`; fails when no free slot is available |
+| Waiting | `waitpid()` is a small PicoNIX subset, not full POSIX semantics |
+
+Use `stdio.h`, `stdlib.h`, `string.h`, `unistd.h`, and `fcntl.h` as supplied in `userland/`. For their actual functions, argument types, error returns, and supported formats, see [LIBC.md](LIBC.md). For low-level ABI details see [SYSCALLS.md](SYSCALLS.md). The kernel interface returns PicoNIX error values rather than standard `errno` semantics.
+
+`O_NONBLOCK` (set with `fcntl()`) does not turn canonical TTY input into character-at-a-time input; for interactive games, see [TTY](TTY.md) and `userland/mb.c`. Network applications have additional constraints; see [Network programming](NETWORK-PROGRAMMING.md).
+
+## 7. Diagnose problems
+
+| Symptom | Check |
+|---|---|
+| Compiler error | Includes, function declarations, and PicoNIX's actual header interfaces |
+| Undefined symbol (including `__aeabi_*`) | Unsupported dependencies or compiler helper/linker configuration |
+| PIC or image-size check fails | Non-position-independent code, unsupported relocation, or the RAM image/stack limit |
+| Command missing from `/bin` | CMake entry, image symbol declaration, registration, and whether the new UF2 was flashed |
+| Spawn fails at runtime | Available task slots and program registration |
+| TTY appears to behave incorrectly | Canonical/echo mode and restoration; see [TTY](TTY.md) |
+
+Host-side regression checks:
 
 ```sh
 python3 tools/run_tests.py
-# Run toolchain-dependent tests as well (ARM toolchain required):
-python3 tools/run_tests.py --all
+python3 tools/run_tests.py --all  # includes toolchain-dependent tests
 ```
 
-These checks alone do not guarantee a complete firmware build or hardware behavior. Build the firmware with the ARM toolchain and Pico SDK. Watch for unresolved `__aeabi_*` symbols, slot-size overruns, failed PIC checks and mismatched system-call numbers.
+The complete firmware build and real hardware checks are still necessary; source-level tests alone do not prove a board will run correctly. Use `ps`, `cat /proc/tasks`, `trace on`, `trace off`, and `trace show` when diagnosing runtime behavior. [Tracing](TRACE.md) explains syscall and context-switch events; [Memory inspection](MEM.md) explains read-only RAM/Flash inspection.
 
-For runtime diagnostics, use `ps`, `cat /proc/tasks`, `cat /proc/memory` and `trace on`, `trace off`, `trace show`. See [Internals](INTERNAL.md) and [Tracing](TRACE.md).
+## 8. Where to go next
 
-## 10. Development checklist
-
-- [ ] Program ID does not conflict with another registration
-- [ ] `main(argc, argv)` is defined
-- [ ] Only PicoNIX user APIs are used
-- [ ] PIC and size checks pass
-- [ ] The six-slot limit is considered
-- [ ] Arguments, I/O and termination have been tested on hardware
-
-**Next:** Read [Internals](INTERNAL.md) for the OS architecture or [Devices and wiring](DEVICES.md) for hardware-specific access.
-
-## Network programming
-
-Pico W user applications can access TCP/UDP sockets. See [Socket API and network applications](NETWORK-PROGRAMMING.md).
-
-Registered /bin programs can be resolved with `program_id(name)` (syscall 38). This returns the actual kernel registry ID, independent of directory enumeration order. `spawn(id, argc, argv)` remains available.
-
-See also the [numbered system call ABI](SYSCALLS.md).
+- [C library](LIBC.md): functions available to applications and their limitations
+- [System calls](SYSCALLS.md): syscall numbers, arguments, return values, and ABI
+- [Assembly programming](ASM.md) and [Python](PYTHON.md): programs created inside PicoNIX (a different workflow from host-compiled C)
+- [Architecture](ARCHITECTURE.md) and [Internals](INTERNAL.md): PIC loading, scheduling, and kernel implementation
+- [Network programming](NETWORK-PROGRAMMING.md): TCP/UDP application development on Pico W
