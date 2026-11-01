@@ -64,6 +64,7 @@ For a guided reading order, see the [documentation index](DOCS.md). For Pico W n
 
 | Goal | Guide |
 |---|---|
+| Follow the development history and design decisions | [Development diary](DEVELOPMENT_DIARY.md) |
 | Prepare, build, and flash | [Setup](SETUP.md) |
 | Understand RAM and task management | [Internals](INTERNAL.md) |
 | Check syscall numbers and the calling convention | [System calls](SYSCALLS.md) |

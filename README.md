@@ -140,6 +140,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | English | 日本語 |
 |---|---|
 | [Overview and guides](docs/en/README.md) | [概要・文書一覧](docs/ja/README.md) |
+| [Development diary](docs/en/DEVELOPMENT_DIARY.md) | [開発日誌](docs/ja/DEVELOPMENT_DIARY.md) |
 | [Architecture](docs/en/ARCHITECTURE.md) | [全体構造](docs/ja/ARCHITECTURE.md) |
 | [Internals](docs/en/INTERNAL.md) | [内部構造](docs/ja/INTERNAL.md) |
 | [Pipes and standard I/O](docs/en/PIPE.md) | [パイプと標準入出力](docs/ja/PIPE.md) |
