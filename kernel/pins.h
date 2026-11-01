@@ -38,13 +38,9 @@
 
 #define PWM_DEFAULT_FREQ 1000u
 #define PWM_DEFAULT_DUTY 0u
-/* USB CDC is the default console: GP0/1 are free GPIO pins.
- * UART0 console builds must reserve GP0/1 for UART instead. */
-#if defined(PICONIX_CONSOLE_USB) && !PICONIX_CONSOLE_USB
-#error "LED framebuffer requires USB CDC console (GP0/1 reserved for LED matrix)"
-#if GP0_MODE != PIN_UART || GP1_MODE != PIN_UART
-#error "UART0 console requires GP0/1 to be PIN_UART"
-#endif
+/* USB CDC is the sole main console; GP0/1 remain GPIO. */
+#if GP0_MODE != PIN_GPIO || GP1_MODE != PIN_GPIO
+#error "LED framebuffer requires GP0/1 to be PIN_GPIO"
 #endif
 /* UART1 uses GP20/21. */
 #if GP20_MODE != PIN_UART || GP21_MODE != PIN_UART

@@ -10,7 +10,7 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 
 | Path | Purpose |
 |---|---|
-| `/dev/console` | Main console (USB CDC or UART0 build) |
+| `/dev/console` | Main console (USB CDC) |
 | `/dev/uart1` | UART1 terminal |
 | `/dev/wifi` | Network terminal in Wi-Fi builds (see [NETWORK.md](NETWORK.md)) |
 | `/dev/rand` | Non-cryptographic pseudorandom bytes (read-only; at most 4 bytes per `read()` call) |
@@ -117,7 +117,7 @@ Edit `GPn_MODE` in `kernel/pins.h`, then rebuild. Available modes are `PIN_GPIO`
 #define PWM_DEFAULT_DUTY 0u
 ```
 
-To restore all general-purpose pins to GPIO mode, set the ADC/PWM assignments to `PIN_GPIO`. With the default USB CDC console, GP0/1 are available as GPIO and GP20/21 are reserved for UART1. For a UART0 console build, change GP0/1 to `PIN_UART`. UART-assigned pins are not exposed as GPIO devices.
+To restore all general-purpose pins to GPIO mode, set the ADC/PWM assignments to `PIN_GPIO`. The main console uses USB CDC; GP0/1 are GPIO pins for the LED matrix, and GP20/21 are reserved for UART1. UART-assigned pins are not exposed as GPIO devices.
 
 ## Default wiring overview
 
@@ -134,7 +134,7 @@ Use a common GND and 3.3 V logic for UART; do not connect RS-232 voltages direct
 
 ## UART and console
 
-The default console uses USB CDC. UART0 console builds require GP0/1 to be `PIN_UART` in `pins.h`. UART1 is accessible as `/dev/uart1`; `getty /dev/uart1 sh &` starts another shell. See [UART.md](UART.md).
+The main console uses USB CDC only. UART0 console builds are not supported. UART1 is accessible as `/dev/uart1`; `getty /dev/uart1 sh &` starts another shell. See [UART.md](UART.md).
 
 ## Constraints
 

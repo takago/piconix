@@ -17,10 +17,8 @@
 #include <stdio.h>
 #include "../userland/trace.h"
 #include "../include/piconix_dirent.h"
-#if PICONIX_CONSOLE_USB
 #include "pico/stdio_usb.h"
 #include "tusb.h"
-#endif
 
 /* Lower 32 bits of the external Flash unique ID, shared with the AP SSID. */
 uint32_t piconix_flash_id(void) {
@@ -484,10 +482,6 @@ static int tty_dequeue(int dev,void *p,size_t n) {
     if(t->offset==t->lines[t->tail].len){t->tail=(t->tail+1u)%TTY_LINES;t->used--;t->offset=0;}
     return (int)count;
 }
-#if !PICONIX_CONSOLE_USB
-static volatile uint32_t console_irq_count;
-static void uart0_irq_handler(void);
-#endif
 static volatile uint32_t uart1_irq_count;
 static void uart1_irq_handler(void);
 static void pend(void);
@@ -514,7 +508,6 @@ static void uart_push(int dev, uint8_t ch) {
 }
 /* USB console TX is queued in SVC, never waited on inside an exception.
  * The idle task drains it while USB IRQs can run. One slot is reserved. */
-#if PICONIX_CONSOLE_USB
 #define CONSOLE_TX_CAP 512u
 static uint8_t console_tx[CONSOLE_TX_CAP];
 static volatile unsigned console_tx_head, console_tx_tail;
@@ -543,13 +536,8 @@ static void console_tx_poll(void) {
         console_tx_tail=(console_tx_tail+1u)%CONSOLE_TX_CAP;
     }
 }
-#endif
 static void tty_put(uint8_t c) {
-#if PICONIX_CONSOLE_USB
     (void)console_queue(&c,1);
-#else
-    uart_putc_raw(uart0,c);
-#endif
 }
 static void tty_put_dev(int dev,uint8_t c) {
     if(dev==0)tty_put(c);
@@ -562,7 +550,6 @@ static void tty_put_dev(int dev,uint8_t c) {
  * Return 1 only if the entire character was accepted, 0 on backpressure.
  * Keep device-specific queue/transport handling below this boundary. */
 static int tty_tx_char(int dev, uint8_t c, int insert_cr) {
-#if PICONIX_CONSOLE_USB
     if(dev==0) {
         unsigned used=(console_tx_head+CONSOLE_TX_CAP-console_tx_tail)%CONSOLE_TX_CAP;
         if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) return 0;
@@ -570,7 +557,6 @@ static int tty_tx_char(int dev, uint8_t c, int insert_cr) {
         tty_put(c);
         return 1;
     }
-#endif
 #if PICONIX_WIFI
     if(dev==2) {
         uint8_t bytes[2]={'\r',c};
@@ -687,7 +673,6 @@ static void wifi_session_poll(void) {
 }
 #endif
 void os_console_poll(void) {
-#if PICONIX_CONSOLE_USB
     console_tx_poll();
     int ch;
     int received = 0;
@@ -696,7 +681,6 @@ void os_console_poll(void) {
         received = 1;
     }
     if (received) wake_readers(0);
-#endif
 #if PICONIX_WIFI
     /* Called by idle task after net_poll: deliver TCP bytes through TTY2. */
     wifi_session_poll();
@@ -740,13 +724,6 @@ static void wake_readers(int dev) {
         if(dev==0) break;
     }
 }
-#if !PICONIX_CONSOLE_USB
-static void uart0_irq_handler(void) {
-    console_irq_count++;
-    while(uart_is_readable(uart0)) tty_input_char(0,uart_getc(uart0));
-    wake_readers(0);
-}
-#endif
 static void uart1_irq_handler(void) {
     uart1_irq_count++;
     while(uart_is_readable(uart1)){
@@ -768,35 +745,15 @@ void os_init(void) {
     fb_init();
     adc_driver_init();
     pwm_driver_init();
-#if !PICONIX_CONSOLE_USB
-    console_irq_count=0;
-#endif
     svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(foreground_group,0,sizeof foreground_group); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
     memset(rx, 0, sizeof(rx));
-#if PICONIX_CONSOLE_USB
     console_tx_head=console_tx_tail=0;
-#endif
-#if PICONIX_CONSOLE_USB
     if (!stdio_usb_init()) panic("PicoNIX: USB CDC initialization failed");
-#else
-    uart_init(uart0, 115200);
-    gpio_set_function(0, GPIO_FUNC_UART);
-    gpio_set_function(1, GPIO_FUNC_UART);
-#endif
     uart_init(uart1,115200);
     gpio_set_function(20,GPIO_FUNC_UART);
     gpio_set_function(21,GPIO_FUNC_UART);
-#if !PICONIX_CONSOLE_USB
-    irq_set_exclusive_handler(UART0_IRQ,uart0_irq_handler);
-#endif
     irq_set_exclusive_handler(UART1_IRQ,uart1_irq_handler);
-#if !PICONIX_CONSOLE_USB
-    irq_set_enabled(UART0_IRQ,true);
-#endif
     irq_set_enabled(UART1_IRQ,true);
-#if !PICONIX_CONSOLE_USB
-    uart_set_irq_enables(uart0,true,false);
-#endif
     uart_set_irq_enables(uart1,true,false);
     // Lowest priority for PendSV, SysTick immediately above it.
     // SHPR3: PendSV priority bits 23:22; SysTick bits 31:30.
@@ -1521,9 +1478,6 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     uint32_t irq_state=save_and_disable_interrupts();
     uint32_t t=ticks, svc=svc_count, psv=pendsv_count, switches=context_switch_count;
     uint32_t uart1_irqs=uart1_irq_count;
-#if !PICONIX_CONSOLE_USB
-    uint32_t console_irqs=console_irq_count;
-#endif
     restore_interrupts(irq_state);
     char text[256]; int len=0;
     if(dev==DEV_PROC_WIFI) len=net_wifi_info(text,sizeof(text));
@@ -1544,14 +1498,8 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
         case DEV_PROC_UPTIME: len=snprintf(text,sizeof text,"%lu.%03lu s\n",(unsigned long)(t/1000u),(unsigned long)(t%1000u)); break;
         case DEV_PROC_TICKS: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)t); break;
         case DEV_PROC_INTERRUPTS:
-#if PICONIX_CONSOLE_USB
             len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\nuart1 %lu\n",
                          (unsigned long)t,(unsigned long)psv,(unsigned long)svc,(unsigned long)uart1_irqs);
-#else
-            len=snprintf(text,sizeof text,"SysTick %lu\nPendSV %lu\nSVC %lu\nconsole %lu\nuart1 %lu\n",
-                         (unsigned long)t,(unsigned long)psv,(unsigned long)svc,
-                         (unsigned long)console_irqs,(unsigned long)uart1_irqs);
-#endif
             break;
         case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
         case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-%08lX (%d x 24 KiB)\n%s", (unsigned long)(0x20010000u + OS_MAX_TASKS * OS_TASK_BYTES - 1u), OS_MAX_TASKS, "net    20038000-2003FFFF (32 KiB reserved)\n"); break;
@@ -1570,15 +1518,10 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
 }
 static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
     int uartdev=(dev==DEV_CONSOLE)?0:(dev==DEV_WIFI_TTY?2:1);
-#if !PICONIX_CONSOLE_USB
-    uart_inst_t *u=(dev==DEV_CONSOLE)?uart0:uart1;
-#endif
     uint8_t *b=p;
     if(writing) {
         if(tty_claim_pid[uartdev] && tty_claim_pid[uartdev]!=tasks[current].pid) return OS_EIO;
-#if PICONIX_CONSOLE_USB
         if(dev==DEV_CONSOLE && !stdio_usb_connected()) return (int)n;
-#endif
         size_t i=0;
         for(;i<n;i++) {
             uint8_t c=b[i];
@@ -2110,11 +2053,7 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_CONSOLE_READY:
-#if PICONIX_CONSOLE_USB
             result=tasks[current].tty ? 1 : (stdio_usb_connected() ? 1 : 0);
-#else
-            result=1;
-#endif
             break;
         case SYS_CHDIR: {
             char path[128];

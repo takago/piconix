@@ -12,7 +12,10 @@ assert 'else if(eq(s,"ps"))' not in sh
 assert 'else if(eq(s,"cat")' not in sh
 assert '"ps\\r\\n' not in sh
 assert '"cat\\r\\n' not in sh
-assert 'uart1_irq_count++' in k and 'console_irq_count++' in k
+assert 'uart1_irq_count++' in k
+assert 'console_irq_count' not in k
+assert 'uart0_irq_handler' not in k
+assert 'SysTick %lu\\nPendSV %lu\\nSVC %lu\\nuart1 %lu' in k
 assert '(unsigned long)t' in k and 'ticks += 1u' in k
 assert 'spawn(id,count,args)' in w and 'waitpid(child,0,0)' in w
 print('PASS: external apps, watch and IRQ counters integrated')

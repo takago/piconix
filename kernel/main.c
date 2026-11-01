@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
 #include "piconix.h"
 #include "pico/stdlib.h"
-#include "hardware/uart.h"
 #include "hardware/sync.h"
 #include <stdint.h>
 #include <stddef.h>
@@ -66,13 +65,6 @@ static void register_image(int id, const char *name,
 }
 int main(void) {
     os_init();
-    // Direct UART boot marker: visible even if the scheduler never starts.
-#if PICONIX_CONSOLE_USB
-    // USB enumeration is asynchronous: boot diagnostics may be lost if no
-    // terminal is connected yet. Use UART0 build for early boot debugging.
-#else
-    uart_puts(uart0, "\r\n[PicoNIX] UART initialized\r\n");
-#endif
     register_image(2,"sh",piconix_shell_image_start,piconix_shell_image_end);
     register_image(1,"blink",piconix_blink_image_start,piconix_blink_image_end);
     register_image(3,"omikuji",piconix_omikuji_image_start,piconix_omikuji_image_end);
@@ -115,8 +107,5 @@ int main(void) {
     os_init_idle(idle_task);
     if(os_start_program(2)<0) panic("PicoNIX: shell start failed");
     // Do not start Blink here: verify the `blink` shell command path.
-#if !PICONIX_CONSOLE_USB
-    uart_puts(uart0, "[PicoNIX] shell loaded; starting scheduler\r\n");
-#endif
     os_start();
 }

@@ -10,7 +10,7 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 
 | デバイス | 内容 |
 |---|---|
-| `/dev/console` | 主コンソール（USB CDCまたはUART0構成） |
+| `/dev/console` | 主コンソール（USB CDC） |
 | `/dev/uart1` | UART1端末 |
 | `/dev/wifi` | Wi-Fiビルド時のネットワーク端末（[NETWORK.md](NETWORK.md)参照） |
 | `/dev/rand` | 暗号用途には使えない疑似乱数（読み取り専用，1回の`read()`につき最大4バイト） |
@@ -119,7 +119,7 @@ echo 0 > /dev/pwm/1/a
 #define PWM_DEFAULT_DUTY 0u
 ```
 
-すべての利用可能な汎用ピンをGPIOとして使いたい場合は，PWM・ADCに割り当てたピンを`PIN_GPIO`に変更します．標準のUSB CDCコンソール構成ではGP0/1をGPIOとして使用でき，GP20/21はUART1用です．UART0コンソール構成に変更する場合は，GP0/1を`PIN_UART`に変更してください．UART用に予約したピンはGPIOデバイスとして公開されません．
+すべての利用可能な汎用ピンをGPIOとして使いたい場合は，PWM・ADCに割り当てたピンを`PIN_GPIO`に変更します．USB CDCを主コンソールとし，GP0/1はLEDマトリクス用のGPIO，GP20/21はUART1用です．UART用に予約したピンはGPIOデバイスとして公開されません．
 
 ## 標準構成の接続例
 
@@ -136,7 +136,7 @@ UART機器はGNDを共通にし，3.3 Vロジックを使用してください�
 
 ## UART・コンソール
 
-主コンソールは標準ではUSB CDCです．UART0コンソール構成では`pins.h`でGP0/1を`PIN_UART`に変更する必要があります．UART1は`/dev/uart1`で利用し，`getty /dev/uart1 sh &`で別のShellを起動できます．詳細は[UART.md](UART.md)を参照してください．
+主コンソールはUSB CDCのみです．UART0コンソール構成はサポートしていません．UART1は`/dev/uart1`で利用し，`getty /dev/uart1 sh &`で別のShellを起動できます．詳細は[UART.md](UART.md)を参照してください．
 
 ## 制限と注意
 
