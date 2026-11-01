@@ -170,7 +170,7 @@ message(STATUS "PicoNIX XIP linker: ${PICONIX_CUSTOM_LD}")
 add_executable(piconix kernel/net.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 pico_set_linker_script(piconix "${PICONIX_CUSTOM_LD}")
-# Wi-Fi follows the selected board. Both boards use the same five-slot layout.
+# Wi-Fi follows the selected board. Both boards use the same six-slot layout.
 # Reject stale cache options instead of silently retaining an old Wi-Fi setting.
 if(DEFINED PICONIX_WIFI_LAYOUT)
   message(FATAL_ERROR "PICONIX_WIFI_LAYOUT has been removed. Delete the build directory or unset the cached option (-U PICONIX_WIFI_LAYOUT); select -DPICO_BOARD=pico_w instead.")

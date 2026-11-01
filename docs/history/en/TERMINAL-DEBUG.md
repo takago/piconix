@@ -138,4 +138,4 @@ Touch the actual modified files. Remove specific build artifacts or clean `build
 
 In a pipeline, `dup2()` redirects standard input/output to pipes; therefore `stdout` is not necessarily a terminal. Interactive applications may use terminal screen controls, but programs producing piped data should avoid mixing ANSI escape sequences into that data.
 
-The shell registers up to three foreground pipeline tasks for Ctrl+C interruption. Restoring TTY canonical/echo/ONLCR settings and restoring terminal-emulator screen state are distinct mechanisms. See [pipes](PIPE.md) and [TTY settings](TTY.md).
+The shell registers up to three foreground pipeline tasks for Ctrl+C interruption. Restoring TTY canonical/echo/ONLCR settings and restoring terminal-emulator screen state are distinct mechanisms. See [pipes](../../en/PIPE.md) and [TTY settings](../../en/TTY.md).
