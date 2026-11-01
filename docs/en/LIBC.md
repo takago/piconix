@@ -60,6 +60,10 @@ For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboar
 - PicoNIX `O_*` and `F_*` flag values are **not host POSIX constants**. `lseek()` currently supports `SEEK_SET` only.
 - Socket operations are a deliberately reduced IPv4 API, not full BSD sockets; `listen()` is a compatibility no-op after TCP `bind()` starts listening.
 
+## `fgets()` edge cases
+
+In the current `userland/libc.c`, `fgets(s, size, stream)` returns NULL when `size <= 0` or an argument is NULL. When `size == 1`, it stores only the terminating NUL, returns `s`, and consumes no input. When `size > 1` and no initial character can be read, it returns NULL. This is a minimal FD-backed implementation, not a general buffered stream API; account for terminal settings and FD state.
+
 ## Example
 
 ```c

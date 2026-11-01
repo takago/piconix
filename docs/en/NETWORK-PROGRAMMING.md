@@ -14,6 +14,16 @@ On Pico W, lwIP runs on the kernel side and exposes a compact IPv4 socket interf
 
 **Limitations:** This is not a complete BSD/POSIX implementation. Some operations are nonblocking and return `OS_EAGAIN` when no data is available. Errors are returned as negative `OS_*` codes. TCP `bind()` starts listening, `listen()` is a compatibility operation, and `tcp_status()` checks asynchronous connection completion. DNS, `getsockname()`, and general socket options are not implemented.
 
+## Exact limitations of the BSD-style wrappers
+
+In `userland/syscalls.c`, `listen(fd, backlog)` returns `OS_EINVAL` for a negative backlog, but otherwise returns 0 **without validating the FD**. TCP listening actually starts in `bind()`; a successful `listen()` call must not be used to establish whether a socket is listening.
+
+`accept(fd, addr, len)` does not support obtaining the peer address: if either `addr` or `len` is non-NULL, it returns `OS_EINVAL`. Use `accept(fd, NULL, NULL)` with the current interface.
+
+For `recvfrom()`, if `from` is non-NULL, `fromlen` must also be non-NULL and the incoming `*fromlen` must be at least `sizeof(struct sockaddr_in)`. On success the wrapper fills in the IPv4 sender information and the actual structure size. Use `from == NULL` to skip retrieving the sender address.
+
+The `flags` argument to `send()`, `recv()`, `sendto()`, and `recvfrom()` must be zero. These functions return negative `OS_*` codes directly rather than setting POSIX `errno`. Recheck this section if the socket wrappers change.
+
 ## User programs
 
 | Command | Purpose | Default port |

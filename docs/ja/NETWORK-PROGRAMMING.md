@@ -14,6 +14,16 @@ Pico WではlwIPをカーネル側で利用し，ユーザプロセスに小さ�
 
 **制限：** 完全なBSD/POSIX互換ではありません．一部操作は非ブロッキングで，データ未到着時は`OS_EAGAIN`を返します．エラーは負の`OS_*`値として返されます．TCPの`bind()`は待受を開始し，`listen()`は互換用の処理です．`connect()`の完了は`tcp_status()`で確認します．DNS，`getsockname()`，一般的なソケットオプションなどはありません．
 
+## BSD風ラッパーの具体的な制限
+
+`userland/syscalls.c`の実装では，`listen(fd, backlog)`は`backlog < 0`なら`OS_EINVAL`を返し，それ以外ではFDの妥当性を確認せず0を返します．実際のTCP待受は`bind()`で開始するため，`listen()`の成功を待受可能の判定に使用しないでください．
+
+`accept(fd, addr, len)`は接続相手のアドレス取得に対応せず，`addr`または`len`が非NULLなら`OS_EINVAL`を返します．現行APIでは`accept(fd, NULL, NULL)`を使用します．
+
+`recvfrom()`では`from`が非NULLの場合，`fromlen`も非NULLで，呼び出し前の`*fromlen`が`sizeof(struct sockaddr_in)`以上である必要があります．受信成功時にIPv4の送信元情報と実際の構造体サイズを格納します．`from == NULL`の場合は送信元アドレスの取得を省略できます．
+
+`send()`，`recv()`，`sendto()`，`recvfrom()`の`flags`は0のみです．これらはPOSIX `errno`ではなく，負の`OS_*`値を直接返します．上記は互換性上の制限であり，ソケットの機能拡張時には本節を見直してください．
+
 ## ユーザプログラムの例
 
 | コマンド | 役割 | ポート |
