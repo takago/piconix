@@ -81,6 +81,6 @@ When a foreground application is selected, the kernel saves that TTY's canonical
 
 ### Forced termination and screen restoration
 
-The kernel restores saved canonical, echo, and ONLCR settings when a foreground task terminates. ANSI/DEC **alternate-screen and cursor state** are separate and require screen-level cleanup. See [terminal implementation notes](TERMINAL.md).
+The kernel restores saved canonical, echo, and ONLCR settings when a foreground task terminates. ANSI/DEC **alternate-screen and cursor state** are separate and require screen-level cleanup. See [terminal usage and screen control](TERMINAL.md).
 
 **Implementation references:** `tty_canonical`, `tty_echo`, `tty_onlcr`, `tty_saved_*`, `foreground_group`, and `OS_TTY_*` handling in `kernel/kernel.c`; line editing and pipelines in `userland/shell.c`.

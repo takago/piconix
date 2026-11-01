@@ -32,3 +32,8 @@ This directory preserves earlier designs, implementation stages, and debugging n
 - [Stage 5: experimental TCP FD integration](en/TCP_FD_STAGE5.md) — `TCP_FD_STAGE5.md`
 - [Three-stage pipelines](en/THREE-STAGE-PIPE.md) — `THREE-STAGE-PIPE.md`
 - [Socket descriptors in lsof and trace (experimental)](en/TRACE_SOCKET_FDS.md) — `TRACE_SOCKET_FDS.md`
+
+## 端末の調査記録 / Terminal debugging
+
+- [日本語：端末表示の調査記録](ja/TERMINAL-DEBUG.md)
+- [English: Terminal display debugging](en/TERMINAL-DEBUG.md)

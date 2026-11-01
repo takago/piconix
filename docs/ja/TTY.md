@@ -81,6 +81,6 @@ TAB（`0x09`）はシェルの行編集とcanonical入力で受け付け，フ�
 
 ### 強制終了と画面復帰
 
-前景タスクの終了時にカーネルが保存したcanonical・echo・ONLCRを復元しますが，ANSI/DECの**代替画面やカーソル表示**は別の状態です．全画面アプリの終了・中断後の復帰については[端末表示の実装ノート](TERMINAL.md)を参照してください．
+前景タスクの終了時にカーネルが保存したcanonical・echo・ONLCRを復元しますが，ANSI/DECの**代替画面やカーソル表示**は別の状態です．全画面アプリの終了・中断後の復帰については[端末の使い方と画面制御](TERMINAL.md)を参照してください．
 
 **実装の参照先：** `kernel/kernel.c` の `tty_canonical`，`tty_echo`，`tty_onlcr`，`tty_saved_*`，`foreground_group` と `OS_TTY_*` の処理，`userland/shell.c` の行編集とパイプ処理．
