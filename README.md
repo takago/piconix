@@ -8,6 +8,10 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 
 ## Highlights
 
+- **XIP kernel** — Kernel instructions execute directly from external Flash through the RP2040 XIP (Execute in Place) mechanism, leaving more SRAM available for runtime data and user processes.
+- **Flash-resident PIC applications** — User programs are stored as position-independent code (PIC) images in Flash and copied into fixed RAM slots for execution.
+- **Pico W Wi-Fi hardware** — On Pico W, PicoNIX uses the onboard Infineon CYW43439 Wi-Fi chip through the Raspberry Pi Pico SDK, with access-point (AP) and station (STA) modes.
+- **Network stack** — Networking is based on lwIP, a lightweight open-source TCP/IP stack, exposed to user applications through a small BSD-style socket API.
 - **User-space TCP/IP networking** — A compact BSD-style IPv4 socket interface provides `socket()`, `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` on Pico W.
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, and `udp_echod` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
@@ -97,6 +101,14 @@ The Pico SDK and an ARM toolchain are required. See the setup guide linked below
 
 ## Architecture
 
+### Execution and memory model
+
+- **Kernel code:** Executes directly from external Flash using XIP.
+- **User programs:** Stored in Flash as PIC images; the selected image is copied into a RAM application slot when launched and executes from SRAM.
+- **SRAM:** Holds kernel data and stacks, user-process code/data/stacks, and other runtime state. PicoNIX uses six fixed 24 KiB application slots on RP2040.
+
+This approach saves scarce SRAM by keeping kernel instructions in Flash while allowing user applications to run from separate RAM slots. See [Architecture](docs/en/ARCHITECTURE.md) and [全体構造](docs/ja/ARCHITECTURE.md) for details.
+
 | Component | Responsibility |
 |---|---|
 | `kernel/kernel.c` | Tasks, system calls, and VFS |
@@ -115,18 +127,18 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 
 For a suggested reading order, see the [English documentation guide](docs/en/DOCS.md) or [日本語の文書案内](docs/ja/DOCS.md).
 
-| 日本語 | English |
+| English | 日本語 |
 |---|---|
-| [概要・文書一覧](docs/ja/README.md) | [Overview and guides](docs/en/README.md) |
-| [セットアップ](docs/ja/SETUP.md) | [Setup](docs/en/SETUP.md) |
-| [ネットワーク接続](docs/ja/NETWORK.md) | [Network access](docs/en/NETWORK.md) |
-| [Wi-Fiモード](docs/ja/WIFI-MODES.md) | [Wi-Fi modes](docs/en/WIFI-MODES.md) |
-| [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) | [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) |
-| [パイプと標準入出力](docs/ja/PIPE.md) | [Pipes and standard I/O](docs/en/PIPE.md) |
-| [ncと通信の終了](docs/ja/NC.md) | [nc and termination](docs/en/NC.md) |
-| [Cアプリ開発](docs/ja/PROGRAMMING.md) | [C application development](docs/en/PROGRAMMING.md) |
-| [デバイス](docs/ja/DEVICES.md) | [Devices](docs/en/DEVICES.md) |
-| [全体構造](docs/ja/ARCHITECTURE.md) | [Architecture](docs/en/ARCHITECTURE.md) |
-| [端末と画面制御](docs/ja/TERMINAL.md) | [Terminal and screen](docs/en/TERMINAL.md) |
-| [TTY設定](docs/ja/TTY.md) | [TTY settings](docs/en/TTY.md) |
-| [内部構造](docs/ja/INTERNAL.md) | [Internals](docs/en/INTERNAL.md) |
+| [Overview and guides](docs/en/README.md) | [概要・文書一覧](docs/ja/README.md) |
+| [Setup](docs/en/SETUP.md) | [セットアップ](docs/ja/SETUP.md) |
+| [Network access](docs/en/NETWORK.md) | [ネットワーク接続](docs/ja/NETWORK.md) |
+| [Wi-Fi modes](docs/en/WIFI-MODES.md) | [Wi-Fiモード](docs/ja/WIFI-MODES.md) |
+| [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) |
+| [Pipes and standard I/O](docs/en/PIPE.md) | [パイプと標準入出力](docs/ja/PIPE.md) |
+| [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
+| [C application development](docs/en/PROGRAMMING.md) | [Cアプリ開発](docs/ja/PROGRAMMING.md) |
+| [Devices](docs/en/DEVICES.md) | [デバイス](docs/ja/DEVICES.md) |
+| [Architecture](docs/en/ARCHITECTURE.md) | [全体構造](docs/ja/ARCHITECTURE.md) |
+| [Terminal and screen](docs/en/TERMINAL.md) | [端末と画面制御](docs/ja/TERMINAL.md) |
+| [TTY settings](docs/en/TTY.md) | [TTY設定](docs/ja/TTY.md) |
+| [Internals](docs/en/INTERNAL.md) | [内部構造](docs/ja/INTERNAL.md) |
