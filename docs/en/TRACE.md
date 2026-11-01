@@ -47,6 +47,17 @@ The 16 KiB (512-event) ring buffer is still used. Long-running programs may over
 
 The display contains time, PID, command, TTY (`console` / `uart1` / `-`), event, call, target, return value, and data columns. The trace command's own system calls and related context switches are excluded from capture.
 
+## Try it: observe system calls and task switches
+
+```text
+trace run hello
+trace run ls
+```
+
+After each program exits, its trace is displayed. Compare `ENTER` and `EXIT` records to see which system calls it made. `SWITCH` marks a context switch; filtering uses the destination PID.
+
+For a longer capture, start with `trace on`, run another command, then inspect the result using `trace show` (which stops capture). On long runs, older events may be overwritten in the ring buffer.
+
 ## `/dev/trace` binary format
 
 Records are **32 bytes each**, as defined by `trace_event_t` in `userland/trace.h`. The kernel holds **16 KiB (512 events)** in a ring buffer; new events overwrite the oldest when full.

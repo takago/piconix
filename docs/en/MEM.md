@@ -19,3 +19,13 @@ Use `mem -s` to list symbol sources, and `mem -s sh` or `mem -s kernel` to list 
 | `q` | Quit |
 
 Memory browsing continues if symbols are unavailable.
+
+
+## Try it: compare RAM and Flash
+
+1. Start `mem` and note the displayed address and any changing bytes. Highlighting indicates observed changes; it is not a write operation.
+2. Press `1`–`6` to visit user-task RAM slots. Compare the slot addresses with the task names displayed at the bottom of the viewer.
+3. Press `k` for kernel RAM and `K` for XIP Flash. Compare the address ranges and content; much of the kernel code executes directly from Flash via XIP.
+4. Quit with `q`, then run `mem -s` or `mem -s kernel` to inspect available symbol information. Symbols help identify addresses, but not every address has a symbol.
+
+**Note:** Live RAM can change during inspection. The display is not an atomic snapshot, and `mem` cannot write to memory.
