@@ -27,7 +27,13 @@
 #define PBUF_POOL_BUFSIZE 512
 #define MEMP_NUM_TCP_PCB 5
 #define MEMP_NUM_TCP_PCB_LISTEN 5 /* Telnet + user TCP; HTTP will require another */
-#define MEMP_NUM_UDP_PCB 3 /* DHCP + device service + user UDP */
+#define MEMP_NUM_UDP_PCB 4 /* DHCP + device service + user UDP + mDNS */
+#define LWIP_MDNS_RESPONDER 1
+/* mDNS probing/announcements need timeout entries beyond lwIP core timers.
+ * Keep four extra entries for transient mDNS timers in both STA and AP. */
+#define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 4)
+#define LWIP_IGMP 1
+#define LWIP_NUM_NETIF_CLIENT_DATA 1
 #define TCP_MSS 536
 #define TCP_WND (2 * TCP_MSS)
 #define TCP_SND_BUF (2 * TCP_MSS)

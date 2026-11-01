@@ -38,7 +38,7 @@ PicoNIX has no Linux ELF loader, MMU-based process isolation, dynamic linking or
 | `0x20022000` | Task slot 4 | 24 KiB |
 | `0x20028000` | Task slot 5 | 24 KiB |
 | `0x2002E000` | Task slot 6 | 24 KiB |
-| `0x20034000` | Reserved / unassigned | 16 KiB |
+| `0x20034000` | Dedicated trace ring | 16 KiB |
 | `0x20038000` | Network reserve | 32 KiB |
 
 The final 4 KiB of each task slot is reserved for its stack, leaving at most 20 KiB for application image and static data. Six task slots are available; idle processing is managed separately.
@@ -107,7 +107,7 @@ See [Devices and wiring](DEVICES.md) for device paths and pin assignments. Each 
 
 ## 8. Tracing and debugging
 
-The kernel uses a ring buffer of 512 records of 32 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text.
+The kernel uses a dedicated ring buffer at `0x20034000`–`0x20037FFF`, holding 512 records of 32 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text.
 
 ```text
 trace on

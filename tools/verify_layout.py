@@ -52,11 +52,13 @@ def main():
             sys.exit(f'ERROR: {key} overlaps task slots')
         print(f'{key}: 0x{addr:08x}')
     if args.slots == 6:
+        if sym.get('trace_ring') != 0x20034000:
+            sys.exit('ERROR: trace_ring must be located at 0x20034000')
         reserve_start = 0x20038000
         reserve_end = MAIN_END
         if end > reserve_start:
             sys.exit('ERROR: task slots overlap the network reserve')
-        print(f'Unallocated gap: 0x{end:08x}..0x{reserve_start-1:08x} ({reserve_start-end} bytes)')
+        print(f'Trace ring gap: 0x{end:08x}..0x{reserve_start-1:08x} ({reserve_start-end} bytes, allocated to trace)')
         # The lwIP heap is an absolute address, not an ELF symbol. Verify the
         # intended reservation and heap definition together, before trusting it.
         from pathlib import Path

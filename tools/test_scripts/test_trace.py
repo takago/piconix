@@ -10,11 +10,12 @@ with tempfile.TemporaryDirectory() as d:
     subprocess.run(['cc','-std=c11','-I',str(ROOT/'userland'),'-fsyntax-only',str(f)], check=True)
 source = (ROOT/'kernel/kernel.c').read_text()
 v = source
-assert 'static trace_event_t trace_ring[TRACE_CAPACITY];' in source
+assert 'extern trace_event_t trace_ring[TRACE_CAPACITY];' in source
+assert '.set trace_ring, 0x20034000' in source
 assert '#define TRACE_CAPACITY 512u' in source
 audit_source = (ROOT/'tools/audit_firmware.py').read_text()
-assert "symbol_sizes.get('trace_ring')" in audit_source
-assert 'Trace ring            16384 bytes' not in audit_source
+assert "symbols.get('trace_ring') != 0x20034000" in audit_source
+assert '0x20034000..0x20037fff, reserved gap' in audit_source
 assert 'trace_enabled=0;' in source
 assert 'trace_enabled=1;' in source
 assert 'PICONIX_FIXED_DEVICES(DEVICE_ENTRY)' in v

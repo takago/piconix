@@ -132,10 +132,7 @@ def memory_report(sections, symbol_sizes, slots=6):
         print(f'User slot {i+1} (24 KiB)  0x{base:08x}..0x{base+0x5fff:08x}     reserved (runtime)')
     if slots == 6:
         print('Network reserved     0x20038000..0x2003ffff      32768 bytes (not allocated)')
-    trace_bytes = symbol_sizes.get('trace_ring')
-    print(f'Trace ring            {trace_bytes} bytes (inside kernel .bss)'
-          if trace_bytes is not None else
-          'Trace ring            UNKNOWN (trace_ring symbol size unavailable)')
+    print('Trace ring            16384 bytes (0x20034000..0x20037fff, reserved gap)')
     print('Kernel section breakdown (allocated SRAM):')
     for name, size, addr in sorted(ram_sections, key=lambda x: x[2]):
         print(f'  {name:22s} 0x{addr:08x}  {size:6d} bytes')
@@ -156,8 +153,8 @@ def main():
     except (OSError, subprocess.CalledProcessError) as e:
         sys.exit(f'FAIL: cannot inspect firmware ELF: {e}')
     problems = audit(symbols, sections, args.slots)
-    if symbol_sizes.get('trace_ring') is None:
-        problems.append('missing trace_ring symbol size in linked ELF')
+    if symbols.get('trace_ring') != 0x20034000:
+        problems.append('trace_ring must start at 0x20034000 (reserved 16-KiB gap)')
     memory_report(sections, symbol_sizes, args.slots)
     for name in ('.boot2', '.flashtext', '.ram_vector_table'):
         print(f'{name}: {sections.get(name, "MISSING")}')

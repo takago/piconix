@@ -19,6 +19,7 @@ This document summarizes the **current implementation and fixed resource limits*
 | Size per slot | 24 KiB (24,576 bytes) |
 | Kernel SRAM | `0x20000000`–`0x2000FFFF` (64 KiB) |
 | Task slot area | `0x20010000`–`0x20033FFF` (144 KiB) |
+| Dedicated trace ring | `0x20034000`–`0x20037FFF` (16 KiB, kernel-managed) |
 | Reserved networking area | `0x20038000`–`0x2003FFFF` (32 KiB) |
 | Image/zero-initialized region check | Slot size minus 4 KiB |
 

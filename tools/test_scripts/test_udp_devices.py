@@ -12,7 +12,7 @@ assert 'udp_bind(device_pcb,IP_ANY_TYPE,2000)' in n
 assert 'net_device_request(device_req,device_req_len' in n
 assert 'int net_device_request(' in n
 assert 'int net_device_request(' not in k
-assert 'MEMP_NUM_UDP_PCB 3' in l
+assert 'MEMP_NUM_UDP_PCB 4' in l
 assert 'gpio_driver_ioctl(pin,enable ? OS_GPIO_OUTPUT : OS_GPIO_INPUT)' in n
 assert 'gpio_driver_rw(0,pin,&value,1,1)' in n
 assert 'gpio_driver_rw(0,pin,out,1,0)' in n

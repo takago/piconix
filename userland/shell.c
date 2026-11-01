@@ -435,7 +435,7 @@ int main(int argc, char *argv[]) {
     /* USB CDC may enumerate after the shell task starts.  Do not discard the banner. */
     while(!console_ready()) msleep(10);
     char id_line[] = "FlashID: 00000000\r\n";
-    static const char hex[] = "0123456789ABCDEF";
+    static const char hex[] = "0123456789abcdef";
     unsigned id = flash_id();
     for (unsigned i=0; i<8; ++i)
         id_line[9+i] = hex[(id >> (28-4*i)) & 15u];

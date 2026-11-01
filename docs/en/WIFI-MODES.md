@@ -48,3 +48,25 @@ For stalled communication, capture ARP/ICMP traffic on the host.
 The firmware must still pass the linked ELF's 64-KiB kernel SRAM checks.
 Build and hardware validation are required before treating the workaround
 as a confirmed solution.
+
+## mDNS hostnames
+
+Pico W builds use the lwIP mDNS responder. In STA mode, after DHCP has assigned an address, the device advertises `piconix-xxxxxxxx.local`, where `xxxxxxxx` is the eight-digit lowercase hexadecimal Flash ID (for example, `piconix-4353ba2e.local`). In AP mode, the fixed hostname is `piconix.local`, and the AP address is `192.168.4.1`.
+
+```sh
+# STA mode: replace the example Flash ID with the device's ID
+avahi-resolve-host-name piconix-4353ba2e.local
+telnet piconix-4353ba2e.local
+
+# From a client joined to PicoNIX AP
+telnet piconix.local
+```
+
+`MDNS_NAME` in `/proc/net/wifi` is the advertised hostname; `MDNS_ACTIVE` reports responder registration and `MDNS_ERROR` reports the registration error. mDNS resolves names to IP addresses; it does not replace ARP resolution from IPv4 addresses to MAC addresses. Client-side mDNS support is required for `.local` names.
+
+## STA gratuitous ARP (experimental)
+
+After obtaining an IPv4 address through DHCP, STA mode sends a gratuitous ARP (GARP) every 60 seconds as an experimental workaround. `GARP_INTERVAL_S` reports the interval; `GARP_OK` and `GARP_ERROR` count the lwIP transmission API's results. API success does not prove delivery over the air or arrival at another host. AP mode does not perform these periodic transmissions.
+
+In diagnostic testing, GARP packets arrived irregularly over one Linux Wi-Fi/AP combination, but regularly on a wired interface on that AP and over Wi-Fi with a different AP. This does not establish a PicoNIX timer defect; investigate access-point and client-driver combinations before drawing conclusions. Periodic GARP is not a permanent fix for ARP connectivity faults.
+

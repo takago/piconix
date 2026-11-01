@@ -227,10 +227,16 @@ typedef struct {
     unsigned head,tail,used,offset;
 } tty_buffer_t;
 static tty_buffer_t tty_buf[OS_TTY_COUNT];
-/* Fixed 32-KiB trace ring, 1024 records of 32 bytes. */
+/* Fixed 16-KiB trace ring in the otherwise unused SRAM gap after six task slots. */
 #define TRACE_CAPACITY 512u
 _Static_assert(sizeof(trace_event_t) == 32, "trace record must be 32 bytes");
-static trace_event_t trace_ring[TRACE_CAPACITY];
+_Static_assert(TRACE_CAPACITY * sizeof(trace_event_t) == 0x4000u,
+               "trace ring must exactly fit the 16-KiB SRAM gap");
+/* As with task_ram, this is an explicit physical reservation, not kernel .bss.
+ * 0x20034000..0x20037fff is after all six 24-KiB task slots, before Wi-Fi.
+ * The ring is accessed only when trace_count > 0, so no startup zeroing needed. */
+__asm__(".global trace_ring\n.set trace_ring, 0x20034000");
+extern trace_event_t trace_ring[TRACE_CAPACITY];
 static uint32_t trace_head;
 static uint32_t trace_count;
 static uint32_t trace_serial;
@@ -966,7 +972,13 @@ static int path_match(const char *p, const char *s) {
     return strcmp(p,s)==0;
 }
 /* Small volatile regular-file store; IDs are disjoint from devices. */
+/* Reserve one former RAM-file slot for lwIP mDNS static state.
+ * Retain the 1024-byte per-file limit used by edit/as/python. */
+#if PICONIX_WIFI && PICONIX_WIFI_STA
+#define TMP_FILES 7
+#else
 #define TMP_FILES 8
+#endif
 /* Keep the RAM filesystem within the 64-KiB kernel SRAM region. */
 #define TMP_BYTES 1024
 static struct { char name[16]; uint16_t size; uint8_t used; uint8_t data[TMP_BYTES]; } tmp_files[TMP_FILES];
@@ -1524,7 +1536,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
                          (unsigned long)t,(unsigned long)psv,(unsigned long)svc,(unsigned long)uart1_irqs);
             break;
         case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
-        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-%08lX (%d x 24 KiB)\n%s", (unsigned long)(0x20010000u + OS_MAX_TASKS * OS_TASK_BYTES - 1u), OS_MAX_TASKS, "net    20038000-2003FFFF (32 KiB reserved)\n"); break;
+        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-%08lX (%d x 24 KiB)\ntrace  20034000-20037FFF (16 KiB)\n%s", (unsigned long)(0x20010000u + OS_MAX_TASKS * OS_TASK_BYTES - 1u), OS_MAX_TASKS, "net    20038000-2003FFFF (32 KiB reserved)\n"); break;
     }
     if(len<0) return OS_EINVAL;
     if((size_t)len>=sizeof text) len=sizeof text-1;

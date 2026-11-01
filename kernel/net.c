@@ -10,6 +10,8 @@
 #include "pico/stdlib.h"
 #include "lwip/netif.h"
 #include "lwip/dhcp.h"
+#include "lwip/etharp.h"
+#include "lwip/apps/mdns.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/tcp.h"
 #include "lwip/udp.h"
@@ -38,6 +40,40 @@ static volatile int sta_manual_restart;
 static int sta_link;
 static int sta_tcpip_link;
 static int sta_dhcp_bound;
+/* Stable per-device .local hostname; service is only active after DHCP. */
+static char sta_mdns_name[18]; /* piconix- + 8 hex digits + NUL */
+static int sta_mdns_registered;
+static int sta_mdns_error;
+static uint32_t sta_mdns_ip;
+static int sta_mdns_link_was_down;
+static void sta_mdns_remove(void) {
+    if (sta_mdns_registered) {
+        mdns_resp_remove_netif(&cyw43_state.netif[CYW43_ITF_STA]);
+        sta_mdns_registered = 0;
+    }
+    sta_mdns_ip = 0;
+}
+static void sta_mdns_ready(struct netif *iface) {
+    uint32_t ip = ip4_addr_get_u32(netif_ip4_addr(iface));
+    if (!sta_mdns_registered) {
+        sta_mdns_error = (int)mdns_resp_add_netif(iface, sta_mdns_name);
+        sta_mdns_registered = (sta_mdns_error == ERR_OK);
+        sta_mdns_ip = sta_mdns_registered ? ip : 0;
+        sta_mdns_link_was_down = 0;
+    } else if (ip != sta_mdns_ip) {
+        sta_mdns_ip = ip;
+        mdns_resp_announce(iface);
+    } else if (sta_mdns_link_was_down) {
+        mdns_resp_restart(iface);
+        sta_mdns_link_was_down = 0;
+    }
+}
+
+/* Experimental STA-only GARP; run from the existing lwIP poll context. */
+#define STA_GARP_INTERVAL_US 60000000ull
+static uint64_t sta_garp_next_us;
+static uint32_t sta_garp_ok;
+static uint32_t sta_garp_error;
 static unsigned sta_attempts;
 static uint64_t sta_started_us;
 static uint64_t sta_retry_us;
@@ -70,6 +106,8 @@ static void sta_reset_association(char reason) {
     sta_connecting = 0;
     sta_connected = 0;
     sta_link_lost_us = 0;
+    sta_garp_next_us = 0;
+    sta_mdns_remove();
 }
 
 static void sta_begin_connect(void) {
@@ -116,11 +154,26 @@ static void sta_poll(void) {
         sta_connected = 1;
         sta_link_lost_us = 0;
         sta_error = 0;
-        if (!ip4_addr_isany_val(*netif_ip4_addr(iface)))
+        if (!ip4_addr_isany_val(*netif_ip4_addr(iface))) {
             sta_start_services();
+            sta_mdns_ready(iface);
+            /* First announcement one interval after address acquisition.
+             * No Wi-Fi driver calls from a syscall or timer interrupt. */
+            if (!sta_garp_next_us)
+                sta_garp_next_us = now + STA_GARP_INTERVAL_US;
+            if ((int64_t)(now - sta_garp_next_us) >= 0) {
+                err_t err = etharp_gratuitous(iface);
+                if (err == ERR_OK) ++sta_garp_ok;
+                else ++sta_garp_error;
+                sta_garp_next_us = now + STA_GARP_INTERVAL_US;
+            }
+        }
         return;
     }
 
+    sta_garp_next_us = 0; /* Re-arm only after DHCP/link readiness. */
+    if (sta_mdns_registered) sta_mdns_link_was_down = 1;
+    if (!sta_dhcp_bound) sta_mdns_remove();
     if (sta_connected) {
         /* Ignore short-lived link-status changes during reassociation. */
         if (!sta_link_lost_us) sta_link_lost_us = now;
@@ -156,6 +209,8 @@ static void sta_start_services(void) {
 #endif
 
 #if !PICONIX_WIFI_STA
+static int ap_mdns_registered;
+static int ap_mdns_error;
 static struct udp_pcb *dhcp_pcb;
 #define DHCP_OPTIONS_OFFSET 240u
 /* Reply options are fixed; avoid a padded 300-byte stack buffer. */
@@ -302,6 +357,12 @@ void net_init(void) {
     strncpy(wifi_ssid, PICONIX_STA_SSID, sizeof(wifi_ssid)-1);
     wifi_ssid[sizeof(wifi_ssid)-1] = 0;
     cyw43_arch_enable_sta_mode();
+    static const char hex[] = "0123456789abcdef";
+    uint32_t fid = piconix_flash_id();
+    memcpy(sta_mdns_name,"piconix-",8);
+    for (unsigned i=0;i<8;i++) sta_mdns_name[8+i] = hex[(fid >> (28-4*i)) & 15u];
+    sta_mdns_name[16] = 0;
+    mdns_resp_init();
     /* STA-only power management configuration is deferred to the first
      * idle/net_poll call, keeping driver work off the boot stack. */
     /* Nonblocking: continue servicing Wi-Fi and the shell while joining. */
@@ -320,7 +381,11 @@ void net_init(void) {
     IP4_ADDR(&ip, 192, 168, 4, 1);
     IP4_ADDR(&mask, 255, 255, 255, 0);
     IP4_ADDR(&gw, 192, 168, 4, 1);
-    netif_set_addr(&cyw43_state.netif[CYW43_ITF_AP], &ip, &mask, &gw);
+    struct netif *ap_iface = &cyw43_state.netif[CYW43_ITF_AP];
+    netif_set_addr(ap_iface, &ip, &mask, &gw);
+    mdns_resp_init();
+    ap_mdns_error = (int)mdns_resp_add_netif(ap_iface, "piconix");
+    ap_mdns_registered = (ap_mdns_error == ERR_OK);
 #endif
     int telnet_ready = net_service_telnet_init();
     int dhcp_ready = ap_dhcp_server_start();
@@ -416,22 +481,28 @@ int net_wifi_info(char *out, unsigned size) {
         "ATTEMPTS: %u\nCONNECT_ERROR: %d\nLINK_CODE: %d\n"
         "WIFI_LINK: %d\nTCPIP_LINK: %d\nDHCP_BOUND: %d\n"
         "LAST_RESET: %c\nIP: %s\nNETMASK: %s\nGATEWAY: %s\nMAC: N/A\nRSSI: %s\n"
-        "PM_ERROR: %d\nPOLL_COUNT: %lu\nPOLL_MAX_GAP_MS: %lu\nIDLE_STACK: %u/%u\n",
+        "PM_ERROR: %d\nPOLL_COUNT: %lu\nPOLL_MAX_GAP_MS: %lu\n"
+        "GARP_INTERVAL_S: 60\nGARP_OK: %lu\nGARP_ERROR: %lu\n"
+        "MDNS_NAME: %s.local\nMDNS_ACTIVE: %d\nMDNS_ERROR: %d\n"
+        "IDLE_STACK: %u/%u\n",
         sta_link_name(sta_tcpip_link), wifi_ssid, sta_attempts, sta_error,
         sta_link, sta_link, sta_tcpip_link, sta_dhcp_bound,
         sta_last_reset, ip, mask, gw, rssi,
         sta_pm_error, (unsigned long)net_poll_count,
         (unsigned long)(net_poll_max_gap_us / 1000u),
+        (unsigned long)sta_garp_ok, (unsigned long)sta_garp_error,
+        sta_mdns_name, sta_mdns_registered, sta_mdns_error,
         os_idle_stack_used_bytes(), os_idle_stack_capacity_bytes());
     if (len < 0) return 0;
     if ((unsigned)len >= size) return (int)(size - 1u);
     return len;
 #else
     return snprintf(out,size,
-        "MODE: %s\nSSID: %s\nMAC: N/A\n"
-        "IP: %s\nNETMASK: %s\nGATEWAY: %s\nRSSI: %s\n",
-        PICONIX_WIFI_STA ? "STA" : "AP", wifi_ssid,
-        ip, mask, gw, rssi);
+        "MODE: AP\nSSID: %s\nMAC: N/A\n"
+        "IP: %s\nNETMASK: %s\nGATEWAY: %s\nRSSI: %s\n"
+        "MDNS_NAME: piconix.local\nMDNS_ACTIVE: %d\nMDNS_ERROR: %d\n",
+        wifi_ssid, ip, mask, gw, rssi,
+        ap_mdns_registered, ap_mdns_error);
 #endif
 }
 #else
