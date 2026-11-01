@@ -127,24 +127,36 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 
 **Start here / まずはこちら：** [Documentation Guide](docs/en/DOCS.md) / [文書案内](docs/ja/DOCS.md) — recommended reading order and links to detailed references.
 
+### Setup / セットアップ
+
 | English | 日本語 |
 |---|---|
-| [Overview and guides](docs/en/README.md) | [概要・文書一覧](docs/ja/README.md) |
 | [Setup](docs/en/SETUP.md) | [セットアップ](docs/ja/SETUP.md) |
 | [Network access](docs/en/NETWORK.md) | [ネットワーク接続](docs/ja/NETWORK.md) |
 | [Wi-Fi modes](docs/en/WIFI-MODES.md) | [Wi-Fiモード](docs/ja/WIFI-MODES.md) |
-| [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) |
+
+### Understanding PicoNIX / PicoNIXを理解する
+
+| English | 日本語 |
+|---|---|
+| [Overview and guides](docs/en/README.md) | [概要・文書一覧](docs/ja/README.md) |
+| [Architecture](docs/en/ARCHITECTURE.md) | [全体構造](docs/ja/ARCHITECTURE.md) |
+| [Internals](docs/en/INTERNAL.md) | [内部構造](docs/ja/INTERNAL.md) |
 | [Pipes and standard I/O](docs/en/PIPE.md) | [パイプと標準入出力](docs/ja/PIPE.md) |
-| [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
+| [Terminal and screen](docs/en/TERMINAL.md) | [端末と画面制御](docs/ja/TERMINAL.md) |
+| [TTY settings](docs/en/TTY.md) | [TTY設定](docs/ja/TTY.md) |
+| [Devices](docs/en/DEVICES.md) | [デバイス](docs/ja/DEVICES.md) |
+| [System-call and context-switch tracing](docs/en/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/TRACE.md) |
+| [Memory inspection](docs/en/MEM.md) | [メモリ参照](docs/ja/MEM.md) |
+
+### Development / 開発
+
+| English | 日本語 |
+|---|---|
 | [C application development](docs/en/PROGRAMMING.md) | [Cアプリ開発](docs/ja/PROGRAMMING.md) |
 | [Assembly programming](docs/en/ASM.md) | [アセンブリプログラミング](docs/ja/ASM.md) |
 | [C library and APIs](docs/en/LIBC.md) | [CライブラリとAPI](docs/ja/LIBC.md) |
 | [System call reference](docs/en/SYSCALLS.md) | [システムコール一覧](docs/ja/SYSCALLS.md) |
-| [System-call and context-switch tracing](docs/en/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/TRACE.md) |
+| [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) |
+| [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
 | [Text editing](docs/en/EDIT.md) | [テキスト編集](docs/ja/EDIT.md) |
-| [Memory inspection](docs/en/MEM.md) | [メモリ参照](docs/ja/MEM.md) |
-| [Devices](docs/en/DEVICES.md) | [デバイス](docs/ja/DEVICES.md) |
-| [Architecture](docs/en/ARCHITECTURE.md) | [全体構造](docs/ja/ARCHITECTURE.md) |
-| [Terminal and screen](docs/en/TERMINAL.md) | [端末と画面制御](docs/ja/TERMINAL.md) |
-| [TTY settings](docs/en/TTY.md) | [TTY設定](docs/ja/TTY.md) |
-| [Internals](docs/en/INTERNAL.md) | [内部構造](docs/ja/INTERNAL.md) |
