@@ -212,20 +212,12 @@ The two readings will not be exactly equal, since they occur at different times.
 - Run `python3 tools/run_tests.py`, then `python3 tools/run_tests.py --all` with the ARM toolchain, and test on Pico/Pico W hardware.
 - Update both languages of `SYSCALLS.md`, `LIBC.md`, and `DEVICES.md`; check existing tests for fixed syscall and device-ID assumptions.
 
+
+For firmware builds and toolchain setup, see [SETUP.md](SETUP.md). Passing static tests does not guarantee hardware behavior; new peripherals or interrupt handlers also require concurrency and extended runtime testing on actual boards.
+
 The goal is to learn **two ways of exposing existing kernel state**, not to add a new timekeeping subsystem.
 
-## 5. Changes, verification and documentation
-
-```bash
-python3 tools/run_tests.py
-python3 tools/run_tests.py --all
-```
-
-The `--all` tests also need an ARM toolchain. Use [SETUP.md](SETUP.md) for SDK setup and complete firmware builds. **Passing static tests does not prove hardware behavior.** Check actual boards separately for device I/O, concurrency and longer operation.
-
-Recommended checklist: kernel implementation → user wrappers and headers → tests → English and Japanese references → README/DOCS links if new documents are added.
-
-## 6. Related documents
+## 5. Related documents
 
 - [SYSCALLS.md](SYSCALLS.md): ABI, arguments and return values
 - [LIBC.md](LIBC.md): C library and wrappers
