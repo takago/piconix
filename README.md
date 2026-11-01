@@ -137,6 +137,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Pipes and standard I/O](docs/en/PIPE.md) | [パイプと標準入出力](docs/ja/PIPE.md) |
 | [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
 | [C application development](docs/en/PROGRAMMING.md) | [Cアプリ開発](docs/ja/PROGRAMMING.md) |
+| [Assembly programming](docs/en/ASM.md) | [アセンブリプログラミング](docs/ja/ASM.md) |
 | [C library and APIs](docs/en/LIBC.md) | [CライブラリとAPI](docs/ja/LIBC.md) |
 | [System call reference](docs/en/SYSCALLS.md) | [システムコール一覧](docs/ja/SYSCALLS.md) |
 | [Devices](docs/en/DEVICES.md) | [デバイス](docs/ja/DEVICES.md) |
