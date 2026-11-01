@@ -20,7 +20,7 @@ Pipelines may contain two or three commands; four or more stages are not support
 - The shell saves stdin/stdout using `dup()` and connects FD 0 (stdin) and FD 1 (stdout) with `dup2()`.
 - Child tasks inherit descriptors on spawn. The shell closes unused endpoints and restores its standard descriptors afterward.
 - After all writers close and buffered data is consumed, reading returns EOF (zero bytes). Writing with no readers returns an error.
-- Blocking reads on an empty pipe and writes to a full pipe wait for progress. Nonblocking operations return an `EAGAIN`-style error.
+- Reading from an empty pipe or writing to a full pipe waits for progress. The internal implementation has an `O_NONBLOCK` branch returning `OS_EAGAIN`, but the current `fcntl(F_SETFL)` does not support pipe descriptors. Therefore applications cannot enable nonblocking pipes through the public API.
 
 ## Limits and shell restrictions
 

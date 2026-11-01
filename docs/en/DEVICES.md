@@ -12,6 +12,8 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 |---|---|
 | `/dev/console` | Main console (USB CDC or UART0 build) |
 | `/dev/uart1` | UART1 terminal |
+| `/dev/wifi` | Network terminal in Wi-Fi builds (see [NETWORK.md](NETWORK.md)) |
+| `/dev/rand` | Non-cryptographic pseudorandom bytes (read-only; at most 4 bytes per `read()` call) |
 | `/dev/gpio/fb` | 64-bit framebuffer for an 8×8 LED matrix |
 | `/dev/gpio/` | Pins configured for GPIO in `pins.h` |
 | `/dev/adc/` | Enabled ADC inputs and on-chip temperature sensor |

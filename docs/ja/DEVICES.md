@@ -12,6 +12,8 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 |---|---|
 | `/dev/console` | 主コンソール（USB CDCまたはUART0構成） |
 | `/dev/uart1` | UART1端末 |
+| `/dev/wifi` | Wi-Fiビルド時のネットワーク端末（[NETWORK.md](NETWORK.md)参照） |
+| `/dev/rand` | 暗号用途には使えない疑似乱数（読み取り専用，1回の`read()`につき最大4バイト） |
 | `/dev/gpio/fb` | 8×8 LEDマトリクス用64bitフレームバッファ |
 | `/dev/gpio/` | `pins.h`でGPIO指定されたピン |
 | `/dev/adc/` | `pins.h`でADC指定された入力および内部温度センサー |

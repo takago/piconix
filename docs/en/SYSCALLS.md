@@ -60,7 +60,7 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 - `tty_spawn(tty, program)`: `tty` is 1 or 2; `program` is the registered shell/getty program ID (currently 2 or 4).
 - `getcwd(buf, size)`: the raw syscall returns 0 on success; the C wrapper instead returns `buf` on success.
 - `lseek(fd, offset, whence)`: only `SEEK_SET` (0) is supported, and only for specific files/devices.
-- `fcntl(fd, cmd, value)`: `cmd=1` corresponds to `F_GETFL`, and `cmd=2` to `F_SETFL`. Mutable flags and supported FD kinds are limited. Use `ioctl()` for TTY modes.
+- `fcntl(fd, cmd, value)`: `cmd=1` corresponds to `F_GETFL`, and `cmd=2` to `F_SETFL`. `F_SETFL` can change `O_NONBLOCK` on TTYs (console, UART1, and Wi-Fi TTY when enabled) and TCP/UDP sockets. Pipe descriptors, regular files, and other devices are not supported. Use `ioctl()` for TTY modes.
 - `pipe(fds)`: stores read FD in `fds[0]` and write FD in `fds[1]`. `dup()` and `dup2()` do not duplicate socket FDs.
 - `socket(domain, type, protocol)`: only `AF_INET` (2), `SOCK_STREAM` (1) or `SOCK_DGRAM` (2), and protocol 0 are accepted.
 - `bind_udp(fd, port)` and `tcp_listen(fd, port)`: port must be 1–65535. These operate on different socket types.

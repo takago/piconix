@@ -25,6 +25,10 @@ C applications can use `ioctl()` with `OS_TTY_GET_CANON`, `OS_TTY_GET_ECHO`, `OS
 
 Use `fcntl(fd, F_GETFL, 0)` to read FD flags, and `fcntl(fd, F_SETFL, flags)` to change `O_NONBLOCK`. This is independent of canonical and echo modes. For immediate character input, select noncanonical mode and an appropriate blocking policy.
 
+In the current implementation, `F_SETFL` can change `O_NONBLOCK` on the USB CDC console, UART1, the Wi-Fi TTY (when enabled), and TCP/UDP socket descriptors. It is not supported for ordinary files, pipes, or other devices. At `open()` time, `O_NONBLOCK` is accepted only for `/dev/console` and `/dev/uart1`; for `/dev/wifi`, set it afterward with `fcntl()`.
+
+When no input is available, a nonblocking TTY `read()` returns **0** (not a negative `EAGAIN`-style error). Do not always interpret that 0 as permanent EOF. Pipes and sockets have different I/O semantics; see [Pipes](PIPE.md) and [Socket APIs](NETWORK-PROGRAMMING.md).
+
 ## Restoration and screen control
 
 `stty` and `reset` use `OS_TTY_PERSIST` to retain deliberate configuration changes. When a foreground task exits or is interrupted, the kernel restores its saved terminal settings. Interactive programs such as `mb` combine noncanonical input with nonblocking descriptors. `reset` does not change `O_NONBLOCK`.
