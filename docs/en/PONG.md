@@ -1,6 +1,6 @@
 # Pong
 
-PicoNIX Pong supports a single-terminal game against the CPU and a two-player game using `/dev/console` (USB CDC) and `/dev/uart1`. Either terminal can launch the game.
+PicoNIX Pong supports a single-terminal game against the CPU and a two-player game using `/dev/console` (USB CDC) and `/dev/ttyS1`. Either terminal can launch the game.
 
 ## Running
 

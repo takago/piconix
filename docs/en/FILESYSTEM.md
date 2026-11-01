@@ -48,7 +48,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 
 | Node | Read | Write | Notes |
 |---|:---:|:---:|---|
-| `/dev/console`, `/dev/uart1`, `/dev/wifi` | Yes | Yes | Terminals; `/dev/wifi` only in Wi-Fi builds |
+| `/dev/console`, `/dev/ttyS1`, `/dev/ttyN0` | Yes | Yes | Terminals; `/dev/ttyN0` only in Wi-Fi builds |
 | `/dev/rand` | Yes | No | Non-cryptographic PRNG; at most 4 bytes per read |
 | `/dev/mem` | Yes | No | Permitted XIP Flash and main SRAM; select address with `lseek()` |
 | `/dev/trace` | Yes | No | Binary records; see the `trace` command |

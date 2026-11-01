@@ -74,7 +74,7 @@ int main(int argc,char **argv) {
     if(side!=0 && side!=1) {puts("pong: unknown terminal");return 1;}
     int other=-1;
     if(two) {
-        const char *remote=side ? "/dev/console" : "/dev/uart1";
+        const char *remote=side ? "/dev/console" : "/dev/ttyS1";
         other=open(remote,O_RDWR|O_NONBLOCK);
         if(other<0){puts("pong: cannot open other terminal");return 1;}
         if(ioctl(other,OS_TTY_CLAIM,0)<0) {

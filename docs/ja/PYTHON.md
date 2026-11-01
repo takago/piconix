@@ -174,7 +174,7 @@ for i in range(10):
 ```text
 piconix# python test.py &
 piconix# python test.py > output.txt &
-piconix# getty /dev/uart1 python &
+piconix# getty /dev/ttyS1 python &
 ```
 
 最後の例はUART1側へPython REPLを接続するものです．`getty` は常駐デーモンではなく，指定TTYにプログラムを起動するコマンドです．セッション終了には `exit()` を使います．別端末の入力を取り合わないよう，**同じTTYで複数の対話プログラムを同時に実行しない**でください．

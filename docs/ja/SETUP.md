@@ -115,7 +115,7 @@ piconix# ps
 | シリアルポートを開けない | デバイス名，アクセス権，他の端末による占有 |
 | GPIO25が動かない | Raspberry Pi Picoのボード種別 |
 
-USBと別にUART1からShellを利用するには`getty /dev/uart1 sh &`を実行します．UART1の設定とCtrl+C／Ctrl+Dは[UARTと端末操作](UART.md)を参照してください．内部のRAM配置は[内部構造](INTERNAL.md)を参照してください．
+USBと別にUART1からShellを利用するには`getty /dev/ttyS1 sh &`を実行します．UART1の設定とCtrl+C／Ctrl+Dは[UARTと端末操作](UART.md)を参照してください．内部のRAM配置は[内部構造](INTERNAL.md)を参照してください．
 
 ## Pico Wのネットワーク接続
 

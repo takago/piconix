@@ -268,10 +268,10 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
     } else if(prefix(s,"getty ")) {
         const char *arg=s+6;
         int tty=0;
-        if(prefix(arg,"/dev/uart1 ")) {tty=2;arg+=11;}
+        if(prefix(arg,"/dev/ttyS1 ")) {tty=2;arg+=11;}
         else if(prefix(arg,"/dev/console ")) {tty=1;arg+=13;}
         if(!tty || !(eq(arg,"sh") || eq(arg,"python"))) {
-            put("usage: getty /dev/uart1 sh|python [&]\r\n");return;
+            put("usage: getty /dev/ttyS1 sh|python [&]\r\n");return;
         }
         int pid=tty_spawn(tty, eq(arg,"sh")?2:4);
         if(pid<0) {put("getty: terminal busy or no free slot\r\n");return;}

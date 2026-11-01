@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     if(path && !strcmp(path,"/dev/console")) {
         puts("cat: console reserved for shell");return 1;
     }
-    int uart=path && !strcmp(path,"/dev/uart1");
+    int uart=path && !strcmp(path,"/dev/ttyS1");
     int fd=path?open(path,uart?O_NONBLOCK:O_RDONLY):0;
     if(fd<0) {puts("cat: cannot open");return 1;}
     char buf[32]; int n=0, rc=0;

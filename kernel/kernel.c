@@ -40,6 +40,7 @@ enum {
     DEV_GPIO_VALUE_END = 29,
     DEV_UART1 = 30,
     DEV_WIFI_TTY = 97,
+    DEV_WIFI_CTRL = 138,
     DEV_PROC_UPTIME = 31,
     DEV_PROC_TICKS = 32,
     DEV_PROC_INTERRUPTS = 33,
@@ -71,15 +72,15 @@ enum {
 };
 enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
        VDIR_PWM, VDIR_PWM1, VDIR_PROC, VDIR_TASK, VDIR_SYM,
-       VDIR_USERLAND, VDIR_NET, VDIR_TMP, VDIR_ETC };
+       VDIR_USERLAND, VDIR_NET, VDIR_TMP, VDIR_ETC, VDIR_DEV_NET };
 
 static int path_match(const char *p, const char *s);
 
 /* Fixed device registry shared by open() and /proc/devices listing. */
 static const struct { const char *path; int id; } dev_registry[] = {
-    {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/uart1",DEV_UART1},
+    {"/dev/console",DEV_CONSOLE}, {"/dev/gpio/fb",DEV_FB}, {"/dev/ttyS1",DEV_UART1},
 #if PICONIX_WIFI
-    {"/dev/wifi",DEV_WIFI_TTY},
+    {"/dev/ttyN0",DEV_WIFI_TTY}, {"/dev/net/wifi",DEV_WIFI_CTRL},
 #endif
     {"/dev/rand",DEV_RAND}, {"/dev/mem",DEV_MEM}, {"/dev/trace",DEV_TRACE}
 };
@@ -109,7 +110,7 @@ static int vfs_fixed_path_id(const char *path) {
 static const char *const vdir_paths[] = {
     "/", "/bin", "/dev", "/dev/gpio", "/dev/adc",
     "/dev/pwm", "/dev/pwm/1", "/proc", "/proc/task",
-    "/proc/sym", "/proc/sym/userland", "/proc/net", "/tmp", "/etc"
+    "/proc/sym", "/proc/sym/userland", "/proc/net", "/tmp", "/etc", "/dev/net"
 };
 static int vfs_directory_id(const char *path) {
     for(unsigned i=0;i<sizeof(vdir_paths)/sizeof(vdir_paths[0]);i++)
@@ -118,7 +119,7 @@ static int vfs_directory_id(const char *path) {
 }
 
 static const char *vfs_directory_path(int id) {
-    return id>=VDIR_ROOT && id<=VDIR_ETC ? vdir_paths[id-VDIR_ROOT] : 0;
+    return id>=VDIR_ROOT && id<=VDIR_DEV_NET ? vdir_paths[id-VDIR_ROOT] : 0;
 }
 static const char *vfs_fixed_id_path(int id) {
     for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
@@ -1185,7 +1186,16 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
             const char *path=vfs_device_path(i);
             if(!strncmp(path,"/dev/",5) && !strchr(path+5,'/')) EMIT(path+5,0);
         }
-        EMIT("gpio",1); EMIT("adc",1); EMIT("pwm",1); break;
+        EMIT("gpio",1); EMIT("adc",1); EMIT("pwm",1);
+#if PICONIX_WIFI
+        EMIT("net",1);
+#endif
+        break;
+    case VDIR_DEV_NET:
+#if PICONIX_WIFI
+        EMIT("wifi",0);
+#endif
+        break;
     case VDIR_GPIO:
         EMIT("fb",0);
         for(unsigned i=0;i<=28;i++) if(pin_gpio(i)) {
@@ -1228,7 +1238,7 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
 static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
     if(fd<0 || fd>=OS_FD_MAX) return OS_EBADF;
     int dir=tasks[current].fd[fd];
-    if(dir<VDIR_ROOT || dir>VDIR_ETC) return OS_EBADF;
+    if(dir<VDIR_ROOT || dir>VDIR_DEV_NET) return OS_EBADF;
     if(n<sizeof(*out) || !in_task_range(out,sizeof(*out))) return OS_EINVAL;
     piconix_dirent_t entry={0};
     int found=vdir_nth(dir,tasks[current].fd_pos[fd],&entry);
@@ -1291,6 +1301,7 @@ static int vfs_open(const char *p, int flags) {
                    proc_device(dev) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_SYMS_KERNEL ||
                    (dev>DEV_SYMS_USER_BASE && dev<DEV_SYMS_USER_BASE+PROGRAM_CAPACITY) || dev==DEV_TRACE) &&
                   (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
+    if(dev==DEV_WIFI_CTRL && (flags & 3)!=OS_O_WRONLY) return OS_EINVAL;
     if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE) return OS_EINVAL;
     int fd=free_fd();
     if(fd<0) return OS_EMFILE;
@@ -1372,7 +1383,7 @@ static int proc_fb_read(int fd, void *dst, size_t n) {
 }
 /* Resolve an open descriptor from the kernel's authoritative device IDs. */
 static const char *fd_path(int dev, int task_pid, int tcp_id, char *buf, size_t size) {
-    if(dev>=VDIR_ROOT && dev<=VDIR_ETC) return vfs_directory_path(dev);
+    if(dev>=VDIR_ROOT && dev<=VDIR_DEV_NET) return vfs_directory_path(dev);
     const char *fixed=vfs_fixed_id_path(dev);
     if(fixed) return fixed;
     /* Socket descriptors are not VFS paths; expose meaningful /proc names. */
@@ -1630,7 +1641,7 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         int r=writing ? net_socket_tcp_write(id,p,(unsigned)n) : net_socket_tcp_read(id,p,(unsigned)n);
         return r==-2 ? (writing ? OS_EIO : 0) : r<0 ? OS_EIO : r==0 ? OS_EAGAIN : r;
     }
-    if(dev>=VDIR_ROOT && dev<=VDIR_ETC) return OS_EBADF;
+    if(dev>=VDIR_ROOT && dev<=VDIR_DEV_NET) return OS_EBADF;
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) return tmp_rw(fd,p,n,writing);
     if(dev==DEV_TRACE) {
         if(writing) return OS_EBADF;
@@ -1707,6 +1718,25 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         memmove(p,(const void *)(uintptr_t)addr,count);
         tasks[current].fd_pos[fd]=addr+(uint32_t)count;
         return (int)count;
+    }
+    if(dev==DEV_WIFI_CTRL) {
+        if(!writing) return OS_EBADF;
+        /* echo writes one byte at a time.  Parse the command per open FD
+         * so both byte-wise and buffered writes work without global state.
+         * Validate the entire write before queuing a restart. */
+        static const char cmd[] = "restart\n";
+        uint32_t pos = tasks[current].fd_pos[fd];
+        if(pos > sizeof(cmd)-1u || n > sizeof(cmd)-1u-pos)
+            return OS_EINVAL;
+        for(size_t i=0;i<n;i++)
+            if(((const char *)p)[i] != cmd[pos+i]) {
+                /* Newline is optional, but no other trailing text is. */
+                return OS_EINVAL;
+            }
+        if(pos < 7u && pos+n >= 7u && net_wifi_request_restart()!=0)
+            return OS_EIO;
+        tasks[current].fd_pos[fd] = pos + (uint32_t)n;
+        return (int)n;
     }
     if(dev==DEV_FB) return fb_rw(p,n,writing);
     if(dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) return device_rw_adc(fd,dev,p,n,writing);

@@ -11,8 +11,9 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 | Path | Purpose |
 |---|---|
 | `/dev/console` | Main console (USB CDC) |
-| `/dev/uart1` | UART1 terminal |
-| `/dev/wifi` | Network terminal in Wi-Fi builds (see [NETWORK.md](NETWORK.md)) |
+| `/dev/ttyS1` | UART1 terminal |
+| `/dev/ttyN0` | Network terminal in Wi-Fi builds (see [NETWORK.md](NETWORK.md)) |
+| `/dev/net/wifi` | STA control (`echo restart > /dev/net/wifi`); not available in non-Wi-Fi builds, AP mode rejects restart |
 | `/dev/rand` | Non-cryptographic pseudorandom bytes (read-only; at most 4 bytes per `read()` call) |
 | `/dev/gpio/fb` | 64-bit framebuffer for an 8×8 LED matrix |
 | `/dev/gpio/` | Pins configured for GPIO in `pins.h` |
@@ -134,7 +135,7 @@ Use a common GND and 3.3 V logic for UART; do not connect RS-232 voltages direct
 
 ## UART and console
 
-The main console uses USB CDC only. UART0 console builds are not supported. UART1 is accessible as `/dev/uart1`; `getty /dev/uart1 sh &` starts another shell. See [UART.md](UART.md).
+The main console uses USB CDC only. UART0 console builds are not supported. UART1 is accessible as `/dev/ttyS1`; `getty /dev/ttyS1 sh &` starts another shell. See [UART.md](UART.md).
 
 ## Constraints
 

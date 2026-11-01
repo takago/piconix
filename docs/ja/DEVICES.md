@@ -11,8 +11,9 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 | デバイス | 内容 |
 |---|---|
 | `/dev/console` | 主コンソール（USB CDC） |
-| `/dev/uart1` | UART1端末 |
-| `/dev/wifi` | Wi-Fiビルド時のネットワーク端末（[NETWORK.md](NETWORK.md)参照） |
+| `/dev/ttyS1` | UART1端末 |
+| `/dev/ttyN0` | Wi-Fiビルド時のネットワーク端末（[NETWORK.md](NETWORK.md)参照） |
+| `/dev/net/wifi` | STA制御（`echo restart > /dev/net/wifi`）．非Wi-Fiビルドでは存在せず，APモードではrestart不可 |
 | `/dev/rand` | 暗号用途には使えない疑似乱数（読み取り専用，1回の`read()`につき最大4バイト） |
 | `/dev/gpio/fb` | 8×8 LEDマトリクス用64bitフレームバッファ |
 | `/dev/gpio/` | `pins.h`でGPIO指定されたピン |
@@ -136,7 +137,7 @@ UART機器はGNDを共通にし，3.3 Vロジックを使用してください�
 
 ## UART・コンソール
 
-主コンソールはUSB CDCのみです．UART0コンソール構成はサポートしていません．UART1は`/dev/uart1`で利用し，`getty /dev/uart1 sh &`で別のShellを起動できます．詳細は[UART.md](UART.md)を参照してください．
+主コンソールはUSB CDCのみです．UART0コンソール構成はサポートしていません．UART1は`/dev/ttyS1`で利用し，`getty /dev/ttyS1 sh &`で別のShellを起動できます．詳細は[UART.md](UART.md)を参照してください．
 
 ## 制限と注意
 

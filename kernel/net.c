@@ -21,6 +21,12 @@
  * Stage 18: bounded queues for the independent network TTY. */
 static int wifi_ready;
 static char wifi_ssid[33];
+/* CYW43/lwIP is polled from the idle task, not the timer ISR.
+ * The 250 us minimum interval applies to STA and AP. In preliminary
+ * Pico W testing, 1 ms felt less responsive over Telnet; 500 us improved
+ * responsiveness, and 250 us is the current experimental default.
+ * This is a minimum interval, not a guaranteed periodic deadline. */
+#define NET_POLL_INTERVAL_US 250ull
 static uint64_t net_poll_last_us;
 static uint32_t net_poll_count;
 static uint32_t net_poll_max_gap_us;
@@ -28,6 +34,7 @@ static uint32_t net_poll_max_gap_us;
 /* Preserve diagnostics even if USB CDC was not attached during boot. */
 static int sta_error;
 static int sta_pm_error = -1;
+static volatile int sta_manual_restart;
 static int sta_link;
 static int sta_tcpip_link;
 static int sta_dhcp_bound;
@@ -82,6 +89,13 @@ static void sta_start_services(void);
  * association or DHCP in the boot path or while servicing a syscall. */
 static void sta_poll(void) {
     uint64_t now = time_us_64();
+    if (sta_manual_restart) {
+        sta_manual_restart = 0;
+        sta_reset_association('M');
+        sta_retry_us = now;
+        sta_begin_connect();
+        return;
+    }
     struct netif *iface = &cyw43_state.netif[CYW43_ITF_STA];
     if (!sta_attempts) {
         /* Configure STA power management from the idle/network thread,
@@ -355,6 +369,8 @@ void net_poll(void) {
     /* Measure the longest gap between network service opportunities.  This
      * includes times when user tasks preempt the idle polling task. */
     uint64_t now = time_us_64();
+    if (net_poll_last_us &&
+            now - net_poll_last_us < NET_POLL_INTERVAL_US) return;
     if (net_poll_last_us) {
         uint64_t gap = now - net_poll_last_us;
         if (gap > net_poll_max_gap_us)
@@ -428,3 +444,13 @@ int net_wifi_info(char *out, unsigned size) {
     return (int)n;
 }
 #endif
+
+int net_wifi_request_restart(void) {
+#if PICONIX_WIFI && PICONIX_WIFI_STA
+    if (!wifi_ready) return -1;
+    sta_manual_restart = 1;
+    return 0;
+#else
+    return -1;
+#endif
+}

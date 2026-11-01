@@ -115,7 +115,7 @@ Use Ctrl+C to interrupt a foreground program. When using `kill`, obtain the PID 
 | Cannot open serial port | Device name, permissions, and other programs using the port |
 | GPIO25 does not work | Confirm the Raspberry Pi Pico board variant |
 
-For a separate UART1 shell, run `getty /dev/uart1 sh &`. See [UART and terminals](UART.md) for serial configuration and Ctrl+C/Ctrl+D behavior, and [Internals](INTERNAL.md) for RAM layout.
+For a separate UART1 shell, run `getty /dev/ttyS1 sh &`. See [UART and terminals](UART.md) for serial configuration and Ctrl+C/Ctrl+D behavior, and [Internals](INTERNAL.md) for RAM layout.
 
 ## Pico W network access
 

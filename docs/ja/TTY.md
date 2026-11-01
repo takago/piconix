@@ -25,7 +25,7 @@ Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_
 
 `fcntl(fd, F_GETFL, 0)` でフラグを取得し，`fcntl(fd, F_SETFL, flags)` で `O_NONBLOCK` を設定します．端末のcanonical/echo設定とは独立しています．文字単位の入力が必要なら，`-icanon` と適切なブロッキング設定を組み合わせて使います．
 
-現行実装で `F_SETFL` による `O_NONBLOCK` の変更が可能なのは，USB CDCコンソール，UART1，Wi-Fi TTY（有効な場合），TCP/UDPソケットのFDです．通常ファイル，パイプ，デバイス一般への変更には対応していません．`open()` 時に `O_NONBLOCK` を指定できるのは `/dev/console` と `/dev/uart1` に限られ，`/dev/wifi` は `open()` 後に `fcntl()` で設定します．
+現行実装で `F_SETFL` による `O_NONBLOCK` の変更が可能なのは，USB CDCコンソール，UART1，Wi-Fi TTY（有効な場合），TCP/UDPソケットのFDです．通常ファイル，パイプ，デバイス一般への変更には対応していません．`open()` 時に `O_NONBLOCK` を指定できるのは `/dev/console` と `/dev/ttyS1` に限られ，`/dev/ttyN0` は `open()` 後に `fcntl()` で設定します．
 
 TTYの非canonical入力で受信データがない場合，`O_NONBLOCK` が設定された `read()` は **0** を返します（`EAGAIN` 相当の負値ではありません）．したがって0を常に恒久的なEOFと解釈しないでください．ソケットやパイプのI/O動作はTTYと異なるため，[パイプ](PIPE.md)と[ソケットAPI](NETWORK-PROGRAMMING.md)も参照してください．
 

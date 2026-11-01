@@ -12,3 +12,6 @@ int net_terminal_write(const void *src, unsigned size);
 
 /* Format the current Wi-Fi interface state for /proc/net/wifi. */
 int net_wifi_info(char *out, unsigned size);
+
+/* Queue an STA reassociation from a syscall; applied in net_poll(). */
+int net_wifi_request_restart(void);

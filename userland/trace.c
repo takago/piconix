@@ -137,7 +137,7 @@ static void format_target(char *out, unsigned pid, unsigned fd, int8_t id) {
     sprintf(out,"%u",fd);
     if(name) {append(out,":"); append(out,name);}
     else if(id==0) append(out,":/dev/console");
-    else if(id==30) append(out,":/dev/uart1");
+    else if(id==30) append(out,":/dev/ttyS1");
     else if(id>=0) {char part[16];sprintf(part,":id=%d",(int)id);append(out,part);}
 }
 static void print_preview(const uint8_t *data, unsigned len, int shortened) {

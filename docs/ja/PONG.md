@@ -1,6 +1,6 @@
 # Pong
 
-PicoNIXのPongは，1端末でCPUと遊ぶモードと，USB CDCの`/dev/console`と`/dev/uart1`を使用する2人対戦モードを備えています．どちらのTTYからでも起動できます．
+PicoNIXのPongは，1端末でCPUと遊ぶモードと，USB CDCの`/dev/console`と`/dev/ttyS1`を使用する2人対戦モードを備えています．どちらのTTYからでも起動できます．
 
 ## 起動方法
 

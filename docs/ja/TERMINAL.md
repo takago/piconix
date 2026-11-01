@@ -6,7 +6,7 @@ PicoNIXでは，**端末への入出力を扱うTTY機能はカーネルが管�
 
 ## 1．端末と入出力
 
-USB CDCの`/dev/console`，UART1の`/dev/uart1`，対応するPico WビルドのWi-Fi端末`/dev/wifi`を通じてシェルを操作できます．接続方式や`getty`の詳細は[UARTと端末](UART.md)と[ネットワーク](NETWORK.md)を参照してください．
+USB CDCの`/dev/console`，UART1の`/dev/ttyS1`，対応するPico WビルドのWi-Fi端末`/dev/ttyN0`を通じてシェルを操作できます．接続方式や`getty`の詳細は[UARTと端末](UART.md)と[ネットワーク](NETWORK.md)を参照してください．
 
 TTYでは入力の行編集（canonical），入力エコー（echo），出力の改行変換（ONLCR）を管理します．パイプや通常ファイル，ソケットはTTYではないため，これらの処理を受けません．
 

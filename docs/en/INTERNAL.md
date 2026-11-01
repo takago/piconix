@@ -87,7 +87,7 @@ With `command &`, the Shell returns without waiting for the external command. `C
 
 ## 6. TTY and I/O
 
-PicoNIX supports the USB CDC console and a UART1 terminal. For example, `getty /dev/uart1 sh &` starts another Shell. Each terminal tracks its owning Shell and foreground PID; `Ctrl+C` acts on that terminal's foreground task.
+PicoNIX supports the USB CDC console and a UART1 terminal. For example, `getty /dev/ttyS1 sh &` starts another Shell. Each terminal tracks its owning Shell and foreground PID; `Ctrl+C` acts on that terminal's foreground task.
 
 Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) and `fcntl()` to set **per-FD nonblocking flags**. These settings are independent. See [Terminal settings and interactive input](TTY.md) for examples. This is not a full POSIX `termios` implementation: `VMIN` and `VTIME` are not provided.
 
@@ -97,7 +97,7 @@ Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) 
 |---|---|
 | `/bin` | Read-only list of Flash-embedded registered programs |
 | `/tmp` | Small RAM files, lost on reboot |
-| `/dev/console`, `/dev/uart1` | Terminal I/O |
+| `/dev/console`, `/dev/ttyS1` | Terminal I/O |
 | `/dev/gpio/N`, `/dev/adc/*`, `/dev/pwm/*` | GPIO, ADC and PWM |
 | `/dev/mem` | Diagnostic memory reads |
 | `/dev/trace` | Binary tracing records |

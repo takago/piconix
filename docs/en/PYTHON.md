@@ -174,7 +174,7 @@ Without a pull-up or pull-down, a disconnected switch input may float. If a prog
 ```text
 piconix# python test.py &
 piconix# python test.py > output.txt &
-piconix# getty /dev/uart1 python &
+piconix# getty /dev/ttyS1 python &
 ```
 
 The last command attaches the Python REPL to UART1. In PicoNIX, `getty` is a command that starts a program on a specified TTY, **not a persistent daemon**. Use `exit()` to close the session. Avoid launching multiple interactive programs on the same TTY at once, as they can compete for input.

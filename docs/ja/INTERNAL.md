@@ -85,7 +85,7 @@ piconix# ps
 
 ## 6．TTYと入出力
 
-USB CDCコンソールとUART1の端末を扱えます．`getty /dev/uart1 sh &` により別のShellを起動できます．端末ごとに所有Shellと前景PIDを管理し，Ctrl+Cはその端末の前景タスクに作用します．
+USB CDCコンソールとUART1の端末を扱えます．`getty /dev/ttyS1 sh &` により別のShellを起動できます．端末ごとに所有Shellと前景PIDを管理し，Ctrl+Cはその端末の前景タスクに作用します．
 
 端末の**入力モード**（canonical/非canonical，echo）は `ioctl()`，FDごとの**非ブロッキングフラグ**は `fcntl()` で設定します．この2種類は独立しています．詳しい操作例と `mb` は[端末設定と対話型入力](TTY.md)を参照してください．端末モードはPOSIX `termios` の完全実装ではなく，`VMIN` と `VTIME` はありません．
 
@@ -95,7 +95,7 @@ USB CDCコンソールとUART1の端末を扱えます．`getty /dev/uart1 sh &`
 |---|---|
 | `/bin` | Flash埋め込みの登録プログラム一覧（読み取り専用） |
 | `/tmp` | 再起動で消える簡易RAMファイル |
-| `/dev/console`，`/dev/uart1` | 端末入出力 |
+| `/dev/console`，`/dev/ttyS1` | 端末入出力 |
 | `/dev/gpio/N`，`/dev/adc/*`，`/dev/pwm/*` | GPIO，ADC，PWM |
 | `/dev/mem` | 診断用のメモリ読み取り |
 | `/dev/trace` | バイナリトレースの読み取り |

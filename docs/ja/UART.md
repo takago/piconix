@@ -2,7 +2,7 @@
 
 [English](../en/UART.md) | [概要へ戻る](README.md) | [内部構造](INTERNAL.md)
 
-PicoNIXでは，`/dev/uart1`を**通常のシリアルデバイス**として使う方法と，`getty`によって**対話端末**として使う方法を区別しています．これにより，通常の通信で制御文字を失わずに，別端末でShellやPythonを操作できます．
+PicoNIXでは，`/dev/ttyS1`を**通常のシリアルデバイス**として使う方法と，`getty`によって**対話端末**として使う方法を区別しています．これにより，通常の通信で制御文字を失わずに，別端末でShellやPythonを操作できます．
 
 ## 1．UART1への接続
 
@@ -15,7 +15,7 @@ UART1側の対話入力では端末ソフトウェアのローカルエコーを
 USB側の`sh`から次のコマンドを実行します．
 
 ```sh
-getty /dev/uart1 sh &
+getty /dev/ttyS1 sh &
 ```
 
 UART1側に別の`sh`が起動します．`getty`は`sh`の組み込みコマンドであり，独立したタスクではありません．起動された`sh`には独立したPIDとRAMスロットが割り当てられます．末尾の`&`を省略した場合，起動元のShellは終了を待ちます．
@@ -23,21 +23,21 @@ UART1側に別の`sh`が起動します．`getty`は`sh`の組み込みコマン
 Pythonの対話モードを直接起動する場合は，次のようにします．
 
 ```sh
-getty /dev/uart1 python &
+getty /dev/ttyS1 python &
 ```
 
 `getty`では標準入力（FD 0），標準出力（FD 1），標準エラー出力（FD 2）を指定端末に接続し，所属端末も設定します．新しいShellから起動した子タスクには，通常，標準FDと所属端末が継承されます．同じ端末が占有されている場合，新しい`getty`の起動は拒否されます．
 
 ## 3．通常のUART通信と端末モードの違い
 
-| 操作 | 通常の`/dev/uart1`通信 | `getty`による端末利用 |
+| 操作 | 通常の`/dev/ttyS1`通信 | `getty`による端末利用 |
 |---|---|---|
 | 読み取り | 受信バイト列を取得 | 対話タスクが入力を取得 |
 | Ctrl+C（`0x03`） | 通常の受信データ | 所属端末の前景タスクを中断 |
 | Ctrl+D（`0x04`） | 通常の受信データ | `read()`にEOFを通知 |
 | 行入力・編集 | バイトストリーム | 読み取り側アプリが行を組み立てる |
 
-通常のリダイレクトは，端末の所属を変更しません．例えば，`python < /dev/uart1 > /dev/uart1 &`は入出力を切り替えますが，`getty`による所属端末の割り当てとは異なります．
+通常のリダイレクトは，端末の所属を変更しません．例えば，`python < /dev/ttyS1 > /dev/ttyS1 &`は入出力を切り替えますが，`getty`による所属端末の割り当てとは異なります．
 
 ## 4．Ctrl+CとCtrl+Dの動作
 
@@ -47,7 +47,7 @@ getty /dev/uart1 python &
 
 UART1が端末として占有されていない場合，`0x04`は変換されず通常の受信データとして扱われます．したがって，バイナリ通信でCtrl+D相当の値を使うこともできます．
 
-**Pythonの終了**：`getty /dev/uart1 python &`で起動したPythonは，`exit()`で終了すると`PicoNIX: Session closed.`を表示します．スクリプト実行は従来どおりです．
+**Pythonの終了**：`getty /dev/ttyS1 python &`で起動したPythonは，`exit()`で終了すると`PicoNIX: Session closed.`を表示します．スクリプト実行は従来どおりです．
 
 **Shellの終了**：UART1側の`sh`はCtrl+Dではログアウトしません．`logout`または`exit`を入力すると，`logout`と`PicoNIX: Session closed.`を表示して終了し，端末を解放します．`getty`は常駐していないため，自動再起動は行いません．
 
@@ -61,7 +61,7 @@ ps
 cat /proc/tasks
 ```
 
-USB側では`tty`は`/dev/console`，UART1側のShellでは`/dev/uart1`を表示します．
+USB側では`tty`は`/dev/console`，UART1側のShellでは`/dev/ttyS1`を表示します．
 
 ## 6．制限事項
 

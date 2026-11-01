@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"as")) puts("as: Assemble Thumb source\nusage: as file.s  -> /tmp/a.out");
     else if(!strcmp(argv[1],"help")) puts("help: Command list and usage\nusage: help [command]");
     else if(!strcmp(argv[1],"cd")) puts("cd: Change working directory\nusage: cd [path]");
-    else if(!strcmp(argv[1],"getty")) puts("getty: Attach shell to terminal\nusage: getty /dev/uart1 sh|python [&]");
+    else if(!strcmp(argv[1],"getty")) puts("getty: Attach shell to terminal\nusage: getty /dev/ttyS1 sh|python [&]");
     else if(!strcmp(argv[1],"exit")) puts("exit: Leave shell\nusage: exit");
     else if(!strcmp(argv[1],"logout")) puts("logout: Leave shell\nusage: logout");
     else { printf("help: unknown command: %s\n",argv[1]); return 1; }
