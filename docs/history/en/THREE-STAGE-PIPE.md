@@ -1,5 +1,8 @@
 # Three-stage pipelines
 
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/README.md), [Internals](../../en/INTERNAL.md), [Pipes](../../en/PIPE.md), and [Network programming](../../en/NETWORK-PROGRAMMING.md).
+
+
 The shell accepts two or three commands, e.g. `cat test.s | grep movs | hexdump`.
 A three-command pipeline uses two 256-byte kernel pipes. The shell starts all
 children before waiting, closes its unused endpoints, and restores stdin/stdout.

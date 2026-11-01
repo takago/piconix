@@ -1,11 +1,7 @@
-# mem: automatically selected symbols for occupied task slots
+# Memory symbols and task slots
 
-`mem [address]` reads `/proc/tasks` to identify the program currently occupying the RAM slot containing the displayed address. It selects that program's Flash-resident symbols from `/dev/syms` and displays matching names to the right of the ASCII column. No application argument is needed.
+This page replaces earlier experimental notes. For current usage see [Memory viewer](EDIT-MEM.md) and [Internals](INTERNAL.md).
 
-- `mem 0x20018000` starts at an address. Keys `1`–`5` jump to task slots.
-- `mem -s sh` retains the existing symbol-list command.
-- The mapping is refreshed on display updates (approximately once per second), including when an application exits or a slot is reused.
-- Missing task data or a missing symbol catalog leaves the symbol column empty without crashing or interrupting normal memory viewing. Explicit `mem -s` requests report errors and exit as before.
-- Kernel symbols are not yet embedded in this build.
+The six application slots occupy `0x20010000`–`0x20033FFF`, with 24 KiB per slot. The `mem` viewer supports task-slot navigation (`1`–`6`), kernel RAM (`k`), and XIP Flash (`K`). Symbol information is available for application images and the kernel when included in the build. `mem -s sh` and `mem -s kernel` list symbols. Symbol labels shown while browsing task memory are based on the current task-to-slot mapping and may change as tasks exit or start.
 
-**Caveat:** the slot-to-process mapping is a snapshot; processes can change after it is read. Symbols are applied only relative to the matching task slot, not arbitrary addresses.
+Earlier references to `/proc/syms`, five 32 KiB slots, and missing kernel symbols describe older development snapshots and are not the current interface.

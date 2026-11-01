@@ -1,5 +1,8 @@
 # Experimental TCP client backend (stage 6)
 
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/README.md), [Internals](../../en/INTERNAL.md), [Pipes](../../en/PIPE.md), and [Network programming](../../en/NETWORK-PROGRAMMING.md).
+
+
 Adds `os_tcp_connect(fd, &endpoint)` and `os_tcp_status(fd)` to the experimental TCP socket API.
 `os_tcp_connect` starts a nonblocking outbound TCP connection. `os_tcp_status` returns 1 when connected, 0 while connecting, -1 on error, or -2 after peer EOF. The `peer_ip` field follows the existing UDP packet representation.
 

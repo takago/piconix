@@ -22,7 +22,10 @@ Pipelines may contain two or three commands; four or more stages are not support
 - After all writers close and buffered data is consumed, reading returns EOF (zero bytes). Writing with no readers returns an error.
 - Blocking reads on an empty pipe and writes to a full pipe wait for progress. Nonblocking operations return an `EAGAIN`-style error.
 
-## Limits
+## Limits and shell restrictions
+
+Pipelines cannot be combined with `&`, `<`, or `>`; use those operators with standalone commands.
+
 
 | Item | Limit |
 |---|---|
@@ -39,3 +42,5 @@ This is a deliberately small UNIX-like implementation, not a complete POSIX shel
 ## Ctrl+C and network pipelines
 
 Ctrl+C interrupts registered foreground pipeline tasks (up to three stages) directly in the kernel, without POSIX signal delivery. For one-shot UDP transmission such as `echo hello | nc -u -N 192.168.4.2 12345`, see the [nc guide](NC.md).
+
+**Implementation references:** `run_pipeline()` and command parsing in `userland/shell.c`; `PIPE_COUNT`, `PIPE_BYTES`, `pipe_transfer()`, and pipe syscalls in `kernel/kernel.c`.

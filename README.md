@@ -13,6 +13,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
 - **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`.
 - **Foreground interruption** — Ctrl+C terminates registered foreground tasks, including pipeline stages; `nc -u -N` exits on stdin EOF for one-shot UDP sends.
+- **Six application slots** — Six fixed 24 KiB RAM slots (4 KiB stack reserve per slot) on RP2040.
 - **Pipes and redirection** — Two- and three-command pipelines using `|`, with `pipe()`, `dup()`, and `dup2()` support.
 - **Device files** — Access GPIO, ADC, PWM, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **Programming on the device** — An editor (`edit`), assembler (`as`), and small Python-like interpreter (`python`).
@@ -95,7 +96,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 
 ## Documentation / ドキュメント
 
-Detailed guides are available in English and Japanese．詳細な説明は英語版と日本語版のドキュメントを参照してください．
+For a suggested reading order, see the [English documentation guide](docs/en/DOCS.md) or [日本語の文書案内](docs/ja/DOCS.md).
 
 | 日本語 | English |
 |---|---|

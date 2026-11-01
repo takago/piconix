@@ -1,11 +1,21 @@
 # Kernel symbols in `mem` (experimental)
 
-`mem -s kernel` lists kernel function and data symbols using absolute addresses. The interactive `mem` view identifies symbols from the kernel and the currently loaded user program in each RAM slot and shows a header such as `SYMBOL: kernel, sh`. Multiple symbols within one 16-byte row are comma-separated.
+`mem -s kernel` lists kernel functions and data symbols at absolute addresses. Interactive `mem` automatically selects symbols for the visible kernel and task-slot address ranges and displays labels such as `SYMBOL: kernel, sh`. Multiple symbols in a 16-byte row are separated by commas.
 
-A fixed 32-KiB region in XIP Flash stores the kernel catalog. Only a 4-byte length and the actual symbol records are exposed by `/proc/syms`. `tools/build_sdk.sh` performs an initial link, extracts kernel symbols, relinks with the catalog, and verifies that the final symbol addresses did not change. User program records remain slot-relative; kernel records have absolute addresses.
+## Implementation
 
-When symbol information is unavailable, interactive memory viewing continues without labels. Explicit symbol listing reports an error and exits.
+- A fixed 32-KiB region in XIP Flash is reserved for the kernel symbol catalog; only its length field and actual symbol records are used.
+- `tools/build_sdk.sh` performs an initial link, extracts symbols with `nm`, relinks with the catalog, and checks that the final symbol addresses have not changed.
+- User program symbols use slot-relative offsets; kernel symbols use absolute addresses. The separate interfaces are `/proc/sym/kernel` and `/proc/sym/userland/<program>`. The older combined symbol interface has been retired.
+- Interactive memory viewing continues when symbol information is unavailable. Explicit `mem -s kernel` reports the problem and exits.
 
-Try `mem -s kernel`, `mem 0x20000000`, `mem 0x10000000`, and `mem -s sh`.
+## Verification
 
-**Note:** Full ARM firmware building and hardware execution have not yet been verified for this experimental patch. Do not flash firmware if the post-link address verification fails.
+```text
+mem -s kernel
+mem 0x20000000
+mem 0x10000000
+mem -s sh
+```
+
+**Note:** The original experimental patch documentation did not confirm a full ARM firmware build or hardware test. This is a historical verification caveat, not a claim about the current release. Verify the build's post-link checks before flashing.

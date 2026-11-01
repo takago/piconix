@@ -2,6 +2,8 @@
 
 PicoNIX can assemble a small Cortex-M0+ Thumb-1 program on-device, write `/tmp/a.out`, and launch it in a RAM task slot. This feature is for **learning and experimentation**; it is not an ELF loader or a general-purpose toolchain.
 
+Start with the short program below, then try writing a string. The instruction reference and limitations follow the examples.
+
 ## Quick start
 
 From the shell (which starts in `/tmp`), run `cat > test.s`, enter the following, and press Ctrl+D to finish:
@@ -47,7 +49,7 @@ msg:
 
 Call 9 is `write`: FD in `r1`, buffer in `r2`, length in `r3`. `.align 2` aligns the string to a word boundary for `adr`. This example produces 22 bytes of code and data (30 bytes including the header).
 
-## Supported syntax
+## Instruction and syntax reference
 
 - `movs rN, #IMM`, `adds rN, #IMM`, `subs rN, #IMM`, `cmp rN, #IMM`: registers `r0`–`r7`, immediates 0–255
 - `b LABEL`, `beq LABEL`, `bne LABEL`: PC-relative branches
@@ -58,7 +60,7 @@ Call 9 is `write`: FD in `r1`, buffer in `r2`, length in `r3`. `.align 2` aligns
 
 ## Limits and safety
 
-- `/tmp` holds up to four files of 1024 bytes each. The output has an 8-byte header, leaving at most 1016 bytes for code and data.
+- `/tmp` holds up to eight files of 1024 bytes each. The output has an 8-byte header, leaving at most 1016 bytes for code and data.
 - Up to 32 labels; offsets and immediates must fit Thumb-1 encoding ranges.
 - `as` overwrites `/tmp/a.out`; executable arguments are not implemented.
 - No ELF, relocations, absolute-symbol resolution, or external linking.
@@ -84,3 +86,7 @@ as: 24 bytes (32 total) -> /tmp/a.out
 ```
 
 See the [assembly examples](../../userland/examples/asm/en/README.md) for output, stack operations, and decimal conversion of numbers from 0 to 255.
+
+## System call ABI
+
+The immediate `0` in `svc #0` is **not** the system call number; the call number is passed in `r0`. See the [system call reference](SYSCALLS.md) for current numbers and arguments. This is a small educational Thumb-1 assembler, not a full GNU `as` implementation.

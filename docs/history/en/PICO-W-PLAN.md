@@ -1,5 +1,8 @@
 # Pico W RAM layout (stage 1 only)
 
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/README.md), [Internals](../../en/INTERNAL.md), [Pipes](../../en/PIPE.md), and [Network programming](../../en/NETWORK-PROGRAMMING.md).
+
+
 Build with `-DPICO_BOARD=pico_w` via `tools/build_sdk.sh --no-flash ...`. Use a **fresh build directory** when switching boards.
 
 This stage limits user slots to four and leaves 0x20038000..0x2003ffff unused. No Wi-Fi firmware, AP, DHCP, or TCP is enabled yet. The reserved memory is **not yet an allocator** and is not automatically used by SDK libraries. Kernel remains limited to 96 KiB.

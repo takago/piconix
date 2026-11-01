@@ -1,0 +1,47 @@
+# PicoNIX documentation
+
+
+**[Current specification](SPECIFICATION.md)** — developer reference for memory layout, resource limits, ABI, and networking.
+
+[Project overview](../../README.md) | [日本語](../ja/DOCS.md)
+
+PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup → shell basics → OS concepts → programming**. The guides below describe the current interface; development-stage notes are historical.
+
+## 1. Get started
+
+1. [Setup](SETUP.md) — build, flash, and connect
+2. [Overview and first commands](README.md) — `help`, `ls`, `cat`, `ps`, and other shell commands
+3. [Devices and wiring](DEVICES.md) — GPIO, PWM, ADC, LED matrix
+4. [Filesystem and node reference](FILESYSTEM.md) — directories, `/dev`, `/proc`, and RAM file limits
+
+## 2. Learn UNIX concepts
+
+| Topic | Guide |
+|---|---|
+| Pipes, redirection, descriptors, EOF | [Pipes and standard I/O](PIPE.md) |
+| Canonical/raw input, `stty`, `fcntl()`, `O_NONBLOCK` | [TTY](TTY.md) |
+| ANSI display control and interruption | [Terminal](TERMINAL.md) |
+| USB console, UART1, and `getty` | [UART](UART.md) |
+| System-call tracing with `trace` | [Trace](TRACE.md) |
+| Memory inspection with `edit` and `mem` | [Edit and mem](EDIT-MEM.md) |
+
+## 3. Use networking (Pico W)
+
+1. [Wi-Fi modes](WIFI-MODES.md) — AP and STA
+2. [Networking](NETWORK.md) — connecting and using services
+3. [Socket programming](NETWORK-PROGRAMMING.md) — TCP/UDP user applications
+4. [nc](NC.md), [httpd](HTTPD.md), [UDP device control](UDP-DEVICES.md), [Remote GPIO](REMOTE_GPIO.md) — practical examples
+
+## 4. Write programs
+
+| Topic | Guide |
+|---|---|
+| Build a C application | [Programming](PROGRAMMING.md) |
+| SVC ABI and call numbers | [System calls](SYSCALLS.md) |
+| `as`, `svc #0`, and Thumb assembly | [Assembler](ASM.md) |
+| Use the Python-like interpreter | [Python](PYTHON.md) |
+| Understand tasks, memory, and the kernel | [Internals](INTERNAL.md) |
+
+## Development history
+
+Earlier designs, implementation milestones, and debugging notes are collected in the [development history](../history/README.md). These are not current specifications.

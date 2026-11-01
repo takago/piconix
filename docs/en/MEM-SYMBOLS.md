@@ -1,19 +1,7 @@
-# `mem` symbol view (experimental)
+# Memory symbols and task slots
 
-The `mem` command can read a compact application symbol catalog extracted from the RAM app ELF files during the firmware build. The catalog is embedded in the firmware and exposed through read-only `/proc/syms`.
+This page replaces earlier experimental notes. For current usage see [Memory viewer](EDIT-MEM.md) and [Internals](INTERNAL.md).
 
-```text
-mem -s             # Applications with symbols
-mem -s sh          # Show sh's symbol offsets and types
-mem -s mb          # Show mb's symbol offsets and types
-mem 0x20018000     # View memory at an address
-mem 0x20018000 sh  # Show sh symbol labels right of ASCII
-```
+The six application slots occupy `0x20010000`–`0x20033FFF`, with 24 KiB per slot. The `mem` viewer supports task-slot navigation (`1`–`6`), kernel RAM (`k`), and XIP Flash (`K`). Symbol information is available for application images and the kernel when included in the build. `mem -s sh` and `mem -s kernel` list symbols. Symbol labels shown while browsing task memory are based on the current task-to-slot mapping and may change as tasks exit or start.
 
-`mem -s kernel` is not implemented yet: kernel symbols require an additional post-link strategy.
-
-Symbol values are **relative offsets** from the app's canonical link address `0x20018000`. For `mem ADDRESS APP`, labels assume that APP is loaded in the 32-KiB task slot containing ADDRESS; the process table is not consulted to verify this. Choosing the wrong app produces misleading labels. Only symbol *starts* located within a displayed row are annotated.
-
-If `/proc/syms` is missing, unreadable or empty, `mem -s` prints an error and exits cleanly. Ordinary `mem [ADDRESS]` continues to work without symbol data. The viewer still restricts reads to accessible XIP Flash and SRAM. The extra label column requires a sufficiently wide terminal.
-
-The build tool `tools/make_symbols.py` extracts defined `T/t/D/d/B/b/R/r` symbols from linked app ELF files and embeds them as a compact text catalog. Symbol-less apps are permitted. The catalog is exposed read-only.
+Earlier references to `/proc/syms`, five 32 KiB slots, and missing kernel symbols describe older development snapshots and are not the current interface.

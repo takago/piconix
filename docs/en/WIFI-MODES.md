@@ -21,6 +21,4 @@ Read the current interface state using:
 cat /proc/net/wifi
 ```
 
-Fields are `MODE`, `SSID`, `MAC`, `IP`, `NETMASK`, `GATEWAY`, and `RSSI`. RSSI is queried on read in STA mode; AP mode displays `N/A`. On non-Wi-Fi Pico builds, the file reports `MODE: N/A`.
-
-The RAM filesystem also contains `/tmp/test.s` and `/tmp/test.py` at boot. Both display a face three times with one-second pauses, then print `...bye`. Assemble the first with `as test.s` and run the output with `./a.out`; run the second with `python test.py`.
+The status includes `MODE`, `STATUS`, `SSID`, `ATTEMPTS`, `CONNECT_ERROR`, `WIFI_LINK`, `TCPIP_LINK`, `DHCP_BOUND`, `IP`, `NETMASK`, and `GATEWAY` (some fields depend on mode and connection state). In STA mode, successful connection detection uses the TCP/IP link and DHCP lease state. On non-Wi-Fi Pico builds, the file reports `MODE: N/A`.

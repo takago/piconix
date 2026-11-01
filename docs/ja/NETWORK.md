@@ -2,7 +2,9 @@
 
 [English](../en/NETWORK.md) | [セットアップ](SETUP.md)
 
-Pico W版のPicoNIXはWi-Fiアクセスポイントとして動作し，DHCPで接続端末へIPアドレスを割り当てます．USB CDCコンソールとは別に，ネットワーク経由のシェルを利用できます．通常のPicoにはWi-Fi機能はありません．なお，現在のPico W向けファームウェアは通常のPicoでも動作確認済みですが，Wi-Fi機能は利用できません．
+Pico W版のPicoNIXは標準でWi-Fiアクセスポイント（AP）として動作し，DHCPで接続端末へIPアドレスを割り当てます．ビルド時にSTAモードを選択すると，既存のWi-Fiネットワークにも参加できます．USB CDCコンソールとは別に，ネットワーク経由のシェルを利用できます．通常のPicoにはWi-Fi機能はありません．なお，現在のPico W向けファームウェアは通常のPicoでも動作確認済みですが，Wi-Fi機能は利用できません．
+
+STAモードのビルド設定と接続状態は[Wi-Fiモード](WIFI-MODES.md)を参照してください．
 
 ## ビルド
 
@@ -37,7 +39,7 @@ Wi-Fiに接続すると，通常はDHCPでIPアドレスが自動設定されま
 
 **Telnet**：`Ctrl + ]`で`telnet>`プロンプトへ移動し，`quit`とEnterを入力します．
 
-**socat**：上記の`escape=0x1d`を指定した場合，`Ctrl + ]`で終了します．`raw`モードでは通常の`Ctrl + C`では終了しません．
+**socat**：`escape=0x1d`を指定して起動した場合は，`Ctrl + ]`で終了します．`raw`モードでは通常の`Ctrl + C`は端末へ送られます．
 
 Linuxでは必要に応じて`sudo apt install telnet socat`でクライアントを導入してください．Windows 10/11では「Windowsの機能」からTelnetクライアントを有効にするか，管理者権限で`dism /online /Enable-Feature /FeatureName:TelnetClient`を実行します．Windows標準環境では`socat`は通常利用できません．
 
@@ -45,7 +47,7 @@ Linuxでは必要に応じて`sudo apt install telnet socat`でクライアン�
 
 Telnetと生TCPのシェル通信は暗号化されません．信頼できる実験用ネットワークでのみ使用してください．APのパスワードは公開された固定値なので，機密情報を送信しないでください．端末の操作性はTelnetクライアントの実装によって異なる場合があります．
 
-開発・保守向けのDHCP障害調査記録は[NETWORK-DHCP-NOTES.md](NETWORK-DHCP-NOTES.md)にまとめています．
+開発・保守向けのDHCP障害調査記録は[NETWORK-DHCP-NOTES.md](../history/ja/NETWORK-DHCP-NOTES.md)にまとめています．
 
 ## TCP/UDPアプリケーションとリモートデバイス制御
 

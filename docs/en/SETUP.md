@@ -110,7 +110,7 @@ Use Ctrl+C to interrupt a foreground program. When using `kill`, obtain the PID 
 | SDK not found | `PICO_SDK_PATH` and SDK submodules |
 | ARM GCC not found | `arm-none-eabi-gcc --version` and the `PICO_TOOLCHAIN_PATH` directory |
 | Clang/LLD not found | `clang --version` and `ld.lld --version` |
-| RAM/link failure | `MinSizeRel`, stale build cache, and the 32 KiB application limit |
+| RAM/link failure | `MinSizeRel`, stale build cache, and the 24 KiB application limit |
 | No `/dev/ttyACM0` | `sudo dmesg -w` for USB enumeration, cable and firmware upload |
 | Cannot open serial port | Device name, permissions, and other programs using the port |
 | GPIO25 does not work | Confirm the Raspberry Pi Pico board variant |

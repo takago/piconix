@@ -110,7 +110,7 @@ piconix# ps
 | SDKが見つからない | `PICO_SDK_PATH`とサブモジュール |
 | ARM GCCが見つからない | `arm-none-eabi-gcc --version`，`PICO_TOOLCHAIN_PATH`の指定先 |
 | Clang／LLDが見つからない | `clang --version`，`ld.lld --version` |
-| RAM領域の超過・リンクエラー | `MinSizeRel`，ビルドキャッシュ，32 KiBのアプリ領域 |
+| RAM領域の超過・リンクエラー | `MinSizeRel`，ビルドキャッシュ，24 KiBのアプリ領域 |
 | `/dev/ttyACM0`が出ない | `sudo dmesg -w`でUSB列挙を確認，ケーブル・書き込みを確認 |
 | シリアルポートを開けない | デバイス名，アクセス権，他の端末による占有 |
 | GPIO25が動かない | Raspberry Pi Picoのボード種別 |

@@ -2,6 +2,8 @@
 
 [日本語](../ja/DEVICES.md) | [README](README.md)
 
+For the full directory and node inventory, access modes, and RAM file limits, see [Filesystem and device nodes](FILESYSTEM.md).
+
 PicoNIX exposes hardware through virtual files under `/dev`. These are not stored on disk: the kernel routes `open()`, `read()`, and `write()` to the device implementations.
 
 ## Device overview

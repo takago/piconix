@@ -198,4 +198,4 @@ On parse or execution failures, the interpreter generally prints `python: syntax
 
 ## 8. Implementation
 
-The interpreter lives in [`userland/python.c`](userland/python.c). Its integer expression parser, block executor, REPL, and GPIO device access are deliberately kept in one file. When extending it, also verify the 32 KiB RAM application-slot limit.
+The interpreter lives in [`userland/python.c`](../../userland/python.c). Its integer expression parser, block executor, REPL, and GPIO device access are deliberately kept in one file. When extending it, also verify the 24 KiB RAM application-slot limit.

@@ -2,6 +2,8 @@
 
 [English](../en/DEVICES.md) | [README](README.md)
 
+全ディレクトリとノードの一覧，アクセス権，RAMファイルの制限は[ファイルシステムとノード一覧](FILESYSTEM.md)を参照してください．
+
 PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイルを作るのではなく，`open()`，`read()`，`write()`などを通じてカーネルが周辺機器を操作します．
 
 ## デバイス一覧

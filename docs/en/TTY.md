@@ -1,6 +1,6 @@
 # Terminal Settings and Interactive Input
 
-[日本語](TTY.md) | [Overview](README.md) | [UART1 and terminals](UART.md) | [C programming](PROGRAMMING.md)
+[日本語](../ja/TTY.md) | [Overview](README.md) | [UART1 and terminals](UART.md) | [C programming](PROGRAMMING.md)
 
 PicoNIX keeps **terminal input modes** separate from **file-descriptor (FD) blocking flags**. It does not implement the complete POSIX `termios` interface.
 
@@ -68,3 +68,19 @@ During shell line editing, Ctrl+L clears the terminal screen using ANSI sequence
 ## Foreground TTY restoration
 
 When a foreground application is selected, the kernel saves that TTY's canonical, echo, and ONLCR settings. It restores them when the application exits, is killed, or is interrupted by Ctrl+C. `stty` and `reset` use `OS_TTY_PERSIST` to keep intentional changes. USB CDC and UART1 are independent. ANSI screen state (cursor visibility, alternate screen, attributes) is managed by the terminal emulator, not by these TTY settings.
+
+## TTY versus pipes and sockets
+
+`stty` and `OS_TTY_*` `ioctl()` operations configure **terminals**. Canonical input and echo do not apply to pipes, ordinary files, or sockets. `O_NONBLOCK` via `fcntl()` controls descriptor I/O behavior; for pipes and sockets, consult the relevant API behavior when no data is available.
+
+- `icanon` enables terminal line input; disabling it allows character input. **Pipes do not perform terminal line editing.**
+- `echo` is local terminal input echo, not a property of pipe or network data.
+- `onlcr` converts LF to CRLF **only for TTY output**, not pipe, file, or socket byte streams.
+- POSIX `termios` `VMIN` / `VTIME` are **not implemented**. Use `fcntl()` and handle `read()` results as appropriate.
+- USB CDC, UART1, and the Wi-Fi terminal are separate TTYs when enabled in the build.
+
+### Forced termination and screen restoration
+
+The kernel restores saved canonical, echo, and ONLCR settings when a foreground task terminates. ANSI/DEC **alternate-screen and cursor state** are separate and require screen-level cleanup. See [terminal implementation notes](TERMINAL.md).
+
+**Implementation references:** `tty_canonical`, `tty_echo`, `tty_onlcr`, `tty_saved_*`, `foreground_group`, and `OS_TTY_*` handling in `kernel/kernel.c`; line editing and pipelines in `userland/shell.c`.

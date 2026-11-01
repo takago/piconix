@@ -16,7 +16,7 @@ Flash
                    v
 RAM
  ├─ Kernel region
- └─ Five 32-KiB task slots
+ └─ Six 24-KiB task slots
      └─ Shell / external commands (copied at launch)
            | SVC
            v
@@ -29,21 +29,26 @@ PicoNIX has no Linux ELF loader, MMU-based process isolation, dynamic linking or
 
 | Start address | Region | Capacity |
 |---|---|---:|
-| `0x20000000` | Kernel RAM region | 96 KiB |
-| `0x20018000` | Task slot 1 | 32 KiB |
-| `0x20020000` | Task slot 2 | 32 KiB |
-| `0x20028000` | Task slot 3 | 32 KiB |
-| `0x20030000` | Task slot 4 | 32 KiB |
-| `0x20038000` | Task slot 5 | 32 KiB |
+| Start address | Region | Capacity |
+|---|---|---:|
+| `0x20000000` | Kernel RAM region | 64 KiB |
+| `0x20010000` | Task slot 1 | 24 KiB |
+| `0x20016000` | Task slot 2 | 24 KiB |
+| `0x2001C000` | Task slot 3 | 24 KiB |
+| `0x20022000` | Task slot 4 | 24 KiB |
+| `0x20028000` | Task slot 5 | 24 KiB |
+| `0x2002E000` | Task slot 6 | 24 KiB |
+| `0x20034000` | Reserved / unassigned | 16 KiB |
+| `0x20038000` | Network reserve | 32 KiB |
 
-The final 4 KiB of each task slot is reserved for its stack. Program code and static data must fit in the remainder. Five task slots are available concurrently; idle processing is managed separately.
+The final 4 KiB of each task slot is reserved for its stack, leaving at most 20 KiB for application image and static data. Six task slots are available; idle processing is managed separately.
 
 Applications are built as position-independent code (PIC) and embedded in Flash. At launch, an application image is copied into a free RAM slot and given an initial stack. `userland/slot.ld` defines the layout. During the build, images linked at different addresses are compared to check position independence. See [C application development](PROGRAMMING.md).
 
 ## 3. Boot and task management
 
 1. `kernel/main.c` invokes `os_init()` to initialize the kernel.
-2. It registers 24 Flash-embedded applications with program names and IDs.
+2. It registers Flash-embedded applications with program names and IDs.
 3. It starts the Shell (program ID 2) and hands control to the scheduler.
 4. SysTick and PendSV then drive task switching; low-level exception and context handling are in `kernel/context.S`.
 
@@ -61,6 +66,8 @@ RAM applications do not call kernel functions directly. The wrappers in `userlan
 | TTY and control | `get_tty()`, `ioctl()`, `fcntl()`, `set_foreground()` |
 
 The kernel and user-side system-call numbers must agree. Number 15 is reserved for the former `GETARG` call and must not be reused. Startup arguments reach `main(argc, argv)` through the initial stack and `crt0.c`.
+
+For the complete numbered ABI, see [System Call Reference](SYSCALLS.md).
 
 ## 5. Shell and processes
 
@@ -100,7 +107,7 @@ See [Devices and wiring](DEVICES.md) for device paths and pin assignments. Each 
 
 ## 8. Tracing and debugging
 
-The kernel uses a ring buffer of 1,024 records of 16 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text.
+The kernel uses a ring buffer of 512 records of 32 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text.
 
 ```text
 trace on

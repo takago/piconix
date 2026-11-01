@@ -19,6 +19,8 @@ STAモードではDHCPクライアントを利用します．接続失敗時に�
 cat /proc/net/wifi
 ```
 
-`MODE`，`SSID`，`MAC`，`IP`，`NETMASK`，`GATEWAY`，`RSSI`を表示します．STAのRSSIは読み出し時に取得し，APでは`N/A`です．
+`MODE`，`STATUS`，`SSID`，`ATTEMPTS`，`CONNECT_ERROR`，`WIFI_LINK`，`TCPIP_LINK`，`DHCP_BOUND`，`IP`，`NETMASK`，`GATEWAY`などを表示します．表示項目はモードや接続状態によって異なります．Wi-Fi非対応のPicoビルドでは`MODE: N/A`を返します．
 
-起動時には`/tmp/test.s`と`/tmp/test.py`も配置されます．どちらも1秒間隔で顔文字を3回表示し，`...bye`で終了します．
+
+
+STAモードでは，Wi-Fiの参加状態だけでなく，TCP/IPリンク状態とDHCPのアドレス取得状況を使って接続完了を判定します．

@@ -1,6 +1,6 @@
 # UDP Device Service (Pico W)
 
-Pico W exposes selected device files over UDP port 2000. Connect to the PicoNIX Wi-Fi access point first.
+Pico W exposes selected device files over UDP port 2000. In AP mode, connect to the PicoNIX access point. In STA mode, use a network that can reach the Pico W. The `192.168.4.1` examples below use the AP-mode address; replace it with the assigned Pico W address in STA mode.
 
 ## One-shot requests with netcat
 
@@ -25,9 +25,11 @@ python3 host/demo_udp.py --interval 0.2
 
 `host/piconixctl.py` remains available for one-shot commands. Both use only the Python 3 standard library and do not retry requests.
 
+## Protocol
+
 One UDP request produces one reply. Requests are `READ <path>`, `WRITE <path>\n<bytes>`, `ENABLE <path>`, and `DISABLE <path>`. Replies are `OK\n` followed by raw bytes, or `ERR`. Maximum request size is 128 bytes. The framebuffer uses 8 binary bytes; PWM and ADC use ASCII numbers.
 
-Allowed paths: `/dev/gpio/fb`, `/dev/pwm/1/freq`, `/dev/pwm/1/a`, `/dev/pwm/1/b`, `/dev/adc/0` through `/dev/adc/2`, and `/dev/adc/temp`. `ENABLE` and `DISABLE` apply only to the framebuffer.
+Allowed paths: `/dev/gpio/fb`, `/dev/pwm/1/freq`, `/dev/pwm/1/a`, `/dev/pwm/1/b`, `/dev/adc/0` through `/dev/adc/2`, `/dev/adc/temp`, and permitted `/dev/gpio/<number>` paths (see [Remote GPIO control](REMOTE_GPIO.md) for pin restrictions). `ENABLE` and `DISABLE` apply to the framebuffer and permitted GPIO pins.
 
 There are no retries, request IDs, or authentication. Lost datagrams cause a client timeout. Use only on trusted local networks. Motor control requires a separate fail-safe for lost connectivity.
 

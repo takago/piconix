@@ -198,4 +198,4 @@ piconix# getty /dev/uart1 python &
 
 ## 8．ソースコード
 
-実装は [`userland/python.c`](userland/python.c) です．小さな整数式パーサ，ブロック実行器，REPL，GPIOファイルアクセスを1ファイルに収めています．機能を追加する際は，32KiBのRAMアプリスロット制限も確認してください．
+実装は [`userland/python.c`](../../userland/python.c) です．小さな整数式パーサ，ブロック実行器，REPL，GPIOファイルアクセスを1ファイルに収めています．機能を追加する際は，24 KiBのRAMアプリスロット制限も確認してください．

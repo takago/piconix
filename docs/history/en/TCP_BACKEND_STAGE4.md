@@ -1,5 +1,8 @@
 # TCP backend stage 4 (experimental)
 
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/README.md), [Internals](../../en/INTERNAL.md), [Pipes](../../en/PIPE.md), and [Network programming](../../en/NETWORK-PROGRAMMING.md).
+
+
 This stage introduces a bounded TCP listening backend in `kernel/net_socket.c`.
 It is **not yet connected to the PicoNIX socket system calls**. The existing
 `SYS_SOCKET` still accepts UDP only. There is no TCP `nc` command yet.

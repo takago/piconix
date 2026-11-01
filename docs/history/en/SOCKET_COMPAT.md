@@ -1,4 +1,7 @@
-> Historical implementation notes. For the current overview see [Socket API and network applications](NETWORK-PROGRAMMING.md).
+> Historical implementation notes. For the current overview see [Socket API and network applications](../../en/NETWORK-PROGRAMMING.md).
+
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/README.md), [Internals](../../en/INTERNAL.md), [Pipes](../../en/PIPE.md), and [Network programming](../../en/NETWORK-PROGRAMMING.md).
+
 
 # Minimal BSD-style socket compatibility API
 

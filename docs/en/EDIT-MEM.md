@@ -10,4 +10,4 @@ Run `mem` or `mem 0x20018000`. This reads existing `/dev/mem` approximately ever
 
 Accessible ranges are the XIP Flash (0x10000000–0x101fffff) and SRAM (0x20000000–0x2003ffff) regions supported by `/dev/mem`. Concurrent modifications may prevent consistent snapshots.
 
-**Symbol-table listing and symbol-name lookup are not implemented in this version.** They require a separate post-link integration step.
+Use `mem -s sh` or `mem -s kernel` to inspect available symbols. The interactive memory viewer also shows symbols for occupied task slots.

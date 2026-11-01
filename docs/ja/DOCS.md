@@ -1,22 +1,47 @@
-# 文書案内
+# PicoNIX ドキュメント案内
 
-[概要](README.md) | [English](../en/README.md)
 
-PicoNIXを初めて使う場合は，**セットアップ → READMEのコマンド例 → 興味のあるガイド**の順に読むと全体をつかみやすくなります．
+**[現行仕様書](SPECIFICATION.md)**：メモリ配置，リソース上限，ABI，ネットワーク構成の開発者向け参照資料．
 
-| 目的 | 文書 |
+[プロジェクト概要](../../README.md) | [English](../en/README.md)
+
+PicoNIXは，RP2040上で動く小型UNIX風OSです．初めて使う方は，**準備 → シェル操作 → OSの仕組み → プログラミング**の順に読むと理解しやすくなります．
+
+## 1．まず動かす
+
+1. [セットアップ](SETUP.md)：開発環境の準備，ビルド，書き込み
+2. [概要と最初のコマンド](README.md)：`help`，`ls`，`cat`，`ps`など
+3. [デバイスと配線](DEVICES.md)：GPIO，PWM，ADC，LEDマトリクス
+4. [ファイルシステムとノード一覧](FILESYSTEM.md)：ディレクトリ構造，`/dev`，`/proc`，RAMファイルの制約
+
+## 2．UNIXの操作を学ぶ
+
+| 学びたい内容 | 説明 |
 |---|---|
-| インストール，ビルド，書き込み | [セットアップ](SETUP.md) |
-| OSの機能と制限を知る | [概要](README.md) |
-| GPIO，PWM，ADC，UARTの配線 | [デバイスと配線](DEVICES.md) |
-| USBとUARTの対話端末 | [UART1と端末](UART.md) |
-| `stty`，`fcntl`，`mb`，`reset` | [端末設定と対話型入力](TTY.md) |
-| LEDマトリクス・`fbctl` | [デバイスガイド（フレームバッファ）](DEVICES.md) |
-| `python`を使う | [Python風インタプリタ](PYTHON.md) |
-| パイプ・`grep`・FDを使う | [パイプと標準入出力](PIPE.md) |
-| `nc`，UDP送信，Ctrl+C | [ncと通信の終了](NC.md) |
-| 自作Cアプリを追加する | [Cアプリ開発](PROGRAMMING.md) |
-| RAM配置，タスク，SVC，FDなど | [内部構造](INTERNAL.md) |
-| トレースの記録と解析 | [トレース](TRACE.md) |
+| [パイプと標準入出力](PIPE.md) | `|`，リダイレクト，FD，EOF，制限 |
+| [TTYと入力モード](TTY.md) | `stty`，canonical/raw，`fcntl()`，`O_NONBLOCK` |
+| [端末の画面制御](TERMINAL.md) | ANSI制御，Ctrl+C，画面復帰 |
+| [USB・UART端末](UART.md) | `getty`，UART1，端末の使い分け |
+| [プロセスの観察](TRACE.md) | `trace`による実行追跡 |
+| [メモリの観察](EDIT-MEM.md) | `edit`と`mem`の操作 |
 
-**備考**：`RESET.md`は既存リンクとの互換性のための案内ページです．端末設定の本文は`TTY.md`に統合しています．
+## 3．ネットワークを使う（Pico W）
+
+1. [Wi-Fi接続](WIFI-MODES.md)：AP／STAモード
+2. [ネットワークの使い方](NETWORK.md)：接続とサービス
+3. [ソケットプログラミング](NETWORK-PROGRAMMING.md)：TCP／UDPのユーザアプリ
+4. [nc](NC.md)，[httpd](HTTPD.md)，[UDPデバイス制御](UDP-DEVICES.md)，[GPIO遠隔制御](REMOTE_GPIO.md)：具体例
+
+## 4．プログラムを作る
+
+| 内容 | 説明 |
+|---|---|
+| [Cアプリ開発](PROGRAMMING.md) | コマンド追加，ビルド，実行 |
+| [システムコール一覧](SYSCALLS.md) | SVC呼び出し規約と番号 |
+| [簡易Thumbアセンブラ](ASM.md) | `as`，`svc #0`，命令と制限 |
+| [Python風インタプリタ](PYTHON.md) | `python`の機能と使い方 |
+| [内部構造](INTERNAL.md) | タスク，メモリ，カーネル |
+
+## 開発履歴
+
+過去の設計・実装・障害調査の記録は[開発履歴](../history/README.md)にまとめています．現行仕様とは区別してください．

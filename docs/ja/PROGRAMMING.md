@@ -63,7 +63,7 @@ Shell内にコマンド固有の処理を追加する必要はありません．
 | 項目 | 仕様 |
 |---|---|
 | エントリ | `main(int argc, char *argv[])`（`crt0.c` 経由） |
-| タスクスロット | 32 KiB × 5個 |
+| タスクスロット | 24 KiB × 6個 |
 | スタック予約 | 各スロット末尾4 KiB |
 | プログラム | PICとしてビルドし，Flash内に埋め込み |
 | 実行時 | 空きRAMスロットへコピー |
@@ -123,7 +123,7 @@ python3 tools/test_audit.py
 python3 tools/test_ram_pipeline.py
 ```
 
-これらの検査だけで全アプリのビルド・実機動作が保証されるわけではありません．ARM用ツールチェーンとPico SDKを使用したファームウェア全体のビルドが必要です．未解決の `__aeabi_*` 参照，32 KiBスロットの超過，PIC検証失敗，システムコール番号の不一致に注意してください．
+これらの検査だけで全アプリのビルド・実機動作が保証されるわけではありません．ARM用ツールチェーンとPico SDKを使用したファームウェア全体のビルドが必要です．未解決の `__aeabi_*` 参照，24 KiBスロットの超過，PIC検証失敗，システムコール番号の不一致に注意してください．
 
 実行時の観察には `ps`，`cat /proc/tasks`，`cat /proc/memory`，`trace on/off/show` が利用できます．詳しくは[内部構造](INTERNAL.md)と[トレース](TRACE.md)を参照してください．
 
@@ -143,3 +143,5 @@ python3 tools/test_ram_pipeline.py
 Pico Wでは通常のユーザプロセスからTCP/UDPソケットAPIを利用できます．[ソケットAPIとネットワークアプリケーション](NETWORK-PROGRAMMING.md)を参照してください．
 
 `program_id(name)`（システムコール38）は，`/bin` の列挙順序ではなくカーネルの登録テーブルから実際のプログラムIDを取得します．従来の `spawn(id, argc, argv)` はそのまま利用できます．
+
+[システムコール番号とアセンブラからの呼び出し](SYSCALLS.md)も参照してください．

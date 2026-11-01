@@ -35,7 +35,7 @@ trace run ./a.out
 
 The reader advances its `/dev/trace` cursor past existing events before launching the program, so earlier records are excluded. If tracing was off, this command enables it for the run and then disables it. If tracing was already enabled, **it leaves both the existing records and the tracing state intact**. Concurrent events from unrelated processes are excluded from the output by PID.
 
-The existing 32KiB (1,024-event) ring buffer is still used. Long-running programs may overwrite their earliest records, including startup events. Only the directly spawned process is filtered; descendants are not automatically followed. Interactive programs must exit before the trace report is printed.
+The 16 KiB (512-event) ring buffer is still used. Long-running programs may overwrite their earliest records, including startup events. Only the directly spawned process is filtered; descendants are not automatically followed. Interactive programs must exit before the trace report is printed.
 
 ## Event types and display
 
@@ -49,7 +49,7 @@ The display contains time, PID, command, TTY (`console` / `uart1` / `-`), event,
 
 ## `/dev/trace` binary format
 
-Records are **32 bytes each**, as defined by `trace_event_t` in `userland/trace.h`. The kernel holds **32KiB (1,024 events)** in a ring buffer; new events overwrite the oldest when full.
+Records are **32 bytes each**, as defined by `trace_event_t` in `userland/trace.h`. The kernel holds **16 KiB (512 events)** in a ring buffer; new events overwrite the oldest when full.
 
 - `tick`: milliseconds since boot
 - `kind`: event type

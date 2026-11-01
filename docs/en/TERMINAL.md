@@ -129,3 +129,9 @@ Touch the actual modified files. Remove specific build artifacts or clean `build
 - Handle both normal and forced termination.
 - Never restore the alternate screen unconditionally at every normal prompt.
 - Test cursor visibility, wheel behavior and scrollback **independently** after exit.
+
+## Terminal handling during pipelines
+
+In a pipeline, `dup2()` redirects standard input/output to pipes; therefore `stdout` is not necessarily a terminal. Interactive applications may use terminal screen controls, but programs producing piped data should avoid mixing ANSI escape sequences into that data.
+
+The shell registers up to three foreground pipeline tasks for Ctrl+C interruption. Restoring TTY canonical/echo/ONLCR settings and restoring terminal-emulator screen state are distinct mechanisms. See [pipes](PIPE.md) and [TTY settings](TTY.md).

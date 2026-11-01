@@ -1,6 +1,6 @@
 # UDPデバイスサービス（Pico W）
 
-Pico WはUDPポート2000で，限定されたデバイスファイルへの読み書きを提供します．PicoNIXのWi-Fi APに接続して使用してください．
+Pico WはUDPポート2000で，限定されたデバイスファイルへの読み書きを提供します．APモードではPicoNIXのWi-Fiに接続し，STAモードではPico Wと同じ到達可能なネットワークから利用します．以下の`192.168.4.1`はAPモードの例です．STAモードではPico Wの割り当てアドレスに置き換えてください．
 
 ## netcatによる単発操作
 
@@ -29,7 +29,7 @@ python3 host/demo_udp.py --interval 0.2
 
 1要求・1応答，UDP 2000番．要求は`READ <path>`，`WRITE <path>\n<bytes>`，`ENABLE <path>`，`DISABLE <path>`．成功応答は`OK\n`に続く生バイト列，失敗応答は`ERR`です．要求の上限は128バイトです．FBは8バイトのバイナリ，PWMはASCII数値，ADCはASCII数値です．
 
-対応パスは`/dev/gpio/fb`，`/dev/pwm/1/freq`，`/dev/pwm/1/a`，`/dev/pwm/1/b`，`/dev/adc/0`～`2`，`/dev/adc/temp`のみです．FBの有効化・無効化は`ENABLE`・`DISABLE`で行います．
+対応パスは`/dev/gpio/fb`，`/dev/pwm/1/freq`，`/dev/pwm/1/a`，`/dev/pwm/1/b`，`/dev/adc/0`～`2`，`/dev/adc/temp`および，利用可能な`/dev/gpio/<番号>`です．GPIO操作は[遠隔GPIO制御](REMOTE_GPIO.md)に記載したピン制約を受けます．FBの有効化・無効化と許可されたGPIOピンの入出力切替には`ENABLE`・`DISABLE`を使用します．
 
 再送制御，要求ID，認証はありません．パケットが失われた場合はクライアントがタイムアウトします．信頼できるローカルネットワークでのみ使用してください．移動体のモーターを制御する場合は，通信断時に停止する独立した安全機構が必要です．
 
