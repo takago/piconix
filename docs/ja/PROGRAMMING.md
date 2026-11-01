@@ -119,13 +119,14 @@ if (flags >= 0)
 ## 9．デバッグと検証
 
 ```sh
-python3 tools/test_audit.py
-python3 tools/test_ram_pipeline.py
+python3 tools/run_tests.py
+# ARMツールチェーンを必要とするテストも実行する場合：
+python3 tools/run_tests.py --all
 ```
 
 これらの検査だけで全アプリのビルド・実機動作が保証されるわけではありません．ARM用ツールチェーンとPico SDKを使用したファームウェア全体のビルドが必要です．未解決の `__aeabi_*` 参照，24 KiBスロットの超過，PIC検証失敗，システムコール番号の不一致に注意してください．
 
-実行時の観察には `ps`，`cat /proc/tasks`，`cat /proc/memory`，`trace on/off/show` が利用できます．詳しくは[内部構造](INTERNAL.md)と[トレース](TRACE.md)を参照してください．
+実行時の観察には `ps`，`cat /proc/tasks`，`cat /proc/memory`，`trace on`, `trace off`, `trace show` が利用できます．詳しくは[内部構造](INTERNAL.md)と[トレース](TRACE.md)を参照してください．
 
 ## 10．開発時のチェックリスト
 

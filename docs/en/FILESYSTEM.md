@@ -89,5 +89,3 @@ Relative paths resolve against each task's current working directory. `.` and `.
 - `kernel/kernel.c`: `vdir_paths`, `dev_registry`, `vfs_registry`, `vdir_nth()`, `vfs_open()`, `tmp_*()`.
 - `kernel/pins.h`: GPIO, ADC, PWM, and UART assignments.
 - `include/piconix.h`: public API and error constants.
-
-This reference is based on static source inspection; not every node has been exercised on hardware.

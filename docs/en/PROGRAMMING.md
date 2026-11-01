@@ -119,13 +119,14 @@ if (flags >= 0)
 ## 9. Debugging and verification
 
 ```sh
-python3 tools/test_audit.py
-python3 tools/test_ram_pipeline.py
+python3 tools/run_tests.py
+# Run toolchain-dependent tests as well (ARM toolchain required):
+python3 tools/run_tests.py --all
 ```
 
 These checks alone do not guarantee a complete firmware build or hardware behavior. Build the firmware with the ARM toolchain and Pico SDK. Watch for unresolved `__aeabi_*` symbols, slot-size overruns, failed PIC checks and mismatched system-call numbers.
 
-For runtime diagnostics, use `ps`, `cat /proc/tasks`, `cat /proc/memory` and `trace on/off/show`. See [Internals](INTERNAL.md) and [Tracing](TRACE.md).
+For runtime diagnostics, use `ps`, `cat /proc/tasks`, `cat /proc/memory` and `trace on`, `trace off`, `trace show`. See [Internals](INTERNAL.md) and [Tracing](TRACE.md).
 
 ## 10. Development checklist
 

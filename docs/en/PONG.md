@@ -25,4 +25,4 @@ Disable line-input mode in the terminal emulator. ANSI cursor control and an alt
 
 While running, Pong configures the TTYs it uses for noncanonical, echo-disabled, nonblocking input. On normal exit, it restores local settings and releases the claimed remote TTY in two-player mode. Claiming is a generic kernel TTY facility, not Pong-specific handling.
 
-The game cannot detect the physical connection of a terminal emulator. Full firmware builds, the 32-KiB RAM image limit, and hardware behavior still require verification.
+The game cannot detect whether a terminal emulator is physically connected. Each application uses a 24-KiB RAM slot, with the last 4 KiB reserved for its stack (leaving up to 20 KiB for the program image). Firmware builds and hardware behavior require separate verification.

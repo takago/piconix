@@ -89,5 +89,3 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 - `kernel/kernel.c`：`vdir_paths`，`dev_registry`，`vfs_registry`，`vdir_nth()`，`vfs_open()`，`tmp_*()`．
 - `kernel/pins.h`：GPIO・ADC・PWM・UARTの割り当て．
 - `include/piconix.h`：公開APIとエラー定数．
-
-この文書はソースコードとの静的照合によるものです．実機で全ノードを読み書きする試験は行っていません．
