@@ -143,7 +143,73 @@ python3 tools/run_tests.py --all  # ARMツールチェーン依存テストも�
 
 ソースレベルのテストだけでは，ファームウェアのビルドや実機動作までは保証できません．実行中の調査には`ps`，`cat /proc/tasks`，`trace on`，`trace off`，`trace show`などを使います．[トレース](TRACE.md)ではシステムコールとコンテキストスイッチ，[メモリ参照](MEM.md)ではRAM・Flashの読み取り専用観察を説明しています．
 
-## 8．関連文書
+## 8．リアルタイムキー入力（noncanonical + O_NONBLOCK）
+
+`read()`で改行を待たずにキーを読み取り，入力がない間も処理を続ける例です．ゲームや対話型ツールでは，**TTYの入力方式**と**FDの待機方式**を別々に設定します．
+
+- `ioctl(0, OS_TTY_SET_CANON, 0)`：行単位入力を解除し，文字単位で受け取ります．
+- `ioctl(0, OS_TTY_SET_ECHO, 0)`：入力文字の自動表示を止めます．
+- `fcntl(0, F_SETFL, flags | O_NONBLOCK)`：入力がなくても`read()`を待機させません．
+
+以下のコードは`userland/keypoll.c`などに保存できる例です．PicoNIX独自のTTY用`ioctl`定数を使用し，POSIXの`termios`は必要ありません．
+
+```c
+#include "unistd.h"
+#include "fcntl.h"
+#include "stdio.h"
+
+int main(void)
+{
+    int canon = ioctl(0, OS_TTY_GET_CANON, 0);
+    int echo  = ioctl(0, OS_TTY_GET_ECHO, 0);
+    int flags = fcntl(0, F_GETFL, 0);
+    int result = 1;
+
+    if (canon < 0 || echo < 0 || flags < 0) {
+        puts("A TTY is required.");
+        return 1;
+    }
+
+    if (ioctl(0, OS_TTY_SET_CANON, 0) < 0 ||
+        ioctl(0, OS_TTY_SET_ECHO, 0) < 0 ||
+        fcntl(0, F_SETFL, flags | O_NONBLOCK) < 0) {
+        puts("Cannot configure TTY.");
+        goto restore;
+    }
+
+    puts("Counter runs without input. Press q to quit.");
+    for (unsigned count = 0;; ++count) {
+        char key;
+        int n = read(0, &key, 1);
+        if (n == 1 && (key == 'q' || key == 'Q')) {
+            result = 0;
+            break;
+        }
+        if (n < 0) { /* Actual input error. */
+            puts("TTY read error.");
+            break;
+        }
+        /* n == 0: no key available (or TTY EOF). */
+        if (count % 10 == 0)
+            printf("Count: %u\n", count);
+        msleep(100);
+    }
+
+restore:
+    fcntl(0, F_SETFL, flags);
+    ioctl(0, OS_TTY_SET_ECHO, echo);
+    ioctl(0, OS_TTY_SET_CANON, canon);
+    return result;
+}
+```
+
+**PicoNIXでの重要な挙動：** TTYの非ブロッキング`read()`は，入力可能な文字がなければ**0**を返します（Linuxの`EAGAIN`を前提にしません）．ただし，`0`はCtrl+DによるEOFでもあり得るため，この簡易例では両者を区別していません．負の戻り値はエラーとして扱います．`msleep(100)`を挟むことで，入力のない間の無駄な繰り返しを抑えます．
+
+開始時にcanonical・echo・FDフラグを保存し，終了時と設定途中の失敗時に戻します．**Ctrl+Cや`kill`などでアプリが強制終了した場合，このCコードの復元処理は実行されません**．前景タスクのTTY設定はカーネル側の復元機構に依存します．FDフラグはタスク固有なので，通常終了時に明示的に戻します．
+
+この例は既存の`greet`と同様にCMakeへの追加とカーネル登録が必要です（上記の手順を`keypoll`に読み替えてください）．`stty raw`を事前に実行する必要はありません．TTYの規則は[TTY](TTY.md)，実際のゲームでの利用は`userland/mb.c`と`userland/pong.c`を参照してください．
+
+## 9．関連文書
 
 - [Cライブラリ](LIBC.md)：アプリで使用できる関数と制限
 - [システムコール](SYSCALLS.md)：番号，引数，戻り値，ABI

@@ -143,7 +143,73 @@ python3 tools/run_tests.py --all  # includes toolchain-dependent tests
 
 The complete firmware build and real hardware checks are still necessary; source-level tests alone do not prove a board will run correctly. Use `ps`, `cat /proc/tasks`, `trace on`, `trace off`, and `trace show` when diagnosing runtime behavior. [Tracing](TRACE.md) explains syscall and context-switch events; [Memory inspection](MEM.md) explains read-only RAM/Flash inspection.
 
-## 8. Where to go next
+## 8. Real-time keyboard input (noncanonical + O_NONBLOCK)
+
+This example reads individual keys without waiting for a newline and keeps running when no key is pressed. Interactive tools and games configure **TTY input processing** separately from **FD blocking behavior**.
+
+- `ioctl(0, OS_TTY_SET_CANON, 0)` disables line buffering so characters can be read individually.
+- `ioctl(0, OS_TTY_SET_ECHO, 0)` disables automatic input echo.
+- `fcntl(0, F_SETFL, flags | O_NONBLOCK)` prevents `read()` from waiting for input.
+
+You can save this example as `userland/keypoll.c`. It uses PicoNIX-specific TTY `ioctl` commands, not POSIX `termios`.
+
+```c
+#include "unistd.h"
+#include "fcntl.h"
+#include "stdio.h"
+
+int main(void)
+{
+    int canon = ioctl(0, OS_TTY_GET_CANON, 0);
+    int echo  = ioctl(0, OS_TTY_GET_ECHO, 0);
+    int flags = fcntl(0, F_GETFL, 0);
+    int result = 1;
+
+    if (canon < 0 || echo < 0 || flags < 0) {
+        puts("A TTY is required.");
+        return 1;
+    }
+
+    if (ioctl(0, OS_TTY_SET_CANON, 0) < 0 ||
+        ioctl(0, OS_TTY_SET_ECHO, 0) < 0 ||
+        fcntl(0, F_SETFL, flags | O_NONBLOCK) < 0) {
+        puts("Cannot configure TTY.");
+        goto restore;
+    }
+
+    puts("Counter runs without input. Press q to quit.");
+    for (unsigned count = 0;; ++count) {
+        char key;
+        int n = read(0, &key, 1);
+        if (n == 1 && (key == 'q' || key == 'Q')) {
+            result = 0;
+            break;
+        }
+        if (n < 0) { /* Actual input error. */
+            puts("TTY read error.");
+            break;
+        }
+        /* n == 0: no key available (or TTY EOF). */
+        if (count % 10 == 0)
+            printf("Count: %u\n", count);
+        msleep(100);
+    }
+
+restore:
+    fcntl(0, F_SETFL, flags);
+    ioctl(0, OS_TTY_SET_ECHO, echo);
+    ioctl(0, OS_TTY_SET_CANON, canon);
+    return result;
+}
+```
+
+**Important PicoNIX behavior:** a nonblocking TTY `read()` returns **0** when no character is ready; do not assume Linux-style `EAGAIN` behavior. Zero can also represent Ctrl+D (EOF), which this small example does not distinguish. Negative results indicate errors. `msleep(100)` prevents busy polling when no input is available.
+
+The example saves and restores canonical mode, echo, and FD flags, including when configuration fails partway through. **Forced termination such as Ctrl+C or `kill` bypasses the C cleanup path.** The kernel's foreground-task restoration mechanism handles the TTY settings in that situation. FD flags are task-local and are explicitly restored on ordinary exit.
+
+Like the earlier `greet` example, this application must be added to CMake and registered in the kernel (substitute `keypoll` in the preceding steps). No prior `stty raw` command is needed. See [TTY](TTY.md) for mode semantics, and `userland/mb.c` and `userland/pong.c` for real game implementations.
+
+## 9. Where to go next
 
 - [C library](LIBC.md): functions available to applications and their limitations
 - [System calls](SYSCALLS.md): syscall numbers, arguments, return values, and ABI

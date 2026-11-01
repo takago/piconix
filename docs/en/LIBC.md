@@ -48,6 +48,8 @@ The following entries match the headers and the implementation in this repositor
 
 For **complete prototypes**, use the headers; for **system-call numbers, ABI registers and kernel behavior**, see [System calls](SYSCALLS.md). For the special network behavior (asynchronous `connect()`, `tcp_status()`, nonblocking `accept()`/`recvfrom()`), see [Network programming](NETWORK-PROGRAMMING.md).
 
+For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboard input, see [Real-time keyboard input](PROGRAMMING.md#8-real-time-keyboard-input-noncanonical--o_nonblock) in the C programming guide.
+
 ## Important limitations
 
 - Formatted output supports `%s`, `%c`, `%d`, `%i`, `%u`, `%x`, `%X`, `%%`, integer width/precision/padding and selected integer length modifiers. **Floating-point conversions are not supported**. Check `userland/libc.c` before using unfamiliar format features.
