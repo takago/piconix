@@ -48,6 +48,8 @@ PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup 
 
 For C applications, a useful reading sequence is **Programming → C library and APIs → System calls**. For assembly, start with **Assembler → System calls**.
 
+- [Kernel development](KERNEL-DEVELOPMENT.md): Adding system calls and device nodes
+
 ## Development history
 
 Earlier designs, implementation milestones, and debugging notes are collected in the [development history](../history/README.md). These are not current specifications.

@@ -1,0 +1,237 @@
+# カーネル拡張ガイド
+
+[文書案内](DOCS.md) | [内部構造](INTERNAL.md) | [システムコール](SYSCALLS.md) | [デバイス](DEVICES.md) | [English](../en/KERNEL-DEVELOPMENT.md)
+
+この文書は，**PicoNIXのカーネルに機能を追加する開発者**向けです．ユーザ空間のCコマンドを追加する場合は[PROGRAMMING.md](PROGRAMMING.md)を参照してください．以下は添付された現行ソースの構造に基づく手順であり，完成済みパッチではありません．既存のABIや機器予約を破壊しないよう，変更箇所を一つずつ確認してください．
+
+## 1．最初に読むソース
+
+| ファイル | 役割 |
+|---|---|
+| `kernel/kernel.c` | タスク，SVCディスパッチ，FD，VFS，デバイスI/O，TTY |
+| `kernel/main.c` | Flash内のユーザプログラムの登録，起動 |
+| `kernel/context.S` | 例外・コンテキスト切替 |
+| `userland/syscalls.c` | C側のSVCラッパー，BSD風アダプター |
+| `userland/unistd.h` | 公開APIの宣言・定数 |
+| `include/piconix.h` | カーネルとユーザ側が共有する型・制限値 |
+| `kernel/gpio.c`, `kernel/adc.c`, `kernel/pwm.c`, `kernel/fb.c` | 機器別バックエンド |
+| `kernel/pins.h`, `kernel/devices.h` | ピン用途・デバイス関連の定義 |
+| `tools/run_tests.py`, `tools/test_scripts/` | 回帰テスト |
+
+[ARCHITECTURE.md](ARCHITECTURE.md)と[INTERNAL.md](INTERNAL.md)でXIP，RAMスロット，SVC境界を先に理解してください．PicoNIXは一般的なLinuxカーネルではなく，単一アドレス空間を使用し，ユーザプログラムのポインタは明示的に検査する設計です．
+
+## 2．新しいシステムコールを追加する
+
+### 2.1 番号とABIを決める
+
+`kernel/kernel.c`の`SYS_GETPID`から始まる`enum`には，現在1〜38番が定義されています．**11番と15番は予約済み**です．既存番号を並べ替えたり流用したりしないでください．新しい番号は末尾に明示的に追加するのが安全です．ユーザ側`userland/syscalls.c`は番号を数値で呼び出しているため，両者の不一致はABI破壊になります．
+
+呼び出し規約は，`r0`＝番号，`r1`〜`r3`＝引数，`svc #0`，復帰時`r0`＝結果です．4引数以上の情報には構造体ポインタを用いるなどして設計してください．エラーは通常，負の`OS_E*`値で返し，`errno`に依存しません．[SYSCALLS.md](SYSCALLS.md)を参照してください．
+
+### 2.2 カーネルの処理を追加
+
+`kernel/kernel.c`の`os_svc_dispatch(uint32_t *f)`には，番号の分岐と結果を設定する`switch(num)`があります．既存の簡単な`SYS_FLASH_ID`や`SYS_GETPID`の処理を例に，追加するケースで`result`を設定します．
+
+```c
+/* 追加位置を示す模式例．未定義番号や関数をそのまま貼り付けないこと． */
+case SYS_EXAMPLE:
+    result = example_kernel_operation(a);
+    break;
+```
+
+`a`，`b`，`c`は`r1`〜`r3`から取得されます．ユーザポインタを参照するときは，既存の`in_task_range()`や文字列パス検証の実装を参考に，**長さ，範囲，終端，整数オーバーフローを参照前に検査**してください．ポインタを単純にキャストして任意アドレスを参照しないでください．タスク状態を変える操作，割込みと共有する状態，待機処理は既存の同期・スケジューラ規約を確認してください．
+
+### 2.3 ユーザ側APIを公開
+
+`userland/syscalls.c`の`call(n, a, b, c)`は`svc #0`を発行します．新しいC関数のラッパーを追加し，`userland/unistd.h`など適切な公開ヘッダに**対応するプロトタイプ**を追加してください．名前，型，エラー時の値がカーネルと一致することを確認します．変更後は[LIBC.md](LIBC.md)と[SYSCALLS.md](SYSCALLS.md)の日英両方を更新します．
+
+### 2.4 テストで確認
+
+- 既存番号・予約番号が不変であること，新番号が重複しないこと
+- 引数0・上限値・不正FD・不正ポインタ・巨大サイズで適切なエラーを返すこと
+- 失敗してもタスク状態・FD・バッファを破損しないこと
+- Cラッパーの番号と引数順がディスパッチ側と一致すること
+- 必要なら`trace`にSVCイベントが記録されること
+
+## 3．新しいデバイスノードを追加する
+
+### 3.1 既存のVFSを把握する
+
+`kernel/kernel.c`では，固定の`/dev`パスは`dev_registry[]`，`/proc`などの固定特殊パスは`vfs_registry[]`で管理されます．`vfs_open()`がパスを解決し，タスクのFDに内部デバイスIDを対応付けます．`vfs_rw()`が読み書きを振り分け，`device_ioctl()`が対応する制御要求を扱います．`close()`はFD解放を通じて資源を後始末します．
+
+**パスを登録しただけでは`read()`や`write()`は動作しません．** 既存のGPIO，ADC，PWMは動的パス・条件付き公開を含むため，単純な固定ノードとは別に調べてください．`/proc/devices`や`/dev`ディレクトリ列挙にも反映されるか確認が必要です．
+
+### 3.2 読み取り専用ノードを追加する場合
+
+1. `DEV_*`識別子の未使用値を選び，既存のデバイスID・パイプ内部ID・ディレクトリID・プログラムシンボル用IDと重複しないことを確認します．
+2. 固定ノードなら`dev_registry[]`に`"/dev/example"`と識別子を追加します．`/proc`の情報ノードなら名前・列挙箇所が異なるので既存の`vfs_registry[]`を参照してください．
+3. `vfs_open()`で読み取り専用などのアクセスモード制限を追加します．現行の`OS_O_RDONLY`や`OS_O_NONBLOCK`制限を確認してください．
+4. `vfs_rw()`で対象IDを分岐し，`writing`時は`OS_EBADF`，読み取り時は処理結果のバイト数，失敗時は負の`OS_E*`値を返します．呼出し元にはユーザバッファの範囲検査がありますが，**バックエンド固有の長さと状態**も別途検査します．
+5. 継続読み取りが必要なら`tasks[current].fd_pos[fd]`を用いたオフセットとEOF（0バイト）を設計します．`lseek()`を必要とするならその対象FDの扱いも検討します．
+6. `device_ioctl()`が必要なら要求番号と許可するFDを追加します．不要なら未対応要求は既存どおりエラーにします．
+7. ピン・周辺機能を使う場合，`kernel/pins.h`と既存ドライバの所有関係を確認し，USB／UART／Wi-Fi／FB／PWMの予約資源と衝突させないでください．
+8. `DEVICES.md`，`FILESYSTEM.md`，必要なら`LIBC.md`を更新し，日英両方に同じパスと動作を記載します．
+
+以下は利用側の**動作確認例**です．新ノードのカーネル実装そのものではありません．
+
+```c
+#include "unistd.h"
+#include "fcntl.h"
+
+int fd = open("/dev/example", O_RDONLY);
+if (fd >= 0) {
+    char buf[32];
+    int n = read(fd, buf, sizeof buf);
+    /* n > 0: データ，n == 0: EOF，n < 0: エラー */
+    close(fd);
+}
+```
+
+公開ヘッダの実際のマクロ名や引数型は変更時に照合してください．
+
+### 3.3 デバイス追加時のテスト
+
+| 観点 | 確認内容 |
+|---|---|
+| パス解決 | 正しいパスでopenでき，誤ったパスでは失敗する |
+| 列挙 | `ls /dev`，必要なら`/proc/devices`から見える |
+| 権限 | 読み取り専用FDでのwriteを拒否する |
+| 入力検査 | 0バイト，境界値，不正ポインタを扱える |
+| FD寿命 | 複数回open／close，タスク終了時に不整合がない |
+| 排他 | 機器を同時利用するときの所有者・競合条件を定義する |
+| ハードウェア | Pico/Pico Wの両方で未搭載機能を安全に扱う |
+
+## 4．実践演習：`getuptime()`と`/dev/uptime`を追加する
+
+この演習では，**同じ起動後経過時間を，システムコールは数値で，デバイスノードは文字列で返す**実装を学びます．どちらもハードウェア追加は不要です．以下は**既存ソースに対する変更例**であり，完成済みパッチではありません．演習のコードは実機でのビルド・動作未検証です．
+
+### 4.1 既存機能と設計上の注意
+
+現行カーネルには1 ms周期で増える`ticks`があり，すでに`/proc/ticks`（ミリ秒の整数）と`/proc/uptime`（秒の文字列表現）が存在します．新設する`/dev/uptime`は機能的には重複しますが，**システムコールとVFSの拡張方法を比較する教材**として作ります．通常の実用アプリは既存の`/proc/uptime`を利用できます．
+
+| インターフェース | 新設する動作 | 比較対象 |
+|---|---|---|
+| `unsigned getuptime(void)` | 起動後のミリ秒値を返す（32 bit） | `/proc/ticks` |
+| `/dev/uptime` | `123.456 s\n`のようなテキストを返す | `/proc/uptime` |
+
+`ticks`は`uint32_t`で，約49.7日後に周回します．32 bit値のビット列をそのまま返すため，Cラッパーは`unsigned`とします．新規システムコール番号は**39**，デバイス内部IDは既存IDと重複しない値として**264**を演習用に選びます．実際の開発時には最新の定義を再確認してください．
+
+### 4.2 システムコールを追加する
+
+`kernel/kernel.c`の`SYS_*`列挙の**最後**を，既存の38番を変えずに次のようにします．
+
+```c
+SYS_PROGRAM_ID, SYS_GETUPTIME = 39
+```
+
+同ファイルの`os_svc_dispatch()`にある`switch(num)`へ次の分岐を追加します．`ticks`は既存の1 msカウンタです．
+
+```c
+case SYS_GETUPTIME:
+    result = (int)ticks;   /* 32-bit のビット列を r0 に返す */
+    break;
+```
+
+`userland/syscalls.c`には既存の`call()`を使うラッパーを追加します．
+
+```c
+unsigned getuptime(void) {
+    return (unsigned)call(39, 0, 0, 0);
+}
+```
+
+`userland/unistd.h`に宣言を追加します．
+
+```c
+unsigned getuptime(void);  /* ミリ秒，32-bit周回あり */
+```
+
+このAPIは引数なしです．正の値すべてが正常な計時値として使われるため，一般的な負のエラーコード判定は適用しません．呼び出しに失敗した場合の別のエラー通知機構は提供しない，という設計上の制限も明記してください．
+
+### 4.3 読み取り専用`/dev/uptime`を追加する
+
+ここでは文字列整形や読み取り位置の管理を新たに複製せず，既存の`device_rw_proc()`にある`DEV_PROC_UPTIME`処理を再利用します．`kernel/kernel.c`に以下の変更を加えます．
+
+1．既存の`DEV_*`列挙に`DEV_UPTIME = 264`を追加します（ほかの識別子や範囲と重複させない）．
+
+2．`dev_registry[]`へ固定パスを追加します．これにより`/dev`の列挙および`/proc/devices`の一覧にも反映されます．
+
+```c
+{"/dev/uptime", DEV_UPTIME},
+```
+
+3．`vfs_open()`の読み取り専用検査条件に`dev==DEV_UPTIME`を加えます．これにより`open("/dev/uptime", O_WRONLY)`や`O_RDWR`を拒否します．単に`vfs_rw()`で書き込みを拒否するだけでなく，オープン時点で拒否します．
+
+4．`vfs_rw()`のデバイス振り分け（GPIOフォールバックより前）に次を挿入します．
+
+```c
+if (dev == DEV_UPTIME)
+    return device_rw_proc(fd, DEV_PROC_UPTIME, p, n, writing);
+```
+
+既存の`device_rw_proc()`は，読み取り時に`fd_pos[fd]`を進め，末尾で`0`（EOF）を返し，書き込み時には`OS_EBADF`を返します．これで複数回の小さな`read()`も扱えます．**`dev_registry[]`へ登録するだけでは読み書きは実装されません．**
+
+### 4.4 ユーザプログラムで比較する
+
+新しいCコマンドを登録する場合は[PROGRAMMING.md](PROGRAMMING.md)の手順を使います．まずシェルから以下を試します．
+
+```text
+cat /proc/ticks
+cat /proc/uptime
+cat /dev/uptime
+```
+
+次に，CプログラムでAPIとデバイスを比較します（`printf`等の公開APIは[LIBC.md](LIBC.md)を参照）．
+
+```c
+#include "unistd.h"
+#include "fcntl.h"
+#include "stdio.h"
+
+int main(void) {
+    unsigned ms = getuptime();
+    printf("uptime: %u ms\n", ms);
+    int fd = open("/dev/uptime", O_RDONLY);
+    if (fd < 0) return 1;
+    char buf[32];
+    int n;
+    while ((n = read(fd, buf, sizeof(buf))) > 0)
+        write(1, buf, (unsigned)n);
+    close(fd);
+    return n < 0 ? 1 : 0;
+}
+```
+
+2回の取得時刻は厳密には一致しません．`/dev/uptime`は各read時点のスナップショットを用いるため，**途中で時刻が進む場合に部分読み取りをまたいで一貫したスナップショットにはなりません**．簡易教材としては十分ですが，厳密な整合性が必要ならopen時のスナップショット管理を設計します．
+
+### 4.5 検証チェックリスト
+
+- 既存の1〜38番と予約11・15番を変更せず，新設39番だけが追加されている．
+- `getuptime()`の値が`/proc/ticks`とおおむね一致し，時間の経過とともに増える．
+- `cat /dev/uptime`が`/proc/uptime`と同形式を返す．
+- `ls /dev`と`cat /proc/devices`で新しいノードを確認できる．
+- `open()`の書き込みモードを拒否し，`read()`の0バイト・短いバッファ・EOF・複数回open/closeを確認する．
+- `python3 tools/run_tests.py`と，ツールチェーン準備後の`python3 tools/run_tests.py --all`を実行し，Pico/Pico Wで実機検証する．
+- `SYSCALLS.md`，`LIBC.md`，`DEVICES.md`（日英）に新APIとノードを追記し，番号39と内部ID264が既存の自動テストで排除されないか確認する．
+
+この演習では**時間計測の新機能を発明することではなく，既存のカーネルデータを2種類のインターフェースで公開する方法を学ぶこと**が目的です．
+
+## 5．変更から検証・文書更新まで
+
+```bash
+python3 tools/run_tests.py
+python3 tools/run_tests.py --all
+```
+
+`--all`にはARMツールチェーンを必要とするテストも含まれます．ファームウェア全体のビルドは[SETUP.md](SETUP.md)のSDKとツールチェーン設定を使用してください．**静的テストがPASSしても実機動作の保証にはなりません．** 新しい周辺機器や割込み処理では，Pico／Pico W実機での読み書き，競合，長時間動作を別途確認します．
+
+変更時の推奨チェックリスト：カーネル実装 → ユーザAPIと公開ヘッダ → テスト → 日英リファレンス → README・DOCSのリンク（新文書を作った場合）．
+
+## 6．関連文書
+
+- [SYSCALLS.md](SYSCALLS.md)：ABI，引数，戻り値
+- [LIBC.md](LIBC.md)：Cライブラリとラッパー
+- [DEVICES.md](DEVICES.md)：デバイスノードと配線
+- [INTERNAL.md](INTERNAL.md)：タスク，VFS，カーネル内部
+- [PROGRAMMING.md](PROGRAMMING.md)：ユーザ空間Cアプリ追加
+- [TRACE.md](TRACE.md)：SVCとタスク切替の観察

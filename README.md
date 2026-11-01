@@ -125,7 +125,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 
 ## Documentation / ドキュメント
 
-**Start here / まずはこちら：** [Documentation Guide](docs/en/DOCS.md) / [文書案内](docs/ja/DOCS.md) — recommended reading order and links to detailed references.
+**Start here ：** [Documentation Guide](docs/en/DOCS.md) / [文書案内](docs/ja/DOCS.md) — recommended reading order and links to detailed references.
 
 ### Setup
 
@@ -157,6 +157,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Assembly programming](docs/en/ASM.md) | [アセンブリプログラミング](docs/ja/ASM.md) |
 | [C library and APIs](docs/en/LIBC.md) | [CライブラリとAPI](docs/ja/LIBC.md) |
 | [System call reference](docs/en/SYSCALLS.md) | [システムコール一覧](docs/ja/SYSCALLS.md) |
+| [Kernel development](docs/en/KERNEL-DEVELOPMENT.md) | [カーネル拡張ガイド](docs/ja/KERNEL-DEVELOPMENT.md) |
 | [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) |
 | [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
 | [Text editing](docs/en/EDIT.md) | [テキスト編集](docs/ja/EDIT.md) |
