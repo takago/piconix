@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include "../userland/trace.h"
 #include "../include/piconix_dirent.h"
+#include "../include/piconix_syscall.h"
 #include "pico/stdio_usb.h"
 #include "tusb.h"
 
@@ -130,8 +131,6 @@ static const char *vfs_device_path(unsigned index) {
 enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
-enum { SYS_GETPID=1, SYS_KILL, SYS_EXIT, SYS_SLEEP, SYS_YIELD,
-       SYS_OPEN, SYS_CLOSE, SYS_READ, SYS_WRITE, SYS_IOCTL, SYS_RESERVED_TASK_INFO, SYS_SPAWN, SYS_WAITPID, SYS_SET_FG, SYS_RESERVED_GETARG, SYS_CONSOLE_READY, SYS_UNLINK, SYS_DUP2, SYS_TTY_SPAWN, SYS_GET_TTY, SYS_LSEEK, SYS_CHDIR, SYS_GETCWD, SYS_FCNTL, SYS_SPAWN_TMP, SYS_GETDENTS, SYS_FLASH_ID, SYS_SOCKET, SYS_BIND, SYS_SENDTO, SYS_RECVFROM, SYS_LISTEN_TCP, SYS_CONNECT_TCP, SYS_TCP_STATUS, SYS_ACCEPT_TCP, SYS_PIPE, SYS_DUP, SYS_PROGRAM_ID };
 /* Per-task descriptor table (independent of hardware GPIO counts). */
 #define OS_FD_MAX 16
 /* Anonymous pipe descriptors and storage (fixed SRAM budget). */

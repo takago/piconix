@@ -5,48 +5,14 @@
 #include "string.h"
 #include "trace.h"
 #include "../include/device_names.h"
+#include "../include/piconix_syscall.h"
 
 static const char *syscall_name(unsigned n) {
     switch(n) {
         case 0: return "?";
-        case 1: return "getpid";
-        case 2: return "kill";
-        case 3: return "exit";
-        case 4: return "sleep";
-        case 5: return "yield";
-        case 6: return "open";
-        case 7: return "close";
-        case 8: return "read";
-        case 9: return "write";
-        case 10: return "ioctl";
-        case 11: return "reserved";
-        case 12: return "spawn";
-        case 13: return "waitpid";
-        case 14: return "set_fg";
-        case 15: return "reserved";
-        case 16: return "console_ready";
-        case 17: return "unlink";
-        case 18: return "dup2";
-        case 19: return "tty_spawn";
-        case 20: return "get_tty";
-        case 21: return "lseek";
-        case 22: return "chdir";
-        case 23: return "getcwd";
-        case 24: return "fcntl";
-        case 25: return "spawn_tmp";
-        case 26: return "getdents";
-        case 27: return "flash_id";
-        case 28: return "socket";
-        case 29: return "bind";
-        case 30: return "sendto";
-        case 31: return "recvfrom";
-        case 32: return "listen";
-        case 33: return "connect";
-        case 34: return "tcp_status";
-        case 35: return "accept";
-        case 36: return "pipe";
-        case 37: return "dup";
-        case 38: return "program_id";
+#define PICONIX_TRACE_SYSCALL_CASE(name, number, label) case name: return label;
+        PICONIX_SYSCALL_TABLE(PICONIX_TRACE_SYSCALL_CASE)
+#undef PICONIX_TRACE_SYSCALL_CASE
         default: return "unknown";
     }
 }
@@ -181,6 +147,19 @@ static void pending_save(unsigned pid, unsigned call, const char *target) {
     pending[i].pid=pid; pending[i].call=call;
     strcpy(pending[i].target,target);
 }
+static void reset_view_state(void) {
+    memset(fd_names,0,sizeof fd_names);
+    memset(pending,0,sizeof pending);
+    fd_next=0;
+    pending_next=0;
+    close_pid=0;
+    close_fd=0;
+}
+static void print_lost_notice(int lost) {
+    if(lost<=0) return;
+    printf("trace: %d events overwritten\n",lost);
+    header();
+}
 static void print_event(const trace_event_t *e) {
     char time[20],pid[16],target[64]="",ret[16]="";
     unsigned shown_pid=(e->kind&TRACE_KIND_MASK)==TRACE_SWITCH ? e->value : e->pid;
@@ -203,7 +182,7 @@ static void print_event(const trace_event_t *e) {
     unsigned call=e->value;
     if(!enter) {
         numeric(ret,(int)e->detail);
-        if(call==6 && (int)e->detail>=0) {
+        if(call==SYS_OPEN && (int)e->detail>=0) {
             save_fd(e->pid,e->detail,e->data);
             format_target(target,e->pid,e->detail,e->file_id);
         } else {
@@ -211,27 +190,29 @@ static void print_event(const trace_event_t *e) {
             if(prior) strcpy(target,prior);
         }
     } else {
-        if(call==7 || call==8 || call==9 || call==10 || call==21 || call==26 ||
-           call==29 || call==30 || call==31 || call==32 || call==33 || call==34 || call==35)
+        if(call==SYS_CLOSE || call==SYS_READ || call==SYS_WRITE || call==SYS_IOCTL ||
+           call==SYS_LSEEK || call==SYS_GETDENTS || call==SYS_BIND ||
+           call==SYS_SENDTO || call==SYS_RECVFROM || call==SYS_LISTEN_TCP ||
+           call==SYS_CONNECT_TCP || call==SYS_TCP_STATUS || call==SYS_ACCEPT_TCP)
             format_target(target,e->pid,e->detail,e->file_id);
-        else if(call==6) strcpy(target,"path");
-        else if(call==13) numeric(target,(int32_t)e->detail);
-        else if(call==12) {const char *name=program_name(e->detail);strcpy(target,name);}
+        else if(call==SYS_OPEN) strcpy(target,"path");
+        else if(call==SYS_WAITPID) numeric(target,(int32_t)e->detail);
+        else if(call==SYS_SPAWN) {const char *name=program_name(e->detail);strcpy(target,name);}
         else numeric(target,(int32_t)e->detail);
         pending_save(e->pid,call,target);
-        if(call==7) {close_pid=e->pid;close_fd=e->detail;}
+        if(call==SYS_CLOSE) {close_pid=e->pid;close_fd=e->detail;}
     }
     col(enter?"ENTER":"EXIT",8);col(syscall_name(call),8);
     col(target,16);col(ret,3);
-    if(!enter && call==6 && (int)e->detail>=0) {
+    if(!enter && call==SYS_OPEN && (int)e->detail>=0) {
         /* The open path is already available from the binary event. */
-    } else if(!enter && (call==8 || call==9) && (int)e->detail>0 && e->file_id!=99) {
+    } else if(!enter && (call==SYS_READ || call==SYS_WRITE) && (int)e->detail>0 && e->file_id!=99) {
         unsigned length=(unsigned)e->detail;
         if(length>16) length=16;
         print_preview(e->data,length,(unsigned)e->detail>16);
     }
     putchar('\n');
-    if(!enter && call==7 && (int)e->detail==0 && close_pid==e->pid)
+    if(!enter && call==SYS_CLOSE && (int)e->detail==0 && close_pid==e->pid)
         forget_fd(close_pid,close_fd);
 }
 /* Trace reads use a per-FD event cursor.  Advancing it to the current
@@ -247,6 +228,7 @@ static int trace_run(int fd, int argc, char *argv[]) {
         puts("usage: trace run command [args...]");return 1;
     }
     load_program_names();
+    reset_view_state();
     /* Match the shell's ./image execution in the current directory. */
     char image_path[128];
     const char *name=argv[2];
@@ -351,6 +333,7 @@ int main(int argc, char *argv[]) {
     /* follow starts at invocation, not at the oldest retained event. */
     if(follow && trace_drain(fd)<0) {puts("trace: cannot seek to latest event");close(fd);return 1;}
     load_program_names();
+    reset_view_state();
     header();
     trace_event_t event;
     int count=0,n;

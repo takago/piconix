@@ -150,26 +150,48 @@ list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symb
 # Kernel .text/.rodata execute from XIP flash on both Pico and Pico W.
 # Only .data/.bss/time-critical code/stacks use the first 64 KiB SRAM.
 # The default SDK startup initializes writable sections and RAM vectors.
+# SDK 2.3+ uses modular linker includes; older SDKs have a monolithic script.
+set(PICONIX_MODULAR_XIP_LD "${PICO_SDK_PATH}/src/rp2040/pico_platform/memmap_default.ld")
+set(PICONIX_MODULAR_POST_TEXT "${PICO_SDK_PATH}/src/rp2_common/pico_standard_link/script_include/section_extra_post_text.incl")
 set(PICONIX_SDK_XIP_LD "${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2040/memmap_default.ld")
 if(NOT EXISTS "${PICONIX_SDK_XIP_LD}")
   set(PICONIX_SDK_XIP_LD "${PICO_SDK_PATH}/src/rp2_common/pico_standard_link/memmap_default.ld")
 endif()
-if(NOT EXISTS "${PICONIX_SDK_XIP_LD}")
-  message(FATAL_ERROR "Missing Pico SDK RP2040 XIP linker script: ${PICONIX_SDK_XIP_LD}")
+set(PICONIX_USE_MODULAR_XIP OFF)
+if(EXISTS "${PICONIX_MODULAR_XIP_LD}" AND EXISTS "${PICONIX_MODULAR_POST_TEXT}")
+  set(PICONIX_USE_MODULAR_XIP ON)
+elseif(NOT EXISTS "${PICONIX_SDK_XIP_LD}")
+  message(FATAL_ERROR "Unsupported Pico SDK RP2040 linker script layout")
 endif()
-set(PICONIX_CUSTOM_LD "${CMAKE_CURRENT_BINARY_DIR}/piconix_kernel_xip.ld")
-execute_process(
-  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/limit_sdk_xip.py"
-          "${PICONIX_SDK_XIP_LD}" "${PICONIX_CUSTOM_LD}"
-  RESULT_VARIABLE PICONIX_LD_RESULT
-  ERROR_VARIABLE PICONIX_LD_ERROR)
-if(NOT PICONIX_LD_RESULT EQUAL 0)
-  message(FATAL_ERROR "Cannot derive safe SDK XIP linker script: ${PICONIX_LD_ERROR}")
+if(PICONIX_USE_MODULAR_XIP)
+  # The SDK's own memory region remains authoritative. This limits only kernel
+  # writable allocations, preserving the six physical 24-KiB task slots.
+  set(PICONIX_LD_OVERRIDES "${CMAKE_CURRENT_BINARY_DIR}/piconix_ld_overrides")
+  file(MAKE_DIRECTORY "${PICONIX_LD_OVERRIDES}")
+  configure_file("${CMAKE_CURRENT_LIST_DIR}/kernel/section_extra_post_text.incl"
+                 "${PICONIX_LD_OVERRIDES}/section_extra_post_text.incl" COPYONLY)
+  message(STATUS "PicoNIX XIP linker: SDK modular RP2040 layout")
+else()
+  set(PICONIX_CUSTOM_LD "${CMAKE_CURRENT_BINARY_DIR}/piconix_kernel_xip.ld")
+  execute_process(
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/limit_sdk_xip.py"
+            "${PICONIX_SDK_XIP_LD}" "${PICONIX_CUSTOM_LD}"
+    RESULT_VARIABLE PICONIX_LD_RESULT
+    ERROR_VARIABLE PICONIX_LD_ERROR)
+  if(NOT PICONIX_LD_RESULT EQUAL 0)
+    message(FATAL_ERROR "Cannot derive safe SDK XIP linker script: ${PICONIX_LD_ERROR}")
+  endif()
+  message(STATUS "PicoNIX XIP linker: ${PICONIX_CUSTOM_LD}")
 endif()
-message(STATUS "PicoNIX XIP linker: ${PICONIX_CUSTOM_LD}")
 add_executable(piconix kernel/net.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
-pico_set_linker_script(piconix "${PICONIX_CUSTOM_LD}")
+if(PICONIX_USE_MODULAR_XIP)
+  pico_set_linker_script_var(piconix RAM_LENGTH 0x10000)
+  pico_add_linker_script_override_path(piconix "${PICONIX_LD_OVERRIDES}"
+                                      FILES section_extra_post_text.incl)
+else()
+  pico_set_linker_script(piconix "${PICONIX_CUSTOM_LD}")
+endif()
 # Wi-Fi follows the selected board. Both boards use the same six-slot layout.
 # Reject stale cache options instead of silently retaining an old Wi-Fi setting.
 if(DEFINED PICONIX_WIFI_LAYOUT)

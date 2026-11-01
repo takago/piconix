@@ -9,7 +9,8 @@ assert 'net_service_telnet_poll();' in entry
 kern = (root / 'kernel/kernel.c').read_text()
 hdr = (root / 'kernel/net.h').read_text()
 opts = (root / 'kernel/lwipopts.h').read_text()
-for token in ('#define NET_TTY_QUEUE_SIZE 1024u',
+libc = (root / 'userland/libc.c').read_text()
+for token in ('#define NET_TTY_QUEUE_SIZE 2048u',
               'if (needed > queue_space(net_tx_head, net_tx_tail)) return 0;',
               'if (available > TCP_MSS) available = TCP_MSS;',
               'if (tcp_close(pcb) != ERR_OK) tcp_abort(pcb);',
@@ -21,7 +22,13 @@ for token in ('wifi_session_poll();', 'if(wifi_session_active && epoch!=wifi_ses
               'if(uartdev==2 && n!=0 && i==0)',
               'net_terminal_connected() ? OS_EAGAIN : OS_EIO'):
     assert token in kern, token
+# Separate TX/RX rings each have 2047 usable bytes with the one-empty-slot convention.
+assert 'static unsigned char net_rx[NET_TTY_QUEUE_SIZE], net_tx[NET_TTY_QUEUE_SIZE];' in net
+assert net.count('(NET_TTY_QUEUE_SIZE - 1u)') >= 5
+assert 'return NET_TTY_QUEUE_SIZE - 1u - queue_count(head, tail);' in net
+assert 'if (p->tot_len > queue_space(net_rx_head, net_rx_tail))' in net
 assert 'unsigned net_terminal_epoch(void);' in hdr
+assert 'if(r==OS_EAGAIN || r==0){msleep(1);continue;}' in libc
 assert '#define TCP_MSS 536' in opts
 listen_match = re.search(r'#define\s+MEMP_NUM_TCP_PCB_LISTEN\s+(\d+)\b', opts)
 assert listen_match and int(listen_match.group(1)) >= 5, 'TCP listen PCB pool must cover Telnet and four user sockets'

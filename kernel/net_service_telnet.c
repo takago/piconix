@@ -23,7 +23,7 @@ static unsigned terminal_epoch;
 /* The RX queue must fit a full negotiated TCP segment (TCP_MSS=536).
  * A 256-byte queue can never accept a 536-byte pbuf, causing a permanent
  * zero-window stall because lwIP retries that same pbuf unchanged. */
-#define NET_TTY_QUEUE_SIZE 1024u
+#define NET_TTY_QUEUE_SIZE 2048u
 static unsigned char net_rx[NET_TTY_QUEUE_SIZE], net_tx[NET_TTY_QUEUE_SIZE];
 static unsigned net_rx_head, net_rx_tail, net_tx_head, net_tx_tail;
 static unsigned queue_count(unsigned head, unsigned tail) {

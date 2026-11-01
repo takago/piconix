@@ -50,8 +50,15 @@ int atoi(const char *s) {return (int)strtol(s,0,10);}
 
 static int output(int fd,const char *s,size_t n) {
     size_t done=0;
-    while(done<n){int r=write(fd,s+done,n-done);if(r<0)return -1;
-        if(!r){msleep(1);continue;}done+=(unsigned)r;}
+    while(done<n){
+        int r=write(fd,s+done,n-done);
+        /* Network TTY output is backpressured when its TX queue fills.
+         * Yield to the idle/network poller and retry the unwritten bytes;
+         * never drop part of an ANSI escape sequence or a formatted line. */
+        if(r==OS_EAGAIN || r==0){msleep(1);continue;}
+        if(r<0)return -1;
+        done+=(unsigned)r;
+    }
     return (int)done;
 }
 int putchar(int c){unsigned char ch=(unsigned char)c;return output(1,(const char *)&ch,1)<0?EOF:ch;}

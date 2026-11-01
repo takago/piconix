@@ -1,0 +1,14 @@
+/* PicoNIX applications and symbol catalogs reside in XIP flash. */
+SECTIONS
+{
+    .piconix_app_images :
+    {
+        . = ALIGN(4);
+        __piconix_app_images_start = .;
+        KEEP(*(.piconix_app_image*))
+        KEEP(*(.rodata.piconix_symbols))
+        KEEP(*(.rodata.piconix_kernel_symbols))
+        . = ALIGN(4);
+        __piconix_app_images_end = .;
+    } > TEXT_STORE
+}
