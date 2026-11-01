@@ -45,10 +45,10 @@ There are **two required changes** in the current build system.
 Find `foreach(APP IN ITEMS ...)` near the top of `CMakeLists.txt` and append `greet` **without the `.c` suffix**:
 
 ```cmake
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello ... udp_echod greet)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod greet)
 ```
 
-The `...` above is explanatory shorthand: **keep every existing application name** when editing the actual line. The common loop automatically compiles `userland/greet.c` with `crt0.c`, `syscalls.c`, and `libc.c`, links the RAM image, validates its PIC behavior and size, and embeds the binary in firmware Flash. No separate custom build rule is needed.
+The line above shows the current `CMakeLists.txt` with `greet` appended. Keep all existing application names; if the list changes in a newer version, append `greet` to that version instead. The common loop automatically compiles `userland/greet.c` with `crt0.c`, `syscalls.c`, and `libc.c`, links the RAM image, validates its PIC behavior and size, and embeds the binary in firmware Flash. No separate custom build rule is needed.
 
 ### 3.2 Register the embedded image in `kernel/main.c`
 
@@ -189,7 +189,7 @@ int main(void)
             puts("TTY read error.");
             break;
         }
-        /* n == 0: no key available (or TTY EOF). */
+        /* n == 0: no key available in nonblocking mode. */
         if (count % 10 == 0)
             printf("Count: %u\n", count);
         msleep(100);
@@ -203,7 +203,7 @@ restore:
 }
 ```
 
-**Important PicoNIX behavior:** a nonblocking TTY `read()` returns **0** when no character is ready; do not assume Linux-style `EAGAIN` behavior. Zero can also represent Ctrl+D (EOF), which this small example does not distinguish. Negative results indicate errors. `msleep(100)` prevents busy polling when no input is available.
+**Important PicoNIX behavior:** a nonblocking TTY `read()` returns **0** when no character is ready; do not assume Linux-style `EAGAIN` behavior. In noncanonical mode, Ctrl+D (0x04) is delivered as an ordinary input byte rather than EOF; Ctrl+D has different behavior in canonical mode. Negative results indicate errors. `msleep(100)` prevents busy polling when no input is available.
 
 The example saves and restores canonical mode, echo, and FD flags, including when configuration fails partway through. **Forced termination such as Ctrl+C or `kill` bypasses the C cleanup path.** The kernel's foreground-task restoration mechanism handles the TTY settings in that situation. FD flags are task-local and are explicitly restored on ordinary exit.
 

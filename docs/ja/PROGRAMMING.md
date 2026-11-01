@@ -45,10 +45,10 @@ int main(int argc, char *argv[])
 ファイル上部の`foreach(APP IN ITEMS ...)`に，拡張子`.c`を付けずに`greet`を加えます．
 
 ```cmake
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello ... udp_echod greet)
+foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod greet)
 ```
 
-上記の`...`は説明用の省略です．**実際には既存のアプリ名をすべて残して**，末尾などに`greet`を追加してください．この共通ループによって，ソースのコンパイル，共通の`crt0.c`・`syscalls.c`・`libc.c`のリンク，PIC検査，サイズ検査，Flashへのイメージ埋め込みが行われます．個別のビルドルールは不要です．
+上記は現在の`CMakeLists.txt`に`greet`を末尾へ追加した例です．既存のアプリ名は削除せず，新しい版で一覧が変わっている場合はその版の末尾へ`greet`を追加してください．この共通ループによって，ソースのコンパイル，共通の`crt0.c`・`syscalls.c`・`libc.c`のリンク，PIC検査，サイズ検査，Flashへのイメージ埋め込みが行われます．個別のビルドルールは不要です．
 
 ### 3.2．`kernel/main.c`へ登録
 
@@ -189,7 +189,7 @@ int main(void)
             puts("TTY read error.");
             break;
         }
-        /* n == 0: no key available (or TTY EOF). */
+        /* n == 0: no key available in nonblocking mode. */
         if (count % 10 == 0)
             printf("Count: %u\n", count);
         msleep(100);
@@ -203,7 +203,7 @@ restore:
 }
 ```
 
-**PicoNIXでの重要な挙動：** TTYの非ブロッキング`read()`は，入力可能な文字がなければ**0**を返します（Linuxの`EAGAIN`を前提にしません）．ただし，`0`はCtrl+DによるEOFでもあり得るため，この簡易例では両者を区別していません．負の戻り値はエラーとして扱います．`msleep(100)`を挟むことで，入力のない間の無駄な繰り返しを抑えます．
+**PicoNIXでの重要な挙動：** TTYの非ブロッキング`read()`は，入力可能な文字がなければ**0**を返します（Linuxの`EAGAIN`を前提にしません）．noncanonical入力ではCtrl+D（0x04）は通常の入力バイトとして読み取られ，EOFにはなりません．canonical入力でのCtrl+Dとは動作が異なります．負の戻り値はエラーとして扱います．`msleep(100)`を挟むことで，入力のない間の無駄な繰り返しを抑えます．
 
 開始時にcanonical・echo・FDフラグを保存し，終了時と設定途中の失敗時に戻します．**Ctrl+Cや`kill`などでアプリが強制終了した場合，このCコードの復元処理は実行されません**．前景タスクのTTY設定はカーネル側の復元機構に依存します．FDフラグはタスク固有なので，通常終了時に明示的に戻します．
 

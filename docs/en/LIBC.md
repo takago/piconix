@@ -48,7 +48,7 @@ The following entries match the headers and the implementation in this repositor
 
 For **complete prototypes**, use the headers; for **system-call numbers, ABI registers and kernel behavior**, see [System calls](SYSCALLS.md). For the special network behavior (asynchronous `connect()`, `tcp_status()`, nonblocking `accept()`/`recvfrom()`), see [Network programming](NETWORK-PROGRAMMING.md).
 
-For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboard input, see [Real-time keyboard input](PROGRAMMING.md#8-real-time-keyboard-input-noncanonical--o_nonblock) in the C programming guide.
+For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboard input, see [Section 8, “Real-time keyboard input,” in the C programming guide](PROGRAMMING.md) in the C programming guide.
 
 ## Important limitations
 

@@ -125,7 +125,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 
 ## Documentation / ドキュメント
 
-**Start here ：** [Documentation Guide](docs/en/DOCS.md) / [文書案内](docs/ja/DOCS.md) — recommended reading order and links to detailed references.
+**Start here / まずはこちら：** [Documentation Guide](docs/en/DOCS.md) / [文書案内](docs/ja/DOCS.md) — recommended reading order and links to detailed references.
 
 ### Setup
 
