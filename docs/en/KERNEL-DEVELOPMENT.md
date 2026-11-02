@@ -24,7 +24,7 @@ Read [ARCHITECTURE.md](ARCHITECTURE.md) and [INTERNAL.md](INTERNAL.md) for XIP, 
 
 ### 2.1 Allocate a number and define the ABI
 
-`kernel/kernel.c` declares `SYS_GETPID` onward in an enum covering numbers 1–38. **Numbers 11 and 15 are reserved.** Never reorder or reuse existing numbers. Append a new explicitly numbered entry rather than shifting existing values. The user wrappers in `userland/syscalls.c` use numeric syscall IDs, so mismatches break the ABI.
+`include/piconix_syscall.h` defines `PICONIX_SYSCALL_TABLE(X)` with numbers 1–39. **Numbers 11 and 15 are reserved.** Never reorder or reuse existing numbers. Append a new explicitly numbered entry rather than shifting existing values. The user wrappers in `userland/syscalls.c` use the shared `SYS_*` constants from that header. Use the single common table for new numbers to preserve the ABI.
 
 The calling convention is `r0` = syscall number, `r1`–`r3` = arguments, `svc #0`, and return value in `r0`. Use a pointer to a validated structure if more argument fields are needed. Errors normally return negative `OS_E*` values rather than setting `errno`. See [SYSCALLS.md](SYSCALLS.md).
 
@@ -57,14 +57,14 @@ case SYS_EXAMPLE:
 
 ### 3.1 Understand the VFS path
 
-In `kernel/kernel.c`, fixed `/dev` paths live in `dev_registry[]`; fixed special entries including `/proc` live in `vfs_registry[]`. `vfs_open()` resolves paths and installs a device ID in the task's FD table. `vfs_rw()` dispatches reads and writes, `device_ioctl()` handles control requests, and FD release handles cleanup.
+In `kernel/kernel.c`, fixed `/dev` paths are declared by `PICONIX_FIXED_DEVICES(X)` in `include/device_names.h` and expanded into `dev_registry[]`; fixed special entries including `/proc` live in `vfs_registry[]`. `vfs_open()` resolves paths and installs a device ID in the task's FD table. `vfs_rw()` dispatches reads and writes, `device_ioctl()` handles control requests, and FD release handles cleanup.
 
 **Adding a registry entry alone does not implement read or write.** GPIO, ADC and PWM also use dynamically resolved or conditionally exposed paths. Verify enumeration through `/dev` and, where applicable, `/proc/devices`.
 
 ### 3.2 Example workflow for a read-only device
 
 1. Choose a free `DEV_*` ID; check for collisions with existing device IDs, internal pipe IDs, directory IDs and symbol IDs.
-2. For a fixed path, add `"/dev/example"` and its ID to `dev_registry[]`. `/proc` entries use a different registry and enumeration path.
+2. For a fixed path, add `"/dev/example"` and its ID to `PICONIX_FIXED_DEVICES(X)` in `include/device_names.h`. `/proc` entries use a different registry and enumeration path.
 3. Enforce read-only open modes in `vfs_open()`; review existing `OS_O_RDONLY` and `OS_O_NONBLOCK` constraints.
 4. Add a branch in `vfs_rw()` for the ID. Reject writes with `OS_EBADF`, return the number of bytes read on success, and negative `OS_E*` codes on failure. The dispatcher checks user buffer ranges, but backends must also validate their own sizes and state.
 5. For sequential reads, define offset and EOF behavior using `tasks[current].fd_pos[fd]`; implement `lseek()` support only if required.
@@ -114,17 +114,18 @@ The kernel already maintains `ticks` at 1-ms intervals and exports `/proc/ticks`
 | `unsigned getuptime(void)` | 32-bit milliseconds since boot | `/proc/ticks` |
 | `/dev/uptime` | Text such as `123.456 s\n` | `/proc/uptime` |
 
-The `uint32_t` counter wraps after approximately 49.7 days. The wrapper returns an `unsigned` value to preserve all 32 bits. For this exercise, use syscall **39** and a currently unallocated internal device ID **264**. Recheck these numbers against the current tree before implementing.
+The `uint32_t` counter wraps after approximately 49.7 days. The wrapper returns an `unsigned` value to preserve all 32 bits. For this exercise, use syscall **40** and a currently unallocated internal device ID **265**. ID 264 is reserved for the symbol node of program ID 64, and pipe IDs begin at 268. Recheck these numbers against the current tree before implementing.
 
 ### 4.2 Add the system call
 
-Append to the `SYS_*` enumeration in `kernel/kernel.c`, preserving the existing 1–38 numbering:
+Append to `PICONIX_SYSCALL_TABLE(X)` in `include/piconix_syscall.h`, preserving the existing 1–39 numbering (`SYS_SHUTDOWN_TCP` is number 39):
 
 ```c
-SYS_PROGRAM_ID, SYS_GETUPTIME = 39
+    X(SYS_SHUTDOWN_TCP, 39, "shutdown") \
+    X(SYS_GETUPTIME,    40, "getuptime")
 ```
 
-In `os_svc_dispatch()`'s `switch(num)`, add:
+In `kernel/kernel.c`, add the following branch to the `switch(num)` in `os_svc_dispatch()`:
 
 ```c
 case SYS_GETUPTIME:
@@ -132,11 +133,11 @@ case SYS_GETUPTIME:
     break;
 ```
 
-Add a wrapper to `userland/syscalls.c`, using the existing `call()` helper:
+Add a wrapper to `userland/syscalls.c`, using its existing `call()` helper and the shared syscall-number header:
 
 ```c
 unsigned getuptime(void) {
-    return (unsigned)call(39, 0, 0, 0);
+    return (unsigned)call(SYS_GETUPTIME, 0, 0, 0);
 }
 ```
 
@@ -150,13 +151,14 @@ This call has no arguments. Every 32-bit result is a valid timer value, so negat
 
 ### 4.3 Add a read-only `/dev/uptime`
 
-Reuse the existing `DEV_PROC_UPTIME` formatter and per-FD read cursor in `device_rw_proc()` rather than duplicating them. Make these edits in `kernel/kernel.c`:
+Reuse the existing `DEV_PROC_UPTIME` formatter and per-FD read cursor in `device_rw_proc()` rather than duplicating them. Make the following edits in the shared device header and `kernel/kernel.c`:
 
-1. Add `DEV_UPTIME = 264` to the device-ID enumeration, checking it does not overlap existing IDs or ranges.
-2. Add this entry to `dev_registry[]` to make the node resolvable and visible through `/dev` and `/proc/devices`:
+1. Add `DEV_UPTIME = 265` to the fixed device-ID enum in `include/device_names.h`, checking it does not overlap existing IDs or ranges.
+2. Add the path to `PICONIX_FIXED_DEVICES(X)` in the same header. `kernel/kernel.c` generates `dev_registry[]` from that macro, so this makes the node resolvable and visible in `/dev` and `/proc/devices`:
 
 ```c
-{"/dev/uptime", DEV_UPTIME},
+    X("/dev/i2c/1", DEV_I2C1) \
+    X("/dev/uptime", DEV_UPTIME)
 ```
 
 3. Include `dev==DEV_UPTIME` in the read-only access check in `vfs_open()`. Opening it with `O_WRONLY` or `O_RDWR` must fail.
@@ -204,13 +206,13 @@ The two readings will not be exactly equal, since they occur at different times.
 
 ### 4.5 Verification checklist
 
-- Existing syscall numbers 1–38 and reserved slots 11 and 15 remain unchanged; 39 is unique.
+- Existing syscall numbers 1–39 and reserved slots 11 and 15 remain unchanged; 40 is unique.
 - `getuptime()` roughly matches `/proc/ticks` and advances over time.
 - `cat /dev/uptime` has the same format as `/proc/uptime`.
 - `ls /dev` and `cat /proc/devices` list the new node.
 - Write-mode open is rejected; check zero-length and short reads, EOF, and repeated open/close.
 - Run `python3 tools/run_tests.py`, then `python3 tools/run_tests.py --all` with the ARM toolchain, and test on Pico/Pico W hardware.
-- Update both languages of `SYSCALLS.md`, `LIBC.md`, and `DEVICES.md`; check existing tests for fixed syscall and device-ID assumptions.
+- Update both languages of `SYSCALLS.md`, `LIBC.md`, and `DEVICES.md`; check existing tests for fixed syscall number 40 and device ID 265 assumptions.
 
 
 For firmware builds and toolchain setup, see [SETUP.md](SETUP.md). Passing static tests does not guarantee hardware behavior; new peripherals or interrupt handlers also require concurrency and extended runtime testing on actual boards.

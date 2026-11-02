@@ -9,7 +9,9 @@ userland/fs/
 ├── etc_pico/
 │   └── rc
 ├── etc_picow/
+│   ├── fbcheck.html
 │   ├── index.html
+│   ├── pwm.html
 │   └── rc
 └── tmp_common/
     ├── test.s
@@ -30,7 +32,7 @@ After changing or adding files, rebuild and flash the firmware for the target bo
 
 PicoNIX does not run a separate `init` process. **The first shell (PID 1) executes `/etc/rc` once.** Telnet shells and nested shells do not run it again. The boot reader reuses the shell command execution path; it skips empty lines and lines beginning with `#`. Use simple commands and an optional trailing `&`; the boot reader does not interpret pipelines or redirections.
 
-In the current minimal configuration, `etc_pico/rc` prints a greeting, while `etc_picow/rc` launches the HTTP server and prints the greeting:
+In the current minimal configuration, `etc_pico/rc` prints a greeting, while `etc_picow/rc` launches the HTTP server and prints the greeting. The Pico build initializes three files (`/etc/rc` plus two `/tmp` samples); Pico W initializes six (`/etc/rc`, three HTML files and the two `/tmp` samples):
 
 Pico:
 

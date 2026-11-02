@@ -24,7 +24,7 @@
 
 ### 2.1 番号とABIを決める
 
-`kernel/kernel.c`の`SYS_GETPID`から始まる`enum`には，現在1〜38番が定義されています．**11番と15番は予約済み**です．既存番号を並べ替えたり流用したりしないでください．新しい番号は末尾に明示的に追加するのが安全です．ユーザ側`userland/syscalls.c`は番号を数値で呼び出しているため，両者の不一致はABI破壊になります．
+`include/piconix_syscall.h`の`PICONIX_SYSCALL_TABLE(X)`に，現在1〜39番が定義されています．**11番と15番は予約済み**です．既存番号を並べ替えたり流用したりしないでください．新しい番号は末尾に明示的に追加するのが安全です．ユーザ側`userland/syscalls.c`は共通ヘッダの`SYS_*`定数を用いており，カーネル側と番号を共有します．新設する際も，この表を唯一の番号定義として使用してください．
 
 呼び出し規約は，`r0`＝番号，`r1`〜`r3`＝引数，`svc #0`，復帰時`r0`＝結果です．4引数以上の情報には構造体ポインタを用いるなどして設計してください．エラーは通常，負の`OS_E*`値で返し，`errno`に依存しません．[SYSCALLS.md](SYSCALLS.md)を参照してください．
 
@@ -57,14 +57,14 @@ case SYS_EXAMPLE:
 
 ### 3.1 既存のVFSを把握する
 
-`kernel/kernel.c`では，固定の`/dev`パスは`dev_registry[]`，`/proc`などの固定特殊パスは`vfs_registry[]`で管理されます．`vfs_open()`がパスを解決し，タスクのFDに内部デバイスIDを対応付けます．`vfs_rw()`が読み書きを振り分け，`device_ioctl()`が対応する制御要求を扱います．`close()`はFD解放を通じて資源を後始末します．
+固定の`/dev`パスは`include/device_names.h`の`PICONIX_FIXED_DEVICES(X)`で定義され，`kernel/kernel.c`が`dev_registry[]`を生成します．`/proc`などの固定特殊パスはカーネル内の`vfs_registry[]`で管理されます．`vfs_open()`がパスを解決し，タスクのFDに内部デバイスIDを対応付けます．`vfs_rw()`が読み書きを振り分け，`device_ioctl()`が対応する制御要求を扱います．`close()`はFD解放を通じて資源を後始末します．
 
 **パスを登録しただけでは`read()`や`write()`は動作しません．** 既存のGPIO，ADC，PWMは動的パス・条件付き公開を含むため，単純な固定ノードとは別に調べてください．`/proc/devices`や`/dev`ディレクトリ列挙にも反映されるか確認が必要です．
 
 ### 3.2 読み取り専用ノードを追加する場合
 
 1. `DEV_*`識別子の未使用値を選び，既存のデバイスID・パイプ内部ID・ディレクトリID・プログラムシンボル用IDと重複しないことを確認します．
-2. 固定ノードなら`dev_registry[]`に`"/dev/example"`と識別子を追加します．`/proc`の情報ノードなら名前・列挙箇所が異なるので既存の`vfs_registry[]`を参照してください．
+2. 固定ノードなら`include/device_names.h`の`PICONIX_FIXED_DEVICES(X)`に`"/dev/example"`と識別子を追加します．`/proc`の情報ノードなら名前・列挙箇所が異なるので既存の`vfs_registry[]`を参照してください．
 3. `vfs_open()`で読み取り専用などのアクセスモード制限を追加します．現行の`OS_O_RDONLY`や`OS_O_NONBLOCK`制限を確認してください．
 4. `vfs_rw()`で対象IDを分岐し，`writing`時は`OS_EBADF`，読み取り時は処理結果のバイト数，失敗時は負の`OS_E*`値を返します．呼出し元にはユーザバッファの範囲検査がありますが，**バックエンド固有の長さと状態**も別途検査します．
 5. 継続読み取りが必要なら`tasks[current].fd_pos[fd]`を用いたオフセットとEOF（0バイト）を設計します．`lseek()`を必要とするならその対象FDの扱いも検討します．
@@ -114,17 +114,18 @@ if (fd >= 0) {
 | `unsigned getuptime(void)` | 起動後のミリ秒値を返す（32 bit） | `/proc/ticks` |
 | `/dev/uptime` | `123.456 s\n`のようなテキストを返す | `/proc/uptime` |
 
-`ticks`は`uint32_t`で，約49.7日後に周回します．32 bit値のビット列をそのまま返すため，Cラッパーは`unsigned`とします．新規システムコール番号は**39**，デバイス内部IDは既存IDと重複しない値として**264**を演習用に選びます．実際の開発時には最新の定義を再確認してください．
+`ticks`は`uint32_t`で，約49.7日後に周回します．32 bit値のビット列をそのまま返すため，Cラッパーは`unsigned`とします．新規システムコール番号は**40**，デバイス内部IDは既存IDと重複しない値として**265**を演習用に選びます．264はプログラム登録ID 64のシンボルファイルに割り当てられるため使用しません（パイプ内部IDは268以降）．実際の開発時には最新の定義を再確認してください．
 
 ### 4.2 システムコールを追加する
 
-`kernel/kernel.c`の`SYS_*`列挙の**最後**を，既存の38番を変えずに次のようにします．
+`include/piconix_syscall.h`の`PICONIX_SYSCALL_TABLE(X)`末尾へ，既存の39番（`SYS_SHUTDOWN_TCP`）を変えずに40番を追加します．
 
 ```c
-SYS_PROGRAM_ID, SYS_GETUPTIME = 39
+    X(SYS_SHUTDOWN_TCP, 39, "shutdown") \
+    X(SYS_GETUPTIME,    40, "getuptime")
 ```
 
-同ファイルの`os_svc_dispatch()`にある`switch(num)`へ次の分岐を追加します．`ticks`は既存の1 msカウンタです．
+`kernel/kernel.c`の`os_svc_dispatch()`にある`switch(num)`へ次の分岐を追加します．`ticks`は既存の1 msカウンタです．
 
 ```c
 case SYS_GETUPTIME:
@@ -132,11 +133,11 @@ case SYS_GETUPTIME:
     break;
 ```
 
-`userland/syscalls.c`には既存の`call()`を使うラッパーを追加します．
+`userland/syscalls.c`には既存の`call()`を使うラッパーを追加します．`SYS_GETUPTIME`は同ファイルでインクルードしている共有番号ヘッダに定義されます．
 
 ```c
 unsigned getuptime(void) {
-    return (unsigned)call(39, 0, 0, 0);
+    return (unsigned)call(SYS_GETUPTIME, 0, 0, 0);
 }
 ```
 
@@ -150,14 +151,15 @@ unsigned getuptime(void);  /* ミリ秒，32-bit周回あり */
 
 ### 4.3 読み取り専用`/dev/uptime`を追加する
 
-ここでは文字列整形や読み取り位置の管理を新たに複製せず，既存の`device_rw_proc()`にある`DEV_PROC_UPTIME`処理を再利用します．`kernel/kernel.c`に以下の変更を加えます．
+ここでは文字列整形や読み取り位置の管理を新たに複製せず，既存の`device_rw_proc()`にある`DEV_PROC_UPTIME`処理を再利用します．次のように共有ヘッダと`kernel/kernel.c`を変更します．
 
-1．既存の`DEV_*`列挙に`DEV_UPTIME = 264`を追加します（ほかの識別子や範囲と重複させない）．
+1．`include/device_names.h`の固定デバイスID列挙に`DEV_UPTIME = 265`を追加します（ほかの識別子や範囲と重複させない）．
 
-2．`dev_registry[]`へ固定パスを追加します．これにより`/dev`の列挙および`/proc/devices`の一覧にも反映されます．
+2．同じヘッダの`PICONIX_FIXED_DEVICES(X)`へ固定パスを追加します．`kernel/kernel.c`の`dev_registry[]`はこのマクロから生成されます．これにより`/dev`の列挙および`/proc/devices`の一覧にも反映されます．
 
 ```c
-{"/dev/uptime", DEV_UPTIME},
+    X("/dev/i2c/1", DEV_I2C1) \
+    X("/dev/uptime", DEV_UPTIME)
 ```
 
 3．`vfs_open()`の読み取り専用検査条件に`dev==DEV_UPTIME`を加えます．これにより`open("/dev/uptime", O_WRONLY)`や`O_RDWR`を拒否します．単に`vfs_rw()`で書き込みを拒否するだけでなく，オープン時点で拒否します．
@@ -206,13 +208,13 @@ int main(void) {
 
 ### 4.5 検証チェックリスト
 
-- 既存の1〜38番と予約11・15番を変更せず，新設39番だけが追加されている．
+- 既存の1〜39番と予約11・15番を変更せず，新設40番だけが追加されている．
 - `getuptime()`の値が`/proc/ticks`とおおむね一致し，時間の経過とともに増える．
 - `cat /dev/uptime`が`/proc/uptime`と同形式を返す．
 - `ls /dev`と`cat /proc/devices`で新しいノードを確認できる．
 - `open()`の書き込みモードを拒否し，`read()`の0バイト・短いバッファ・EOF・複数回open/closeを確認する．
 - `python3 tools/run_tests.py`と，ツールチェーン準備後の`python3 tools/run_tests.py --all`を実行し，Pico/Pico Wで実機検証する．
-- `SYSCALLS.md`，`LIBC.md`，`DEVICES.md`（日英）に新APIとノードを追記し，番号39と内部ID264が既存の自動テストで排除されないか確認する．
+- `SYSCALLS.md`，`LIBC.md`，`DEVICES.md`（日英）に新APIとノードを追記し，番号40と内部ID265が既存の自動テストで排除されないか確認する．
 
 
 ファームウェア全体のビルド環境は[SETUP.md](SETUP.md)を参照してください．静的テストのPASSだけでは実機動作は保証されません．新しい周辺機器や割込み処理を追加する場合は，競合や長時間動作も別途検証します．

@@ -4,7 +4,7 @@
 
 ## 構成
 
-Pico WではlwIPをカーネル側で利用し，ユーザプロセスに小さなIPv4ソケットAPIを公開します．`net_socket.c`はソケットバックエンド，`net.c`はWi-Fi管理，`net_service_telnet.c`と`net_service_remote_devctl.c`はカーネル標準サービスです．`nc`，`httpd`，`tcp_echod`，`udp_echod`はユーザプロセスとして動作します．通常のPicoではWi-Fi通信を利用できません．
+Pico WではlwIPをカーネル側で利用し，ユーザプロセスに小さなIPv4ソケットAPIを公開します．`net_socket.c`はソケットバックエンド，`net.c`はWi-Fi管理，`net_service_telnet.c`と`net_service_remote_devctl.c`はカーネル標準サービスです．`nc`，`httpd`，`tcp_echod`，`udp_echod`はユーザプロセスとして動作します．通常のPicoではWi-Fi通信を利用できません．Pico Wでは`127.0.0.1`宛てのTCP/UDPもlwIPの`lo0`経由で利用できます．`/proc/net/memory`で通信メモリの使用状況を確認できます．詳しくは[ネットワーク接続](NETWORK.md)と[メモリレイアウト](MEMORY-LAYOUT.md)を参照してください．
 
 ## 利用できるAPI
 

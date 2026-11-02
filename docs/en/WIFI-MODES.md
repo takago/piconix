@@ -41,7 +41,7 @@ The additional STA-only fields are:
   diagnostic only; it cannot rule out overflows or measure the boot stack.
 
 An `UP` status and a DHCP lease do **not** prove that ARP, ICMP, or TCP
-packets can be exchanged. Test `ping` and Telnet from the same network,
+packets can be exchanged. Test `ping` (on the Linux/host computer, **not** a PicoNIX command) and Telnet from the same network,
 repeat after several power cycles, and compare with the previous firmware.
 For stalled communication, capture ARP/ICMP traffic on the host.
 

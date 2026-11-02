@@ -20,7 +20,8 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 | `/dev/adc/` | `pins.h`でADC指定された入力および内部温度センサー |
 | `/dev/pwm/` | `pins.h`でPWM指定された出力と共通周波数 |
 | `/dev/i2c/1` | I²C1マスター（GP26 SDA，GP27 SCL） |
-| `/dev/mem` | RAM・Flashの読み出し，タスク領域とRAMファイルデータの制限付き書き込み |
+| `/dev/mem` | RAM・Flashの読み出し，タスク・SHM・RAMファイルデータ領域の制限付き書き込み |
+| `/dev/shm` | 全タスク共通の2 KiB共有RAM．`read()`，`write()`，`lseek()`でアクセス |
 | `/dev/trace` | トレースイベントのバイナリ読み出し |
 
 ## 8×8 LEDフレームバッファ

@@ -145,7 +145,7 @@ After RAM files had been expanded to 2 KiB each, both `vi` and `edit` still used
 
 Because the goal is operating-system education rather than teaching the full Python language, the opening of `PYTHON.md` now identifies the interpreter as a **limited subset**, not a CPython-compatible implementation. The BH1750-driven wave example remains in documentation instead of using an additional boot-time RAM-file slot.
 
-A documentation-wide search reviewed the current key limits (56 KiB kernel, six 24 KiB application slots, eleven 2 KiB RAM files, 2 KiB SHM, and the separate 1,024-byte Python source limit). An outdated **64 KiB** kernel check in English `WIFI-MODES.md` was corrected to **56 KiB**. Historical values in the diary and `docs/history/` remain where they describe earlier designs. This textual check is not an exhaustive hardware test or a sentence-by-sentence bilingual translation audit.
+A documentation-wide search reviewed the current key limits (56 KiB kernel, six 24 KiB application slots, eleven 2 KiB RAM files, 2 KiB SHM, and the **then-current** 1,024-byte Python source limit). That Python source limit was subsequently raised to 2,048 bytes on the same day. An outdated **64 KiB** kernel check in English `WIFI-MODES.md` was corrected to **56 KiB**. Historical values in the diary and `docs/history/` remain where they describe earlier designs. This textual check is not an exhaustive hardware test or a sentence-by-sentence bilingual translation audit.
 
 ## November 2: Shared Python pool and 2 KiB source and assembler output limits
 
@@ -191,6 +191,10 @@ Both `watch` and `mem` also gained temporary ANSI autowrap suppression while ren
 ## November 3: Shared-memory assembly teaching example
 
 A small Thumb assembly sample, `counter.s`, increments a 32-bit value at the start of shared memory (`0x20032000`). The result can be checked without a temporary file using `dd if=/dev/shm of=- bs=1 count=4 | hexdump`. This example was added to the Japanese and English `MEMORY-LAYOUT.md` documents. It illustrates shared state across process launches, **not** atomic updates under concurrency. Assembly and execution on PicoNIX hardware were not yet verified.
+
+## November 3: Loopback adopted; PicoNIX `ping` and `curl` declined
+
+The Pico W lwIP configuration gained the `lo0` loopback interface for local TCP/UDP communication through `127.0.0.1`. With the polled raw API, queued loopback packets are processed from `net_poll()` to avoid re-entering the TCP input path. The design keeps existing user commands such as `nc`, `httpd`, and `tcp_echod`, and the built-in Telnet server. Dedicated PicoNIX `ping` and `curl` commands were considered but ultimately **not adopted**. The date range follows the conversation-based reconstruction; it is not a verification of exact Git commit timestamps.
 
 ## Historical accuracy and references
 

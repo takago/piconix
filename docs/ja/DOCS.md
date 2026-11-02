@@ -14,6 +14,8 @@ PicoNIXは，RP2040上で動く小型UNIX風OSです．初めて使う方は，*
 3. [デバイスと配線](DEVICES.md)：GPIO，PWM，ADC，I²C，LEDマトリクス
 4. [ファイルシステムとノード一覧](FILESYSTEM.md)：ディレクトリ構造，`/dev`，`/proc`，RAMファイルの制約
 
+[初期RAMファイルと起動スクリプト](INITIAL-FILES.md)：ホスト側のファイル配置，ビルド時登録，`/etc/rc`とPID 1のシェル．
+
 ## 2．UNIXの操作を学ぶ
 
 | 学びたい内容 | 説明 |
@@ -31,6 +33,8 @@ PicoNIXは，RP2040上で動く小型UNIX風OSです．初めて使う方は，*
 2. [ネットワークの使い方](NETWORK.md)：接続とサービス
 3. [ソケットプログラミング](NETWORK-PROGRAMMING.md)：TCP／UDPのユーザアプリ
 4. [nc](NC.md)，[httpd](HTTPD.md)，[UDPデバイス制御](REMOTE-DEVICE.md)，[GPIO遠隔制御](REMOTE_GPIO.md)：具体例
+
+[現行SRAM配置・共有メモリ・lwIPヒープ](MEMORY-LAYOUT.md)：固定アドレス，`/dev/shm`，ネットワーク診断とアセンブリ例．
 
 **[全体アーキテクチャ](ARCHITECTURE.md)**：ユーザ空間とカーネルの分担，ソースコードの対応表．
 

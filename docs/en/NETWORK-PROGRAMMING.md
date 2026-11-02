@@ -4,7 +4,7 @@
 
 ## Architecture
 
-On Pico W, lwIP runs on the kernel side and exposes a compact IPv4 socket interface to user processes. `net_socket.c` implements the backend; `net.c` manages Wi-Fi; `net_service_telnet.c` and `net_service_remote_devctl.c` implement built-in kernel services. `nc`, `httpd`, `tcp_echod`, and `udp_echod` are ordinary user programs. Standard Pico boards have no Wi-Fi connectivity.
+On Pico W, lwIP runs on the kernel side and exposes a compact IPv4 socket interface to user processes. `net_socket.c` implements the backend; `net.c` manages Wi-Fi; `net_service_telnet.c` and `net_service_remote_devctl.c` implement built-in kernel services. `nc`, `httpd`, `tcp_echod`, and `udp_echod` are ordinary user programs. Standard Pico boards have no Wi-Fi connectivity. Pico W also supports TCP/UDP loopback to `127.0.0.1` through lwIP `lo0`; inspect network memory with `/proc/net/memory`. See [Network access](NETWORK.md) and [Memory layout](MEMORY-LAYOUT.md).
 
 ## Supported API
 

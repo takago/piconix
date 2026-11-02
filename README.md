@@ -35,7 +35,7 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Terminals | `getty`, `tty`, `stty`, `reset` |
 | Programming | `edit`, `vi`, `as`, `python` |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink` |
-| Networking | `nc`, `httpd`, `tcp_echod`, `udp_echod` |
+| Networking | `net`, `nc`, `httpd`, `tcp_echod`, `udp_echod` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
 | Help | `help` |
 
@@ -58,7 +58,7 @@ Open the PicoNIX shell from the PC:
 telnet 192.168.4.1
 ```
 
-Start the HTTP server in the PicoNIX shell, then visit `http://192.168.4.1/` in a browser. Use `edit /etc/index.html` to change the page.
+The Pico W `/etc/rc` starts `httpd` automatically. Visit `http://192.168.4.1/` in a browser; `/` is the introduction page, `/fbcheck.html` controls the LED matrix, and `/pwm.html` controls PWM. Use `edit /etc/index.html` to edit the introduction page. If `httpd` has been stopped, restart it from the shell:
 
 ```sh
 # PicoNIX shell
@@ -121,7 +121,7 @@ This approach saves scarce SRAM by keeping kernel instructions in Flash while al
 
 The socket API is intentionally small rather than fully POSIX-compatible. `send()` and `recv()` currently support `flags = 0` only.
 
-The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM files, each limited to 2 KiB. Initial files come from `userland/fs/` at build time; the PID 1 shell runs `/etc/rc` once on boot.
+The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM files, each limited to 2 KiB. A separate 2 KiB region is exposed as `/dev/shm`; on Pico W, lwIP has a 10 KiB heap inside the 16 KiB network reservation and supports loopback to `127.0.0.1`. Use `cat /proc/net/memory` to inspect network allocation statistics. PicoNIX does not provide `ping` or `curl` commands (the examples in the HTTP guide run `curl` on a host PC). Initial files come from `userland/fs/` at build time; the PID 1 shell runs `/etc/rc` once on boot.
 
 ## Documentation / ドキュメント
 
@@ -151,6 +151,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 | [I²C1 and BH1750](docs/en/I2C.md) | [I²C1とBH1750](docs/ja/I2C.md) |
 | [System-call and context-switch tracing](docs/en/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/TRACE.md) |
 | [Memory inspection](docs/en/MEM.md) | [メモリ参照](docs/ja/MEM.md) |
+| [SRAM layout and shared memory](docs/en/MEMORY-LAYOUT.md) | [SRAMレイアウトと共有メモリ](docs/ja/MEMORY-LAYOUT.md) |
 
 ### Development
 

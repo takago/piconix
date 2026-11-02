@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
 ファイル上部の`foreach(APP IN ITEMS ...)`に，拡張子`.c`を付けずに`greet`を加えます．
 
 ```cmake
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod greet)
+foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
 ```
 
 上記は現在の`CMakeLists.txt`に`greet`を末尾へ追加した例です．既存のアプリ名は削除せず，新しい版で一覧が変わっている場合はその版の末尾へ`greet`を追加してください．この共通ループによって，ソースのコンパイル，共通の`crt0.c`・`syscalls.c`・`libc.c`のリンク，PIC検査，サイズ検査，Flashへのイメージ埋め込みが行われます．個別のビルドルールは不要です．
@@ -61,10 +61,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 さらに`main()`内の既存の`register_image(...)`と並べて登録します．
 
 ```c
-register_image(39, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(44, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**39は，この例で照合したソースでは未使用のIDです．** 今後アプリが増えた場合は，登録済みIDを確認して空いている番号に変更してください．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
+**44は，この添付版で未使用のプログラム登録IDです（39は`i2cctl`，40は`bh1750`，41は`vi`，42は`dd`，43は`net`が使用）．** 今後アプリが増えた場合は，登録済みIDを確認して空いている番号に変更してください．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
 
 ## 4．ビルド・書き込み・実行
 

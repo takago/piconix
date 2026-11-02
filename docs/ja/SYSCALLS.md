@@ -1,6 +1,6 @@
 # システムコール・ABIリファレンス
 
-この資料は `kernel/kernel.c` の `os_svc_dispatch()`，`userland/syscalls.c`，`userland/unistd.h` に基づきます．Cアプリケーションでは通常ラッパー関数を使用します．一般的なPOSIX ABIとは異なります．
+システムコール番号の一次資料は`include/piconix_syscall.h`の`PICONIX_SYSCALL_TABLE(X)`です．実装とAPIの説明は `kernel/kernel.c` の `os_svc_dispatch()`，`userland/syscalls.c`，`userland/unistd.h` に基づきます．Cアプリケーションでは通常ラッパー関数を使用します．一般的なPOSIX ABIとは異なります．
 
 ## 呼び出し規約
 

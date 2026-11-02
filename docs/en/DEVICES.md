@@ -20,7 +20,8 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 | `/dev/adc/` | Enabled ADC inputs and on-chip temperature sensor |
 | `/dev/pwm/` | Enabled PWM outputs and common frequency |
 | `/dev/i2c/1` | I²C1 master (GP26 SDA, GP27 SCL) |
-| `/dev/mem` | Read permitted RAM/flash; restricted writes to task slots and RAM-file payloads |
+| `/dev/mem` | Read permitted RAM/flash; restricted writes to task slots, SHM and RAM-file payloads |
+| `/dev/shm` | Common 2 KiB of shared RAM; supports `read()`, `write()`, `lseek()` |
 | `/dev/trace` | Binary trace records |
 
 ## 8×8 LED framebuffer

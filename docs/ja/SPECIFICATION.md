@@ -45,9 +45,9 @@ USBコンソール，UART1，Wi-Fi端末は別々のデバイスとして扱い�
 
 ## 5．システムコールとABI
 
-システムコール番号は1〜38番（11番・15番は予約）です．Thumbの `svc #0` を使い，`r0`に番号，`r1`〜`r3`に引数を置き，戻り値を`r0`で受け取ります．番号はPicoNIX内部ABIであり，Linux/POSIXの番号とは異なります．
+システムコール番号は1〜39番（11番・15番は予約）です．Thumbの `svc #0` を使い，`r0`に番号，`r1`〜`r3`に引数を置き，戻り値を`r0`で受け取ります．番号はPicoNIX内部ABIであり，Linux/POSIXの番号とは異なります．
 
-完全な番号表とユーザAPIの対応は[システムコール](SYSCALLS.md)を参照してください．`kernel/kernel.c` の列挙・ディスパッチと `userland/syscalls.c` が一次資料です．
+完全な番号表とユーザAPIの対応は[システムコール](SYSCALLS.md)を参照してください．番号の一次資料は`include/piconix_syscall.h`の`PICONIX_SYSCALL_TABLE`であり，`kernel/kernel.c`のディスパッチと`userland/syscalls.c`がそれを使用します．
 
 ## 6．プログラム実行とアセンブラ
 
@@ -63,10 +63,12 @@ Pico WビルドではlwIPを使用します．Wi-FiモードはAPまたはSTAを
 | HTTP（TCP 80） | ユーザプログラム`httpd` |
 | UDPデバイス制御（UDP 2000） | カーネル側サービス |
 | ソケットAPI | ユーザプログラム用のTCP/UDP機能．BSDソケットの完全互換ではありません |
+| ループバック | Pico WのAP/STA両モードで`127.0.0.1`（lwIP `lo0`）に対応 |
+| ネットワークメモリ診断 | `/proc/net/memory`．Pico版では`MODE: N/A`とアイドルスタックのみ |
 | ユーザTCPソケット管理枠 | 4（`kernel/net_socket.h`の`NET_SOCKET_TCP_SLOTS`） |
 | UDPデータ転送上限の内部定数 | 512バイト（`NET_SOCKET_UDP_MAX`） |
 
-詳細は[Wi-Fi](WIFI-MODES.md)，[ネットワーク](NETWORK.md)，[ソケットプログラミング](NETWORK-PROGRAMMING.md)を参照してください．TelnetとUDPデバイス制御は暗号化された認証付きサービスではないため，信頼できるネットワークで使用してください．
+Pico WではlwIPの`lo0`を通じて`127.0.0.1`宛てにTCP/UDP通信できます（通常のPicoビルドでは非対応）．通信メモリは`/proc/net/memory`で確認できます．ネットワーク予約16 KiBにはlwIPヒープ10 KiB，管理情報を含む境界領域2 KiB，アイドルスタック4 KiBを配置します．pbufプール8個（各512バイト）などの静的プールはカーネルRAM側に残ります．詳細は[メモリレイアウト](MEMORY-LAYOUT.md)，[Wi-Fi](WIFI-MODES.md)，[ネットワーク](NETWORK.md)，[ソケットプログラミング](NETWORK-PROGRAMMING.md)を参照してください．TelnetとUDPデバイス制御は暗号化された認証付きサービスではないため，信頼できるネットワークで使用してください．
 
 ## 8．デバイスと疑似ファイル
 

@@ -2,7 +2,7 @@
 
 `httpd` runs in user space on Pico W TCP port 80 and is launched by its startup script; it is not a kernel service.
 
-`GET /` serves `/etc/index.html`. The browser page allows touching and dragging across the 8×8 LED matrix. PWM can be controlled from the separate `/pwm.html` page, and its HTTP API is also available through `curl`.
+`GET /` serves the introduction page `/etc/index.html`. The 8×8 LED matrix can be edited through `/fbcheck.html`, and the servo/buzzer demo is on `/pwm.html`. The APIs can also be exercised with `curl` on a host PC; PicoNIX itself does **not** include a `curl` command.
 
 | API | Action | POST body |
 |---|---|---|
@@ -12,6 +12,7 @@
 | `POST /api/pwm/freq` | Set PWM frequency | `1000` (8–100000) |
 | `GET /api/pwm/a`, `/api/pwm/b` | Read duty cycle (%) | — |
 | `POST /api/pwm/a`, `/api/pwm/b` | Set duty cycle | `50` or `50.0` (0–100) |
+| `POST /api/tone` | Set PWM1 A buzzer frequency/duty together; `0` stops it | `0` or integer `100`–`5000` (Hz) |
 
 From a Linux machine, substitute the Pico W's hostname or IP address for `HOST`:
 
@@ -22,7 +23,7 @@ curl -X POST --data-binary '1000' http://HOST/api/pwm/freq
 curl -X POST --data-binary '50' http://HOST/api/pwm/a
 ```
 
-The page is stored in the volatile `/etc/index.html` RAM file and reverts on reboot. `/etc` and `/tmp` share eleven file slots of 2048 bytes each. Keep the HTML page at or below 2048 bytes.
+The three Pico W pages (`/etc/index.html`, `/etc/fbcheck.html`, and `/etc/pwm.html`) are volatile RAM files restored on reboot. `/etc` and `/tmp` share eleven file slots of 2048 bytes each. Keep the HTML page at or below 2048 bytes.
 
 **Limits and safety:** sequential, single-connection HTTP/1.0-style server. POST requires a valid, nonduplicate `Content-Length` and permits at most 32 body bytes. Malformed lengths are rejected, and a TCP EOF during request reception ends the wait immediately. No chunked requests, HTTPS, authentication, concurrent requests, or keep-alive. Use only on an isolated, trusted laboratory network; never expose TCP 80 to the Internet. Do not directly connect hazardous actuators to PWM pins.
 

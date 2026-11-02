@@ -1,6 +1,6 @@
 # System Calls and ABI Reference
 
-Based on `kernel/kernel.c` (`os_svc_dispatch()`), `userland/syscalls.c`, and `userland/unistd.h`. C programs normally use the wrappers; this is not the POSIX ABI.
+Syscall number definitions come from `PICONIX_SYSCALL_TABLE(X)` in `include/piconix_syscall.h`. The implementations are in `kernel/kernel.c` (`os_svc_dispatch()`), `userland/syscalls.c`, and `userland/unistd.h`. C programs normally use the wrappers; this is not the POSIX ABI.
 
 ## Calling convention
 

@@ -45,9 +45,9 @@ See `OS_TTY_*` in `include/piconix.h`, [TTY](TTY.md), and [Terminal](TERMINAL.md
 
 ## 5. System calls and ABI
 
-The internal system-call table uses numbers 1–38; numbers 11 and 15 are reserved. Thumb `svc #0` takes the call number in `r0`, arguments in `r1`–`r3`, and returns a result in `r0`. These are PicoNIX ABI numbers, not Linux/POSIX numbers.
+The internal system-call table uses numbers 1–39; numbers 11 and 15 are reserved. Thumb `svc #0` takes the call number in `r0`, arguments in `r1`–`r3`, and returns a result in `r0`. These are PicoNIX ABI numbers, not Linux/POSIX numbers.
 
-See [System calls](SYSCALLS.md). Authoritative implementation: `kernel/kernel.c` and `userland/syscalls.c`.
+See [System calls](SYSCALLS.md). The number definitions are centralized in `PICONIX_SYSCALL_TABLE` in `include/piconix_syscall.h`; the kernel dispatcher and user wrappers use these definitions.
 
 ## 6. Programs and assembler
 
@@ -63,10 +63,12 @@ Pico W builds use lwIP. AP or STA mode is selected at build time. STA mode requi
 | HTTP (TCP 80) | User-space `httpd` |
 | UDP device control (UDP 2000) | Kernel-side service |
 | Socket API | User-space TCP/UDP functionality; not fully BSD-compatible |
+| Loopback | Pico W AP/STA: `127.0.0.1` via lwIP `lo0` |
+| Network memory diagnostics | `/proc/net/memory`; on plain Pico builds only `MODE: N/A` and idle-stack statistics |
 | User TCP socket slots | 4 (`NET_SOCKET_TCP_SLOTS` in `kernel/net_socket.h`) |
 | Internal UDP transfer size constant | 512 bytes (`NET_SOCKET_UDP_MAX`) |
 
-See [Wi-Fi modes](WIFI-MODES.md), [Networking](NETWORK.md), and [Socket programming](NETWORK-PROGRAMMING.md). Telnet and UDP device control do not provide encrypted authenticated access; use trusted networks.
+Pico W supports TCP/UDP loopback to `127.0.0.1` through lwIP `lo0` in both AP and STA modes (not available on ordinary Pico builds). Inspect network usage with `/proc/net/memory`. The 16 KiB network reservation contains a 10 KiB lwIP heap, a 2 KiB boundary area including allocator overhead, and a 4 KiB idle stack. Static pbuf pools (eight 512-byte buffers) remain in kernel SRAM. See [Memory layout](MEMORY-LAYOUT.md), [Wi-Fi modes](WIFI-MODES.md), [Networking](NETWORK.md), and [Socket programming](NETWORK-PROGRAMMING.md). Telnet and UDP device control do not provide encrypted authenticated access; use trusted networks.
 
 ## 8. Devices and pseudo-files
 

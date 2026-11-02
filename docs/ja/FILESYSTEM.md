@@ -11,8 +11,10 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 ├── bin/                    組込みユーザプログラム
 ├── dev/                    デバイス
 │   ├── console             主端末
-│   ├── uart1               UART1端末
-│   ├── wifi                Wi-Fi端末（Wi-Fiビルドのみ）
+│   ├── ttyS1               UART1端末
+│   ├── ttyN0               Wi-Fi端末（Wi-Fiビルドのみ）
+│   ├── net/
+│   │   └── wifi            STA再接続制御（Wi-Fiビルドのみ）
 │   ├── rand                簡易疑似乱数
 │   ├── mem                 許可されたメモリ領域の読み書き
 │   ├── shm                 2 KiBの共有メモリ
@@ -39,13 +41,20 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 │   ├── sym/
 │   │   ├── kernel          カーネルシンボル
 │   │   └── userland/NAME   登録済みプログラムのシンボル
-│   └── net/wifi            Wi-Fi情報（Wi-FiなしではMODE: N/A）
+│   └── net/
+│       ├── wifi            Wi-Fi・DHCP・STA/AP状態
+│       ├── ap              AP接続端末の情報
+│       ├── arp             ARPキャッシュ
+│       └── memory          lwIPヒープ・pbuf・アイドルスタック
 ├── tmp/                    揮発性RAMファイル
 └── etc/                    揮発性設定ファイル
-    └── index.html          httpdの既定ページ
+    ├── rc                  起動スクリプト
+    ├── index.html          Pico Wのトップページ
+    ├── fbcheck.html        Pico WのLED画面
+    └── pwm.html            Pico WのPWM画面
 ```
 
-`N`，`PID`，`NAME`はプレースホルダーであり，その文字列のファイルが存在するわけではありません．`/bin`は登録済みの組込みプログラムを列挙します．`/proc/task`には**稼働中のPID**が列挙されます．`/proc/sym/userland`はプログラム名から直接ファイルを開けますが，現在のディレクトリ列挙処理では子要素を一覧表示しません．`/dev/pwm/1`はPWM使用時のみ有効です．
+`N`，`PID`，`NAME`はプレースホルダーであり，その文字列のファイルが存在するわけではありません．`/bin`は登録済みの組込みプログラムを列挙します．`/proc/task`には**稼働中のPID**が列挙されます．`/proc/sym/userland`はプログラム名から直接ファイルを開けますが，現在のディレクトリ列挙処理では子要素を一覧表示しません．`/dev/pwm/1`はPWM使用時のみ有効です．`/etc`のHTMLファイルはPico Wの初期構成例であり，通常のPicoには標準では配置されません．`/proc/net/memory`は通常のPicoでも読めますが，lwIPは無効で`MODE: N/A`と`IDLE_STACK`のみを返します．
 
 ## 2．ノードの種類とアクセス
 
@@ -77,9 +86,9 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 |---|---|
 | ファイル数 | `/tmp`と`/etc`で**合計11個** |
 | ファイル容量 | **各2048バイト** |
-| 名前 | 各ディレクトリ直下のみ．ファイル名は**最大11バイト**（ASCII想定） |
+| 名前 | 各ディレクトリ直下のみ．ファイル名は**最大27バイト**（ASCII想定．`tmp/`または`etc/`を含む内部パスは最大31バイト） |
 | 永続性 | なし．再起動で初期化 |
-| 初期ファイル | `/etc/index.html`，`/etc/rc`，`/tmp/test.s`，`/tmp/test.py`（通常4スロット．ボードごとに初期内容を選択） |
+| 初期ファイル | Pico：`/etc/rc`，`/tmp/test.s`，`/tmp/test.py`（3個）．Pico W：これらに`/etc/index.html`，`/etc/fbcheck.html`，`/etc/pwm.html`を追加（6個） |
 | 作成・削除 | `O_CREAT`で作成，`unlink()`で削除．開いたままのファイルは削除不可 |
 | 書き込み | 容量末尾では部分書き込み，空きがない場合は`OS_ENOSPC` |
 

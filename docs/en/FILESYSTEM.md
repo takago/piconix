@@ -11,8 +11,10 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 ├── bin/                    Built-in user programs
 ├── dev/                    Devices
 │   ├── console             Main terminal
-│   ├── uart1               UART1 terminal
-│   ├── wifi                Wi-Fi terminal (Wi-Fi builds only)
+│   ├── ttyS1               UART1 terminal
+│   ├── ttyN0               Wi-Fi terminal (Wi-Fi builds only)
+│   ├── net/
+│   │   └── wifi            STA reconnection control (Wi-Fi builds only)
 │   ├── rand                Simple pseudorandom generator
 │   ├── mem                 Read/write permitted memory regions
 │   ├── shm                 Shared 2-KiB RAM
@@ -39,13 +41,20 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 │   ├── sym/
 │   │   ├── kernel          Kernel symbols
 │   │   └── userland/NAME   Symbols for a registered program
-│   └── net/wifi            Wi-Fi information (MODE: N/A without Wi-Fi)
+│   └── net/
+│       ├── wifi            Wi-Fi/DHCP and STA/AP status
+│       ├── ap              Associated AP clients
+│       ├── arp             ARP cache
+│       └── memory          lwIP heap, pbufs and idle stack
 ├── tmp/                    Volatile RAM files
 └── etc/                    Volatile configuration files
-    └── index.html          Default httpd page
+    ├── rc                  Startup script
+    ├── index.html          Pico W landing page
+    ├── fbcheck.html        Pico W LED controls
+    └── pwm.html            Pico W PWM controls
 ```
 
-`N`, `PID`, and `NAME` are placeholders, not literal filenames. `/bin` lists registered built-in programs. `/proc/task` enumerates **active PIDs**. Files under `/proc/sym/userland/NAME` can be opened directly by program name, but the current directory enumeration does not list children of `/proc/sym/userland`. `/dev/pwm/1` is available only when PWM is configured.
+`N`, `PID`, and `NAME` are placeholders, not literal filenames. `/bin` lists registered built-in programs. `/proc/task` enumerates **active PIDs**. Files under `/proc/sym/userland/NAME` can be opened directly by program name, but the current directory enumeration does not list children of `/proc/sym/userland`. `/dev/pwm/1` is available only when PWM is configured. The HTML files are part of the Pico W initial file set, not the plain Pico default. `/proc/net/memory` can also be read on plain Pico but reports only `MODE: N/A` and `IDLE_STACK` (no lwIP stack).
 
 ## 2. Node types and access
 
@@ -77,9 +86,9 @@ In the default `kernel/pins.h`, GP0–17 and GP22–25 are configured as GPIO, G
 |---|---|
 | Number of files | **11 total**, shared between `/tmp` and `/etc` |
 | File size | **2048 bytes each** |
-| Names | Direct children only; filename up to **11 bytes** (assuming ASCII) |
+| Names | Direct children only; filename up to **27 bytes** (ASCII; the stored path includes a four-byte `tmp/` or `etc/` prefix) |
 | Persistence | None; reset on reboot |
-| Initial files | `/etc/index.html`, `/etc/rc`, `/tmp/test.s`, `/tmp/test.py` (normally 4 slots; board-specific initial content) |
+| Initial files | Pico: `/etc/rc`, `/tmp/test.s`, `/tmp/test.py` (3 files). Pico W: those files plus `/etc/index.html`, `/etc/fbcheck.html` and `/etc/pwm.html` (6 files) |
 | Creation and deletion | Create with `O_CREAT`; delete with `unlink()`. Open files cannot be deleted |
 | Writing | Partial writes at the capacity boundary; `OS_ENOSPC` when no space remains |
 
