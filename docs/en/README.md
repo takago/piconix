@@ -85,3 +85,7 @@ For a guided reading order, see the [documentation index](DOCS.md). For Pico W n
 
 GPL-3.0-or-later. See `LICENSE`.
 
+
+I2C1: see [DEVICES](DEVICES.md) for GP26/GP27 and `i2cctl` commands.
+
+See the [I²C1 guide](I2C.md) and the [current Python API](PYTHON.md).

@@ -86,3 +86,7 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 ## ライセンス
 
 GPL-3.0-or-later．詳細は`LICENSE`を参照してください．
+
+I2C1: see [DEVICES](DEVICES.md) for GP26/GP27 and `i2cctl` commands.
+
+[I²C1の使い方](I2C.md)と[最新のPython API](PYTHON.md)を参照してください．

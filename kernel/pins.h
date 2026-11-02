@@ -6,6 +6,7 @@
 #define PIN_ADC  1
 #define PIN_PWM  2
 #define PIN_UART 3
+#define PIN_I2C  4
 #define GP0_MODE PIN_GPIO
 #define GP1_MODE PIN_GPIO
 #define GP2_MODE PIN_GPIO
@@ -32,8 +33,8 @@
 #define GP23_MODE PIN_GPIO
 #define GP24_MODE PIN_GPIO
 #define GP25_MODE PIN_GPIO
-#define GP26_MODE PIN_ADC
-#define GP27_MODE PIN_ADC
+#define GP26_MODE PIN_I2C
+#define GP27_MODE PIN_I2C
 #define GP28_MODE PIN_ADC
 
 #define PWM_DEFAULT_FREQ 1000u
@@ -53,8 +54,11 @@
 #if (GP18_MODE != PIN_GPIO && GP18_MODE != PIN_PWM) || (GP19_MODE != PIN_GPIO && GP19_MODE != PIN_PWM)
 #error "GP18/19 support GPIO or PWM only"
 #endif
-#if (GP26_MODE != PIN_GPIO && GP26_MODE != PIN_ADC) || (GP27_MODE != PIN_GPIO && GP27_MODE != PIN_ADC) || (GP28_MODE != PIN_GPIO && GP28_MODE != PIN_ADC)
-#error "GP26..28 support GPIO or ADC only"
+#if (GP26_MODE != PIN_GPIO && GP26_MODE != PIN_ADC && GP26_MODE != PIN_I2C) || (GP27_MODE != PIN_GPIO && GP27_MODE != PIN_ADC && GP27_MODE != PIN_I2C) || (GP28_MODE != PIN_GPIO && GP28_MODE != PIN_ADC)
+#error "Invalid GP26..28 mode"
+#endif
+#if GP26_MODE != PIN_I2C || GP27_MODE != PIN_I2C
+#error "I2C1 requires GP26 SDA and GP27 SCL"
 #endif
 #if GP2_MODE != PIN_GPIO
 #error "GP2 supports GPIO only"

@@ -21,6 +21,7 @@ static const char *owner(int m) {
     case GPIO_STATUS_FB:return "FB";
     case GPIO_STATUS_PWM:return "PWM";
     case GPIO_STATUS_ADC:return "ADC";
+    case GPIO_STATUS_I2C:return "I2C";
     case GPIO_STATUS_UART_TX:return "UART-TX";
     case GPIO_STATUS_UART_RX:return "UART-RX";
     default:return "RESERVED";

@@ -7,6 +7,8 @@
 #include "fcntl.h"
 #include "string.h"
 #include "stdio.h"
+#include "piconix_i2c.h"
+#include "piconix.h"
 static void outn(const char *s,unsigned n) {
     while(n) { int r=write(1, s, n); if(r<0) return;
         if(!r) { msleep(1); continue; } s+=r;n-=(unsigned)r; }
@@ -18,13 +20,37 @@ static char source[1025];
 static unsigned offsets[64],levels[64],count;
 static struct {char name[16];int32_t val;} vars[16];
 static int nvars,error, evaluating=1;
+static unsigned error_line;
+/* Bounded sequences, stored separately from scalar values. */
+#define SEQ_MAX 64
+static struct { uint8_t used, immutable, len; int32_t item[SEQ_MAX]; } seq[16];
+static int seqslot(const char *name){for(int i=0;i<nvars;i++)if(strcmp(vars[i].name,name)==0)return i;return -1;}
+static int seqnew(const char *name,int immutable,const int32_t *values,int len){
+    if(len<0||len>SEQ_MAX){error=1;return 0;}
+    int k=seqslot(name);
+    if(k<0){if(nvars==16){error=1;return 0;}k=nvars++;unsigned j=0;
+        while(name[j]&&j<15){vars[k].name[j]=name[j];j++;}vars[k].name[j]=0;}
+    seq[k].used=1;seq[k].immutable=immutable;seq[k].len=(uint8_t)len;
+    for(int i=0;i<len;i++)seq[k].item[i]=values[i];return 1;
+}
+static int transfer(int addr,const int32_t *values,int n,int r,int32_t *output){
+    if(addr<8||addr>0x77||n<0||n>32||r<0||r>32){error=1;return 0;}
+    piconix_i2c_transfer_t req={0};req.address=(uint8_t)addr;
+    req.write_len=(uint8_t)n;req.read_len=(uint8_t)r;
+    for(int i=0;i<n;i++){if(values[i]<0||values[i]>255){error=1;return 0;}
+        req.write_data[i]=(uint8_t)values[i];}
+    int fd=open("/dev/i2c/1",O_RDWR);if(fd<0){error=1;return 0;}
+    int rc=ioctl(fd,OS_I2C_TRANSFER,(int)(uintptr_t)&req);close(fd);
+    if(rc<0){error=1;return 0;}
+    for(int i=0;i<r;i++)output[i]=req.read_data[i];return 1;
+}
 static const char *cursor;
 static void ws(void){while(*cursor==' '||*cursor=='\t')cursor++;}
 static int eat(char c){ws();if(*cursor==c){cursor++;return 1;}return 0;}
 static int word(const char *s){ws();const char *p=cursor;while(*s&&*p==*s){s++;p++;}if(*s||idchar(*p))return 0;cursor=p;return 1;}
-static int32_t getvar(const char *name){for(int i=0;i<nvars;i++)if(same(vars[i].name,name))return vars[i].val;error=1;return 0;}
-static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same(vars[i].name,name)){vars[i].val=val;return;}
-    if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars++].val=val;}
+static int32_t getvar(const char *name){for(int i=0;i<nvars;i++)if(same(vars[i].name,name))return seq[i].used?(error=1,0):vars[i].val;error=1;return 0;}
+static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same(vars[i].name,name)){vars[i].val=val;seq[i].used=0;return;}
+    if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars].val=val;seq[nvars].used=0;nvars++;}
 /* Keep the interpreter's divide-by-zero and INT32_MIN/-1 behavior explicit. */
 static int32_t divide(int32_t a,int32_t b,int mod) {
     if(!evaluating)return 0;
@@ -34,58 +60,15 @@ static int32_t divide(int32_t a,int32_t b,int mod) {
     if(a==INT32_MIN && b==-1) return mod ? 0 : INT32_MIN;
     return mod ? a%b : a/b;
 }
-/* GPIO accesses go through PicoNIX device files; no new syscall required. */
-static int gpio_path(char path[20],int32_t pin,int direction){
-    if(pin<0||pin>28||pin==0||pin==1||pin==4||pin==5){error=1;return 0;}
-    const char *prefix="/dev/gpio/";unsigned n=0;
-    while(prefix[n]){path[n]=prefix[n];n++;}
-    if(pin>=20){path[n++]='2';pin-=20;}
-    else if(pin>=10){path[n++]='1';pin-=10;}
-    path[n++]=(char)('0'+pin);
-    if(direction){path[n++]='.';path[n++]='d';path[n++]='i';path[n++]='r';}
-    path[n]=0;return 1;
+static int32_t expr(void);
+/* File descriptors are PicoNIX integers, not Python file objects. */
+static int parse_string(char *dst,unsigned cap){
+    ws();char q=*cursor;if(q!='\"'&&q!='\'') {error=1;return 0;}
+    cursor++;unsigned n=0;
+    while(*cursor&&*cursor!=q){if(n+1>=cap){error=1;return 0;}dst[n++]=*cursor++;}
+    if(!eat(q)){error=1;return 0;}dst[n]=0;return 1;
 }
-static int gpio_config(int32_t pin,int32_t value,int pull){
-    char path[20];
-    if(!gpio_path(path,pin,0))return 0;
-    unsigned n=0;while(path[n])n++;
-    const char *suffix=pull?".pull":".dir";
-    for(unsigned i=0;suffix[i];i++)path[n++]=suffix[i];
-    path[n]=0;
-    const char *mode=pull?(value==0?"none":value==1?"up":"down"):
-                          (value==0?"in":"out");
-    if(value<0 || value>(pull?2:1)){error=1;return 0;}
-    int fd=open(path, 1);
-    if(fd<0){error=1;return 0;}
-    unsigned len=0;while(mode[len])len++;
-    int rc=write(fd, mode, len);
-    close(fd);
-    if(rc!=(int)len){error=1;return 0;}
-    return 1;
-}
-static int gpio_output(int32_t pin,int32_t val){
-    char path[20];if(!gpio_path(path,pin,1))return 0;
-    if(val!=0&&val!=1){error=1;return 0;}
-    int fd=open(path, 1);
-    if(fd<0){error=1;return 0;}
-    int n=write(fd, "out", 3);close(fd);
-    if(n!=3){error=1;return 0;}
-    if(!gpio_path(path,pin,0))return 0;
-    fd=open(path, 1);
-    if(fd<0){error=1;return 0;}
-    char c=(char)('0'+val);
-    n=write(fd, &c, 1);close(fd);
-    if(n!=1){error=1;return 0;}return 1;
-}
-static int32_t gpio_input(int32_t pin){
-    char path[20];if(!gpio_path(path,pin,0))return 0;
-    int fd=open(path, 0);
-    if(fd<0){error=1;return 0;}
-    char c=0;int n=read(fd, &c, 1);
-    close(fd);
-    if(n!=1||(c!='0'&&c!='1')){error=1;return 0;}
-    return c-'0';
-}
+static int parse_fd(void){int fd=expr();if(fd<0)error=1;return fd;}
 /* Build a line from byte-stream UART reads as well as console reads. */
 static int read_line(char *buf,unsigned cap){
     static int skip_lf;
@@ -106,12 +89,32 @@ static int32_t expr(void);
 static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=1;return x;}
     if(eat('-'))return (int32_t)(0u-(uint32_t)atom());
     if(eat('+'))return atom();
-    if(*cursor>='0'&&*cursor<='9'){uint32_t v=0;while(*cursor>='0'&&*cursor<='9'){v=v*10u+(unsigned)(*cursor++-'0');}return (int32_t)v;}
+    if(*cursor>='0'&&*cursor<='9'){
+        unsigned base=10;uint32_t v=0;int digits=0;
+        if(cursor[0]=='0'&&(cursor[1]=='x'||cursor[1]=='X'||cursor[1]=='b'||cursor[1]=='B')){
+            base=(cursor[1]=='x'||cursor[1]=='X')?16:2;cursor+=2;
+        }
+        for(;;){unsigned d;char c=*cursor;
+            if(c>='0'&&c<='9')d=(unsigned)(c-'0');
+            else if(c>='a'&&c<='f')d=(unsigned)(c-'a'+10);
+            else if(c>='A'&&c<='F')d=(unsigned)(c-'A'+10);
+            else break;
+            if(d>=base)break;
+            if(v>(UINT32_MAX-d)/base){error=1;return 0;}
+            v=v*base+d;cursor++;digits++;
+        }
+        if(!digits||idchar(*cursor))error=1;
+        return (int32_t)v;
+    }
     char name[16];unsigned n=0;
     while(idchar(*cursor)&&n<15)name[n++]=*cursor++;
     name[n]=0;if(!n){error=1;return 0;}
     if(same(name,"True"))return 1;
     if(same(name,"False"))return 0;
+    /* Shared framebuffer ioctl commands (same ABI as fbctl). */
+    if(same(name,"FB_ENABLE"))return OS_FB_ENABLE;
+    if(same(name,"FB_DISABLE"))return OS_FB_DISABLE;
+    if(same(name,"FB_STATUS"))return OS_FB_STATUS;
     if(same(name,"input")&&eat('(')){
         ws();if(*cursor=='"'||*cursor=='\''){char quote=*cursor++;const char *start=cursor;
             while(*cursor&&*cursor!=quote)cursor++;if(evaluating)outn(start,(unsigned)(cursor-start));if(!eat(quote))error=1;}
@@ -122,15 +125,60 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         int digits=0;for(;i<(unsigned)m && buf[i]>='0'&&buf[i]<='9';i++){v=(int32_t)((uint32_t)v*10u+(unsigned)(buf[i]-'0'));digits++;}
         if(!digits)error=1;return sign<0?(int32_t)(0u-(uint32_t)v):v;
     }
-    if(same(name,"gpio_read")&&eat('(')){
-        int32_t pin=expr();if(!eat(')')){error=1;return 0;}
-        return evaluating?gpio_input(pin):0;
+    if(same(name,"len")&&eat('(')){
+        char target[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)target[z++]=*cursor++;
+        target[z]=0;int k=seqslot(target);if(!eat(')')||k<0||!seq[k].used){error=1;return 0;}
+        return seq[k].len;
+    }
+    if(same(name,"open")&&eat('(')){
+        char path[96];if(!parse_string(path,sizeof path))return 0;
+        if(!eat(',')){error=1;return 0;}int flags=expr();
+        if(!eat(')'))error=1;
+        if(error||!evaluating)return 0;
+        int fd=open(path,flags);if(fd<0)error=1;return fd;
+    }
+    if(same(name,"close")&&eat('(')){
+        int fd=parse_fd();if(!eat(')'))error=1;
+        if(error||!evaluating)return 0;
+        int rc=close(fd);if(rc<0)error=1;return rc;
+    }
+    if(same(name,"ioctl")&&eat('(')){
+        int fd=parse_fd();if(!eat(','))error=1;int cmd=expr();
+        if(!eat(','))error=1;int arg=expr();if(!eat(')'))error=1;
+        if(error||!evaluating)return 0;
+        int rc=ioctl(fd,cmd,arg);if(rc<0)error=1;return rc;
+    }
+    if(same(name,"write")&&eat('(')){
+        int fd=parse_fd();if(!eat(','))error=1;
+        char buf[SEQ_MAX];int len=0;ws();
+        if(*cursor=='\"'||*cursor=='\''){
+            char q=*cursor++;while(*cursor&&*cursor!=q){
+                if(len==SEQ_MAX){error=1;break;}buf[len++]=*cursor++;}
+            if(!eat(q))error=1;
+        }else{
+            char target[16];unsigned z=0;
+            while(idchar(*cursor)&&z<15)target[z++]=*cursor++;
+            target[z]=0;int k=seqslot(target);
+            if(k<0||!seq[k].used)error=1;
+            else for(int i=0;i<seq[k].len;i++){
+                int32_t v=seq[k].item[i];if(v<0||v>255){error=1;break;}
+                buf[len++]=(char)v;
+            }
+        }
+        if(!eat(')'))error=1;
+        if(error||!evaluating)return 0;
+        int rc=write(fd,buf,(unsigned)len);if(rc<0)error=1;return rc;
     }
     if(same(name,"int")&&eat('(')){int32_t v=expr();if(!eat(')'))error=1;return v;}
+    if(eat('[')){int32_t index=expr();if(!eat(']'))error=1;
+        int k=seqslot(name);if(k<0||!seq[k].used||index<0||index>=seq[k].len){error=1;return 0;}
+        return seq[k].item[index];}
     return evaluating?getvar(name):0;
 }
 static int32_t product(void){int32_t a=atom();for(;;){if(eat('*'))a=(int32_t)((uint32_t)a*(uint32_t)atom());
-    else if(eat('/'))a=divide(a,atom(),0);else if(eat('%'))a=divide(a,atom(),1);else break;}return a;}
+    else if(eat('/')){ /* / and // both perform integer division in this subset. */
+        eat('/');a=divide(a,atom(),0);
+    }else if(eat('%'))a=divide(a,atom(),1);else break;}return a;}
 static int32_t sum(void){int32_t a=product();for(;;){if(eat('+'))a=(int32_t)((uint32_t)a+(uint32_t)product());
     else if(eat('-'))a=(int32_t)((uint32_t)a-(uint32_t)product());else break;}return a;}
 static int32_t comparison(void){int32_t a=sum();ws();int op=0;
@@ -177,29 +225,43 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         return;
     }
     cursor=source+offsets[line];ws();
-    if(word("gpio")&&eat('(')){
-        int32_t pin=expr();if(!eat(','))error=1;
-        int32_t val=expr();if(!eat(')'))error=1;
+    if(word("i2c_write")&&eat('(')){
+        int32_t addr=expr();if(!eat(',')){error=1;return;}
+        int32_t payload[32];int len=0;
+        if(word("bytes")){
+            if(!eat('(')||!eat('[')){error=1;return;}
+            if(!eat(']')){
+                do{if(len==32){error=1;return;}payload[len++]=expr();}while(eat(','));
+                if(!eat(']')){error=1;return;}
+            }
+            if(!eat(')')){error=1;return;}
+        }else{
+            char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
+            srcname[z]=0;int k=seqslot(srcname);if(k<0||!seq[k].used||seq[k].len>32){error=1;return;}
+            len=seq[k].len;for(int j=0;j<len;j++)payload[j]=seq[k].item[j];
+        }
+        if(!eat(')')){error=1;return;}
         ws();if(*cursor&&*cursor!='#')error=1;
-        if(!error)gpio_output(pin,val);
-        return;
-    }
-    cursor=source+offsets[line];ws();
-    int pull=0,mode=0;
-    if((pull=word("gpio_pull")) || (mode=word("gpio_mode"))) {
-        if(!eat('(')){error=1;return;}
-        int32_t pin=expr();if(!eat(','))error=1;
-        int32_t val=expr();if(!eat(')'))error=1;
-        ws();if(*cursor&&*cursor!='#')error=1;
-        if(!error)gpio_config(pin,val,pull);
+        int32_t result[32];if(!error)transfer(addr,payload,len,0,result);
         return;
     }
     cursor=source+offsets[line];ws();
     if(word("print")&&eat('(')){
         ws();if(*cursor=='\''||*cursor=='"'){char q=*cursor++;const char *start=cursor;
             while(*cursor&&*cursor!=q)cursor++;outn(start,(unsigned)(cursor-start));if(!eat(q))error=1;}
-        else number(expr());if(!eat(')'))error=1;
+        else {const char *save=cursor;char key[16];unsigned z=0;
+            while(idchar(*cursor)&&z<15)key[z++]=*cursor++;key[z]=0;
+            int k=seqslot(key);ws();if(k>=0&&seq[k].used&&*cursor==')'){
+                outs(seq[k].immutable?"b[":"[");for(int j=0;j<seq[k].len;j++){
+                    if(j)outs(", ");number(seq[k].item[j]);}outs("]");
+            }else{cursor=save;number(expr());}}
+        if(!eat(')'))error=1;
         ws();if(*cursor&&*cursor!='#')error=1;outs("\r\n");return;
+    }
+    cursor=source+offsets[line];ws();
+    if(word("write")||word("close")||word("ioctl")){
+        cursor=source+offsets[line];(void)expr();
+        ws();if(*cursor&&*cursor!='#')error=1;return;
     }
     cursor=source+offsets[line];ws();char name[16];unsigned n=0;
     if(!((*cursor>='a'&&*cursor<='z')||(*cursor>='A'&&*cursor<='Z')||*cursor=='_')){
@@ -207,19 +269,61 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         error=1;return;
     }
     while(idchar(*cursor)&&n<15)name[n++]=*cursor++;name[n]=0;
+    ws();if(*cursor=='['){cursor++;int32_t index=expr();if(!eat(']')||!eat('=')){error=1;return;}
+        int32_t v=expr();int k=seqslot(name);if(k<0||!seq[k].used||seq[k].immutable||index<0||index>=seq[k].len)error=1;
+        ws();if(*cursor&&*cursor!='#')error=1;
+        if(!error)seq[k].item[index]=v;return;}
     if(!eat('=')){
         if(repl_mode){cursor=source+offsets[line];int32_t v=expr();
             ws();if(*cursor&&*cursor!='#')error=1;
             if(!error){number(v);outs("\r\n");}return;}
         error=1;return;
-    }int32_t v=expr();ws();if(*cursor&&*cursor!='#')error=1;if(!error)setvar(name,v);
+    }
+    ws();if(*cursor=='[' || (cursor[0]=='b'&&cursor[1]=='y'&&cursor[2]=='t'&&cursor[3]=='e'&&cursor[4]=='s')){
+        int immutable=0;if(word("bytes")){immutable=1;if(!eat('(')){error=1;return;}}
+        if(!eat('[')){error=1;return;}int32_t values[SEQ_MAX];int len=0;
+        if(!eat(']')){do{if(len==SEQ_MAX){error=1;break;}values[len++]=expr();}while(eat(','));
+            if(!eat(']'))error=1;}
+        if(immutable&&!eat(')'))error=1;
+        ws();if(*cursor&&*cursor!='#')error=1;
+        if(immutable)for(int j=0;j<len;j++)if(values[j]<0||values[j]>255)error=1;
+        if(!error)seqnew(name,immutable,values,len);return;
+    }
+    if(word("read")){
+        if(!eat('(')){error=1;return;}
+        int fd=parse_fd();if(!eat(','))error=1;
+        int32_t size=expr();if(!eat(')')||size<0||size>SEQ_MAX)error=1;
+        ws();if(*cursor&&*cursor!='#')error=1;
+        if(error)return;
+        uint8_t buf[SEQ_MAX];int32_t values[SEQ_MAX];
+        int rc=read(fd,buf,(unsigned)size);if(rc<0||rc>size){error=1;return;}
+        for(int i=0;i<rc;i++)values[i]=buf[i];
+        seqnew(name,1,values,rc);return;
+    }
+    int is_read=word("i2c_read"),is_xfer=0;
+    if(!is_read)is_xfer=word("i2c_xfer");
+    if(is_read||is_xfer){
+        int xfer=is_xfer;
+        if(!eat('(')){error=1;return;}
+        int32_t addr=expr();if(!eat(',')){error=1;return;}
+        int32_t values[SEQ_MAX]={0},result[32]={0};int len=0;
+        if(xfer){char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
+            srcname[z]=0;int k=seqslot(srcname);if(k<0||!seq[k].used){error=1;return;}
+            len=seq[k].len;if(len>32){error=1;return;}
+            for(int j=0;j<len;j++)values[j]=seq[k].item[j];if(!eat(',')){error=1;return;}}
+        int32_t r=expr();if(!eat(')')||r<0||r>32){error=1;return;}
+        ws();if(*cursor&&*cursor!='#')error=1;
+        if(!error&&transfer(addr,values,len,r,result))seqnew(name,1,result,r);
+        return;
+    }
+    int32_t v=expr();ws();if(*cursor&&*cursor!='#')error=1;if(!error)setvar(name,v);
 }
 static unsigned block_end(unsigned start){unsigned i=start+1;while(i<count&&levels[i]>levels[start])i++;return i;}
 /* A block returns loop control to its nearest enclosing loop. */
 enum {FLOW_NORMAL, FLOW_BREAK, FLOW_CONTINUE};
 static int execute(unsigned first,unsigned last,unsigned depth,unsigned in_loop){
     if(depth>8){error=1;return FLOW_NORMAL;}
-    for(unsigned i=first;i<last&&!error;){cursor=source+offsets[i];ws();
+    for(unsigned i=first;i<last&&!error;){error_line=i+1;cursor=source+offsets[i];ws();
         if(word("break")||word("continue")){
             int flow=source[offsets[i]]=='b'?FLOW_BREAK:FLOW_CONTINUE;
             ws();if((*cursor&&*cursor!='#')||!in_loop)error=1;
@@ -290,8 +394,26 @@ static int execute(unsigned first,unsigned last,unsigned depth,unsigned in_loop)
     }
     return FLOW_NORMAL;
 }
+/* Join physical lines within list/bytes parentheses, preserving indentation of
+   the first line. This is deliberately bounded by the existing source buffer. */
+static unsigned join_continuations(unsigned n){
+    unsigned out=0;int nesting=0;char quote=0;
+    for(unsigned i=0;i<n;i++){
+        char c=source[i];
+        if(quote){if(c==quote)quote=0;}
+        else if(c=='\"'||c=='\'')quote=c;
+        else if(c=='['||c=='(')nesting++;
+        else if((c==']'||c==')')&&nesting>0)nesting--;
+        if((c=='\n'||c=='\r')&&nesting>0){
+            if(out && source[out-1]!=' ')source[out++]=' ';
+            while(i+1<n&&(source[i+1]==' '||source[i+1]=='\t'||source[i+1]=='\n'||source[i+1]=='\r'))i++;
+        }else source[out++]=c;
+    }
+    source[out]=0;return out;
+}
 static void run_source(unsigned n){
-    count=0;error=0;
+    n=join_continuations(n);
+    count=0;error=0;error_line=0;
     unsigned off=0;
     while(off<n&&count<64){unsigned begin=off,indent=0;
         while(off<n && source[off]==' '){off++;indent++;}
@@ -308,7 +430,19 @@ static void run_source(unsigned n){
         if(off==begin)break;
     }
     if(!error)execute(0,count,0,0);
-    if(error)outs("python: syntax/runtime error\r\n");
+    if(error){outs("python: syntax/runtime error at statement ");number((int32_t)error_line);outs("\r\n");}
+}
+/* Track unfinished bracketed expressions across REPL input lines. */
+static int pending_brackets(const char *s,unsigned n){
+    int depth=0;char quote=0;
+    for(unsigned i=0;i<n;i++){
+        char c=s[i];
+        if(quote){if(c=='\\' && i+1<n){i++;continue;}if(c==quote)quote=0;}
+        else if(c=='"'||c=='\'')quote=c;
+        else if(c=='['||c=='('||c=='{')depth++;
+        else if(c==']'||c==')'||c=='}')depth--;
+    }
+    return depth;
 }
 static void repl(void){
     outs("PicoNIX Tiny Python (Python subset)\r\n");
@@ -320,7 +454,7 @@ static void repl(void){
             outs(block?"... ":">>> ");
             char line[128];
             int m=read_line(line,sizeof(line));
-            if(m<0){n=0;msleep(10);break;} /* EOF discards pending input, not the REPL. */
+            if(m<0){n=0;msleep(10);break;}
             while(m>0&&(line[m-1]=='\n'||line[m-1]=='\r'))m--;
             line[m]=0;
             if(!block && same(line,"exit()")){
@@ -328,17 +462,23 @@ static void repl(void){
                 return;
             }
             if(!block && !m)break;
-            if(block && !m)break;
+            if(block && !m && pending_brackets(source,n)<=0)break;
             if(n+(unsigned)m+1>=sizeof(source)){
                 outs("python: input too long\r\n");n=0;break;
             }
             for(int i=0;i<m;i++)source[n++]=line[i];
             source[n++]='\n';
+            if(pending_brackets(source,n)>0){block=1;continue;}
             if(!block){
-                unsigned i=0;while(line[i])i++;
-                if(i && line[i-1]==':')block=1;
-                else break;
+                if(m && line[m-1]==':'){block=1;continue;}
+                break;
             }
+            /* A completed expression (not an indented suite) runs immediately. */
+            unsigned i=0;while(i<n && (source[i]==' '||source[i]=='\t'))i++;
+            int suite=0;
+            while(i<n && source[i]!='\n' && source[i]!='\r')i++;
+            if(i>0 && source[i-1]==':')suite=1;
+            if(!suite)break;
         }
         if(n){source[n]=0;run_source(n);}
     }

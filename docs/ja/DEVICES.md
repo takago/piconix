@@ -76,13 +76,13 @@ GPIOとして使用できるピンは`kernel/pins.h`の`GPn_MODE`で決まりま
 
 | デバイス | 入力 | 出力 |
 |---|---|---|
-| `/dev/adc/0` | GP26 | 12ビットADC値（0～4095） |
-| `/dev/adc/1` | GP27 | 12ビットADC値（0～4095） |
+| `/dev/adc/0` (disabled) | GP26 | 12ビットADC値（0～4095） |
+| `/dev/adc/1` (disabled) | GP27 | 12ビットADC値（0～4095） |
 | `/dev/adc/2` | GP28 | 12ビットADC値（0～4095） |
 | `/dev/adc/temp` | RP2040内蔵温度センサー | 摂氏の概算値 |
 
 ```sh
-cat /dev/adc/0
+cat /dev/adc/2
 cat /dev/adc/temp
 watch 1 cat /dev/adc/temp
 ```
@@ -199,3 +199,19 @@ GPIOの状態を8行×4列（左から31〜24，23〜16，15〜8，7〜0）に�
 起動時のGPIO既定値：GP25は出力（LOW），GP16・GP17は入力（プルアップ）です．`gpio`コマンドで変更できます．
 
 カーネルが提供するUDP 2000番の遠隔操作については，[リモートデバイス制御](REMOTE-DEVICE.md)を参照してください．
+
+
+## I2C1 (GP26/GP27)
+
+I2C1 is fixed to GP26 (SDA) and GP27 (SCL), at 100 kHz. ADC0 and ADC1 are disabled; ADC2 (GP28) and the internal temperature sensor remain available. The device node is `/dev/i2c/1`. Use `ioctl(fd, OS_I2C_TRANSFER, (int)(uintptr_t)&request)` with `piconix_i2c_transfer_t` from `include/piconix_i2c.h`. Each transfer accepts up to 32 write and 32 read bytes, with a repeated START between write and read. Addresses are 7-bit (0x08–0x77).
+
+```sh
+i2cctl scan
+i2cctl read 0x48 2
+i2cctl write 0x3c 0x00 0xae
+i2cctl xfer 0x48 2 0x00
+```
+
+External pull-up resistors to 3.3 V (typically 4.7 kΩ) are recommended; the internal pull-ups are weak. Never apply 5 V directly to Pico GPIO. The `scan` operation sends a zero-byte address probe; some peripherals may not respond to that probe.
+
+I²C1の詳細な配線・転送仕様と操作例は[I²Cガイド](I2C.md)を参照してください．

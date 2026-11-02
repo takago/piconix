@@ -66,7 +66,7 @@ enum {
 };
 enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
        VDIR_PWM, VDIR_PWM1, VDIR_PROC, VDIR_TASK, VDIR_SYM,
-       VDIR_USERLAND, VDIR_NET, VDIR_TMP, VDIR_ETC, VDIR_DEV_NET };
+       VDIR_USERLAND, VDIR_NET, VDIR_TMP, VDIR_ETC, VDIR_DEV_NET, VDIR_I2C };
 
 static int path_match(const char *p, const char *s);
 
@@ -105,7 +105,7 @@ static int vfs_fixed_path_id(const char *path) {
 static const char *const vdir_paths[] = {
     "/", "/bin", "/dev", "/dev/gpio", "/dev/adc",
     "/dev/pwm", "/dev/pwm/1", "/proc", "/proc/task",
-    "/proc/sym", "/proc/sym/userland", "/proc/net", "/tmp", "/etc", "/dev/net"
+    "/proc/sym", "/proc/sym/userland", "/proc/net", "/tmp", "/etc", "/dev/net", "/dev/i2c"
 };
 static int vfs_directory_id(const char *path) {
     for(unsigned i=0;i<sizeof(vdir_paths)/sizeof(vdir_paths[0]);i++)
@@ -750,6 +750,7 @@ void os_init(void) {
     gpio_driver_init();
     fb_init();
     adc_driver_init();
+    i2c_driver_init();
     pwm_driver_init();
     svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(foreground_group,0,sizeof foreground_group); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
     memset(rx, 0, sizeof(rx));
@@ -1194,7 +1195,7 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
             const char *path=vfs_device_path(i);
             if(!strncmp(path,"/dev/",5) && !strchr(path+5,'/')) EMIT(path+5,0);
         }
-        EMIT("gpio",1); EMIT("adc",1); EMIT("pwm",1);
+        EMIT("gpio",1); EMIT("adc",1); EMIT("pwm",1); EMIT("i2c",1);
 #if PICONIX_WIFI
         EMIT("net",1);
 #endif
@@ -1212,6 +1213,8 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
             snprintf(name,sizeof name,"%u.pull",i); EMIT(name,0);
         }
         break;
+    case VDIR_I2C:
+        EMIT("1",0); break;
     case VDIR_ADC:
         for(unsigned i=0;i<3;i++) if(pin_adc(i)) {
             snprintf(name,sizeof name,"%u",i); EMIT(name,0);
@@ -1524,7 +1527,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
             len+=written;
         }
         /* GPIO is a dynamically generated subtree, not a fixed device. */
-        int written=snprintf(text+len,sizeof(text)-(size_t)len,"gpio/\nadc/\npwm/\n");
+        int written=snprintf(text+len,sizeof(text)-(size_t)len,"gpio/\nadc/\npwm/\ni2c/\n");
         if(written<0 || (size_t)written>=sizeof(text)-(size_t)len) return OS_EINVAL;
         len+=written;
     }
@@ -1804,6 +1807,12 @@ static int device_ioctl(int fd,int cmd,int arg) {
         tty_mode_owner[tty]=tasks[current].pid;
         return 0;
     }
+    if(dev==DEV_I2C1) {
+        if(cmd!=OS_I2C_TRANSFER) return OS_EINVAL;
+        piconix_i2c_transfer_t *t=(piconix_i2c_transfer_t *)(uintptr_t)(unsigned)arg;
+        if(!in_task_range(t,sizeof(*t))) return OS_EINVAL;
+        return i2c_driver_transfer(t);
+    }
     if(tasks[current].fd[fd]==DEV_FB) return fb_ioctl(cmd);
     if(tasks[current].fd[fd]==DEV_TRACE) {
         uint32_t irq=save_and_disable_interrupts();
@@ -1834,6 +1843,7 @@ static int device_ioctl(int fd,int cmd,int arg) {
         else {
             gpio_function_t fn=gpio_get_function(pin);
             if(fn==GPIO_FUNC_PWM) mode=GPIO_STATUS_PWM;
+            else if(fn==GPIO_FUNC_I2C) mode=GPIO_STATUS_I2C;
             else if(fn==GPIO_FUNC_UART) mode=(pin==20 || pin==0) ? GPIO_STATUS_UART_TX : GPIO_STATUS_UART_RX;
             else if(fn==GPIO_FUNC_NULL) mode=(pin>=26 && pin<=28 && pin_adc(pin-26)) ? GPIO_STATUS_ADC : GPIO_STATUS_FREE;
             else if(fn==GPIO_FUNC_SIO) {

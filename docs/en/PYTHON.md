@@ -1,201 +1,87 @@
 # PicoNIX Tiny Python — User Guide
 
-[日本語](../ja/PYTHON.md) | [Overview](README.md) | [Devices](DEVICES.md)
+[日本語](../ja/PYTHON.md) | [Devices](DEVICES.md) | [I²C](I2C.md)
 
-PicoNIX includes a small **Python-like interpreter written in C**, intended for learning integer expressions, control flow, and GPIO control. It is **not CPython or MicroPython**, and it does not run arbitrary standard Python programs. The behavior below is based on the current `userland/python.c` implementation.
+PicoNIX provides a small Python-like interpreter, not CPython or MicroPython. This guide describes the current `userland/python.c`, including I²C, sequences, and generic file I/O; full Python compatibility is not intended.
 
-## 1. Starting and leaving the REPL
+## REPL and scripts
 
-Run `python` without arguments:
+Use `python` for the REPL and `python /tmp/test.py` to run a script. Enter `exit()` to quit the REPL. Supported control flow includes `if`, `while`, and `for ... in range(...)`. Use space indentation; submit a blank line to finish a REPL block. Both scripts and the REPL support multi-line lists and `bytes([...])` until brackets are closed.
 
-```text
-piconix# python
-PicoNIX Tiny Python (Python subset)
-Type exit() to quit.
->>> x = 10
->>> print(x + 5)
-15
->>> exit()
-piconix#
-```
+## Integers and sequences
 
-`>>>` prompts for a new statement; `...` prompts for the continuation of a block. Type **`exit()`** at top level to return to the shell.
+- Signed 32-bit integers support decimal (`123`), hexadecimal (`0x7B`), binary (`0b01111011`), and signed literals (`-0x20`). Uppercase prefixes also work.
+- `a = [1, 2, 3]` creates a mutable integer list; `a[0]` reads and `a[1] = 5` updates an element.
+- `b = bytes([0x01, 0xFF])` creates an immutable byte sequence, with values 0–255.
+- `len(a)`, `len(b)`, `print(a)`, and `print(b)` work. Maximum sequence length: 64.
+- Both `/` and `//` perform integer division. Floats, dictionaries, slicing, `append()`, `import`, `def`, and exceptions are not supported.
 
-### Multiline blocks
+## File descriptor API
 
-Terminate `if`, `while`, and `for` headers with `:` and indent their bodies using spaces. In the interactive REPL, **enter a blank line to finish the block**:
-
-```text
->>> for i in range(3):
-...     print(i)
-...
-0
-1
-2
-```
-
-The block runs once entry is complete. Pasting multiple lines quickly may visually interleave TTY echo with `...` prompts. This does not necessarily mean that input was lost. For larger examples, use a script file.
-
-## 2. Running a script file
-
-Temporary files live in RAM under `/tmp`. The shell starts in `/tmp` by default, so relative paths normally suffice:
-
-```text
-piconix# pwd
-/tmp
-piconix# cat > test.py
-print(1 + 2)
-```
-
-Press `Ctrl+D` on an empty line to finish `cat`, then execute:
-
-```text
-piconix# python test.py
-3
-```
-
-`python /tmp/test.py` also works. Files in `/tmp` are volatile and disappear after reboot. The interpreter can **load** a script file, but Python-level `open()`, `read()`, and `write()` file APIs are **not implemented**.
-
-## 3. Supported syntax
-
-| Area | Supported features |
+| Function | Behavior |
 |---|---|
-| Values | Signed 32-bit integers, `True` (1), `False` (0) |
-| Variables | Integer assignments such as `x = 123` |
-| Arithmetic | `+`, `-`, `*`, `/`, `%`, parentheses, unary `+` and `-` |
-| Comparisons | `==`, `!=`, `<`, `<=`, `>`, `>=` |
-| Logic | `not`, `and`, `or` (short-circuit evaluation) |
-| Branches | `if condition:`, `else:` |
-| Loops | `while condition:`, `for name in range(...):` |
-| Loop control | `break`, `continue` |
-| Comments | `#` to the end of the line |
+| `open("/path", flags)` | Returns an integer FD. Flags: 0=read, 1=write, 2=read/write in this environment |
+| `read(fd, n)` | Reads up to 64 bytes into an immutable byte sequence; use in assignment |
+| `write(fd, data)` | Writes a string literal or sequence variable; returns bytes written |
+| `close(fd)` | Closes an FD |
+| `ioctl(fd, cmd, arg)` | Integer-argument ioctl; cannot directly construct pointer-based structures |
 
-`True` and `False` are integer constants, not a distinct Boolean type. Zero is false; nonzero integers are true. As in Python, `and` and `or` can return an **operand value**, rather than a normalized Boolean.
+Paths in `open()` and strings in `write()` must be literals. Use `data = read(fd, 8)` for reads. Syntax and runtime failures share an error message such as `python: syntax/runtime error at statement N`. `N` is a statement index, not a physical source line number; blank lines and comments are omitted and continued lines are merged.
+
+### LED matrix
 
 ```python
-x = 7
-if x >= 5 and not False:
-    print("OK")
-else:
-    print("NG")
+pattern = bytes([0x3c, 0x42, 0xa5, 0x81, 0xa5, 0x99, 0x42, 0x3c])
+fd = open("/dev/gpio/fb", 2)
+ioctl(fd, FB_ENABLE, 0)
+write(fd, pattern)
+close(fd)
 ```
 
-Expression precedence is roughly `* / %`, then `+ -`, comparisons, `not`, `and`, and `or`. `and` and `or` skip evaluating unnecessary right-hand operands. Division is integer division; division by zero is an error.
+The framebuffer requires exactly eight bytes per write. `FB_ENABLE` enables scanning; `FB_DISABLE` disables the display and releases GPIO; `FB_STATUS` queries its state. Closing the FD does not disable the display.
 
-### for, range, break and continue
+### PWM
 
 ```python
-for i in range(5):
-    print(i)
-
-for i in range(5, 0, -2):
-    print(i)
+fd = open("/dev/pwm/1/freq", 1)
+write(fd, "440")
+close(fd)
+fd = open("/dev/pwm/1/a", 1)
+write(fd, "50")
+close(fd)
 ```
 
-The accepted forms are `range(stop)`, `range(start, stop)`, and `range(start, stop, step)`. The stop is exclusive; negative steps are supported, while a zero step is an error.
+Frequency is 8–100000 Hz and duty is an integer percentage 0–100, both as text.
+
+## I²C1
+
+Use `i2c_write(addr, sequence)`, `data = i2c_read(addr, count)`, or `data = i2c_xfer(addr, sequence, count)`. Valid addresses are 0x08–0x77, and each phase is limited to 32 bytes. `i2c_xfer()` uses repeated START. Inline payloads such as `i2c_write(0x23, bytes([0x10]))` are supported. Use these helpers for the pointer-based transfer request.
+
+### BH1750 (address 0x23)
 
 ```python
+power = bytes([0x01])
+i2c_write(0x23, power)
+msleep(100)
+mode = bytes([0x10])
+i2c_write(0x23, mode)
+msleep(200)
 for i in range(10):
-    if i == 2:
-        continue
-    if i == 5:
-        break
-    print(i)
+    data = i2c_read(0x23, 2)
+    raw = data[0] * 256 + data[1]
+    lux1000 = raw * 1000 * 5 / 6
+    print(lux1000)
+    msleep(200)
+off = bytes([0x00])
+i2c_write(0x23, off)
 ```
 
-`break` and `continue` target the innermost loop. Each executed `for` or `while` loop is limited to 10,000 iterations; `while True:` is therefore not unlimited.
+Output is **lux multiplied by 1000** (for example, 125833 means about 125.833 lx). Beware of 32-bit integer overflow.
 
-## 4. Built-in I/O and delays
+## Limits and validation
 
-| Expression | Behavior / limits |
-|---|---|
-| `print(123)` | Print the value of an integer expression |
-| `print("hello")` | Print a string literal |
-| `input("number? ")` | Read a line and return a parsed integer |
-| `int(input())` | Accepted, although `input()` already returns an integer |
-| `msleep(500)` | Sleep for 500 ms (allowed range: 0–60,000) |
-
-`print()` accepts **only one argument**. String variables, concatenation, and multi-argument forms such as `print("x=", x)` are unsupported. `input()` does **not** return a string; it reads a number. Invalid numeric input or expressions result in an error.
-
-```python
-n = input("Number: ")
-print(n * 2)
-```
-
-## 5. GPIO operations
-
-GPIO is accessed through `/dev/gpio/N` and its configuration devices, not through a dedicated GPIO system call.
-
-| Function | Purpose |
-|---|---|
-| `gpio_mode(pin, 0)` | Set input direction |
-| `gpio_mode(pin, 1)` | Set output direction |
-| `gpio_pull(pin, 0)` | Disable internal pulls |
-| `gpio_pull(pin, 1)` | Enable pull-up |
-| `gpio_pull(pin, 2)` | Enable pull-down |
-| `gpio(pin, 0)` / `gpio(pin, 1)` | Drive LOW / HIGH (also configures output direction) |
-| `gpio_read(pin)` | Return digital input 0 or 1 |
-
-The implementation accepts GPIO numbers in the range 0–28 but **excludes GP0, GP1, GP4 and GP5** from Python access. Pins can also be occupied by peripherals such as the framebuffer; consult the [device guide](DEVICES.md) and the physical board pinout.
-
-### Blink an LED
-
-Connect an LED with a suitable current-limiting resistor to GP16:
-
-```python
-gpio_mode(16, 1)
-for i in range(10):
-    gpio(16, True)
-    msleep(250)
-    gpio(16, False)
-    msleep(250)
-```
-
-### Read a switch using a pull-up
-
-For a switch between GP16 and GND, configure **both input direction and an internal pull-up**. Pressing the switch then reads LOW (0):
-
-```python
-gpio_mode(16, 0)
-gpio_pull(16, 1)
-
-for i in range(10):
-    if gpio_read(16):
-        print("OFF")
-    else:
-        print("ON")
-    msleep(500)
-```
-
-Without a pull-up or pull-down, a disconnected switch input may float. If a program only starts seeing sensible values after `kitesys` runs, check whether `kitesys` left a pull configuration in place.
-
-## 6. Background execution and a second terminal
-
-```text
-piconix# python test.py &
-piconix# python test.py > output.txt &
-piconix# getty /dev/ttyS1 python &
-```
-
-The last command attaches the Python REPL to UART1. In PicoNIX, `getty` is a command that starts a program on a specified TTY, **not a persistent daemon**. Use `exit()` to close the session. Avoid launching multiple interactive programs on the same TTY at once, as they can compete for input.
-
-The REPL generally uses TTY line input. Terminal-side line editing or echo options may interfere with the device's own input handling. When pasting multiple lines at speed, `>>>` and `...` output can mix with echoed text even if no bytes are lost.
-
-## 7. Limits and troubleshooting
-
-| Limit | Current value |
-|---|---|
-| Source text | Up to 512 bytes |
-| Effective source lines | Up to 64 |
-| Variables | Up to 16; names up to 15 characters |
-| Execution nesting | Up to 8 blocks |
-| Loop iterations | Up to 10,000 per executed loop |
-| One REPL input line | Up to 127 stored characters |
-
-Script loading is limited to 512 bytes. Each submitted REPL input group also has a 512-byte limit; separate submissions can be made interactively. This is a small language subset: `def`, `import`, lists, dictionaries, floating-point values, Python file APIs, string variables, and exceptions are not implemented. Use spaces, not tabs, for block indentation.
-
-On parse or execution failures, the interpreter generally prints `python: syntax/runtime error` rather than detailed exceptions. Check syntax, indentation, variable names, pin numbers, iteration limits, and source length.
-
-## 8. Implementation
-
-The interpreter lives in [`userland/python.c`](../../userland/python.c). Its integer expression parser, block executor, REPL, and GPIO device access are deliberately kept in one file. When extending it, also verify the 24 KiB RAM application-slot limit.
+- Source buffer: 1024 bytes; up to 64 active lines, 16 variable slots, 64 elements per sequence. REPL line buffer: 128 bytes.
+- Sequence elements use 32-bit storage internally, including `bytes`.
+- `print()` accepts one argument. `input()` reads an integer. `msleep()` accepts 0–60000 ms.
+- Hardware operation has been confirmed for BH1750 I²C readings, framebuffer writes and `FB_ENABLE`, and multi-line `bytes([...])` in scripts and the REPL. This is not exhaustive testing of all features.
+- Former GPIO-specific Python helpers are replaced by the common file API and `/dev/gpio/<pin>`, `/dev/gpio/<pin>.dir`, `/dev/gpio/<pin>.pull`.

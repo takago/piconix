@@ -34,6 +34,8 @@ PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup 
 
 **[Architecture](ARCHITECTURE.md)** — the user/kernel boundary and a source-file map.
 
+[I²C1 and i2cctl](I2C.md): wiring, commands, and C/Python access.
+
 ## 4. Write programs
 
 | Topic | Guide |

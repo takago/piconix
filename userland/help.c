@@ -35,6 +35,7 @@ int main(int argc, char **argv) {
         puts("  mem        Live memory viewer");
         puts("\nHardware:");
         puts("  gpio       Interactive GPIO editor");
+        puts("  i2cctl     I2C1 scan/read/write/combined transfer");
         puts("  pins       Show physical pin layout");
         puts("  fbctl      8x8 framebuffer controller");
         puts("  fbed       Interactive framebuffer editor");
@@ -58,6 +59,7 @@ int main(int argc, char **argv) {
     }
     if(argc!=2) { puts("usage: help [command]"); return 1; }
     if(!strcmp(argv[1],"sh")) puts("sh: Interactive shell\nusage: sh");
+    else if(!strcmp(argv[1],"i2cctl")) puts("i2cctl: I2C1 on GP26/GP27\nusage: i2cctl scan | read ADDR COUNT | write ADDR BYTE... | xfer ADDR COUNT [BYTE...]");
     else if(!strcmp(argv[1],"blink")) puts("blink: Blink task\nusage: blink [&]");
     else if(!strcmp(argv[1],"omikuji")) puts("omikuji: Countdown fortune\nusage: omikuji [seconds] [&]");
     else if(!strcmp(argv[1],"python")) puts("python: Tiny Python interpreter\nusage: python [file]");

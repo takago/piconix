@@ -10,6 +10,7 @@ enum {
     DEV_RAND = 94,
     DEV_MEM = 98,
     DEV_TRACE = 99,
+    DEV_I2C1 = 139,
 };
 /* X(path, id): fixed entries, excluding build-specific guards. */
 #define PICONIX_FIXED_DEVICES(X) \
@@ -18,7 +19,8 @@ enum {
     X("/dev/ttyS1", DEV_UART1) \
     X("/dev/rand", DEV_RAND) \
     X("/dev/mem", DEV_MEM) \
-    X("/dev/trace", DEV_TRACE)
+    X("/dev/trace", DEV_TRACE) \
+    X("/dev/i2c/1", DEV_I2C1)
 #define PICONIX_WIFI_DEVICES(X) \
     X("/dev/ttyN0", DEV_WIFI_TTY) \
     X("/dev/net/wifi", DEV_WIFI_CTRL)

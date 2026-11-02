@@ -19,6 +19,8 @@ extern const unsigned char piconix_shell_image_start[], piconix_shell_image_end[
 extern const unsigned char piconix_blink_image_start[], piconix_blink_image_end[];
 extern const unsigned char piconix_omikuji_image_start[], piconix_omikuji_image_end[];
 extern const unsigned char piconix_python_image_start[], piconix_python_image_end[];
+extern const unsigned char piconix_i2cctl_image_start[], piconix_i2cctl_image_end[];
+extern const unsigned char piconix_bh1750_image_start[], piconix_bh1750_image_end[];
 extern const unsigned char piconix_hello_image_start[], piconix_hello_image_end[];
 extern const unsigned char piconix_hexdump_image_start[], piconix_hexdump_image_end[];
 extern const unsigned char piconix_trace_image_start[], piconix_trace_image_end[];
@@ -69,6 +71,8 @@ int main(void) {
     register_image(1,"blink",piconix_blink_image_start,piconix_blink_image_end);
     register_image(3,"omikuji",piconix_omikuji_image_start,piconix_omikuji_image_end);
     register_image(4,"python",piconix_python_image_start,piconix_python_image_end);
+    register_image(39,"i2cctl",piconix_i2cctl_image_start,piconix_i2cctl_image_end);
+    register_image(40,"bh1750",piconix_bh1750_image_start,piconix_bh1750_image_end);
     register_image(5,"hello",piconix_hello_image_start,piconix_hello_image_end);
     register_image(6,"hexdump",piconix_hexdump_image_start,piconix_hexdump_image_end);
     register_image(7,"trace",piconix_trace_image_start,piconix_trace_image_end);

@@ -9,6 +9,7 @@ typedef struct { unsigned mode,level,pull,duty,freq; } pins_record_t;
 #define PINS_FB GPIO_STATUS_FB
 #define PINS_PWM GPIO_STATUS_PWM
 #define PINS_ADC GPIO_STATUS_ADC
+#define PINS_I2C GPIO_STATUS_I2C
 #define PINS_UART_TX GPIO_STATUS_UART_TX
 #define PINS_UART_RX GPIO_STATUS_UART_RX
 #define PINS_GPIO_IN GPIO_STATUS_IN
@@ -20,6 +21,7 @@ static void describe(char *dst, unsigned size, int pin, const pins_record_t *r) 
     case PINS_FB: snprintf(dst,size,"fb"); break;
     case PINS_PWM: snprintf(dst,size,"pwm %u%% %uHz",(unsigned)r->duty,(unsigned)r->freq); break;
     case PINS_ADC: snprintf(dst,size,"adc%d",pin-26); break;
+    case PINS_I2C: snprintf(dst,size,pin==26?"i2c1-sda":"i2c1-scl"); break;
     case PINS_UART_TX: snprintf(dst,size,"uart-tx"); break;
     case PINS_UART_RX: snprintf(dst,size,"uart-rx"); break;
     case PINS_GPIO_IN: snprintf(dst,size,"in %s%s",r->level?"HIGH":"LOW",r->pull==1?" pull-up":r->pull==2?" pull-down":""); break;

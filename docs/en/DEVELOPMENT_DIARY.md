@@ -84,6 +84,18 @@ The project also introduced **mDNS**, allowing connection without memorizing an 
 
 mDNS also pushed the 64 KiB kernel RAM allocation beyond its limit. Reducing the number of RAM files was considered, but the adopted approach moved the 16 KiB trace ring to previously unused SRAM at `0x20034000..0x20037fff`. This preserved tracing and all six user slots while freeing room inside the kernel's primary memory region.
 
+## November 2: I²C sensors and generic Python file I/O
+
+Building on the existing device-file model for the LED matrix, GPIO, and PWM, the developer chose to add I²C. **GP26 (formerly ADC0) and GP27 (formerly ADC1) were reassigned to I²C1 SDA/SCL**, retaining ADC2 on GP28. This fixed pin assignment avoids disrupting the existing LED-matrix wiring. The proposed kernel device is `/dev/i2c/1`. The user command was renamed from `i2c` to **`i2cctl`** and designed for scanning, reads, writes, and transfers using repeated START.
+
+An earlier Linux kernel module named `smile.c`, written by the developer for the BH1750 light sensor, provided a concrete migration exercise. The new user-space `bh1750.c` uses PicoNIX device access rather than Linux `i2c_client` and kernel threads. It targets address `0x23`, powers on the sensor, selects continuous high-resolution measurement, reads two bytes, and converts the reading to lux using integer arithmetic. The key design lesson was that **sensor-specific logic belongs in a user program**, not in the kernel.
+
+This also exposed limitations in the small Python-like interpreter. Prototype changes added **integer lists, byte strings**, indexing, `len()`, `bytes()`, and I²C helper functions, with a proposed 64-element list limit and 32-byte I²C transfer limit. Floating-point support was discussed but **deferred** until its impact on the **24 KiB user slot** could be measured. Fixed-point integer arithmetic remained sufficient for the BH1750 example.
+
+The next insight was that byte strings could drive the LED framebuffer directly. Instead of adding more hardware-specific Python functions, the design moved toward generic **`open()`, `read()`, `write()`, `close()`, and integer-argument `ioctl()`** wrappers. GPIO-specific helpers were removed in the prototype, allowing the same file-descriptor interface to address `/dev/gpio/fb`, PWM, GPIO, UART, and RAM files. I²C-specific helpers were retained for now because combined transfers require structured arguments. **Hexadecimal `0x` and binary `0b` literals** were also added to make sensor addresses and bit patterns easier to express.
+
+Japanese and English documentation for I²C and Python was expanded. **These changes were delivered as several patch ZIPs and received limited static checks; they were not yet validated by an integrated Pico SDK build, a 24 KiB size check, or BH1750 hardware measurements.** The diary therefore distinguishes implementation proposals and generated patches from verified working releases. Integration and step-by-step hardware testing remain the next tasks.
+
 ## Lessons leading up to the v1.1 milestone
 
 By v1.1, PicoNIX included a shell, independent user commands, VFS, device files, TTY handling, pipes, a small Python-like interpreter, an assembler, an editor, `trace`, `mem`, `lsof`, network services, and mDNS. Its purpose was not to reproduce Linux wholesale; it was to **make UNIX concepts visible in a small, inspectable implementation**.

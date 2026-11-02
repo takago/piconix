@@ -38,6 +38,7 @@ def test_app(tmp, name, base):
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
         '-Os', '-fno-jump-tables', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
         '-fdata-sections', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
+        '-I', ROOT / 'include',
         '-c', ROOT / 'userland' / f'{name}.c', '-o', obj)
     crt_obj = tmp / f'{name}_crt0.o'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',

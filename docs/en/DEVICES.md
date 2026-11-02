@@ -74,13 +74,13 @@ The `kitesys` demo displays digits, uses buttons on GP16/17 to shift the image, 
 
 | Device | Input | Output |
 |---|---|---|
-| `/dev/adc/0` | GP26 | Raw 12-bit ADC value (0–4095) |
-| `/dev/adc/1` | GP27 | Raw 12-bit ADC value (0–4095) |
+| `/dev/adc/0` (disabled) | GP26 | Raw 12-bit ADC value (0–4095) |
+| `/dev/adc/1` (disabled) | GP27 | Raw 12-bit ADC value (0–4095) |
 | `/dev/adc/2` | GP28 | Raw 12-bit ADC value (0–4095) |
 | `/dev/adc/temp` | On-chip sensor | Approximate Celsius temperature |
 
 ```sh
-cat /dev/adc/0
+cat /dev/adc/2
 cat /dev/adc/temp
 watch 1 cat /dev/adc/temp
 ```
@@ -197,3 +197,19 @@ Labels such as `[FB]`, `[PWM]`, `[UART-TX]`, and `[UART-RX]` reflect live kernel
 GPIO defaults at boot: GP25 is output (LOW), GP16 and GP17 are inputs with pull-ups. They remain editable with `gpio`.
 
 For the kernel UDP 2000 remote-device interface, see [Remote device control](REMOTE-DEVICE.md).
+
+
+## I2C1 (GP26/GP27)
+
+I2C1 is fixed to GP26 (SDA) and GP27 (SCL), at 100 kHz. ADC0 and ADC1 are disabled; ADC2 (GP28) and the internal temperature sensor remain available. The device node is `/dev/i2c/1`. Use `ioctl(fd, OS_I2C_TRANSFER, (int)(uintptr_t)&request)` with `piconix_i2c_transfer_t` from `include/piconix_i2c.h`. Each transfer accepts up to 32 write and 32 read bytes, with a repeated START between write and read. Addresses are 7-bit (0x08–0x77).
+
+```sh
+i2cctl scan
+i2cctl read 0x48 2
+i2cctl write 0x3c 0x00 0xae
+i2cctl xfer 0x48 2 0x00
+```
+
+External pull-up resistors to 3.3 V (typically 4.7 kΩ) are recommended; the internal pull-ups are weak. Never apply 5 V directly to Pico GPIO. The `scan` operation sends a zero-byte address probe; some peripherals may not respond to that probe.
+
+For I²C1 wiring, transfer semantics, and examples, see the [I²C guide](I2C.md).

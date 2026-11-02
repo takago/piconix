@@ -30,7 +30,7 @@ endif()
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
-foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod)
+foreach(APP IN ITEMS pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 24-KiB slot address.
   set(APP_ORIGIN 0x20010000)
@@ -59,6 +59,7 @@ foreach(APP IN ITEMS pins fbctl pwmctl kitesys shell blink omikuji python hello 
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             ${APP_EXTRA_CFLAGS}
             -I "${CMAKE_CURRENT_BINARY_DIR}"
+            -I "${CMAKE_CURRENT_LIST_DIR}/include"
             -c "${CMAKE_CURRENT_LIST_DIR}/userland/${APP}.c" -o "${APP_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
@@ -183,7 +184,7 @@ else()
   endif()
   message(STATUS "PicoNIX XIP linker: ${PICONIX_CUSTOM_LD}")
 endif()
-add_executable(piconix kernel/net.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/pwm.c kernel/context.S kernel/main.c
+add_executable(piconix kernel/net.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 if(PICONIX_USE_MODULAR_XIP)
   pico_set_linker_script_var(piconix RAM_LENGTH 0x10000)
@@ -234,7 +235,7 @@ if(PICONIX_WIFI_ENABLED)
     VERBATIM)
 endif()
 target_include_directories(piconix PRIVATE include "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/kernel")
-target_link_libraries(piconix pico_stdlib hardware_uart hardware_gpio hardware_adc hardware_pwm)
+target_link_libraries(piconix pico_stdlib hardware_uart hardware_gpio hardware_adc hardware_pwm hardware_i2c)
 target_link_libraries(piconix pico_stdio_usb)
 pico_enable_stdio_usb(piconix 1)
 pico_enable_stdio_uart(piconix 0)

@@ -2,6 +2,9 @@
 #ifndef PICONIX_DEVICES_H
 #define PICONIX_DEVICES_H
 #include <stddef.h>
+#include "../include/piconix_i2c.h"
+void i2c_driver_init(void);
+int i2c_driver_transfer(piconix_i2c_transfer_t *t);
 void gpio_driver_init(void);
 void fb_init(void);
 void fb_tick(void);

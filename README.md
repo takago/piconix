@@ -163,3 +163,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Remote device control (UDP 2000)](docs/en/REMOTE-DEVICE.md) | [リモートデバイス制御（UDP 2000番）](docs/ja/REMOTE-DEVICE.md) |
 | [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
 | [Text editing](docs/en/EDIT.md) | [テキスト編集](docs/ja/EDIT.md) |
+
+I2C1 on GP26/GP27: `i2cctl scan`, `i2cctl read`, `i2cctl write`, `i2cctl xfer`. See [English devices](docs/en/DEVICES.md) / [日本語デバイス](docs/ja/DEVICES.md).
+
+[I²C1 / i2cctl documentation (日本語)](docs/ja/I2C.md) | [English](docs/en/I2C.md) | [Python (日本語)](docs/ja/PYTHON.md) | [Python (English)](docs/en/PYTHON.md)
