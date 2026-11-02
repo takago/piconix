@@ -15,6 +15,7 @@ static void idle_task(void) {
 #endif
     }
 }
+extern const unsigned char piconix_net_image_start[], piconix_net_image_end[];
 extern const unsigned char piconix_shell_image_start[], piconix_shell_image_end[];
 extern const unsigned char piconix_blink_image_start[], piconix_blink_image_end[];
 extern const unsigned char piconix_omikuji_image_start[], piconix_omikuji_image_end[];
@@ -69,6 +70,7 @@ static void register_image(int id, const char *name,
 }
 int main(void) {
     os_init();
+    register_image(43,"net",piconix_net_image_start,piconix_net_image_end);
     register_image(2,"sh",piconix_shell_image_start,piconix_shell_image_end);
     register_image(1,"blink",piconix_blink_image_start,piconix_blink_image_end);
     register_image(3,"omikuji",piconix_omikuji_image_start,piconix_omikuji_image_end);

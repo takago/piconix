@@ -35,7 +35,7 @@ def generate(base, board, output):
             encoded = name.encode('ascii')
         except UnicodeEncodeError:
             raise ValueError(f'VFS name must be ASCII: {name}')
-        if len(encoded) > 15:
+        if len(encoded) > 31:
             raise ValueError(f'VFS name too long: {name}')
         if len(data) > 2048:
             raise ValueError(f'initial file too large: {name} ({len(data)})')

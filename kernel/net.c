@@ -2,6 +2,7 @@
 #include "net.h"
 #include "net_services.h"
 #include "piconix.h"
+#include <stdio.h>
 #ifndef PICONIX_WIFI
 #define PICONIX_WIFI 0
 #endif
@@ -23,6 +24,13 @@
  * Stage 18: bounded queues for the independent network TTY. */
 static int wifi_ready;
 static char wifi_ssid[33];
+#if !PICONIX_WIFI_STA
+#define AP_STAS_MAX 8
+static uint8_t ap_stas[AP_STAS_MAX][6];
+static int ap_sta_count;
+static uint64_t ap_stas_next_us;
+static int ap_dhcp_active;
+#endif
 /* CYW43/lwIP is polled from the idle task, not the timer ISR.
  * The 250 us minimum interval applies to STA and AP. In preliminary
  * Pico W testing, 1 ms felt less responsive over Telnet; 500 us improved
@@ -389,6 +397,7 @@ void net_init(void) {
 #endif
     int telnet_ready = net_service_telnet_init();
     int dhcp_ready = ap_dhcp_server_start();
+    ap_dhcp_active = dhcp_ready;
     int device_ready = net_service_remote_devctl_init();
     wifi_ready = 1;
     puts(device_ready ? "PicoNIX: UDP device service port 2000" : "PicoNIX: UDP device service failed");
@@ -454,6 +463,12 @@ void net_poll(void) {
     net_service_remote_devctl_poll();
 #if !PICONIX_WIFI_STA
     dhcp_expire_offer();
+    if (now >= ap_stas_next_us) {
+        int count = AP_STAS_MAX;
+        cyw43_wifi_ap_get_stas(&cyw43_state, &count, (uint8_t *)ap_stas);
+        ap_sta_count = count < 0 ? 0 : count > AP_STAS_MAX ? AP_STAS_MAX : count;
+        ap_stas_next_us = now + 1000000ull;
+    }
 #endif
     net_service_telnet_poll();
 }
@@ -477,7 +492,7 @@ int net_wifi_info(char *out, unsigned size) {
     ip4addr_ntoa_r(netif_ip4_gw(iface), gw, sizeof(gw));
 #if PICONIX_WIFI_STA
     int len = snprintf(out, size,
-        "MODE: STA\nSTATUS: %s\nSSID: %s\n"
+        "MODE: STA\nSTATUS: %s\nSSID: %s\nDHCP: Client\n"
         "ATTEMPTS: %u\nCONNECT_ERROR: %d\nLINK_CODE: %d\n"
         "WIFI_LINK: %d\nTCPIP_LINK: %d\nDHCP_BOUND: %d\n"
         "LAST_RESET: %c\nIP: %s\nNETMASK: %s\nGATEWAY: %s\nMAC: N/A\nRSSI: %s\n"
@@ -498,10 +513,11 @@ int net_wifi_info(char *out, unsigned size) {
     return len;
 #else
     return snprintf(out,size,
-        "MODE: AP\nSSID: %s\nMAC: N/A\n"
+        "MODE: AP\nSSID: %s\nDHCP: %s\nCLIENTS: %d\nMAC: N/A\n"
         "IP: %s\nNETMASK: %s\nGATEWAY: %s\nRSSI: %s\n"
         "MDNS_NAME: piconix.local\nMDNS_ACTIVE: %d\nMDNS_ERROR: %d\n",
-        wifi_ssid, ip, mask, gw, rssi,
+        wifi_ssid, ap_dhcp_active ? "Server" : "Inactive", ap_sta_count,
+        ip, mask, gw, rssi,
         ap_mdns_registered, ap_mdns_error);
 #endif
 }
@@ -523,5 +539,52 @@ int net_wifi_request_restart(void) {
     return 0;
 #else
     return -1;
+#endif
+}
+
+/* No CYW43 transactions from syscalls: AP clients are cached by net_poll(). */
+int net_diag_info(char *out, unsigned size, int type) {
+    if (!size) return 0;
+    unsigned used = 0;
+    int n;
+#if PICONIX_WIFI
+    if (!wifi_ready) return snprintf(out,size,"Network unavailable\n");
+    if (type == 0) {
+#if PICONIX_WIFI_STA
+        return snprintf(out,size,"Not in AP mode\n");
+#else
+        n=snprintf(out,size,"Connected clients: %d\n",ap_sta_count);
+        if(n<0 || (unsigned)n>=size) return (int)(size-1);
+        used=(unsigned)n;
+        for(int i=0;i<ap_sta_count;i++) {
+            const uint8_t *m=ap_stas[i];
+            n=snprintf(out+used,size-used,"%02X:%02X:%02X:%02X:%02X:%02X\n",
+                m[0],m[1],m[2],m[3],m[4],m[5]);
+            if(n<0 || (unsigned)n>=size-used) break;
+            used+=(unsigned)n;
+        }
+        return (int)used;
+#endif
+    }
+    n=snprintf(out,size,"ARP table:\n");
+    if(n<0 || (unsigned)n>=size) return (int)(size-1);
+    used=(unsigned)n;
+    for(int i=0;i<ARP_TABLE_SIZE;i++) {
+        ip4_addr_t *ip;
+        struct netif *iface;
+        struct eth_addr *mac;
+        if(!etharp_get_entry(i,&ip,&iface,&mac)) continue;
+        char addr[20];
+        ip4addr_ntoa_r(ip,addr,sizeof addr);
+        n=snprintf(out+used,size-used,"%s %02X:%02X:%02X:%02X:%02X:%02X\n",
+            addr,mac->addr[0],mac->addr[1],mac->addr[2],
+            mac->addr[3],mac->addr[4],mac->addr[5]);
+        if(n<0 || (unsigned)n>=size-used) break;
+        used+=(unsigned)n;
+    }
+    return (int)used;
+#else
+    (void)type;
+    return snprintf(out,size,"Network unavailable (Pico W only)\n");
 #endif
 }

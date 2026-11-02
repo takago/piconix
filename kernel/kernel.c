@@ -46,6 +46,8 @@ enum {
     DEV_PROC_MEMORY = 35,
     DEV_PROC_RAMFILES = 136,
     DEV_PROC_WIFI = 137,
+    DEV_PROC_AP = 138,
+    DEV_PROC_ARP = 139,
     DEV_GPIO_DIR_BASE = 36,
     DEV_GPIO_DIR_END = 64,
     DEV_GPIO_PULL_BASE = 65,
@@ -88,6 +90,7 @@ static const struct { const char *path; int id; } vfs_registry[] = {
     {"/proc/memory",DEV_PROC_MEMORY}, {"/proc/devices",DEV_PROC_DEVICES},
     {"/proc/ramfiles",DEV_PROC_RAMFILES},
     {"/proc/net/wifi",DEV_PROC_WIFI},
+    {"/proc/net/ap",DEV_PROC_AP}, {"/proc/net/arp",DEV_PROC_ARP},
     {"/proc/tasks",DEV_PROC_TASKS}, {"/proc/fb",DEV_PROC_FB},
     {"/proc/sym/kernel",DEV_SYMS_KERNEL},
     {"/dev/pwm/1/freq",DEV_PWM_FREQ}, {"/dev/pwm/1/a",DEV_PWM_18},
@@ -977,26 +980,27 @@ static int path_match(const char *p, const char *s) {
  * Physical ranges are reserved and audited, not linked into .bss. */
 #define TMP_FILES 11
 #define TMP_BYTES 2048
+#define TMP_NAME_CAP 32  /* internal path without leading slash, including NUL */
 #define SHM_BASE 0x20032000u
 #define SHM_BYTES 2048u
 #define RAMFILE_BASE 0x20032800u
 __asm__(".global shared_ram\n.set shared_ram, 0x20032000");
 __asm__(".global ramfile_data\n.set ramfile_data, 0x20032800");
-static struct { char name[16]; uint16_t size; uint8_t used; } tmp_files[TMP_FILES];
+static struct { char name[TMP_NAME_CAP]; uint16_t size; uint8_t used; } tmp_files[TMP_FILES];
 static uint8_t *tmp_payload(int id) {
     return (uint8_t *)(uintptr_t)(RAMFILE_BASE+(uint32_t)id*TMP_BYTES);
 }
 /* Check a user path without reading outside the caller's address range. */
 /* /tmp and /etc share eight volatile file slots. Names are stored with
  * a short directory prefix so the existing descriptor scheme stays intact. */
-static int tmp_name(const char *p, char name[16]) {
+static int tmp_name(const char *p, char name[TMP_NAME_CAP]) {
     const char *prefix;
     if(!strncmp(p,"/tmp/",5)) prefix="tmp/";
     else if(!strncmp(p,"/etc/",5)) prefix="etc/";
     else return 0;
     p+=5;
     unsigned len=0;
-    while(p[len] && p[len]!='/' && len<11) len++;
+    while(p[len] && p[len]!='/' && len<TMP_NAME_CAP-5) len++;
     if(!len || p[len]) return 0;
     memcpy(name,prefix,4);
     memcpy(name+4,p,len);
@@ -1032,11 +1036,12 @@ static int proc_device(int dev) {
     return (dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) ||
            dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS || dev==DEV_PROC_FB ||
            dev==DEV_PROC_RAMFILES || dev==DEV_PROC_WIFI ||
+           dev==DEV_PROC_AP || dev==DEV_PROC_ARP ||
            (dev>=DEV_PROC_TASK_BASE && dev<DEV_PROC_TASK_BASE+OS_MAX_TASKS);
 }
 static int tmp_open(const char *p,int flags) {
     tmp_init();
-    char name[16];
+    char name[TMP_NAME_CAP];
     if(!tmp_name(p,name)) return OS_ENOENT;
     int index=tmp_lookup(name);
     if(index<0) {
@@ -1059,7 +1064,7 @@ static int tmp_open(const char *p,int flags) {
 }
 static int tmp_unlink(const char *p) {
     tmp_init();
-    char name[16];
+    char name[TMP_NAME_CAP];
     if(!tmp_name(p,name)) return OS_ENOENT;
     int index=tmp_lookup(name);
     if(index<0) return OS_ENOENT;
@@ -1181,7 +1186,7 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
         EMIT("ramfiles",0); EMIT("devices",0); EMIT("tasks",0);
         EMIT("fb",0); EMIT("task",1); EMIT("sym",1); EMIT("net",1); break;
     case VDIR_NET:
-        EMIT("wifi",0); break;
+        EMIT("wifi",0); EMIT("ap",0); EMIT("arp",0); break;
     case VDIR_TASK:
         for(int i=0;i<OS_MAX_TASKS;i++)
             if(tasks[i].state!=UNUSED && tasks[i].state!=DEAD) {
@@ -1467,6 +1472,8 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     restore_interrupts(irq_state);
     char text[448]; int len=0;
     if(dev==DEV_PROC_WIFI) len=net_wifi_info(text,sizeof(text));
+    if(dev==DEV_PROC_AP || dev==DEV_PROC_ARP)
+        len=net_diag_info(text,sizeof(text),dev==DEV_PROC_ARP);
     if(dev==DEV_PROC_DEVICES) {
         /* Enumerate the same registry used by vfs_open(). */
         for(unsigned i=0;i<vfs_device_count();i++) {
@@ -2041,8 +2048,9 @@ void os_svc_dispatch(uint32_t *f) {
         case SYS_SPAWN_TMP: {
             /* A tiny flat Thumb image: PNX1, LE16 code length, LE16 reserved. */
             const char *path=(const char *)(uintptr_t)a;
-            char filename[16];
-            if(!in_task_range(path,21) || !tmp_name(path,filename)) { result=OS_EINVAL; break; }
+            char filename[TMP_NAME_CAP];
+            char resolved[128];
+            if(absolute_path(path,resolved)<0 || !tmp_name(resolved,filename)) { result=OS_EINVAL; break; }
             int f=tmp_lookup(filename);
             if(f<0) { result=OS_ENOENT; break; }
             const uint8_t *image=tmp_payload(f);

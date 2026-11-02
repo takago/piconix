@@ -196,14 +196,13 @@ void net_socket_tcp_close_listener(int id) {
     tcp_arg(pcb,NULL); tcp_accept(pcb,NULL);
     if(tcp_close(pcb)!=ERR_OK) tcp_abort(pcb);
 }
+/* Retry deferred close only from the TCP timer callback.  In particular,
+ * do not call tcp_close() from the sent/ACK callback: the latter runs while
+ * lwIP is still processing the acknowledged send queue. */
 static err_t socket_tcp_closing_poll(void *arg,struct tcp_pcb *pcb) {
     (void)arg;
-    (void)tcp_close(pcb);
+    (void)tcp_close(pcb); /* ERR_MEM: retry at the next poll. */
     return ERR_OK;
-}
-static err_t socket_tcp_closing_sent(void *arg,struct tcp_pcb *pcb,u16_t len) {
-    (void)arg; (void)len;
-    return socket_tcp_closing_poll(NULL,pcb);
 }
 static err_t socket_tcp_closing_recv(void *arg,struct tcp_pcb *pcb,struct pbuf *p,err_t err) {
     (void)arg;
@@ -219,7 +218,8 @@ void net_socket_tcp_close_client(int id) {
         tcp_arg(pcb,NULL); tcp_err(pcb,NULL);
         tcp_recv(pcb,socket_tcp_closing_recv);
         if(tcp_close(pcb)!=ERR_OK) {
-            tcp_sent(pcb,socket_tcp_closing_sent);
+            /* Keep ACK processing internal to lwIP; retry close on a timer. */
+            tcp_sent(pcb,NULL);
             tcp_poll(pcb,socket_tcp_closing_poll,2);
         }
     }

@@ -22,7 +22,7 @@ Directory names encode the destination (`etc` or `tmp`) and board selection (`co
 
 ## Limits and build
 
-Up to 11 initial files may be selected per build, each no larger than 2048 bytes. Internal VFS paths (such as `etc/rc`) must fit within 15 bytes; destinations are limited to `/etc` and `/tmp`. `tools/generate_initial_fs.py` checks these limits during generation.
+Up to 11 initial files may be selected per build, each no larger than 2048 bytes. Internal VFS paths (such as `etc/rc`) must fit within 31 bytes; destinations are limited to `/etc` and `/tmp`. `tools/generate_initial_fs.py` checks these limits during generation.
 
 After changing or adding files, rebuild and flash the firmware for the target board. Changes made to RAM files on the running device are volatile: reboot restores the Flash-embedded initial content.
 

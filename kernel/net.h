@@ -12,6 +12,8 @@ int net_terminal_write(const void *src, unsigned size);
 
 /* Format the current Wi-Fi interface state for /proc/net/wifi. */
 int net_wifi_info(char *out, unsigned size);
+/* Read-only diagnostic snapshots.  Type 0: AP associations, 1: ARP. */
+int net_diag_info(char *out, unsigned size, int type);
 
 /* Queue an STA reassociation from a syscall; applied in net_poll(). */
 int net_wifi_request_restart(void);

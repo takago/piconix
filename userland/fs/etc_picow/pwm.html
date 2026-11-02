@@ -1,0 +1,57 @@
+<!doctype html>
+<html><meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>
+body{background:#172235;color:#fff}
+input{width:100%}
+</style>
+<h3>PWM</h3><a href="/">Home</a>
+<select id="mode"><option value="s">Servo</option>
+<option value="b">Buzzer</option></select>
+<p id="desc"></p>
+<input type="range" id="slider">
+<p id="value"></p>
+<button id="start">Start</button> <button id="stop">Stop</button>
+<p id="status">Off</p>
+<script>
+const mode=document.querySelector('#mode'),s=document.querySelector('#slider');
+const value=document.querySelector('#value'),desc=document.querySelector('#desc');
+const status=document.querySelector('#status');
+let active=false,busy=false,pending=false,reset=true,stamp=0;
+async function put(p,v){let r=await fetch('/api/pwm/'+p,{method:'POST',body:String(v)});if(!r.ok)throw Error(r.status)}
+async function off(){await put('a',0);await put('b',0)}
+function show(){
+ let servo=mode.value==='s';
+ s.min=servo?0.5:100;s.max=servo?1.5:5000;s.step=servo?0.02:100;
+ s.value=servo?1:1000;
+ desc.textContent=servo?'50 Hz':'50% duty';
+ label()
+}
+function label(){value.textContent=s.value+(mode.value==='s'?' ms':' Hz')}
+async function apply(){
+ if(busy)return;busy=true;
+ try{
+  let re=reset;reset=0;
+  if(re)await off();
+  if(active){
+   if(mode.value==='s'){
+    if(re)await put('freq',50);
+    await put('b',(Number(s.value)*5).toFixed(1));
+   }else{
+    await put('freq',s.value);
+    if(re)await put('a',50);
+   }
+  }
+  status.textContent=active?'On':'Off';
+ }catch(e){status.textContent='Error';active=false}
+ busy=false;
+ if(pending){pending=false;apply()}
+}
+function queue(){pending=true;if(!busy){pending=false;apply()}}
+mode.onchange=()=>{active=false;reset=true;show();queue()};
+s.oninput=()=>{label();if(active&&Date.now()-stamp>=100){stamp=Date.now();queue()}};
+s.onchange=()=>{if(active)queue()};
+document.querySelector('#start').onclick=()=>{active=true;reset=true;queue()};
+document.querySelector('#stop').onclick=()=>{active=false;reset=true;queue()};
+show();
+</script></html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+body{color:white;background:#172235}
+#g{display:grid;grid-template-columns:repeat(8,1fr);touch-action:none}
+#g button{aspect-ratio:1;background:#354052;}
+#g .on{background:#f55}
+</style>
+<h3>PicoNIX LED matrix</h3><a href="/">Home</a>
+<div id="g"></div>
+<p>
+<button onclick="fill(0)">Clear</button>
+<button onclick="fill(1)">All</button>
+</p>
+<script>
+let a=Array(64).fill(0),g=document.getElementById('g');
+async function api(u,v){
+  let opt=v==null?{cache:'no-store'}:{method:'POST',body:v};
+  let r=await fetch('/api/'+u,opt);
+  return (await r.text()).trim()
+}
+function draw(){for(let i=0;i<64;i++)g.children[i].className=a[i]?'on':''}
+function hex(){let h='';for(let i=0;i<64;i+=8){let v=0;for(let j=0;j<8;j++)v|=a[i+j]<<(7-j);h+=v.toString(16).padStart(2,'0')}return h}
+let busy=0,dirty=0,down=0,last=0;
+async function send(){
+  if(busy||!dirty)return;
+  busy=1;dirty=0;
+  try{await api('fb',hex())}catch(e){console.log(e)}
+  busy=0
+}
+async function load(){
+  if(busy||dirty||down)return;
+  busy=1;
+  try{
+    let h=await api('fb');
+    if(!dirty&&!down&&/^[0-9a-f]{16}$/i.test(h)){
+      for(let i=0;i<64;i++)a[i]=+!!(parseInt(h.slice((i>>3)*2,(i>>3)*2+2),16)&(128>>(i%8)));
+      draw()
+    }
+  }catch(e){console.log(e)}
+  busy=0
+}
+setInterval(()=>{if(dirty)send();else if(Date.now()-last>=250){last=Date.now();load()}},50);
+function fill(v){a.fill(v);draw();dirty=1}
+let paint;
+function mark(e){let b=document.elementFromPoint(e.clientX,e.clientY);if(!b||b.parentNode!==g)return;let i=+b.id;if(a[i]===paint)return;a[i]=paint;draw();dirty=1}
+g.onpointerdown=e=>{if(e.target.parentNode!==g)return;down=1;paint=1-a[e.target.id];g.setPointerCapture(e.pointerId);mark(e)};
+g.onpointermove=e=>{if(down)mark(e)};
+g.onpointerup=g.onpointercancel=()=>{down=0};
+for(let i=0;i<64;i++){let b=document.createElement('button');b.id=i;g.append(b)}
+load();
+</script>
+</html>
