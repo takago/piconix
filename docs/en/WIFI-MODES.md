@@ -45,7 +45,7 @@ packets can be exchanged. Test `ping` and Telnet from the same network,
 repeat after several power cycles, and compare with the previous firmware.
 For stalled communication, capture ARP/ICMP traffic on the host.
 
-The firmware must still pass the linked ELF's 64-KiB kernel SRAM checks.
+The firmware must still pass the linked ELF's 56-KiB kernel SRAM limit checks.
 Build and hardware validation are required before treating the workaround
 as a confirmed solution.
 

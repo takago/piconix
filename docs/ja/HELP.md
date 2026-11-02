@@ -14,6 +14,19 @@ piconix# help reset
 
 `help` はシェルの組込み処理ではありません．シェルから通常の外部コマンドと同じ仕組みで起動されます．
 
+## ピン配置とLED表示を調べる
+
+```text
+piconix# help pins
+piconix# pins
+piconix# help fbed
+piconix# fbed
+```
+
+`pins`は標準の物理ピン配置を表示します．現在のピン機能の定義は`kernel/pins.h`にあり，実際のGPIO利用状態は`gpio`でも確認できます．`fbed`は8×8のフレームバッファを対話的に編集するコマンドです．カーソルキーで位置を選び，SPACEで点灯状態を切り替え，`c`で消去し，`q`で終了します．詳しい配線と点灯の説明は[デバイスガイド](DEVICES.md)を参照してください．
+
+`python3`はPicoNIX内のコマンドではありません．Pythonスクリプトは`python /tmp/test.py`のように起動します．ホストPCで実行する`python3 tools/...`とは区別してください．
+
 ## 主なコマンドとオプション
 
 - `help pong`：`-2` はPongの2人対戦モードです．

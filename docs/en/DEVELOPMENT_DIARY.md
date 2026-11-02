@@ -131,8 +131,38 @@ The new 256 KiB main SRAM layout assigns 56 KiB to the kernel, 6 × 24 KiB to us
 
 On hardware, `/proc/memory` showed the expected layout and `/proc/ramfiles` showed file data addresses spaced by 2 KiB. After writing `hello` to `/dev/shm`, the 16-byte reads through `/dev/shm` and `/dev/mem` at `0x20032000` matched. Regular file reads and physical-address reads of RAM-file contents also matched; raw memory edits appeared in file reads. Both `mem` and `trace` were reported to work, and Pico W communication was reported functional. These reports do not establish an exhaustive AP/STA regression test. See [Memory layout](MEMORY-LAYOUT.md).
 
+## November 2: Python strings, bitwise operators, and memory limits
+
+The small Python-like interpreter gained string variables and `print()` with multiple arguments, such as `print([0x13, 0x12], "hello", 123)`. `input()` was changed to return a string, with `int(input())` and `str(123)` providing conversions. Old scripts expecting numeric input require changes.
+
+Bitwise operators (`<<`, `>>`, `&`, `|`, `^`, `~`) were then added to make LED framebuffer manipulation more natural. The first build failed with **`task image overlaps reserved stack`**: the 24 KiB task slot must reserve 4 KiB for stack. The implementation was made smaller by sharing array and string storage through a C `union`, consolidating expression parsing, and shrinking line bookkeeping. The developer subsequently reported a successful build and working bitwise expressions on the device. This did **not** measure worst-case runtime stack consumption.
+
+A BH1750-based Python LED-matrix animation was also tested on hardware: waves move more quickly in brighter light and slowly in darkness. The working example was documented in `PYTHON.md` without adding another boot-time RAM file. Together these changes demonstrate sensor input, computation, and framebuffer output using a small UNIX-like interface. Stack high-water measurement and further regression tests remain useful future work.
+
+## November 2: 2 KiB editors and final documentation consistency review
+
+After RAM files had been expanded to 2 KiB each, both `vi` and `edit` still used 1,024-byte editing buffers. Saving a larger file could silently lose its tail. Their static buffers were increased to **2,048 bytes**. When a read fills the buffer exactly, an additional one-byte read checks for excess content or a read error before allowing editing. `VI.md` and `EDIT.md` were updated accordingly. This increases static data use without changing the reserved 4 KiB stack or 24 KiB task slot. Editing and re-saving files at the 2 KiB boundary still needs separate hardware verification.
+
+Because the goal is operating-system education rather than teaching the full Python language, the opening of `PYTHON.md` now identifies the interpreter as a **limited subset**, not a CPython-compatible implementation. The BH1750-driven wave example remains in documentation instead of using an additional boot-time RAM-file slot.
+
+A documentation-wide search reviewed the current key limits (56 KiB kernel, six 24 KiB application slots, eleven 2 KiB RAM files, 2 KiB SHM, and the separate 1,024-byte Python source limit). An outdated **64 KiB** kernel check in English `WIFI-MODES.md` was corrected to **56 KiB**. Historical values in the diary and `docs/history/` remain where they describe earlier designs. This textual check is not an exhaustive hardware test or a sentence-by-sentence bilingual translation audit.
+
+## November 2: Shared Python pool and 2 KiB source and assembler output limits
+
+After expanding RAM files and the `vi` and `edit` buffers to 2 KiB, the Python interpreter and assembler were also updated to accept **2,048-byte source files**. Simply enlarging Python's source buffer initially caused a link failure because the task image overlapped the 4 KiB stack reservation in the 24 KiB user slot. Removing multi-argument `print()` was considered, but the chosen approach preserved that feature and reduced array storage overhead instead.
+
+Python now stores array and string data in a **shared pool of 256 32-bit words (1,024 bytes)** rather than reserving a full 64-element array for every variable. The limits remain 16 variables, 64 elements per array, and 64 bytes per string. Scalar integers do not consume pool space. Reassignment compacts and reuses the pool without `malloc()`, and exhaustion produces an error. The revised 2,048-byte source version compiled for ARM.
+
+On hardware, the developer verified that replacing arrays and retaining other arrays and strings worked, and that the existing BH1750 light-controlled wave still ran. One attempted pool-limit test had an unintended 34-element array among otherwise 32-element arrays, giving 258 elements and an error on the eighth assignment. This was an over-capacity test, **not** evidence of a boundary-condition defect. The exact 256-element boundary and exhaustive reassignment cases have not yet been verified.
+
+The assembler's source maximum was likewise raised to **2,048 bytes**. The machine-code/data output maximum was expanded to **2,040 bytes**, leaving 8 bytes for the `PNX1` header within a 2 KiB RAM file. The developer reported successful operation after this change. The six 24 KiB user slots and their 4 KiB stack reservations remain unchanged.
+
+These changes prioritize predictable fixed memory usage for OS education rather than expanding PicoNIX Python toward full Python compatibility. See [Python](PYTHON.md) and [Assembler](ASM.md) for the current limits.
+
+
 ## Historical accuracy and references
 
 This is a narrative reconstruction from conversations, not an exhaustive Git audit. A code change proposed or produced by ChatGPT is not, by itself, evidence of a successful hardware test. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.
 
 For the current behavior and usage, consult [Internal architecture](INTERNAL.md), [Networking](NETWORK.md), [TTY](TTY.md), [Pipes](PIPE.md), [Tracing](TRACE.md), and [Kernel development](KERNEL-DEVELOPMENT.md).
+

@@ -22,6 +22,8 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 │   │   ├── N               GPIO value
 │   │   ├── N.dir           GPIO direction
 │   │   └── N.pull          Pull-up/pull-down setting
+│   ├── i2c/
+│   │   └── 1               I²C1 bus
 │   ├── adc/
 │   │   ├── 0, 1, 2         ADC inputs (configuration-dependent)
 │   │   └── temp            Internal temperature sensor
@@ -56,17 +58,18 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 | `/dev/trace` | Yes | No | Binary records; see the `trace` command |
 | `/dev/gpio/fb` | Yes | Yes | Exactly 8 bytes; enable using `ioctl()` |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | Yes | Yes | Only pins configured as GPIO in `pins.h` |
+| `/dev/i2c/1` | Yes | Yes | I²C1 bus; transfers use `ioctl()`. See [I²C guide](I2C.md) |
 | `/dev/adc/0`–`2`, `/dev/adc/temp` | Yes | No | Decimal text; 0–2 depend on ADC pin configuration |
 | `/dev/pwm/1/freq`, `a`, `b` | Yes | Yes | Availability depends on PWM configuration |
 | Status files under `/proc` | Yes | No | Kernel status snapshots and related data |
 | `/tmp/NAME`, `/etc/NAME` | Yes | Yes | Regular RAM files |
 | Directories | List | No | Enumerate with `getdents()`; cannot `read()` as a regular file |
 
-See the [device guide](DEVICES.md) and [TTY guide](TTY.md) for data formats, `ioctl()` commands, and pin ownership rules. `/proc/devices` lists fixed registered devices and the `gpio/`, `adc/`, and `pwm/` entry points, not every dynamically generated node.
+See the [device guide](DEVICES.md) and [TTY guide](TTY.md) for data formats, `ioctl()` commands, and pin ownership rules. `/proc/devices` lists fixed registered devices and the `gpio/`, `adc/`, `pwm/`, and `i2c/` entry points, not every dynamically generated node.
 
 ## 3. GPIO and peripheral availability
 
-In the default `kernel/pins.h`, GP0–17 and GP22–25 are configured as GPIO, GP18/19 as PWM, GP20/21 as UART1, and GP26–28 as ADC. **On Pico W, GP23–25 have board-internal functions and should not be treated as external GPIO pins.** GP0–15 are reserved while the LED framebuffer is enabled. Node availability changes with pin and build configuration.
+In the default `kernel/pins.h`, GP0–17 and GP22–25 are configured as GPIO, GP18/19 as PWM, GP20/21 as UART1, and GP26/27 as I²C1 (SDA/SCL), and GP28 as ADC2. **On Pico W, GP23–25 have board-internal functions and should not be treated as external GPIO pins.** GP0–15 are reserved while the LED framebuffer is enabled. Node availability changes with pin and build configuration.
 
 ## 4. Limits of `/tmp` and `/etc`
 
@@ -91,7 +94,7 @@ Relative paths resolve against each task's current working directory. `.` and `.
 ## 6. Implementation references
 
 - `kernel/kernel.c`: `vdir_paths`, `dev_registry`, `vfs_registry`, `vdir_nth()`, `vfs_open()`, `tmp_*()`.
-- `kernel/pins.h`: GPIO, ADC, PWM, and UART assignments.
+- `kernel/pins.h`: GPIO, ADC, PWM, UART, and I²C assignments.
 - `include/piconix.h`: public API and error constants.
 
 See [Initial RAM Files and /etc/rc](INITIAL-FILES.md) for host layout, file registration, and boot-time restoration.

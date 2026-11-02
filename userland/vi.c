@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Tiny full-screen /tmp editor: 1024-byte cap, adaptive terminal layout. */
+/* Tiny full-screen /tmp editor: 2048-byte cap, adaptive terminal layout. */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
-#define CAP 1024
+#define CAP 2048
 #define DEFAULT_ROWS 24
 #define DEFAULT_COLS 80
 static int screen_rows=DEFAULT_ROWS,screen_cols=DEFAULT_COLS;
@@ -82,7 +82,7 @@ static void draw(const char *name,const char *notice,int mode){
   for(const char *q=name;*q;q++)if(*q=='/')base=q+1;
   char short_name[21];int i=0;
   while(base[i]&&i<20){short_name[i]=base[i];i++;}short_name[i]=0;
-  printf("\033[1;1H\033[7mPicoNIX vi    %-20s  %d/1024 bytes %c\033[K\033[0m",
+  printf("\033[1;1H\033[7mPicoNIX vi    %-20s  %d/2048 bytes %c\033[K\033[0m",
          short_name,len,changed?'*':' ');
   if(mode==0){
    for(int row=0;row<visible_rows;row++)paint_row(row);
@@ -140,8 +140,13 @@ int main(int argc,char **argv){
  }
  int fd=open(path,O_RDWR|O_CREAT);
  if(fd<0){puts("vi: cannot open file");return 1;}
- int n=read(fd,data,CAP);close(fd);
- if(n<0){puts("vi: cannot read file");return 1;}
+ int n=read(fd,data,CAP);
+ if(n<0){close(fd);puts("vi: cannot read file");return 1;}
+ if(n==CAP){
+  char extra;int more=read(fd,&extra,1);
+  if(more!=0){close(fd);puts("vi: file too large or read error");return 1;}
+ }
+ close(fd);
  len=n;
  int canon=ioctl(0,OS_TTY_GET_CANON,0),echo=ioctl(0,OS_TTY_GET_ECHO,0);
  if(canon<0||echo<0){puts("vi: terminal required");return 1;}

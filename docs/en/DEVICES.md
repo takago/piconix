@@ -38,6 +38,133 @@ The framebuffer holds **64 bits (8 bytes)**: one byte per row. `buffer[0]` throu
 
 A SysTick handler scans **one row every 1 ms**, completing a frame in approximately 8 ms (**125 Hz**). There is no brightness control. Anodes are blanked before each row change to reduce ghosting.
 
+### Default pinout (Pico / Pico W)
+
+The 40-pin header below is viewed from the **component side with USB at the top**. Numbers at either side are physical Pico pin numbers; `R`/`C` refer to PicoNIX LED display coordinates. `kernel/pins.h` is the source of truth for configured functions.
+
+```text
+                      USB
+              +-------------------+
+       C7  1 |GP0          VBUS| 40 
+       C6  2 |GP1          VSYS| 39 
+           3 |GND           GND| 38 
+       C5  4 |GP2        3V3_EN| 37 
+       C4  5 |GP3           3V3| 36 
+       C3  6 |GP4      ADC_VREF| 35 
+       C2  7 |GP5          GP28| 34 ADC2
+           8 |GND           GND| 33 
+       C1  9 |GP6          GP27| 32 I2C1 SCL
+       C0 10 |GP7          GP26| 31 I2C1 SDA
+       R0 11 |GP8           RUN| 30 
+       R1 12 |GP9          GP22| 29 GPIO
+          13 |GND           GND| 28 
+       R2 14 |GP10         GP21| 27 UART1 RX
+       R3 15 |GP11         GP20| 26 UART1 TX
+       R4 16 |GP12         GP19| 25 PWM B
+       R5 17 |GP13         GP18| 24 PWM A
+          18 |GND           GND| 23 
+       R6 19 |GP14         GP17| 22 Switch 2
+       R7 20 |GP15         GP16| 21 Switch 1
+              +-------------------+
+```
+
+On Pico W, GP23/24 are used for onboard wireless-related functions and are not general external wiring pins. GP25 is not exposed on the 40-pin header; its onboard LED usage differs between Pico and Pico W.
+
+### LED matrix orientation and coordinates
+
+This example uses an **MNA20SR092G rotated 90 degrees clockwise from the manufacturer's standard orientation**. The matrix manufacturer's rows/columns and PicoNIX display `R`/`C` use different conventions. Rotation does not change anode/cathode polarity.
+
+```text
+          GP7 GP6 GP5 GP4 GP3 GP2 GP1 GP0
+           C0  C1  C2  C3  C4  C5  C6  C7
+          +-------------------------------+
+GP8  R0   |  .   .   .   .   .   .   .   . |
+GP9  R1   |  .   .   .   .   .   .   .   . |
+GP10 R2   |  .   .   .   .   .   .   .   . |
+GP11 R3   |  .   .   .   .   .   .   .   . |
+GP12 R4   |  .   .   .   .   .   .   .   . |
+GP13 R5   |  .   .   .   .   .   .   .   . |
+GP14 R6   |  .   .   .   .   .   .   .   . |
+GP15 R7   |  .   .   .   .   .   .   .   . |
+          +-------------------------------+
+```
+
+`fb[0]` through `fb[7]` correspond to `R0` through `R7`. Bit 7 is the leftmost pixel (`C0`/GP7), and bit 0 the rightmost (`C7`/GP0). GP8–15 are row anodes (selected row HIGH); GP0–7 are column cathodes (lit column LOW).
+
+The **physical module pin numbers below are from the MNA20SR092G datasheet** and show the corresponding PicoNIX wiring example. Verify actual wiring and display orientation before powering the circuit. Do not apply these physical pin numbers to a different LED module.
+
+| Pico GPIO | Pico physical pin | PicoNIX display | MNA20SR092G pin |
+|---|---:|---|---:|
+| GP0 | 1 | C7 | 9 |
+| GP1 | 2 | C6 | 14 |
+| GP2 | 4 | C5 | 8 |
+| GP3 | 5 | C4 | 12 |
+| GP4 | 6 | C3 | 1 |
+| GP5 | 7 | C2 | 7 |
+| GP6 | 9 | C1 | 2 |
+| GP7 | 10 | C0 | 5 |
+| GP8 | 11 | R0 | 13 |
+| GP9 | 12 | R1 | 3 |
+| GP10 | 14 | R2 | 4 |
+| GP11 | 15 | R3 | 10 |
+| GP12 | 16 | R4 | 6 |
+| GP13 | 17 | R5 | 11 |
+| GP14 | 19 | R6 | 15 |
+| GP15 | 20 | R7 | 16 |
+
+
+### GPIO output bits and lit pixels
+
+For each scanned row, `fb_tick()` generates 16 output bits for GP15 through GP0. The upper byte selects the anode row (GP15–8); the lower byte is the **inverted** framebuffer pixel byte (GP7–0). For `fb[0] = 0x81`, the output during the R0 scan is:
+
+```text
+GP15                                GP0
+ 0000 0001 0111 1110  =  0x017E
+ -------- --------
+ GP15-8   GP7-0
+
+          C0  C1  C2  C3  C4  C5  C6  C7
+R0        #   .   .   .   .   .   .   #
+R1        .   .   .   .   .   .   .   .
+...
+R7        .   .   .   .   .   .   .   .
+```
+
+GP8 is HIGH to select R0, while GP7 and GP0 are LOW to light the two end pixels. `#` means lit and `.` means off.
+
+| GP15–GP0 output | Pixels lit at that instant |
+|---|---|
+| `0x0100` | All eight pixels on R0 |
+| `0x017E` | Both ends of R0 |
+| `0x01FE` | Rightmost pixel on R0 (C7) |
+| `0x02FD` | Second pixel from right on R1 (C6) |
+| `0x8000` | All eight pixels on R7 |
+
+These are **instantaneous GPIO values for one scan row**, not values that drive all eight rows simultaneously. The kernel advances one row per millisecond, refreshing the full display at about 125 Hz. Applications normally write eight bytes to `/dev/gpio/fb` instead of driving GPIO directly. Use suitable current limiting and a driver circuit for the LED matrix.
+
+### First display: a quick check
+
+Verify the wiring, current limiting, and driver circuitry before running these commands. The Pico and Pico W share the 40-pin header positions, but onboard functions such as GP25 differ.
+
+```sh
+fbctl test
+cat /proc/fb
+fbctl off
+```
+
+The first command displays a heart. The second prints the eight stored pixel rows; the third stops scanning and releases GP0–15 for GPIO use. **`cat /proc/fb` shows stored bytes, not proof that the physical LEDs are wired correctly.** Check the actual display visually.
+
+#### Pixel bits versus GPIO output bits
+
+For example, `fb[0] = 0x80` requests **the leftmost pixel C0 on R0**. In the framebuffer, a 1 means lit; the cathode output for a lit column is LOW. During the R0 scan, the GPIO output is therefore `0x017F` (only GP8 HIGH among anodes and only GP7 LOW among cathodes). With `fb[0] = 0`, the output during R0 is `0x01FF`, leaving all pixels off.
+
+```text
+framebuffer      R0: 10000000  (= 0x80, leftmost pixel)
+GPIO GP15..GP0:      00000001 01111111  (= 0x017F)
+```
+
+**Note:** These values explain what the kernel outputs *during scanning*; they are not instructions to write a raw 16-bit value to GPIO. Use `fbctl` or `/dev/gpio/fb` for display experiments.
+
 ### Reading, writing, and control
 
 Open the device with `open("/dev/gpio/fb", O_RDWR)`. Both **`read()` and `write()` require exactly 8 bytes**; other sizes return an error. Updating the data and enabling the display are separate operations.
@@ -151,26 +278,6 @@ The main console uses USB CDC only. UART0 console builds are not supported. UART
 - `/dev/trace` provides binary records; see [TRACE.md](TRACE.md).
 - Drivers live in `kernel/gpio.c`, `kernel/adc.c`, and `kernel/pwm.c`; FD management stays in `kernel/kernel.c`.
 
-## Interactive GPIO Editor (`gpio`)
-
-`gpio` is an interactive GPIO status viewer and editor using PicoNIX non-canonical TTY input and ANSI terminal controls. It works from the USB CDC console or UART1.
-
-```text
-piconix# gpio
-```
-
-The screen shows GP0–GP28, their input levels (H/L), and the selected pin's direction and pull configuration. A `-` means the pin cannot currently be operated as ordinary GPIO.
-
-| Key | Action |
-|---|---|
-| Left / Right | Select a GPIO pin |
-| `o` | Set selected pin to output |
-| `i` | Set selected pin to input |
-| Space | Toggle an output pin between HIGH and LOW |
-| `q` | Quit |
-
-Pins assigned to PWM, ADC, UART, or the active framebuffer cannot be edited. All changes go through the existing GPIO device interface and are checked by the kernel. GPIO states are sampled automatically about every 50 ms; only changed fields are redrawn. There is no manual refresh key. Check the connected circuit before enabling outputs.
-
 ## Interactive Framebuffer Editor (`fbed`)
 
 `fbed` edits the 8×8, 64-bit (8-byte) framebuffer at `/dev/gpio/fb`. Each byte represents a row, with bit 7 at the left. It reads the current image and writes all eight bytes after each edit.
@@ -190,9 +297,9 @@ Each row's byte is displayed in hexadecimal. The editor enables framebuffer scan
 
 Both utilities require ANSI terminal support and character-at-a-time input. In VS Code Serial Monitor, disable the monitor's line-input mode.
 
-`gpio` displays pins in descending order, GP28–GP16 on the first row and GP15–GP0 on the second.
+## Interactive GPIO editor (`gpio`)
 
-The interactive `gpio` view displays pins in descending order from GP28 to GP0. The left/right arrow keys follow the screen layout: right selects a lower GPIO number and left a higher one.
+Run `gpio` in a USB CDC or UART1 ANSI terminal. It reports live pin state and refreshes about every 50 ms.
 
 ### Interactive `gpio` editor
 

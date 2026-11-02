@@ -60,7 +60,7 @@ Call 9 is `write`: FD in `r1`, buffer in `r2`, length in `r3`. `.align 2` aligns
 
 ## Limits and safety
 
-- `/tmp` holds up to eleven files of 2048 bytes each. The output has an 8-byte header, leaving the `as` command itself still limits generated code/data to 1016 bytes.
+- `/tmp` holds up to eleven files of 2048 bytes each. Assembly source is limited to 2048 bytes. The output has an 8-byte header, and the assembler permits up to 2040 bytes of generated code/data (2048 bytes minus the 8-byte header).
 - Up to 32 labels; offsets and immediates must fit Thumb-1 encoding ranges.
 - `as` overwrites `/tmp/a.out`; executable arguments are not implemented.
 - No ELF, relocations, absolute-symbol resolution, or external linking.

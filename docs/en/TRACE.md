@@ -17,6 +17,8 @@ trace run hello  # start hello and show its trace after exit
 trace run python test.py  # trace a Python script
 ```
 
+**`trace show` and `trace follow` display events; they do not start a target program.** With only one terminal, `trace run hello` is a convenient first exercise because it starts the program and displays its trace after exit.
+
 The PID argument is a decimal integer. **PID selection filters displayed records**, not the events captured by the kernel. Start with `trace on`, then run the program you want to observe. `show` stops tracing before reading the retained history; `follow` skips existing buffered records on startup and displays only events occurring afterward, without stopping capture.
 
 For `SWITCH` records, the filter matches the **destination PID** (the event's `value`); for SVC records, it matches the event PID. `follow` runs in the foreground. Stop tracing from another terminal with `trace off` to drain the remaining records and exit, or interrupt the viewer with Ctrl+C. If the viewer falls behind, it reports overwritten records.

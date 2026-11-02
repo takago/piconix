@@ -20,7 +20,7 @@ The following entries match the headers and the implementation in this repositor
 | `unistd.h` | `pipe`, `dup`, `dup2` | Pipes and descriptor duplication |
 | `unistd.h` | `getpid`, `kill`, `waitpid`, `spawn`, `spawn_tmp`, `tty_spawn`, `program_id`, `set_foreground`, `_exit` | Tasks and process lifecycle |
 | `unistd.h` | `msleep`, `yield`, `flash_id`, `get_tty`, `console_ready`, `chdir`, `getcwd`, `ioctl` | OS, directory, and terminal services |
-| `unistd.h` | `socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`, `sendto`, `recvfrom`, `tcp_status` | Small IPv4 TCP/UDP socket API |
+| `unistd.h` | `socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`, `sendto`, `recvfrom`, `tcp_status`, `shutdown` | Small IPv4 TCP/UDP socket API |
 | `unistd.h` | `bind_udp`, `sendto_udp`, `recvfrom_udp`, `tcp_listen`, `tcp_accept`, `tcp_connect` | PicoNIX-specific lower-level network interfaces |
 | `fcntl.h` | `fcntl`, `O_*`, `F_GETFL`, `F_SETFL` | FD flags, including nonblocking mode |
 | `piconix_dirent.h` | `piconix_dirent_t` | Fixed-size directory-entry structure |
@@ -48,7 +48,10 @@ The following entries match the headers and the implementation in this repositor
 
 For **complete prototypes**, use the headers; for **system-call numbers, ABI registers and kernel behavior**, see [System calls](SYSCALLS.md). For the special network behavior (asynchronous `connect()`, `tcp_status()`, nonblocking `accept()`/`recvfrom()`), see [Network programming](NETWORK-PROGRAMMING.md).
 
-For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboard input, see [Section 8, “Real-time keyboard input,” in the C programming guide](PROGRAMMING.md) in the C programming guide.
+For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboard input, see [Section 8, “Real-time keyboard input,” in the C programming guide](PROGRAMMING.md).
+
+
+`shutdown(fd, SHUT_WR)` half-closes only the TCP sending side; it is not a general implementation of every POSIX `shutdown()` mode.
 
 ## Important limitations
 

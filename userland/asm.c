@@ -6,10 +6,12 @@
 #include <stdint.h>
 #include "stdlib.h"
 
-#define MAX_SRC 1024
-#define MAX_OUT 1016
+#define MAX_SRC 2048
+#define MAX_OUT (2048-8)
 #define MAX_LABELS 32
 static char src[MAX_SRC+1];
+/* Keep the two-pass work buffer out of the 4 KiB task stack. */
+static char text[MAX_SRC+1];
 static uint8_t code[MAX_OUT];
 static struct { char name[24]; unsigned offset; } labels[MAX_LABELS];
 static int nlabels;
@@ -60,7 +62,7 @@ static int label(char *s) {for(int i=0;i<nlabels;i++)if(!strcmp(labels[i].name,s
 static void emit16(unsigned v,int pass) {if(pos+2>MAX_OUT){err=1;return;} if(pass){code[pos]=(uint8_t)v;code[pos+1]=(uint8_t)(v>>8);} pos+=2;}
 static void byte(unsigned v,int pass) {if(pos>=MAX_OUT){err=1;return;} if(pass)code[pos]=(uint8_t)v;pos++;}
 static int compile(int pass) {
-    pos=0;err=0;char text[MAX_SRC+1];strcpy(text,src);
+    pos=0;err=0;strcpy(text,src);
     char *line=text;
     while(*line && !err) {
         char *next=strchr(line,'\n');if(next)*next++=0;
@@ -159,7 +161,7 @@ int main(int argc,char **argv) {
     int fd=open(argv[1],O_RDONLY);if(fd<0){puts("as: cannot open source");return 1;}
     int n=read(fd,src,MAX_SRC);if(n<0){close(fd);return 1;}
     char more;int extra=read(fd,&more,1);close(fd);
-    if(n<=0||extra>0){puts("as: source must fit 1024 bytes");return 1;}
+    if(n<=0||extra>0){puts("as: source must fit 2048 bytes");return 1;}
     src[n]=0;int len=compile(0);
     if(len<2||compile(1)!=len||len>MAX_OUT){puts("as: invalid instruction, label or size");return 1;}
     uint8_t hdr[8]={'P','N','X','1',(uint8_t)len,(uint8_t)(len>>8),0,0};

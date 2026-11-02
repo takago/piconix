@@ -10,11 +10,12 @@ dd if=/dev/mem of=/tmp/dump.bin bs=1 skip=0x2000E000 count=256
 hexdump /tmp/dump.bin
 ```
 
-Offsets into `/dev/mem` are absolute addresses. With `bs=1`, `skip` and `seek` are byte addresses. A `/dev/mem` input requires `count=`. Writes are currently restricted to user-slot RAM `0x2000E000`–`0x20031FFF` and RAM-file payload addresses shown in `/proc/ramfiles`. Writing task memory can corrupt a running program; use a verified idle slot only.
+Offsets into `/dev/mem` are absolute addresses. With `bs=1`, `skip` and `seek` are byte addresses. A `/dev/mem` input requires `count=`. Writes are restricted to user-slot RAM `0x2000E000`–`0x20031FFF`, shared RAM (SHM) `0x20032000`–`0x200327FF`, and RAM-file payload addresses shown in `/proc/ramfiles`. Writing task memory can corrupt a running program; use a verified idle slot only.
 
 ```sh
-# Restore only to a verified unused slot
-dd if=/tmp/dump.bin of=/dev/mem bs=1 seek=0x2000E000 count=256
+# Safer exercise: write 256 bytes to shared RAM and read them back
+dd if=/tmp/test.py of=/dev/shm bs=1 count=256
+dd if=/dev/shm of=/tmp/shm.bin bs=1 count=256
 ```
 
 Raw writes to RAM-file payloads do not update filename or file-length metadata. To create or transfer ordinary files, use `of=/tmp/name`. RAM files now have eleven 2048-byte slots, with payloads fixed from `0x20032800`. The shared 2-KiB RAM is available via `/dev/shm` (relative offset) or `/dev/mem` (absolute address starting at `0x20032000`).
@@ -57,11 +58,11 @@ wc -c dump.bin
 hexdump -C dump.bin
 ```
 
-## Linux → PicoNIX: write RAM
+## Linux → PicoNIX: write shared RAM
 
 ```sh
-# PicoNIX: replace the destination with a verified safe address
-nc -N -l 9000 | dd if=- of=/dev/mem bs=1 seek=0x2000E000 count=256
+# PicoNIX: receive up to 256 bytes into the beginning of shared RAM
+nc -N -l 9000 | dd if=- of=/dev/shm bs=1 count=256
 ```
 
 ```sh
@@ -69,4 +70,4 @@ nc -N -l 9000 | dd if=- of=/dev/mem bs=1 seek=0x2000E000 count=256
 head -c 256 data.bin | nc -N 192.168.4.1 9000
 ```
 
-Check transfer length, EOF handling, and the destination slot before writing. `/dev/mem` does not allow unrestricted writes to all RAM. Wi-Fi transfers require Pico W.
+Check transfer length and EOF handling. `/dev/shm` is shared by all tasks: do not overwrite data used by another program. Direct writes to task slots are not recommended as a normal learning exercise. `/dev/mem` does not allow unrestricted writes to all RAM. Wi-Fi transfers require Pico W.

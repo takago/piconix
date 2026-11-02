@@ -4,6 +4,10 @@
 
 PicoNIX provides a small Python-like interpreter, not CPython or MicroPython. This guide describes the current `userland/python.c`, including I²C, sequences, and generic file I/O; full Python compatibility is not intended.
 
+## First steps
+
+Start the interactive interpreter with `python` and try `print(1 << 3)` or `print("hello", 123)`. For a script, create `/tmp/test.py` using `edit` and run `python /tmp/test.py`. There is **no `python3` command**. See [Devices](DEVICES.md) for the LED matrix orientation and [I²C](I2C.md) for BH1750 wiring. This is a deliberately limited Python-like interpreter, not CPython.
+
 ## REPL and scripts
 
 Use `python` for the REPL and `python /tmp/test.py` to run a script. Enter `exit()` to quit the REPL. Supported control flow includes `if`, `while`, and `for ... in range(...)`. Use space indentation; submit a blank line to finish a REPL block. Both scripts and the REPL support multi-line lists and `bytes([...])` until brackets are closed.
@@ -14,6 +18,7 @@ Use `python` for the REPL and `python /tmp/test.py` to run a script. Enter `exit
 - `a = [1, 2, 3]` creates a mutable integer list; `a[0]` reads and `a[1] = 5` updates an element.
 - `b = bytes([0x01, 0xFF])` creates an immutable byte sequence, with values 0–255.
 - `len(a)`, `len(b)`, `print(a)`, and `print(b)` work. Maximum sequence length: 64.
+- Arrays and strings use a shared 1024-byte pool (256 32-bit words). Each sequence remains limited to 64 elements, and at most 16 variables can exist including integer scalars. Integer scalars do not consume pool space. Strings also use the pool, so the full 256-element capacity assumes no strings are stored. Pool exhaustion produces an error.
 - String variables such as `message = "hello"` are limited to 64 bytes. Assignment between string variables, `len(message)`, and `print(message)` are supported. String concatenation and string indexing are not supported.
 - Both `/` and `//` perform integer division. Floats, dictionaries, slicing, `append()`, `import`, `def`, and exceptions are not supported.
 
@@ -52,6 +57,12 @@ This is bounded string support in a tiny interpreter, not full Python string sem
 | `ioctl(fd, cmd, arg)` | Integer-argument ioctl; cannot directly construct pointer-based structures |
 
 Paths in `open()` and strings in `write()` must be literals. Use `data = read(fd, 8)` for reads. Syntax and runtime failures share an error message such as `python: syntax/runtime error at statement N`. `N` is a statement index, not a physical source line number; blank lines and comments are omitted and continued lines are merged.
+
+### Before drawing with Python
+
+Run `fbctl test` from the shell first and check the physical LEDs. `/proc/fb` reports framebuffer data, not whether the wiring is correct. Refer to [Devices](DEVICES.md) for orientation, current limiting, and the pin connections.
+
+For `write(fd, pattern)`, **each element is an 8-bit row and exactly eight elements are required**. For example, `bytes([0x80,0,0,0,0,0,0,0])` selects only the leftmost pixel of R0. A framebuffer 1 means lit, although the corresponding cathode GPIO is driven LOW.
 
 ### LED matrix
 
@@ -105,7 +116,7 @@ Output is **lux multiplied by 1000** (for example, 125833 means about 125.833 lx
 
 ## Limits and validation
 
-- Source buffer: 1024 bytes; up to 64 active lines, 16 variable slots, 64 elements per sequence. REPL line buffer: 128 bytes.
+- Source buffer: 2048 bytes; up to 64 active lines, 16 variable slots, 64 elements per sequence. REPL line buffer: 128 bytes.
 - Sequence elements use 32-bit storage internally, including `bytes`.
 - `print()` accepts multiple arguments. `input()` returns a string (up to 64 bytes); use `int(input())` for integer input. `msleep()` accepts 0–60000 ms.
 - Hardware operation has been confirmed for BH1750 I²C readings, framebuffer writes and `FB_ENABLE`, and multi-line `bytes([...])` in scripts and the REPL. This is not exhaustive testing of all features.

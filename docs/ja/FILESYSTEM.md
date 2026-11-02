@@ -22,6 +22,8 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 │   │   ├── N               GPIO値
 │   │   ├── N.dir           GPIO方向
 │   │   └── N.pull          プルアップ／プルダウン設定
+│   ├── i2c/
+│   │   └── 1               I²C1バス
 │   ├── adc/
 │   │   ├── 0, 1, 2         ADC入力（設定に依存）
 │   │   └── temp            内蔵温度センサー
@@ -56,17 +58,18 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 | `/dev/trace` | ○ | × | バイナリレコード．`trace`コマンドを参照 |
 | `/dev/gpio/fb` | ○ | ○ | 8バイト単位．有効化は`ioctl()`で行う |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | ○ | ○ | `pins.h`でGPIOに割り当てたピンのみ |
+| `/dev/i2c/1` | ○ | ○ | I²C1バス．転送は`ioctl()`で実行．[I²Cガイド](I2C.md)を参照 |
 | `/dev/adc/0`〜`2`, `/dev/adc/temp` | ○ | × | 十進テキスト．0〜2はADC割り当て時のみ |
 | `/dev/pwm/1/freq`, `a`, `b` | ○ | ○ | PWM割り当てに依存 |
 | `/proc`配下の情報ファイル | ○ | × | カーネル状態のスナップショットなど |
 | `/tmp/NAME`, `/etc/NAME` | ○ | ○ | RAM上の通常ファイル |
 | ディレクトリ | 一覧取得 | × | `getdents()`で列挙．通常ファイルのような`read()`は不可 |
 
-実際の読み書き形式，`ioctl()`の値，ピンの占有・排他条件は[デバイスガイド](DEVICES.md)と[TTY](TTY.md)を参照してください．`/proc/devices`は固定デバイスの登録表と`gpio/`，`adc/`，`pwm/`の入口を列挙するもので，すべての動的ノードを列挙するわけではありません．
+実際の読み書き形式，`ioctl()`の値，ピンの占有・排他条件は[デバイスガイド](DEVICES.md)と[TTY](TTY.md)を参照してください．`/proc/devices`は固定デバイスの登録表と`gpio/`，`adc/`，`pwm/`，`i2c/`の入口を列挙するもので，すべての動的ノードを列挙するわけではありません．
 
 ## 3．GPIOと周辺機器の公開条件
 
-標準の`kernel/pins.h`では，GP0〜17およびGP22〜25をGPIO，GP18/19をPWM，GP20/21をUART1，GP26〜28をADCに割り当てます．**Pico WではGP23〜25は基板内の用途があるため，外部GPIOとしての利用を想定しないでください**．GP0〜15はLEDフレームバッファ有効時に占有されます．ピン設定やビルド構成を変更すると，公開されるノードも変化します．
+標準の`kernel/pins.h`では，GP0〜17およびGP22〜25をGPIO，GP18/19をPWM，GP20/21をUART1，GP26/27をI²C1（SDA/SCL），GP28をADC2に割り当てます．**Pico WではGP23〜25は基板内の用途があるため，外部GPIOとしての利用を想定しないでください**．GP0〜15はLEDフレームバッファ有効時に占有されます．ピン設定やビルド構成を変更すると，公開されるノードも変化します．
 
 ## 4．`/tmp`と`/etc`の上限
 
@@ -91,7 +94,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 ## 6．実装上の参照先
 
 - `kernel/kernel.c`：`vdir_paths`，`dev_registry`，`vfs_registry`，`vdir_nth()`，`vfs_open()`，`tmp_*()`．
-- `kernel/pins.h`：GPIO・ADC・PWM・UARTの割り当て．
+- `kernel/pins.h`：GPIO・ADC・PWM・UART・I²Cの割り当て．
 - `include/piconix.h`：公開APIとエラー定数．
 
 初期ファイルのホスト側配置，追加方法，起動時復元については[初期RAMファイルと /etc/rc](INITIAL-FILES.md)を参照してください．

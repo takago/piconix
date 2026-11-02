@@ -2,7 +2,7 @@
 
 `edit` edits RAM-backed text files. It does not modify arbitrary memory addresses.
 
-Run `edit /tmp/test.s` to edit or create a file. Use arrow keys to move, Enter for a newline, and TAB for 4-column tab stops (the TAB byte is preserved). Ctrl+S saves and Ctrl+Q exits; unsaved changes prevent quitting. The `edit` buffer is limited to 1,024 bytes (RAM files themselves allow 2,048 bytes); 20 lines are shown. Horizontal scrolling is not implemented.
+Run `edit /tmp/test.s` to edit or create a file. Use arrow keys to move, Enter for a newline, and TAB for 4-column tab stops (the TAB byte is preserved). Ctrl+S saves and Ctrl+Q exits; unsaved changes prevent quitting. The `edit` buffer holds up to 2,048 bytes, matching the RAM-file limit; 20 lines are shown. Horizontal scrolling is not implemented.
 
 
 ## Editing workflow
@@ -18,5 +18,6 @@ For a simple exercise, run `edit /tmp/hello.txt`, type and save a short line, th
 
 - Only RAM-backed files directly under `/tmp` can be edited. The editor cannot modify `/etc` files or arbitrary memory addresses.
 - Ctrl+C **quits without saving**. To keep your changes, use Ctrl+S before Ctrl+Q.
+- Files over 2,048 bytes are rejected rather than silently truncated.
 - On a save failure, the status line shows `Save failed`. Check file size and available space.
 - The editor temporarily changes terminal input and display settings; use an ANSI-compatible terminal.

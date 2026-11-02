@@ -50,7 +50,7 @@
 | 36 | `SYS_PIPE` | `pipe(fds)` | `fds` | 0 / 負のエラー | 読み／書きFDを一組作る |
 | 37 | `SYS_DUP` | `dup(oldfd)` | `oldfd` | 新FD / 負のエラー | 空き番号にFDを複製 |
 | 38 | `SYS_PROGRAM_ID` | `program_id(name)` | `name` | ID / 負のエラー | 登録プログラム名をIDに変換 |
-| 39 | `SYS_SHUTDOWN_TCP` | `shutdown(fd, SHUT_WR)` | `fd` | 0 / negative error | TCP送信側だけを終了する |
+| 39 | `SYS_SHUTDOWN_TCP` | `shutdown(fd, SHUT_WR)` | `fd` | 0 / 負のエラー | TCP送信側だけを終了する |
 
 ## 引数の意味と重要な制約
 

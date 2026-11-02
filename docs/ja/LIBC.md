@@ -20,7 +20,7 @@ PicoNIXは，ユーザプログラム向けに**独自の小規模なCライブ�
 | `unistd.h` | `pipe`, `dup`, `dup2` | パイプ・FD複製 |
 | `unistd.h` | `getpid`, `kill`, `waitpid`, `spawn`, `spawn_tmp`, `tty_spawn`, `program_id`, `set_foreground`, `_exit` | タスクの起動・終了・待機 |
 | `unistd.h` | `msleep`, `yield`, `flash_id`, `get_tty`, `console_ready`, `chdir`, `getcwd`, `ioctl` | OS・ディレクトリ・端末操作 |
-| `unistd.h` | `socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`, `sendto`, `recvfrom`, `tcp_status` | 小規模なIPv4 TCP/UDPソケットAPI |
+| `unistd.h` | `socket`, `bind`, `listen`, `accept`, `connect`, `send`, `recv`, `sendto`, `recvfrom`, `tcp_status`, `shutdown` | 小規模なIPv4 TCP/UDPソケットAPI |
 | `unistd.h` | `bind_udp`, `sendto_udp`, `recvfrom_udp`, `tcp_listen`, `tcp_accept`, `tcp_connect` | PicoNIX固有の低水準ネットワークAPI |
 | `fcntl.h` | `fcntl`, `O_*`, `F_GETFL`, `F_SETFL` | FDフラグ，非ブロッキング設定 |
 | `piconix_dirent.h` | `piconix_dirent_t` | 固定形式のディレクトリエントリ |
@@ -49,6 +49,9 @@ PicoNIXは，ユーザプログラム向けに**独自の小規模なCライブ�
 **全関数の正確な型・引数**はヘッダ，**SVCの番号・レジスタ規約・カーネル処理**は[システムコール](SYSCALLS.md)を参照してください．`connect()`の非同期動作，`tcp_status()`，`accept()`と`recvfrom()`の非ブロッキング動作は[ネットワークプログラミング](NETWORK-PROGRAMMING.md)に説明があります．
 
 実践例：TTYの`ioctl()`とFDの`fcntl()`を組み合わせてキー入力をポーリングする場合は，[Cアプリケーション開発ガイドの第8章「リアルタイムキー入力」](PROGRAMMING.md)を参照してください．
+
+
+`shutdown(fd, SHUT_WR)`はTCPの送信側だけを閉じます．汎用的なPOSIXの全`shutdown()`モードに対応するものではありません．
 
 ## 重要な制限
 

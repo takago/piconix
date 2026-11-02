@@ -10,11 +10,12 @@ dd if=/dev/mem of=/tmp/dump.bin bs=1 skip=0x2000E000 count=256
 hexdump /tmp/dump.bin
 ```
 
-`/dev/mem`のオフセットは絶対アドレスです．`bs=1`なら`skip=`と`seek=`をバイトアドレスとして指定できます．`/dev/mem`から読み出す場合は`count=`が必須です．書き込み可能範囲は現行のユーザスロット`0x2000E000`～`0x20031FFF`と，`/proc/ramfiles`で確認できるRAMファイルのデータ領域です．タスク領域への書き込みは実行中のコードやデータを破壊するため，十分注意してください．
+`/dev/mem`のオフセットは絶対アドレスです．`bs=1`なら`skip=`と`seek=`をバイトアドレスとして指定できます．`/dev/mem`から読み出す場合は`count=`が必須です．書き込み可能範囲はユーザスロット`0x2000E000`～`0x20031FFF`，共有RAM（SHM）`0x20032000`～`0x200327FF`，および`/proc/ramfiles`で確認できるRAMファイルのデータ領域です．タスク領域への書き込みは実行中のコードやデータを破壊するため，十分注意してください．
 
 ```sh
-# 空きスロットと確認できた場合に限り，RAMへ書き戻す例
-dd if=/tmp/dump.bin of=/dev/mem bs=1 seek=0x2000E000 count=256
+# 安全な練習例：共有RAMへ256バイトを書き込み，読み戻す
+dd if=/tmp/test.py of=/dev/shm bs=1 count=256
+dd if=/dev/shm of=/tmp/shm.bin bs=1 count=256
 ```
 
 `/dev/mem`によるRAMファイルデータの直接変更は，ファイル名・長さなどの管理情報を更新しません．通常のファイルの作成・転送には`of=/tmp/名前`を使用してください．現在のRAMファイルは11個，各2048バイトです．データ領域は`0x20032800`から固定配置されています．全タスク共通の2 KiB RAMは`/dev/shm`（相対オフセット）または`/dev/mem`（絶対アドレス`0x20032000`から）でアクセスできます．
@@ -62,11 +63,11 @@ wc -c dump.bin
 hexdump -C dump.bin
 ```
 
-## Linux → PicoNIX：RAMへ転送
+## Linux → PicoNIX：共有RAMへ転送
 
 ```sh
-# PicoNIX側：書き込み先は事前に確認した安全な領域に変更すること
-nc -N -l 9000 | dd if=- of=/dev/mem bs=1 seek=0x2000E000 count=256
+# PicoNIX側：共有RAM先頭へ256バイト受信
+nc -N -l 9000 | dd if=- of=/dev/shm bs=1 count=256
 ```
 
 ```sh
@@ -74,4 +75,4 @@ nc -N -l 9000 | dd if=- of=/dev/mem bs=1 seek=0x2000E000 count=256
 head -c 256 data.bin | nc -N 192.168.4.1 9000
 ```
 
-転送量・受信の終了条件・転送先が空きスロットであることを確認してください．現行の`/dev/mem`は任意のRAMへの無制限書き込みを提供するものではありません．Pico W以外の通常のPicoではWi-Fi経由の`nc`転送は利用できません．
+転送量と受信の終了条件を確認してください．`/dev/shm`は全タスクで共有されるため，他のプログラムが利用中なら内容を上書きしないでください．ユーザスロットへの直接書き込みは学習用の通常操作として推奨しません．現行の`/dev/mem`は任意のRAMへの無制限書き込みを提供するものではありません．Pico W以外の通常のPicoではWi-Fi経由の`nc`転送は利用できません．

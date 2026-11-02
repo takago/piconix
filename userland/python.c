@@ -16,7 +16,8 @@ static void outn(const char *s,unsigned n) {
 static void outs(const char *s){outn(s,(unsigned)strlen(s));}
 static int same(const char *a,const char *b){return strcmp(a,b)==0;}
 static int idchar(char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_';}
-static char source[1025];
+#define SOURCE_MAX 2048
+static char source[SOURCE_MAX+1];
 static uint16_t offsets[64],levels[64];
 static unsigned count;
 static struct {char name[16];int32_t val;} vars[16];
@@ -24,27 +25,65 @@ static struct {char name[16];int32_t val;} vars[16];
 static uint8_t is_string[16];
 static int nvars,error, evaluating=1;
 static unsigned error_line;
-/* Bounded sequences, stored separately from scalar values. */
 #define SEQ_MAX 64
-static struct { uint8_t used, immutable, len; union { int32_t item[SEQ_MAX]; char string[STR_MAX+1]; }; } seq[16];
+#define POOL_WORDS 256
+/* A word-aligned, compacting pool shared by arrays and strings. */
+static int32_t pool[POOL_WORDS];
+static uint16_t pool_used;
+static struct { uint8_t used, immutable, len; uint16_t pos, words; } seq[16];
+static int32_t *items(int k){return pool+seq[k].pos;}
+static char *string_at(int k){return (char *)(pool+seq[k].pos);}
 static int seqslot(const char *name){for(int i=0;i<nvars;i++)if(strcmp(vars[i].name,name)==0)return i;return -1;}
+static int slot_for(const char *name){
+    int k=seqslot(name);
+    if(k>=0)return k;
+    if(nvars==16){error=1;return -1;}
+    k=nvars++;unsigned j=0;
+    while(name[j]&&j<15){vars[k].name[j]=name[j];j++;}vars[k].name[j]=0;
+    return k;
+}
+/* Only move objects after checking capacity; on failure keep old values. */
+static int replace_data(int k,const void *data,unsigned words){
+    unsigned available=pool_used-seq[k].words;
+    if(available+words>POOL_WORDS){error=1;return 0;}
+    /* The payload may alias the pool (e.g., b=a). Save before moving. */
+    int32_t scratch[SEQ_MAX];
+    if(words){memcpy(scratch,data,words*4);}
+    unsigned dst=0;
+    /* Walk physical order: variable index order may differ after reassignment. */
+    for(unsigned pos=0;pos<pool_used;){
+        int owner=-1;
+        for(int j=0;j<nvars;j++)if(seq[j].words&&seq[j].pos==pos){owner=j;break;}
+        if(owner<0){error=1;return 0;}
+        unsigned n=seq[owner].words;
+        if(owner!=k){
+            if(dst!=pos)memmove(pool+dst,pool+pos,n*4);
+            seq[owner].pos=(uint16_t)dst;dst+=n;
+        }
+        pos+=n;
+    }
+    seq[k].pos=(uint16_t)dst;
+    if(words)memcpy(pool+dst,scratch,words*4);
+    seq[k].words=(uint16_t)words;
+    pool_used=(uint16_t)(dst+words);
+    return 1;
+}
 static int seqnew(const char *name,int immutable,const int32_t *values,int len){
     if(len<0||len>SEQ_MAX){error=1;return 0;}
-    int k=seqslot(name);
-    if(k<0){if(nvars==16){error=1;return 0;}k=nvars++;unsigned j=0;
-        while(name[j]&&j<15){vars[k].name[j]=name[j];j++;}vars[k].name[j]=0;}
+    int k=slot_for(name);if(k<0)return 0;
+    if(!replace_data(k,values,(unsigned)len))return 0;
     is_string[k]=0;seq[k].used=1;seq[k].immutable=immutable;seq[k].len=(uint8_t)len;
-    for(int i=0;i<len;i++)seq[k].item[i]=values[i];return 1;
+    return 1;
 }
-/* Strings share the existing bounded 16-name namespace. */
 static void setstring(const char *name,const char *value){
-    int k=seqslot(name);
-    if(k<0){if(nvars==16){error=1;return;}k=nvars++;
-        unsigned j=0;while(name[j]&&j<15){vars[k].name[j]=name[j];j++;}
-        vars[k].name[j]=0;}
     unsigned n=(unsigned)strlen(value);
     if(n>STR_MAX){error=1;return;}
-    memcpy(seq[k].string,value,n+1);is_string[k]=1;seq[k].used=0;
+    int k=slot_for(name);if(k<0)return;
+    /* Pad the last word, so the pool copy never reads beyond value. */
+    int32_t scratch[(STR_MAX+4)/4]={0};
+    memcpy(scratch,value,n+1);
+    if(!replace_data(k,scratch,(n+4)/4))return;
+    is_string[k]=1;seq[k].used=0;seq[k].len=(uint8_t)n;
 }
 static int transfer(int addr,const int32_t *values,int n,int r,int32_t *output){
     if(addr<8||addr>0x77||n<0||n>32||r<0||r>32){error=1;return 0;}
@@ -62,8 +101,8 @@ static void ws(void){while(*cursor==' '||*cursor=='\t')cursor++;}
 static int eat(char c){ws();if(*cursor==c){cursor++;return 1;}return 0;}
 static int word(const char *s){ws();const char *p=cursor;while(*s&&*p==*s){s++;p++;}if(*s||idchar(*p))return 0;cursor=p;return 1;}
 static int32_t getvar(const char *name){for(int i=0;i<nvars;i++)if(same(vars[i].name,name))return (seq[i].used||is_string[i])?(error=1,0):vars[i].val;error=1;return 0;}
-static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same(vars[i].name,name)){vars[i].val=val;seq[i].used=0;is_string[i]=0;return;}
-    if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars].val=val;seq[nvars].used=0;is_string[nvars]=0;nvars++;}
+static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same(vars[i].name,name)){vars[i].val=val;replace_data(i,0,0);seq[i].used=0;is_string[i]=0;seq[i].len=0;return;}
+    if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars].val=val;seq[nvars].used=0;is_string[nvars]=0;seq[nvars].len=0;seq[nvars].words=0;nvars++;}
 /* Keep the interpreter's divide-by-zero and INT32_MIN/-1 behavior explicit. */
 static int32_t divide(int32_t a,int32_t b,int mod) {
     if(!evaluating)return 0;
@@ -110,7 +149,7 @@ static int input_text(char *dst){
         while(idchar(*cursor)){if(n>=15){error=1;return 0;}key[n++]=*cursor++;}
         key[n]=0;int k=n?seqslot(key):-1;
         if(k<0||!is_string[k]){error=1;return 0;}
-        if(evaluating)outs(seq[k].string);
+        if(evaluating)outs(string_at(k));
     }
     if(!eat(')')){error=1;return 0;}
     if(!evaluating){dst[0]=0;return 1;}
@@ -150,7 +189,7 @@ static int32_t integer_conversion(void){
         while(idchar(*cursor)&&n<15)name[n++]=*cursor++;
         name[n]=0;int k=n?seqslot(name):-1;ws();
         if(k>=0&&is_string[k]&&*cursor==')'){
-            memcpy(value,seq[k].string,strlen(seq[k].string)+1);string_arg=1;
+            memcpy(value,string_at(k),strlen(string_at(k))+1);string_arg=1;
         }else cursor=save;
     }
     if(string_arg){
@@ -197,7 +236,7 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     if(same(name,"len")&&eat('(')){
         char target[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)target[z++]=*cursor++;
         target[z]=0;int k=seqslot(target);if(!eat(')')||k<0||(!seq[k].used&&!is_string[k])){error=1;return 0;}
-        return is_string[k]?(int32_t)strlen(seq[k].string):seq[k].len;
+        return is_string[k]?(int32_t)strlen(string_at(k)):seq[k].len;
     }
     if(same(name,"open")&&eat('(')){
         char path[96];if(!parse_string(path,sizeof path))return 0;
@@ -230,7 +269,7 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
             target[z]=0;int k=seqslot(target);
             if(k<0||!seq[k].used)error=1;
             else for(int i=0;i<seq[k].len;i++){
-                int32_t v=seq[k].item[i];if(v<0||v>255){error=1;break;}
+                int32_t v=items(k)[i];if(v<0||v>255){error=1;break;}
                 buf[len++]=(char)v;
             }
         }
@@ -240,7 +279,7 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     }
     if(eat('[')){int32_t index=expr();if(!eat(']'))error=1;
         int k=seqslot(name);if(k<0||!seq[k].used||index<0||index>=seq[k].len){error=1;return 0;}
-        return seq[k].item[index];}
+        return items(k)[index];}
     return evaluating?getvar(name):0;
 }
 static int32_t product(void){int32_t a=atom();for(;;){if(eat('*'))a=(int32_t)((uint32_t)a*(uint32_t)atom());
@@ -333,11 +372,11 @@ static void print_value(void){
     key[z]=0;int k=z?seqslot(key):-1;
     ws();
     if(k>=0&&(*cursor==','||*cursor==')')){
-        if(is_string[k]){outs(seq[k].string);return;}
+        if(is_string[k]){outs(string_at(k));return;}
         if(seq[k].used){
             outs(seq[k].immutable?"b[":"[");
             for(int j=0;j<seq[k].len;j++){
-                if(j)outs(", ");number(seq[k].item[j]);
+                if(j)outs(", ");number(items(k)[j]);
             }
             outs("]");return;
         }
@@ -367,7 +406,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         }else{
             char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
             srcname[z]=0;int k=seqslot(srcname);if(k<0||!seq[k].used||seq[k].len>32){error=1;return;}
-            len=seq[k].len;for(int j=0;j<len;j++)payload[j]=seq[k].item[j];
+            len=seq[k].len;for(int j=0;j<len;j++)payload[j]=items(k)[j];
         }
         if(!eat(')')){error=1;return;}
         ws();if(*cursor&&*cursor!='#')error=1;
@@ -400,7 +439,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
     ws();if(*cursor=='['){cursor++;int32_t index=expr();if(!eat(']')||!eat('=')){error=1;return;}
         int32_t v=expr();int k=seqslot(name);if(k<0||!seq[k].used||seq[k].immutable||index<0||index>=seq[k].len)error=1;
         ws();if(*cursor&&*cursor!='#')error=1;
-        if(!error)seq[k].item[index]=v;return;}
+        if(!error)items(k)[index]=v;return;}
     if(!eat('=')){
         if(repl_mode){cursor=source+offsets[line];int32_t v=expr();
             ws();if(*cursor&&*cursor!='#')error=1;
@@ -428,7 +467,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         while(idchar(*cursor)&&j<15)from[j++]=*cursor++;
         from[j]=0;int k=j?seqslot(from):-1;ws();
         if(k>=0&&is_string[k]&&(!*cursor||*cursor=='#')){
-            setstring(name,seq[k].string);return;
+            setstring(name,string_at(k));return;
         }
         cursor=save;
     }
@@ -463,7 +502,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         if(xfer){char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
             srcname[z]=0;int k=seqslot(srcname);if(k<0||!seq[k].used){error=1;return;}
             len=seq[k].len;if(len>32){error=1;return;}
-            for(int j=0;j<len;j++)values[j]=seq[k].item[j];if(!eat(',')){error=1;return;}}
+            for(int j=0;j<len;j++)values[j]=items(k)[j];if(!eat(',')){error=1;return;}}
         int32_t r=expr();if(!eat(')')||r<0||r>32){error=1;return;}
         ws();if(*cursor&&*cursor!='#')error=1;
         if(!error&&transfer(addr,values,len,r,result))seqnew(name,1,result,r);
@@ -641,9 +680,13 @@ int main(int argc, char *argv[]){
     const char *path=argv[1];
     int fd=open(path, 0);
     if(fd<0){outs("python: script not found\r\n");goto done;}
-    int n=read(fd, source, 1024);
+    int n=read(fd, source, SOURCE_MAX);
+    if(n<0){close(fd);outs("python: read error\r\n");goto done;}
+    char extra;
+    int more=read(fd,&extra,1);
     close(fd);
-    if(n<0){outs("python: read error\r\n");goto done;}
+    if(more<0){outs("python: read error\r\n");goto done;}
+    if(more>0){outs("python: script exceeds 2048 bytes\r\n");error=1;goto done;}
     source[n]=0;run_source((unsigned)n);
 done:
     _exit(error?1:0);

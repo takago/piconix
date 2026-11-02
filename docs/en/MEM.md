@@ -2,7 +2,7 @@
 
 `mem` inspects SRAM and XIP Flash; **it does not edit memory**.
 
-Run `mem` or `mem 0x20018000`. This reads existing `/dev/mem` approximately every 200 ms and highlights changing bytes. The controls are summarized below.
+Run `mem` or `mem 0x20018000`. This reads existing `/dev/mem` approximately every 1 second and highlights changing bytes. The controls are summarized below.
 
 Accessible ranges are the XIP Flash (0x10000000–0x101fffff) and SRAM (0x20000000–0x2003ffff) regions supported by `/dev/mem`. Concurrent modifications may prevent consistent snapshots.
 
@@ -10,8 +10,8 @@ Use `mem -s` to list symbol sources, and `mem -s sh` or `mem -s kernel` to list 
 
 | Key | Action |
 |---|---|
-| `↑` / `↓` | Move by 8 bytes |
-| `PgUp` / `PgDn` | Move by a screen |
+| `↑` / `↓` | Move by 16 bytes |
+| `PgUp` / `PgDn` | Move by 256 bytes |
 | `SPACE` | Pause or resume updates |
 | `1`–`6` | Jump to the corresponding 24 KiB task slot |
 | `k` / `K` | Jump to kernel RAM / XIP Flash |
