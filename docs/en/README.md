@@ -49,7 +49,7 @@ Run `getty /dev/ttyS1 sh &` in the USB shell to start an independent UART1 shell
 
 ## Hardware and wiring
 
-The default setup uses a USB CDC console and an 8×8 LED matrix. UART1 uses GP20 (TX) / GP21 (RX), PWM uses GP18/19, and ADC uses GP26–28. Wiring and electrical precautions are in the [Device guide](DEVICES.md).
+The default setup uses a USB CDC console and an 8×8 LED matrix. UART1 uses GP20 (TX) / GP21 (RX), PWM uses GP18/19, I²C1 uses GP26 (SDA) / GP27 (SCL), and ADC2 uses GP28. Wiring and electrical precautions are in the [Device guide](DEVICES.md).
 
 ## Design and limitations
 
@@ -75,6 +75,7 @@ For a guided reading order, see the [documentation index](DOCS.md). For Pico W n
 | Work with GPIO, ADC, and PWM | [Device guide](DEVICES.md) |
 | Understand UART1, `getty`, Ctrl+C/Ctrl+D | [UART and terminals](UART.md) |
 | Use the `python` command | [Python-like interpreter](PYTHON.md) |
+| Connect I²C devices and use `i2cctl` or `bh1750` | [I²C1 guide](I2C.md) |
 | Configure TTY input and play `mb` | [Terminal settings and interactive input](TTY.md) |
 | Use the LED framebuffer | [Device guide (framebuffer)](DEVICES.md) |
 | Inspect kernel tracing | [Trace](TRACE.md) |
@@ -84,8 +85,3 @@ For a guided reading order, see the [documentation index](DOCS.md). For Pico W n
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.
-
-
-I2C1: see [DEVICES](DEVICES.md) for GP26/GP27 and `i2cctl` commands.
-
-See the [I²C1 guide](I2C.md) and the [current Python API](PYTHON.md).

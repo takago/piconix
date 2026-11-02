@@ -19,6 +19,7 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 | `/dev/gpio/` | Pins configured for GPIO in `pins.h` |
 | `/dev/adc/` | Enabled ADC inputs and on-chip temperature sensor |
 | `/dev/pwm/` | Enabled PWM outputs and common frequency |
+| `/dev/i2c/1` | I²C1 master (GP26 SDA, GP27 SCL) |
 | `/dev/mem` | Read-only access to permitted RAM/flash ranges |
 | `/dev/trace` | Binary trace records |
 
@@ -104,21 +105,25 @@ echo 0 > /dev/pwm/1/a
 
 `/dev/pwm/1/freq` accepts 8–100000 Hz; `/dev/pwm/1/a` and `/dev/pwm/1/b` accept 0–100% duty as decimal text. Hardware dividers and counter limits may introduce frequency rounding. PWM device entries appear only for pins configured as PWM.
 
+## I²C1
+
+GP26 (SDA) and GP27 (SCL) are dedicated to I²C1. Access the bus through `/dev/i2c/1`, use `i2cctl scan` to discover devices, or run `bh1750 5` for an ambient-light sensor example. See the [I²C1 guide](I2C.md) for wiring, pull-ups, and C/Python access.
+
 ## Pin assignments
 
-Edit `GPn_MODE` in `kernel/pins.h`, then rebuild. Available modes are `PIN_GPIO`, `PIN_ADC`, `PIN_PWM`, and `PIN_UART`; unsupported combinations are rejected at compile time. The same settings control listings, opening paths, and hardware initialization.
+Edit `GPn_MODE` in `kernel/pins.h`, then rebuild. Available modes are `PIN_GPIO`, `PIN_ADC`, `PIN_PWM`, `PIN_UART`, and `PIN_I2C`; unsupported combinations are rejected at compile time. The same settings control listings, opening paths, and hardware initialization.
 
 ```c
 #define GP18_MODE PIN_PWM
 #define GP19_MODE PIN_PWM
-#define GP26_MODE PIN_ADC
-#define GP27_MODE PIN_ADC
+#define GP26_MODE PIN_I2C
+#define GP27_MODE PIN_I2C
 #define GP28_MODE PIN_ADC
 #define PWM_DEFAULT_FREQ 1000u
 #define PWM_DEFAULT_DUTY 0u
 ```
 
-To restore all general-purpose pins to GPIO mode, set the ADC/PWM assignments to `PIN_GPIO`. The main console uses USB CDC; GP0/1 are GPIO pins for the LED matrix, and GP20/21 are reserved for UART1. UART-assigned pins are not exposed as GPIO devices.
+GP26/27 are fixed to I²C1; changing them to `PIN_GPIO` or `PIN_ADC` is rejected at build time. ADC2 on GP28 remains available. The main console uses USB CDC; GP0/1 are GPIO pins for the LED matrix, and GP20/21 are reserved for UART1. UART-assigned pins are not exposed as GPIO devices.
 
 ## Default wiring overview
 
@@ -129,7 +134,8 @@ To restore all general-purpose pins to GPIO mode, set the ADC/PWM assignments to
 | GP16/17 | Push buttons | To GND, internal pull-up |
 | GP18/19 | PWM | Shared frequency |
 | GP20/21 | UART1 TX/RX | 115200 baud, 8N1 |
-| GP26–28 | ADC0–2 | 0–3.3 V input |
+| GP26/27 | I²C1 SDA/SCL | 100 kHz; pull up to 3.3 V |
+| GP28 | ADC2 | 0–3.3 V input |
 
 Use a common GND and 3.3 V logic for UART; do not connect RS-232 voltages directly. An LED matrix requires current-limiting resistors and suitable driver circuitry. Use `pins` to inspect the pin assignment.
 
@@ -139,7 +145,7 @@ The main console uses USB CDC only. UART0 console builds are not supported. UART
 
 ## Constraints
 
-- GPIO cannot simultaneously own pins used by ADC or PWM.
+- GPIO cannot simultaneously own pins used by ADC, PWM, or I²C.
 - GP18 and GP19 cannot use independent PWM frequencies.
 - `/dev/mem` is read-only and limited to permitted memory ranges.
 - `/dev/trace` provides binary records; see [TRACE.md](TRACE.md).
@@ -197,19 +203,3 @@ Labels such as `[FB]`, `[PWM]`, `[UART-TX]`, and `[UART-RX]` reflect live kernel
 GPIO defaults at boot: GP25 is output (LOW), GP16 and GP17 are inputs with pull-ups. They remain editable with `gpio`.
 
 For the kernel UDP 2000 remote-device interface, see [Remote device control](REMOTE-DEVICE.md).
-
-
-## I2C1 (GP26/GP27)
-
-I2C1 is fixed to GP26 (SDA) and GP27 (SCL), at 100 kHz. ADC0 and ADC1 are disabled; ADC2 (GP28) and the internal temperature sensor remain available. The device node is `/dev/i2c/1`. Use `ioctl(fd, OS_I2C_TRANSFER, (int)(uintptr_t)&request)` with `piconix_i2c_transfer_t` from `include/piconix_i2c.h`. Each transfer accepts up to 32 write and 32 read bytes, with a repeated START between write and read. Addresses are 7-bit (0x08–0x77).
-
-```sh
-i2cctl scan
-i2cctl read 0x48 2
-i2cctl write 0x3c 0x00 0xae
-i2cctl xfer 0x48 2 0x00
-```
-
-External pull-up resistors to 3.3 V (typically 4.7 kΩ) are recommended; the internal pull-ups are weak. Never apply 5 V directly to Pico GPIO. The `scan` operation sends a zero-byte address probe; some peripherals may not respond to that probe.
-
-For I²C1 wiring, transfer semantics, and examples, see the [I²C guide](I2C.md).

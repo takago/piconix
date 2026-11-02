@@ -19,6 +19,7 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 | `/dev/gpio/` | `pins.h`でGPIO指定されたピン |
 | `/dev/adc/` | `pins.h`でADC指定された入力および内部温度センサー |
 | `/dev/pwm/` | `pins.h`でPWM指定された出力と共通周波数 |
+| `/dev/i2c/1` | I²C1マスター（GP26 SDA，GP27 SCL） |
 | `/dev/mem` | 許可されたRAM・Flash領域の読み出し |
 | `/dev/trace` | トレースイベントのバイナリ読み出し |
 
@@ -106,21 +107,25 @@ echo 0 > /dev/pwm/1/a
 
 `/dev/pwm/1/freq`は8～100000 Hz，`/dev/pwm/1/a`と`/dev/pwm/1/b`は0～100%の整数をテキストで読み書きします．ハードウェアの分周比とカウンタ範囲によって，設定周波数には丸め誤差が生じ得ます．PWM出力に割り当てていないピンのデバイスは公開されません．
 
+## I²C1
+
+GP26（SDA）とGP27（SCL）はI²C1専用です．`/dev/i2c/1`を通じて利用でき，`i2cctl scan`で接続機器を調べられます．`bh1750 5`は照度センサの測定例です．配線，プルアップ抵抗，C言語・Pythonからの操作は[I²C1ガイド](I2C.md)を参照してください．
+
 ## ピン割り当ての変更
 
-`kernel/pins.h`の`GPn_MODE`を編集して再ビルドします．モードは`PIN_GPIO`，`PIN_ADC`，`PIN_PWM`，`PIN_UART`です．対応していないピン・モードの組み合わせはコンパイル時に拒否します．設定はデバイス一覧，`open()`の可否，周辺機器の初期化に共通して反映されます．
+`kernel/pins.h`の`GPn_MODE`を編集して再ビルドします．モードは`PIN_GPIO`，`PIN_ADC`，`PIN_PWM`，`PIN_UART`，`PIN_I2C`です．対応していないピン・モードの組み合わせはコンパイル時に拒否します．設定はデバイス一覧，`open()`の可否，周辺機器の初期化に共通して反映されます．
 
 ```c
 #define GP18_MODE PIN_PWM
 #define GP19_MODE PIN_PWM
-#define GP26_MODE PIN_ADC
-#define GP27_MODE PIN_ADC
+#define GP26_MODE PIN_I2C
+#define GP27_MODE PIN_I2C
 #define GP28_MODE PIN_ADC
 #define PWM_DEFAULT_FREQ 1000u
 #define PWM_DEFAULT_DUTY 0u
 ```
 
-すべての利用可能な汎用ピンをGPIOとして使いたい場合は，PWM・ADCに割り当てたピンを`PIN_GPIO`に変更します．USB CDCを主コンソールとし，GP0/1はLEDマトリクス用のGPIO，GP20/21はUART1用です．UART用に予約したピンはGPIOデバイスとして公開されません．
+GP26／27はI²C1専用の固定割り当てで，`PIN_GPIO`や`PIN_ADC`に変更するとビルド時に拒否されます．GP28のADC2は利用できます．USB CDCを主コンソールとし，GP0/1はLEDマトリクス用のGPIO，GP20/21はUART1用です．UART用に予約したピンはGPIOデバイスとして公開されません．
 
 ## 標準構成の接続例
 
@@ -131,7 +136,8 @@ echo 0 > /dev/pwm/1/a
 | GP16／17 | 押しボタン | GNDへ接続，内部プルアップ |
 | GP18／19 | PWM | 周波数は共通，GP18はブザーなど |
 | GP20／21 | UART1 TX／RX | 115200 bps，8N1 |
-| GP26～28 | ADC0～2 | 0～3.3 Vの入力 |
+| GP26／27 | I²C1 SDA／SCL | 100 kHz，3.3 Vプルアップが必要 |
+| GP28 | ADC2 | 0～3.3 Vの入力 |
 
 UART機器はGNDを共通にし，3.3 Vロジックを使用してください．RS-232の電圧を直接接続しないでください．LEDマトリクスは電流制限抵抗と適切な駆動回路が必要であり，GPIOへの直接接続を想定した回路ではありません．`pins`で現状のピン割り当てを確認できます．
 
@@ -141,7 +147,7 @@ UART機器はGNDを共通にし，3.3 Vロジックを使用してください�
 
 ## 制限と注意
 
-- ADCとGPIO，PWMとGPIOは同じピンで同時には使用できません．
+- ADC・PWM・I²CとGPIOは同じピンで同時には使用できません．
 - GP18とGP19のPWM周波数は独立に変更できません．
 - `/dev/mem`は許可されたメモリ領域の読み出し専用です．
 - `/dev/trace`はバイナリイベントを返します．利用方法は[TRACE.md](TRACE.md)を参照してください．
@@ -199,19 +205,3 @@ GPIOの状態を8行×4列（左から31〜24，23〜16，15〜8，7〜0）に�
 起動時のGPIO既定値：GP25は出力（LOW），GP16・GP17は入力（プルアップ）です．`gpio`コマンドで変更できます．
 
 カーネルが提供するUDP 2000番の遠隔操作については，[リモートデバイス制御](REMOTE-DEVICE.md)を参照してください．
-
-
-## I2C1 (GP26/GP27)
-
-I2C1 is fixed to GP26 (SDA) and GP27 (SCL), at 100 kHz. ADC0 and ADC1 are disabled; ADC2 (GP28) and the internal temperature sensor remain available. The device node is `/dev/i2c/1`. Use `ioctl(fd, OS_I2C_TRANSFER, (int)(uintptr_t)&request)` with `piconix_i2c_transfer_t` from `include/piconix_i2c.h`. Each transfer accepts up to 32 write and 32 read bytes, with a repeated START between write and read. Addresses are 7-bit (0x08–0x77).
-
-```sh
-i2cctl scan
-i2cctl read 0x48 2
-i2cctl write 0x3c 0x00 0xae
-i2cctl xfer 0x48 2 0x00
-```
-
-External pull-up resistors to 3.3 V (typically 4.7 kΩ) are recommended; the internal pull-ups are weak. Never apply 5 V directly to Pico GPIO. The `scan` operation sends a zero-byte address probe; some peripherals may not respond to that probe.
-
-I²C1の詳細な配線・転送仕様と操作例は[I²Cガイド](I2C.md)を参照してください．

@@ -25,9 +25,18 @@ i2cctl read 0x23 2
 i2cctl xfer 0x48 2 0x00
 ```
 
+## BH1750 ambient-light sensor
+
+With a BH1750 (default address `0x23`) connected, use `i2cctl scan` to check detection and `bh1750 5` to take five illuminance measurements. See the [Python guide](PYTHON.md) for a continuous measurement example.
+
+```sh
+i2cctl scan
+bh1750 5
+```
+
 ## C application interface
 
-Open `/dev/i2c/1` with `O_RDWR`, prepare `piconix_i2c_transfer_t` from `include/piconix_i2c.h`, and issue `OS_I2C_TRANSFER`. A combined write/read uses a repeated START. A zero-length transfer probes the address.
+Open `/dev/i2c/1` with `O_RDWR`, prepare `piconix_i2c_transfer_t` from `include/piconix_i2c.h`, and issue `OS_I2C_TRANSFER`. A combined write/read uses a repeated START. `i2cctl scan` uses a one-byte read as a simple probe. Read-incompatible devices may be missed, and some devices may have read side effects.
 
 ```c
 #include <stdint.h>
@@ -53,4 +62,4 @@ int main(void) {
 - `scan` actively probes devices and can have side effects on unusual peripherals.
 - NACK and timeout conditions cause transfer failure; check the command exit status.
 - Only 7-bit master transfers are supported; there is no 10-bit addressing, slave mode, or dedicated SMBus protocol.
-- Python provides [I²C helpers](PYTHON.md). Hardware behavior and the 24 KiB slot fit remain unverified.
+- Python provides [I²C helpers](PYTHON.md). BH1750 reads, writes, and illuminance measurements have been tested on hardware.

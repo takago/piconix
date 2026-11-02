@@ -11,7 +11,7 @@ PicoNIXは，RP2040上で動く小型UNIX風OSです．初めて使う方は，*
 
 1. [セットアップ](SETUP.md)：開発環境の準備，ビルド，書き込み
 2. [概要と最初のコマンド](README.md)：`help`，`ls`，`cat`，`ps`など
-3. [デバイスと配線](DEVICES.md)：GPIO，PWM，ADC，LEDマトリクス
+3. [デバイスと配線](DEVICES.md)：GPIO，PWM，ADC，I²C，LEDマトリクス
 4. [ファイルシステムとノード一覧](FILESYSTEM.md)：ディレクトリ構造，`/dev`，`/proc`，RAMファイルの制約
 
 ## 2．UNIXの操作を学ぶ

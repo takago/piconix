@@ -18,7 +18,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Foreground interruption** — Ctrl+C terminates registered foreground tasks, including pipeline stages; `nc -u -N` exits on stdin EOF for one-shot UDP sends.
 - **Six application slots** — Six fixed 24 KiB RAM slots (4 KiB stack reserve per slot) on RP2040.
 - **Pipes and redirection** — Two- and three-command pipelines using `|`, with `pipe()`, `dup()`, and `dup2()` support.
-- **Device files** — Access GPIO, ADC, PWM, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
+- **Device files** — Access GPIO, ADC, PWM, I²C1, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/SYSCALLS.md) ([日本語](docs/ja/SYSCALLS.md)).
 - **Programming on the device** — An editor (`edit`), assembler (`as`), and small Python-like interpreter (`python`).
 - **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call and context-switch tracing, and open-descriptor reporting, including socket ports.
@@ -34,7 +34,7 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Processes & diagnostics | `ps`, `kill`, `lsof`, `trace`, `mem`, `hexdump`, `watch` |
 | Terminals | `tty`, `stty`, `reset` |
 | Programming | `edit`, `as`, `python` |
-| Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `blink` |
+| Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink` |
 | Networking | `nc`, `httpd`, `tcp_echod`, `udp_echod` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
 | Help | `help` |
@@ -146,7 +146,8 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Pipes and standard I/O](docs/en/PIPE.md) | [パイプと標準入出力](docs/ja/PIPE.md) |
 | [Terminal and screen](docs/en/TERMINAL.md) | [端末と画面制御](docs/ja/TERMINAL.md) |
 | [TTY settings](docs/en/TTY.md) | [TTY設定](docs/ja/TTY.md) |
-| [Devices](docs/en/DEVICES.md) | [デバイス](docs/ja/DEVICES.md) |
+| [Devices and pin assignments](docs/en/DEVICES.md) | [デバイスとピン割り当て](docs/ja/DEVICES.md) |
+| [I²C1 and BH1750](docs/en/I2C.md) | [I²C1とBH1750](docs/ja/I2C.md) |
 | [System-call and context-switch tracing](docs/en/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/TRACE.md) |
 | [Memory inspection](docs/en/MEM.md) | [メモリ参照](docs/ja/MEM.md) |
 
@@ -163,7 +164,4 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Remote device control (UDP 2000)](docs/en/REMOTE-DEVICE.md) | [リモートデバイス制御（UDP 2000番）](docs/ja/REMOTE-DEVICE.md) |
 | [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
 | [Text editing](docs/en/EDIT.md) | [テキスト編集](docs/ja/EDIT.md) |
-
-I2C1 on GP26/GP27: `i2cctl scan`, `i2cctl read`, `i2cctl write`, `i2cctl xfer`. See [English devices](docs/en/DEVICES.md) / [日本語デバイス](docs/ja/DEVICES.md).
-
-[I²C1 / i2cctl documentation (日本語)](docs/ja/I2C.md) | [English](docs/en/I2C.md) | [Python (日本語)](docs/ja/PYTHON.md) | [Python (English)](docs/en/PYTHON.md)
+| [Tiny Python](docs/en/PYTHON.md) | [簡易Python](docs/ja/PYTHON.md) |

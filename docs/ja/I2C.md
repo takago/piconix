@@ -25,9 +25,18 @@ i2cctl read 0x23 2
 i2cctl xfer 0x48 2 0x00
 ```
 
+## BH1750照度センサ
+
+BH1750（標準アドレス`0x23`）を接続した場合は，`i2cctl scan`で検出を確認し，`bh1750 5`で照度を5回測定できます．Pythonの連続測定例は[Pythonガイド](PYTHON.md)を参照してください．
+
+```sh
+i2cctl scan
+bh1750 5
+```
+
 ## C言語からの操作
 
-`/dev/i2c/1`を`O_RDWR`で開き，`include/piconix_i2c.h`の`piconix_i2c_transfer_t`を使って`OS_I2C_TRANSFER`を発行します．読み書きを同時に指定すると，間にRepeated STARTが入ります．ゼロ長転送はアドレス応答確認です．
+`/dev/i2c/1`を`O_RDWR`で開き，`include/piconix_i2c.h`の`piconix_i2c_transfer_t`を使って`OS_I2C_TRANSFER`を発行します．読み書きを同時に指定すると，間にRepeated STARTが入ります．`i2cctl scan`は1バイト読み取りによる簡易検出です．読み取りに対応しない機器を検出できない場合があり，一部の機器では読み取りに副作用があります．
 
 ```c
 #include <stdint.h>
@@ -53,4 +62,4 @@ int main(void) {
 - `scan`はデバイスへ実際にアクセスします．特殊なデバイスでは副作用があり得ます．
 - NACKやタイムアウトは転送失敗として報告されます．`i2cctl`の終了状態を確認してください．
 - このインタフェースは7-bitアドレスのマスター転送用です．10-bitアドレス，スレーブモード，SMBus専用操作は提供しません．
-- Pythonからは[I²C関数](PYTHON.md)を利用できます．実機での動作と24 KiB制限への適合は未検証です．
+- Pythonからは[I²C関数](PYTHON.md)を利用できます．BH1750の読み書きと照度測定は実機で確認済みです．

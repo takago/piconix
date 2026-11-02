@@ -50,7 +50,7 @@ USBコンソールのShellから`getty /dev/ttyS1 sh &`を実行すると，UART
 
 ## ハードウェアと接続
 
-標準構成はUSB CDCコンソールと8×8 LEDマトリクスを想定しています．UART1はGP20（TX）／GP21（RX），PWMはGP18／19，ADCはGP26～28です．配線，電流制限，3.3 Vロジックの注意事項は[デバイスガイド](DEVICES.md)にまとめています．
+標準構成はUSB CDCコンソールと8×8 LEDマトリクスを想定しています．UART1はGP20（TX）／GP21（RX），PWMはGP18／19，I²C1はGP26（SDA）／GP27（SCL），ADC2はGP28です．配線，電流制限，3.3 Vロジックの注意事項は[デバイスガイド](DEVICES.md)にまとめています．
 
 ## 設計の特徴と制限
 
@@ -77,6 +77,7 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 | GPIO・ADC・PWMなどのデバイスを使用する | [デバイスガイド](DEVICES.md) |
 | UART1，`getty`，Ctrl+C／Ctrl+Dを理解する | [UARTと端末操作](UART.md) |
 | `python`コマンドを使う | [Python風インタプリタ](PYTHON.md) |
+| I²C機器を接続し，`i2cctl`や`bh1750`を使う | [I²C1ガイド](I2C.md) |
 | `stty`と`fcntl()`の違いを理解する | [端末設定と対話型入力](TTY.md) |
 | ANSI画面制御・全画面アプリの復旧を調べる | [端末の使い方と画面制御](TERMINAL.md) |
 | 8×8 LEDマトリクスを使う | [デバイスガイド（フレームバッファ）](DEVICES.md) |
@@ -86,7 +87,3 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 ## ライセンス
 
 GPL-3.0-or-later．詳細は`LICENSE`を参照してください．
-
-I2C1: see [DEVICES](DEVICES.md) for GP26/GP27 and `i2cctl` commands.
-
-[I²C1の使い方](I2C.md)と[最新のPython API](PYTHON.md)を参照してください．
