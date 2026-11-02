@@ -80,3 +80,7 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 - [ASM.md](ASM.md): SVC usage from assembly
 - [PROGRAMMING.md](PROGRAMMING.md): application development
 - [TTY.md](TTY.md): TTY controls
+
+`getdents()` now returns `device_id` (`0xffff` when unavailable).
+
+The `device_id` field returned by `getdents()` identifies the directory entry: device ID for `/dev` and `/proc`, program ID for `/bin`, and zero-based RAM-file slot for `/tmp` and `/etc`. Directories or entries without an ID use `0xffff`. `ls -l` prints a `TYPE ID SIZE NAME` header, where `p` means program, `f` RAM file, `c` device, and `d` directory. RAM-file slot IDs are not persistent across deletion and recreation.

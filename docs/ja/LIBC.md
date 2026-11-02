@@ -91,3 +91,9 @@ int main(int argc, char *argv[]) {
 - `userland/syscalls.c`：システムコールのラッパーとソケット互換関数
 - `userland/crt0.c`：エントリ処理・終了処理
 - `include/piconix.h`，`include/piconix_dirent.h`：OS定数・共有構造体
+
+### ディレクトリエントリのデバイスID
+
+`ls -l /dev`などの長形式表示では，デバイスファイルにカーネル内部IDを表示します．`/dev/gpio`などの下位ディレクトリでも利用できます．`getdents()`の`piconix_dirent_t`には`device_id`（`uint16_t`）を追加し，IDを持たないエントリには`0xffff`を設定します．この変更はディレクトリエントリABIを変更するため，カーネルとユーザプログラムを同時に再ビルドしてください．
+
+`getdents()`の`device_id`フィールドはディレクトリ項目のIDです．`/dev`と`/proc`ではデバイスID，`/bin`ではプログラムID，`/tmp`・`/etc`ではRAMファイルのスロット番号（0始まり）を返します．ディレクトリやIDのない項目は`0xffff`です．`ls -l`は`TYPE ID SIZE NAME`の見出しを表示し，`p`をプログラム，`f`をRAMファイル，`c`をデバイス，`d`をディレクトリとして区別します．スロット番号はファイルの削除・再生成で変わるため，恒久的な識別子ではありません．

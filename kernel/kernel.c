@@ -46,8 +46,8 @@ enum {
     DEV_PROC_MEMORY = 35,
     DEV_PROC_RAMFILES = 136,
     DEV_PROC_WIFI = 137,
-    DEV_PROC_AP = 138,
-    DEV_PROC_ARP = 139,
+    DEV_PROC_AP = 141,
+    DEV_PROC_ARP = 142,
     DEV_GPIO_DIR_BASE = 36,
     DEV_GPIO_DIR_END = 64,
     DEV_GPIO_PULL_BASE = 65,
@@ -1200,6 +1200,52 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
 #undef EMIT
     return 0;
 }
+/* IDs are per-entry: devices use VFS IDs, programs use program IDs, RAM files use slots. */
+static uint16_t vdir_entry_device_id(int dir, const char *name, int is_dir) {
+    if(!is_dir && (dir==VDIR_BIN || dir==VDIR_USERLAND)) {
+        for(int i=1;i<PROGRAM_CAPACITY;i++)
+            if(programs[i].entry && programs[i].name && !strcmp(programs[i].name,name))
+                return (uint16_t)i;
+    }
+    if(!is_dir && (dir==VDIR_TMP || dir==VDIR_ETC)) {
+        const char *prefix=dir==VDIR_TMP?"tmp/":"etc/";
+        for(int i=0;i<TMP_FILES;i++)
+            if(tmp_files[i].used && !strncmp(tmp_files[i].name,prefix,4) &&
+               !strcmp(tmp_files[i].name+4,name)) return (uint16_t)i;
+    }
+    if(is_dir || (dir!=VDIR_DEV && dir!=VDIR_DEV_NET && dir!=VDIR_GPIO &&
+                  dir!=VDIR_I2C && dir!=VDIR_ADC && dir!=VDIR_PWM1 &&
+                  dir!=VDIR_PROC && dir!=VDIR_NET && dir!=VDIR_TASK &&
+                  dir!=VDIR_SYM && dir!=VDIR_USERLAND)) return 0xffff;
+    const char *parent=vfs_directory_path(dir);
+    if(!parent) return 0xffff;
+    char path[96];
+    if(snprintf(path,sizeof path,"%s/%s",parent,name)>=(int)sizeof path) return 0xffff;
+    int id=vfs_fixed_path_id(path);
+    if(id<0 && dir==VDIR_GPIO) {
+        unsigned pin=0; const char *q=name;
+        if(*q<'0'||*q>'9') return 0xffff;
+        while(*q>='0'&&*q<='9') {pin=pin*10+(unsigned)(*q++-'0');if(pin>DEV_GPIO_MAX_PIN)return 0xffff;}
+        if(!*q) id=DEV_GPIO_VALUE_BASE+(int)pin;
+        else if(!strcmp(q,".dir")) id=DEV_GPIO_DIR_BASE+(int)pin;
+        else if(!strcmp(q,".pull")) id=DEV_GPIO_PULL_BASE+(int)pin;
+    }
+    if(id<0 && dir==VDIR_ADC && name[0]>='0' && name[0]<='2' && !name[1])
+        id=DEV_ADC_BASE+name[0]-'0';
+    if(id<0 && dir==VDIR_TASK) {
+        for(int i=0;i<OS_MAX_TASKS;i++) {
+            char pid[16];snprintf(pid,sizeof pid,"%d",tasks[i].pid);
+            if(tasks[i].state!=UNUSED && tasks[i].state!=DEAD && !strcmp(pid,name))
+                {id=DEV_PROC_TASK_BASE+i;break;}
+        }
+    }
+    if(id<0 && dir==VDIR_USERLAND) {
+        for(int i=1;i<PROGRAM_CAPACITY;i++)
+            if(programs[i].entry && programs[i].name && !strcmp(programs[i].name,name))
+                {id=DEV_SYMS_USER_BASE+i;break;}
+    }
+    return id>=0 && id<65535 ? (uint16_t)id : 0xffff;
+}
 static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
     if(fd<0 || fd>=OS_FD_MAX) return OS_EBADF;
     int dir=tasks[current].fd[fd];
@@ -1207,7 +1253,7 @@ static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
     if(n<sizeof(*out) || !in_task_range(out,sizeof(*out))) return OS_EINVAL;
     piconix_dirent_t entry={0};
     int found=vdir_nth(dir,tasks[current].fd_pos[fd],&entry);
-    if(found) { memcpy(out,&entry,sizeof entry); tasks[current].fd_pos[fd]++; }
+    if(found) { entry.device_id=vdir_entry_device_id(dir,entry.name,entry.is_dir); memcpy(out,&entry,sizeof entry); tasks[current].fd_pos[fd]++; }
     return found;
 }
 /* Minimal VFS dispatch: keep the established FD IDs and backends. */

@@ -54,3 +54,5 @@ The web page has `Clear` and `All` buttons. There is no manual `Read` button bec
 PWM output starts disabled. Start enables the selected mode; Stop sets both PWM duties to zero. Servo: 50 Hz, pulse width 0.5–1.5 ms in 0.02 ms steps (2.5–7.5% duty). Buzzer: fixed 50% duty, adjustable 100–5000 Hz. Mode changes stop both channels. Both channels share PWM slice 1 and cannot run at independent frequencies. Use a suitable external supply for the servo, common GND, and verify its permitted pulse-width range.
 
 When a smartphone cannot reach the PicoNIX AP web page, try disabling mobile data/VPN temporarily and use `http://192.168.4.1/` directly.
+
+The LED grid suppresses touch scrolling and text selection; gestures outside remain available.

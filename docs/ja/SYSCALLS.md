@@ -80,3 +80,7 @@
 - [ASM.md](ASM.md)：アセンブリからのSVC呼び出し
 - [PROGRAMMING.md](PROGRAMMING.md)：アプリ開発の手順
 - [TTY.md](TTY.md)：TTY制御
+
+`getdents()` の結果に`device_id`を追加しました．デバイスIDがない場合は`0xffff`です．
+
+`getdents()`の`device_id`フィールドはディレクトリ項目のIDです．`/dev`と`/proc`ではデバイスID，`/bin`ではプログラムID，`/tmp`・`/etc`ではRAMファイルのスロット番号（0始まり）を返します．ディレクトリやIDのない項目は`0xffff`です．`ls -l`は`TYPE ID SIZE NAME`の見出しを表示し，`p`をプログラム，`f`をRAMファイル，`c`をデバイス，`d`をディレクトリとして区別します．スロット番号はファイルの削除・再生成で変わるため，恒久的な識別子ではありません．

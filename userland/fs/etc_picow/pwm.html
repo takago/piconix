@@ -1,57 +1,49 @@
 <!doctype html>
 <html><meta name="viewport" content="width=device-width,initial-scale=1">
-
 <style>
-body{background:#172235;color:#fff}
-input{width:100%}
+button{padding:12px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+input{width:100%}#value{display:inline-block;width:5em}
 </style>
-<h3>PWM</h3><a href="/">Home</a>
-<select id="mode"><option value="s">Servo</option>
-<option value="b">Buzzer</option></select>
-<p id="desc"></p>
-<input type="range" id="slider">
-<p id="value"></p>
-<button id="start">Start</button> <button id="stop">Stop</button>
-<p id="status">Off</p>
+<h3>PicoNIX PWM</h3><a href="/">Home</a>
+<h4>Servo GP19</h4>
+50 Hz <input id="pulse" type="range" min="0.7" max="2.3" step="0.02" value="1.5">
+<span id="value">1.50 ms</span> <button id="servo">Start</button>
+<h4>Buzzer GP18</h4>
+<div id="keys"></div><p id="status"></p>
 <script>
-const mode=document.querySelector('#mode'),s=document.querySelector('#slider');
-const value=document.querySelector('#value'),desc=document.querySelector('#desc');
-const status=document.querySelector('#status');
-let active=false,busy=false,pending=false,reset=true,stamp=0;
-async function put(p,v){let r=await fetch('/api/pwm/'+p,{method:'POST',body:String(v)});if(!r.ok)throw Error(r.status)}
-async function off(){await put('a',0);await put('b',0)}
-function show(){
- let servo=mode.value==='s';
- s.min=servo?0.5:100;s.max=servo?1.5:5000;s.step=servo?0.02:100;
- s.value=servo?1:1000;
- desc.textContent=servo?'50 Hz':'50% duty';
- label()
+const $=s=>document.getElementById(s),hz=[262,294,330,349,392,440,494,523];
+let on=0,note=-1,queue=Promise.resolve(),tick=0;
+function send(path,v){
+ queue=queue.then(async()=>{
+  let r=await fetch('/api/'+path,{method:'POST',body:''+v});
+  if(!r.ok)throw Error(r.status);
+  $('status').textContent='';
+ }).catch(e=>{$('status').textContent=e.message});
 }
-function label(){value.textContent=s.value+(mode.value==='s'?' ms':' Hz')}
-async function apply(){
- if(busy)return;busy=true;
- try{
-  let re=reset;reset=0;
-  if(re)await off();
-  if(active){
-   if(mode.value==='s'){
-    if(re)await put('freq',50);
-    await put('b',(Number(s.value)*5).toFixed(1));
-   }else{
-    await put('freq',s.value);
-    if(re)await put('a',50);
-   }
-  }
-  status.textContent=active?'On':'Off';
- }catch(e){status.textContent='Error';active=false}
- busy=false;
- if(pending){pending=false;apply()}
-}
-function queue(){pending=true;if(!busy){pending=false;apply()}}
-mode.onchange=()=>{active=false;reset=true;show();queue()};
-s.oninput=()=>{label();if(active&&Date.now()-stamp>=100){stamp=Date.now();queue()}};
-s.onchange=()=>{if(active)queue()};
-document.querySelector('#start').onclick=()=>{active=true;reset=true;queue()};
-document.querySelector('#stop').onclick=()=>{active=false;reset=true;queue()};
-show();
+function pwm(p,v){send('pwm/'+p,v)}
+function off(){pwm('a',0);pwm('b',0)}
+function servoStop(){on=0;$('servo').textContent='Start';pwm('b',0)}
+function width(){pwm('b',(+$('pulse').value*5).toFixed(1))}
+$('pulse').oninput=()=>{
+ $('value').textContent=(+$('pulse').value).toFixed(2)+' ms';
+ if(on&&Date.now()-tick>100){tick=Date.now();width()}
+};
+$('pulse').onchange=()=>{if(on)width()};
+$('servo').onclick=()=>{
+ if(on){servoStop();return}
+ note=-1;on=1;$('servo').textContent='Stop';
+ off();pwm('freq',50);width();
+};
+'C D E F G A B C'.split(' ').forEach((s,i)=>{
+ let b=document.createElement('button');b.textContent=s;
+ b.onpointerdown=e=>{
+  e.preventDefault();b.setPointerCapture(e.pointerId);
+  if(on)servoStop();
+  note=i;send('tone',hz[i]);
+ };
+ b.onpointerup=b.onpointercancel=()=>{
+  if(note===i){note=-1;send('tone',0)}
+ };
+ $('keys').append(b);
+});
 </script></html>

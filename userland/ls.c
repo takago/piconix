@@ -36,11 +36,16 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
     return 0;
 }
 static int detailed;
-/* File sizes are available for writable /tmp files only; other nodes are virtual. */
-static void entry(const char *directory,const char *name,int directory_entry) {
+/* IDs: device nodes use device IDs, /bin uses program IDs, RAM files use slots. */
+static void entry(const char *directory,const char *name,int directory_entry,unsigned id) {
     if(detailed) {
-        if(directory_entry)put("d    -  ");
-        else if(eq(directory,"/tmp")) {
+        const char *type=directory_entry?"d":
+            eq(directory,"/bin") || eq(directory,"/userland")?"p":
+            eq(directory,"/tmp") || eq(directory,"/etc")?"f":"c";
+        put(type);put("    ");
+        if(id!=65535u)number((int)id);else put("-");
+        put("    ");
+        if(!directory_entry && eq(directory,"/tmp")) {
             char path[128];
             snprintf(path,sizeof path,"/tmp/%s",name);
             int fd=open(path,0);
@@ -48,25 +53,26 @@ static void entry(const char *directory,const char *name,int directory_entry) {
                 char buf[64];int n;unsigned size=0;
                 while((n=read(fd,buf,sizeof buf))>0)size+=(unsigned)n;
                 close(fd);
-                if(n>=0){put("- ");number((int)size);put("  ");}
-                else put("-    -  ");
-            } else put("-    -  ");
-        } else put("-    -  ");
+                if(n>=0)number((int)size);else put("-");
+            } else put("-");
+        } else put("-");
+        put("    ");
     }
     put(name);put("\r\n");
 }
 static void ls(const char *path) {
+ if(detailed)put("TYPE ID   SIZE NAME\r\n");
  int fd=open(path,0);if(fd<0){put("ls: cannot open directory\r\n");return;}
  piconix_dirent_t e;int n;
  while((n=getdents(fd,&e,sizeof e))>0) {
      char name[40];snprintf(name,sizeof name,"%s%s",e.name,e.is_dir?"/":"");
-     entry(path,name,e.is_dir);
+     entry(path,name,e.is_dir,e.device_id);
  }
  close(fd);
  if(n<0)put("ls: not a directory\r\n");
  if(eq(path,"/bin")) {put("\r\n---- sh built-in commands ----\r\n");
-     entry(path,"help",0);entry(path,"logout",0);entry(path,"exit",0);
-     entry(path,"cd",0);entry(path,"getty",0);}
+     entry(path,"help",0,65535);entry(path,"logout",0,65535);entry(path,"exit",0,65535);
+     entry(path,"cd",0,65535);entry(path,"getty",0,65535);}
 }
 int main(int argc,char *argv[]) {
     char cwd[128], path[128];

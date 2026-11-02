@@ -48,6 +48,34 @@ static void api(int fd,int post,const char *path,const char *body,unsigned count
         out[16]='\n'; /* report current pattern */
         response(fd,200,out,17,"text/plain; charset=utf-8");return;
     }
+    /* One request per note: avoid three TCP connections on every key press. */
+    if(same(path,"/api/tone")){
+        if(!post||count<1||count>4){text_reply(fd,400,"Expected frequency\n");return;}
+        unsigned freq=0;
+        for(unsigned i=0;i<count;i++){
+            if(body[i]<'0'||body[i]>'9'){text_reply(fd,400,"Invalid frequency\n");return;}
+            freq=freq*10u+(unsigned)(body[i]-'0');
+        }
+        if(freq && (freq<100||freq>5000)){text_reply(fd,400,"Frequency out of range\n");return;}
+        int a=open("/dev/pwm/1/a",O_WRONLY);
+        if(a<0){text_reply(fd,404,"PWM unavailable\n");return;}
+        if(write(a,"0",1)!=1){close(a);text_reply(fd,400,"PWM error\n");return;}
+        close(a);
+        if(freq){
+            char digits[5];unsigned n=0,v=freq;
+            do {digits[n++]=(char)('0'+v%10);v/=10;}while(v);
+            for(unsigned i=0;i<n/2;i++){char t=digits[i];digits[i]=digits[n-1-i];digits[n-1-i]=t;}
+            int f=open("/dev/pwm/1/freq",O_WRONLY);
+            if(f<0){text_reply(fd,400,"PWM error\n");return;}
+            int ok=write(f,digits,n)==(int)n;close(f);
+            if(!ok){text_reply(fd,400,"PWM error\n");return;}
+            a=open("/dev/pwm/1/a",O_WRONLY);
+            if(a<0){text_reply(fd,400,"PWM error\n");return;}
+            ok=write(a,"50",2)==2;close(a);
+            if(!ok){text_reply(fd,400,"PWM error\n");return;}
+        }
+        text_reply(fd,200,"OK\n");return;
+    }
     const char *device=pwm_path(path);
     if(!device){text_reply(fd,404,"Not found\n");return;}
     int file=open(device,post?O_WRONLY:O_RDONLY);
