@@ -278,6 +278,8 @@ static int refresh_labels(unsigned addr){
         strcmp(old_app,symbol_app)!=0 || old_available!=symbols_available;
 }
 static void draw(unsigned addr,int pause,int have,int changed){
+ /* Disable autowrap only while painting; restore it before input. */
+ printf("\033[?7l");
  printf("\033[H\033[7mPicoNIX mem   %s   %s\033[K\033[0m\r\n",region(addr),pause?"PAUSED":"LIVE");
  printf("Address 0x");hex(addr,8);printf("  256 bytes  16 bytes/row\033[K\r\n");
  printf("          00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F   ASCII            SYMBOL: %s\033[K\r\n",symbol_app[0]?symbol_app:"-");
@@ -300,7 +302,7 @@ static void draw(unsigned addr,int pause,int have,int changed){
  printf("[k] Kernel RAM  [K] Kernel XIP  [1-6] Slots  [g] Goto  Symbols: %s\033[K\r\n",symbol_app[0]?(symbols_available?"loaded":"unavailable"):"none");
  printf("Slots:");
  for(int i=0;i<6;i++)printf(" %d:%s",i+1,slot_names[i][0]?slot_names[i]:"free");
- printf("\033[K\r\n\033[K");
+ printf("\033[K\r\n\033[K\033[?7h");
 }
 static int parse(const char *s,unsigned *out){char *end;long n=strtol(s,&end,0);if(!*s||*end||n<0||!valid((unsigned)n))return -1;*out=(unsigned)n&~15u;return 0;}
 static int shifted(unsigned addr,int delta,unsigned *next){

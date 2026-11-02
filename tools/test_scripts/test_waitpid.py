@@ -7,7 +7,8 @@ s = (root / 'userland/shell.c').read_text()
 u = (root / 'userland/unistd.h').read_text()
 assert 't->wait_dev=-2;' in k
 assert 'wake_waiters();' in k
-assert 't->sp[8]=(uint32_t)pid;' in k
+assert 'task_unblock(t,pid);' in k
+assert 't->sp[8]=(uint32_t)result;' in k
 assert 'take_exit(tasks[current].pid,a)' in k
 assert 'if(c & 1) { result=0; break; }' in k
 assert 'if(!running) { result=OS_ESRCH; break; }' in k

@@ -82,13 +82,15 @@ void net_socket_udp_close(void) {
 }
 /* Experimental TCP transport backend for the PicoNIX socket syscalls. */
 #include "lwip/tcp.h"
-#define NET_SOCKET_TCP_RX_MAX 1024u
-#define NET_SOCKET_TCP_SLOTS 4
+/* A single refused pbuf can contain an entire advertised receive window.
+ * Keep enough room to accept it when the application has drained the slot. */
+#define NET_SOCKET_TCP_RX_MAX TCP_WND
 typedef struct {
     struct tcp_pcb *listener, *client;
     unsigned char rx[NET_SOCKET_TCP_RX_MAX];
     unsigned rx_len;
     unsigned char peer_closed, fault, connecting, established, pending_accept, allocated;
+    unsigned char write_shutdown;
 } tcp_slot_t;
 static tcp_slot_t slots[NET_SOCKET_TCP_SLOTS];
 static tcp_slot_t *slot_at(int id) {
@@ -115,8 +117,10 @@ static void socket_tcp_err(void *arg, err_t err) {
     (void)err;
     tcp_slot_t *s=(tcp_slot_t *)arg;
     s->client = NULL; /* lwIP already freed the PCB. */
+    s->pending_accept = 0;
     s->fault = 1;
     s->connecting = s->established = 0;
+    s->write_shutdown = 0;
 }
 static err_t socket_tcp_recv(void *arg, struct tcp_pcb *pcb,
                              struct pbuf *p, err_t err) {
@@ -137,7 +141,7 @@ static err_t socket_tcp_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
     if (err != ERR_OK || s->client) return ERR_VAL;
     s->client = pcb;
     s->rx_len = 0;
-    s->peer_closed = s->fault = s->connecting = 0;
+    s->peer_closed = s->fault = s->connecting = s->write_shutdown = 0;
     s->established = 1;
     s->pending_accept = 1;
     tcp_arg(pcb, s);
@@ -167,7 +171,7 @@ int net_socket_tcp_connect(int id,uint32_t ip,uint16_t port) {
     if(!pcb) return -1;
     s->client=pcb;
     s->rx_len=0;
-    s->peer_closed=s->fault=s->established=0;
+    s->peer_closed=s->fault=s->established=s->write_shutdown=0;
     s->connecting=1;
     tcp_arg(pcb,s);
     tcp_recv(pcb,socket_tcp_recv);
@@ -205,9 +209,11 @@ static err_t socket_tcp_closing_poll(void *arg,struct tcp_pcb *pcb) {
     return ERR_OK;
 }
 static err_t socket_tcp_closing_recv(void *arg,struct tcp_pcb *pcb,struct pbuf *p,err_t err) {
-    (void)arg;
+    (void)arg; (void)err;
+    /* The application slot has been detached, so consume any late data.
+     * Once a pbuf is freed, lwIP must receive ERR_OK, never ERR_MEM. */
     if(p) { tcp_recved(pcb,p->tot_len); pbuf_free(p); }
-    return err==ERR_OK ? ERR_OK : err;
+    return ERR_OK;
 }
 void net_socket_tcp_close_client(int id) {
     tcp_slot_t *s=slot_at(id);
@@ -224,7 +230,7 @@ void net_socket_tcp_close_client(int id) {
         }
     }
     s->rx_len=0;
-    s->pending_accept=s->peer_closed=s->fault=s->connecting=s->established=0;
+    s->pending_accept=s->peer_closed=s->fault=s->connecting=s->established=s->write_shutdown=0;
 }
 int net_socket_tcp_connected(int id) { tcp_slot_t *s=slot_at(id); return s && s->client && s->established; }
 int net_socket_tcp_status(int id) {
@@ -249,20 +255,27 @@ int net_socket_tcp_read(int id,void *dst,unsigned capacity) {
 }
 int net_socket_tcp_write(int id,const void *src,unsigned length) {
     tcp_slot_t *s=slot_at(id);
-    if(!s || !s->client || s->peer_closed || s->fault || (!src && length)) return -1;
+    if(!s || !s->client || !s->established || s->peer_closed || s->fault ||
+       s->write_shutdown || (!src && length)) return -1;
     if(!length) return 0;
     unsigned n=length;
     if(n>tcp_sndbuf(s->client)) n=tcp_sndbuf(s->client);
     if(n>TCP_MSS) n=TCP_MSS;
     if(!n) return 0;
-    if(tcp_write(s->client,src,(u16_t)n,TCP_WRITE_FLAG_COPY)!=ERR_OK) return 0;
-    tcp_output(s->client);
+    err_t err=tcp_write(s->client,src,(u16_t)n,TCP_WRITE_FLAG_COPY);
+    if(err==ERR_MEM) return 0; /* Queue is full: retry after an ACK. */
+    if(err!=ERR_OK) return -1; /* A non-memory error is not backpressure. */
+    /* A failed tcp_output() does not undo the successful enqueue. The
+     * caller must not retransmit those bytes into lwIP's send queue. */
+    (void)tcp_output(s->client);
     return (int)n;
 }
 int net_socket_tcp_shutdown_write(int id) {
     tcp_slot_t *s=slot_at(id);
-    if(!s || !s->client || !s->established || s->fault) return -1;
-    return tcp_shutdown(s->client,0,1)==ERR_OK ? 0 : -1;
+    if(!s || !s->client || !s->established || s->fault || s->write_shutdown) return -1;
+    if(tcp_shutdown(s->client,0,1)!=ERR_OK) return -1;
+    s->write_shutdown=1;
+    return 0;
 }
 void net_socket_tcp_close(int id) {
     net_socket_tcp_close_client(id);

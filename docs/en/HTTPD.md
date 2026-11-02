@@ -2,7 +2,7 @@
 
 `httpd` runs in user space on Pico W TCP port 80 and is launched by its startup script; it is not a kernel service.
 
-`GET /` serves `/etc/index.html`. The browser page allows touching and dragging across the 8×8 LED matrix. PWM controls have been removed from the page, but the PWM HTTP API remains available through `curl`.
+`GET /` serves `/etc/index.html`. The browser page allows touching and dragging across the 8×8 LED matrix. PWM can be controlled from the separate `/pwm.html` page, and its HTTP API is also available through `curl`.
 
 | API | Action | POST body |
 |---|---|---|
@@ -24,7 +24,7 @@ curl -X POST --data-binary '50' http://HOST/api/pwm/a
 
 The page is stored in the volatile `/etc/index.html` RAM file and reverts on reboot. `/etc` and `/tmp` share eleven file slots of 2048 bytes each. Keep the HTML page at or below 2048 bytes.
 
-**Limits and safety:** sequential, single-connection HTTP/1.0-style server. POST requires `Content-Length` and permits at most 32 body bytes. No chunked requests, HTTPS, authentication, concurrent requests, or keep-alive. Use only on an isolated, trusted laboratory network; never expose TCP 80 to the Internet. Do not directly connect hazardous actuators to PWM pins.
+**Limits and safety:** sequential, single-connection HTTP/1.0-style server. POST requires a valid, nonduplicate `Content-Length` and permits at most 32 body bytes. Malformed lengths are rejected, and a TCP EOF during request reception ends the wait immediately. No chunked requests, HTTPS, authentication, concurrent requests, or keep-alive. Use only on an isolated, trusted laboratory network; never expose TCP 80 to the Internet. Do not directly connect hazardous actuators to PWM pins.
 
 Telnet TCP 23 and the UDP 2000 device service remain kernel-side services.
 
@@ -51,7 +51,7 @@ The web page has `Clear` and `All` buttons. There is no manual `Read` button bec
 - `/fbcheck.html`: LED matrix drawing (50 ms minimum write interval, 250 ms reads).
 - `/pwm.html`: select servo on GP19/PWM1 B or passive buzzer on GP18/PWM1 A.
 
-PWM output starts disabled. Start enables the selected mode; Stop sets both PWM duties to zero. Servo: 50 Hz, pulse width 0.5–1.5 ms in 0.02 ms steps (2.5–7.5% duty). Buzzer: fixed 50% duty, adjustable 100–5000 Hz. Mode changes stop both channels. Both channels share PWM slice 1 and cannot run at independent frequencies. Use a suitable external supply for the servo, common GND, and verify its permitted pulse-width range.
+PWM output starts disabled. Start enables the selected mode; Stop sets its PWM channel duty to zero. Servo: 50 Hz, pulse width 0.7–2.3 ms in 0.02 ms steps (3.5–11.5% duty). Buzzer: fixed 50% duty, adjustable 100–5000 Hz. Mode changes stop both channels. Both channels share PWM slice 1 and cannot run at independent frequencies. Use a suitable external supply for the servo, common GND, and verify its permitted pulse-width range.
 
 When a smartphone cannot reach the PicoNIX AP web page, try disabling mobile data/VPN temporarily and use `http://192.168.4.1/` directly.
 

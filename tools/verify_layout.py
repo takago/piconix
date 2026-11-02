@@ -30,6 +30,7 @@ def main():
     ap.add_argument('elf')
     ap.add_argument('--slots', type=int, choices=(6,), default=6)
     ap.add_argument('--nm', default='arm-none-eabi-nm')
+    ap.add_argument('--wifi', action='store_true', help='Pico W idle stack is in network SRAM')
     args = ap.parse_args()
     try:
         sym = symbols(args.elf, args.nm)
@@ -50,6 +51,11 @@ def main():
             sys.exit(f'ERROR: missing {key} symbol')
         if start <= addr < end:
             sys.exit(f'ERROR: {key} overlaps task slots')
+        if key == 'idle_stack':
+            if args.wifi and addr != 0x2003F000:
+                sys.exit('ERROR: Pico W idle stack must start at 0x2003f000')
+            if not args.wifi and not MAIN_START <= addr < start:
+                sys.exit('ERROR: ordinary Pico idle stack must be in kernel SRAM')
         print(f'{key}: 0x{addr:08x}')
     for name, address in (('shared_ram',0x20032000),('ramfile_data',0x20032800)):
         if sym.get(name) != address:
@@ -75,10 +81,16 @@ def main():
             sys.exit('ERROR: cannot verify Wi-Fi lwIP heap size and location')
         heap_size = int(heap.group(1)) * 1024
         heap_start = int(ptr.group(1), 16)
-        if heap_start < reserve_start or heap_start + heap_size > reserve_end:
-            sys.exit('ERROR: lwIP heap is outside the reserved network bank')
+        # lwIP needs at least one aligned heap header beyond MEM_SIZE.
+        # Keep a full 2-KiB gap before the dedicated idle stack.
+        idle_start = 0x2003F000
+        if heap_start != reserve_start or heap_start + heap_size > idle_start - 2048:
+            sys.exit('ERROR: lwIP heap/idle stack boundary gap is too small')
         print(f'Wi-Fi reserve: 0x{reserve_start:08x}..0x{reserve_end-1:08x} (16 KiB)')
-        print(f'lwIP heap: 0x{heap_start:08x}..0x{heap_start+heap_size-1:08x} ({heap_size} bytes)')
+        print(f'lwIP heap payload: 0x{heap_start:08x}..0x{heap_start+heap_size-1:08x} ({heap_size} bytes)')
+        if args.wifi:
+            print('Idle stack: 0x2003f000..0x2003ffff (4096 bytes)')
+            print('Gap for lwIP allocator metadata: 0x2003e800..0x2003efff (2048 bytes)')
         print('NOTE: CYW43 and lwIP static RAM still consume kernel RAM; verify map and runtime usage')
     print('PASS: fixed physical task slots and selected kernel objects are nonoverlapping')
     print('NOTE: this does NOT establish task-local code/data or full-RAM execution')

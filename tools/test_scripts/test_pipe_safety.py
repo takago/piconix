@@ -6,7 +6,7 @@ k=(root/'kernel/kernel.c').read_text()
 s=(root/'userland/shell.c').read_text()
 checks={
  'sixteen descriptors per task': 'int fd[OS_FD_MAX]' in k and '#define OS_FD_MAX 16' in k,
- 'spawn inherits standard streams': 't->fd[j]=tasks[current].fd[j]' in k,
+ 'spawn inherits standard streams': 'for(int j=0;j<3;j++) fd_inherit(t,j,&tasks[current],j);' in k,
  'dup2 dispatch exists': 'case SYS_DUP2:' in k,
  'close dispatch exists': 'case SYS_CLOSE:' in k,
  'task termination exists': 'static void finish_task(' in k,

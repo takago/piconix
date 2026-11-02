@@ -8,7 +8,7 @@ v=k
 h=k
 section=v.split('static const struct { const char *path; int id; } vfs_registry[] = {',1)[1].split('};',1)[0]
 entries=re.findall(r'\{"([^"\n]+)",(DEV_\w+)\}',section)
-assert len(entries)==15 and len(set(p for p,_ in entries))==len(entries)
+assert len(entries)==18 and len(set(p for p,_ in entries))==len(entries)
 assert len(set(i for _,i in entries))==len(entries)
 for path,dev in entries: assert path.startswith(('/bin','/tmp','/proc/','/dev/'))
 assert 'vfs_fixed_path_id(p)' in k and 'vfs_directory_id(p)' in k

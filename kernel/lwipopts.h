@@ -7,6 +7,12 @@
 #define LWIP_NETCONN 0
 #define LWIP_TCP 1
 #define LWIP_UDP 1
+/* Local TCP/UDP traffic uses lwIP's built-in 127.0.0.1 interface.
+ * NO_SYS requires explicit queue polling; never re-enter tcp_input(). */
+#define LWIP_NETIF_LOOPBACK 1
+#define LWIP_HAVE_LOOPIF 1
+#define LWIP_LOOPBACK_MAX_PBUFS 8
+#define LWIP_NETIF_LOOPBACK_MULTITHREADING 0
 /* STA needs the lwIP DHCP client; AP uses PicoNIX's own DHCP server. */
 #if defined(PICONIX_WIFI_STA) && PICONIX_WIFI_STA
 #define LWIP_DHCP 1
@@ -17,13 +23,19 @@
 #define LWIP_IP_ACCEPT_UDP_PORT(port) ((port) == PP_NTOHS(67))
 #define LWIP_DNS 0
 #define MEM_ALIGNMENT 4
-/* Place the lwIP dynamic heap in the released fifth task slot.
- * RP2040 main SRAM: network reserve = 0x2003c000..0x2003ffff.
- * This relocates ONLY lwIP's MEM_SIZE heap, not all CYW43/lwIP globals.
- * The linker/slot-count audit must remain enabled. */
-#define MEM_SIZE (4 * 1024)
+/* Pico W network bank (16 KiB):
+ * 0x2003c000..0x2003e7ff  lwIP heap (10 KiB, plus allocator metadata)
+ * 0x2003e800..0x2003efff  unallocated boundary gap (~2 KiB)
+ * 0x2003f000..0x2003ffff  idle/network task stack (4 KiB)
+ * pbuf pools, TCP PCB pools and CYW43 globals remain in kernel SRAM.
+ * The ELF/layout audits must validate this contract. */
+#define MEM_SIZE (10 * 1024)
 #define LWIP_RAM_HEAP_POINTER ((void *)0x2003C000u)
-#define PBUF_POOL_SIZE 4
+#define PBUF_POOL_SIZE 8
+/* Lightweight counters for heap and pool utilization/failures. */
+#define LWIP_STATS 1
+#define MEM_STATS 1
+#define MEMP_STATS 1
 #define PBUF_POOL_BUFSIZE 512
 #define MEMP_NUM_TCP_PCB 5
 #define MEMP_NUM_TCP_PCB_LISTEN 5 /* Telnet + user TCP; HTTP will require another */

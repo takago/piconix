@@ -63,7 +63,7 @@ Pico W builds use lwIP. AP or STA mode is selected at build time. STA mode requi
 | HTTP (TCP 80) | User-space `httpd` |
 | UDP device control (UDP 2000) | Kernel-side service |
 | Socket API | User-space TCP/UDP functionality; not fully BSD-compatible |
-| User TCP socket slots | 4 (`TCP_USER_SLOTS` in `kernel/kernel.c`) |
+| User TCP socket slots | 4 (`NET_SOCKET_TCP_SLOTS` in `kernel/net_socket.h`) |
 | Internal UDP transfer size constant | 512 bytes (`NET_SOCKET_UDP_MAX`) |
 
 See [Wi-Fi modes](WIFI-MODES.md), [Networking](NETWORK.md), and [Socket programming](NETWORK-PROGRAMMING.md). Telnet and UDP device control do not provide encrypted authenticated access; use trusted networks.

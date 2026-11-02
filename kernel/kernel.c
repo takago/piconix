@@ -48,6 +48,7 @@ enum {
     DEV_PROC_WIFI = 137,
     DEV_PROC_AP = 141,
     DEV_PROC_ARP = 142,
+    DEV_PROC_NET_MEMORY = 143,
     DEV_GPIO_DIR_BASE = 36,
     DEV_GPIO_DIR_END = 64,
     DEV_GPIO_PULL_BASE = 65,
@@ -91,6 +92,7 @@ static const struct { const char *path; int id; } vfs_registry[] = {
     {"/proc/ramfiles",DEV_PROC_RAMFILES},
     {"/proc/net/wifi",DEV_PROC_WIFI},
     {"/proc/net/ap",DEV_PROC_AP}, {"/proc/net/arp",DEV_PROC_ARP},
+    {"/proc/net/memory",DEV_PROC_NET_MEMORY},
     {"/proc/tasks",DEV_PROC_TASKS}, {"/proc/fb",DEV_PROC_FB},
     {"/proc/sym/kernel",DEV_SYMS_KERNEL},
     {"/dev/pwm/1/freq",DEV_PWM_FREQ}, {"/dev/pwm/1/a",DEV_PWM_18},
@@ -117,7 +119,7 @@ static int vfs_directory_id(const char *path) {
 }
 
 static const char *vfs_directory_path(int id) {
-    return id>=VDIR_ROOT && id<=VDIR_DEV_NET ? vdir_paths[id-VDIR_ROOT] : 0;
+    return id>=VDIR_ROOT && id<=VDIR_I2C ? vdir_paths[id-VDIR_ROOT] : 0;
 }
 static const char *vfs_fixed_id_path(int id) {
     for(unsigned i=0;i<DEV_REGISTRY_COUNT;i++)
@@ -130,6 +132,22 @@ static unsigned vfs_device_count(void) { return DEV_REGISTRY_COUNT; }
 static const char *vfs_device_path(unsigned index) {
     return index<DEV_REGISTRY_COUNT ? dev_registry[index].path : 0;
 }
+/* Parse one GPIO basename for both open() and getdents(). Reject aliases
+ * such as 00 or 01: directory entries use canonical decimal pin numbers. */
+static int vfs_gpio_id(const char *name) {
+    if(*name<'0' || *name>'9') return -1;
+    if(*name=='0' && name[1]>='0' && name[1]<='9') return -1;
+    unsigned pin=0;
+    do {
+        pin=pin*10u+(unsigned)(*name++-'0');
+        if(pin>DEV_GPIO_MAX_PIN) return -1;
+    } while(*name>='0' && *name<='9');
+    if(!pin_gpio(pin)) return -1;
+    if(!*name) return DEV_GPIO_VALUE_BASE+(int)pin;
+    if(!strcmp(name,".dir")) return DEV_GPIO_DIR_BASE+(int)pin;
+    if(!strcmp(name,".pull")) return DEV_GPIO_PULL_BASE+(int)pin;
+    return -1;
+}
 
 enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define IDLE_SLOT OS_MAX_TASKS
@@ -139,7 +157,7 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 /* Anonymous pipe descriptors and storage (fixed SRAM budget). */
 #define PIPE_COUNT 2
 #define PIPE_BYTES 256
-#define PIPE_DEV_BASE 240
+#define PIPE_DEV_BASE 268 /* separate from userland symbol IDs 201..264 */
 #define PIPE_READ_DEV(i) (PIPE_DEV_BASE + (i)*2)
 #define PIPE_WRITE_DEV(i) (PIPE_DEV_BASE + (i)*2 + 1)
 typedef struct { uint8_t data[PIPE_BYTES]; uint16_t head, used; uint8_t readers, writers; } pipe_t;
@@ -182,10 +200,17 @@ __asm__(".global task_ram\n.set task_ram, 0x2000E000");
 extern uint8_t task_ram[OS_MAX_TASKS][OS_TASK_BYTES];
 // Slots are intentionally NOLOAD/unallocated: no linker section occupies them.
 static task_t tasks[TOTAL_SLOTS];
-/* CYW43/lwIP polling and its receive callbacks run on this stack.
- * Keep it in the kernel's 56-KiB SRAM allocation (verified after linking). */
+/* CYW43/lwIP callbacks execute on the idle task stack.  On Pico W it
+ * occupies the last 4 KiB of the fixed 16-KiB network bank; on ordinary
+ * Pico builds it remains a kernel-owned .bss object.  Both placements are
+ * checked in verify_layout.py against the linked ELF. */
 #define IDLE_STACK_BYTES 4096u
+#if PICONIX_WIFI
+__asm__(".global idle_stack\n.set idle_stack, 0x2003F000");
+extern uint8_t idle_stack[IDLE_STACK_BYTES];
+#else
 static uint8_t idle_stack[IDLE_STACK_BYTES] __attribute__((aligned(8)));
+#endif
 static volatile int current = -1;
 
 static volatile uint32_t ticks;
@@ -255,6 +280,9 @@ static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t det
             if((tasks[i].pid==pid || tasks[i].pid==(int)value) &&
                tasks[i].state!=UNUSED && tasks[i].program_id==7u) return;
     }
+    /* SysTick, UART and SVC may all emit events.  Publish a complete record
+     * and its ring counters without allowing another writer to interrupt. */
+    uint32_t irq_state=save_and_disable_interrupts();
     trace_event_t *e = &trace_ring[trace_head];
     e->tick = ticks;
     e->value = value;
@@ -280,11 +308,12 @@ static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t det
     trace_head = (trace_head + 1u) & (TRACE_CAPACITY - 1u);
     if(trace_count < TRACE_CAPACITY) trace_count++;
     trace_serial++;
+    restore_interrupts(irq_state);
 }
 
 static int tty_owner_pid(int tty) { return tty_claim_pid[tty] ? tty_claim_pid[tty] :
     (foreground_pid[tty] ? foreground_pid[tty] : tty_shell_pid[tty]); }
-/* Five pending completion notices, independent of reusable RAM slots. */
+/* Bounded completion notices, independent of reusable RAM slots. */
 static struct { int pid, parent_pid; } exited[OS_MAX_TASKS];
 static int take_exit(int parent, int requested) {
     for(int i=0;i<OS_MAX_TASKS;i++)
@@ -306,7 +335,7 @@ static void fd_set(task_t *t, int fd, int dev, uint32_t pos, int flags, int targ
 /* Release one descriptor. Socket endpoints have a single owning task;
  * pipes alone use per-endpoint reference counts. */
 static int udp_owner_pid;
-#define TCP_USER_SLOTS 4
+#define TCP_USER_SLOTS NET_SOCKET_TCP_SLOTS
 static int tcp_owner_pid[TCP_USER_SLOTS];
 static int tcp_fd_slot(task_t *t,int fd) {
     if(fd<0 || fd>=OS_FD_MAX ||
@@ -319,6 +348,11 @@ static int tcp_other_fd(task_t *t,int id,int except) {
         if(j!=except && (t->fd[j]==DEV_SOCKET_TCP || t->fd[j]==DEV_SOCKET_TCP_ACCEPTED) &&
            t->fd_pos[j]==(unsigned)id) return 1;
     return 0;
+}
+/* A socket FD owns an lwIP endpoint; unlike pipes it cannot be dup()ed. */
+static int fd_is_socket(int dev) {
+    return dev==DEV_SOCKET_UDP || dev==DEV_SOCKET_TCP ||
+           dev==DEV_SOCKET_TCP_ACCEPTED;
 }
 static void fd_release(task_t *t,int fd) {
     int dev=t->fd[fd];
@@ -340,21 +374,40 @@ static void fd_release(task_t *t,int fd) {
     fd_set(t,fd,-1,0,0,0);
 }
 /* Copy an open descriptor, retaining a pipe endpoint exactly once. */
+static void fd_inherit(task_t *dst, int to, const task_t *src, int from) {
+    pipe_ref(src->fd[from],1);
+    fd_set(dst,to,src->fd[from],src->fd_pos[from],src->fd_flags[from],src->fd_task_pid[from]);
+}
 static void fd_copy(task_t *t, int dst, int src) {
-    pipe_ref(t->fd[src],1);
-    fd_set(t,dst,t->fd[src],t->fd_pos[src],t->fd_flags[src],t->fd_task_pid[src]);
+    fd_inherit(t,dst,t,src);
 }
 
+/* Task slots can be reused immediately after termination. */
+static int task_active(const task_t *t) {
+    return t->state!=UNUSED && t->state!=DEAD;
+}
+/* The last registered living pipeline member retains terminal input when
+ * the current foreground member exits before the rest of the pipeline. */
+static int tty_foreground_survivor(int tty) {
+    for(int g=2;g>=0;g--) {
+        int pid=foreground_group[tty][g];
+        if(!pid) continue;
+        for(int i=0;i<OS_MAX_TASKS;i++)
+            if(tasks[i].pid==pid && tasks[i].tty==tty && task_active(&tasks[i]))
+                return pid;
+    }
+    return 0;
+}
 static void finish_task(int slot, int status) {
     (void)status; /* PicoNIX retains PIDs, not exit status. */
     task_t *t=&tasks[slot];
-    if(t->state==UNUSED || t->state==DEAD) return;
+    if(!task_active(t)) return;
     int parent_alive=0;
     for(int i=0;i<OS_MAX_TASKS;i++)
         if(i!=slot && tasks[i].pid==t->parent_pid &&
-           tasks[i].state!=UNUSED && tasks[i].state!=DEAD) parent_alive=1;
+           task_active(&tasks[i])) parent_alive=1;
     if(parent_alive) {
-        /* Oldest notice may be discarded when all five entries are occupied. */
+        /* Oldest notice may be discarded when all slots are occupied. */
         int pos=-1;
         for(int i=0;i<OS_MAX_TASKS;i++)
             if(!exited[i].pid) { pos=i; break; }
@@ -370,22 +423,47 @@ static void finish_task(int slot, int status) {
     if(udp_owner_pid==t->pid) { net_socket_udp_close(); udp_owner_pid=0; }
     for(int id=0;id<TCP_USER_SLOTS;id++) if(tcp_owner_pid[id]==t->pid) { net_socket_tcp_close(id); tcp_owner_pid[id]=0; }
     t->state=DEAD;
+    /* Remove the completed stage before selecting a surviving owner.  A
+     * shell may still be waiting for other stages when its last stage exits. */
+    for(int g=0;g<3;g++)
+        if(foreground_group[t->tty][g]==t->pid) foreground_group[t->tty][g]=0;
+    int survivor=tty_foreground_survivor(t->tty);
+    if(foreground_pid[t->tty]==t->pid) foreground_pid[t->tty]=survivor;
+    if(tty_shell_pid[t->tty]==t->pid) tty_shell_pid[t->tty]=0;
     for(int dev=0;dev<OS_TTY_COUNT;dev++) {
         if(tty_claim_pid[dev]==t->pid) {
             tty_claim_pid[dev]=0;
             tty_mode_reset(dev);
         } else if(tty_restore_pid[dev]==t->pid) {
-            tty_canonical[dev]=tty_saved_canon[dev];
-            tty_echo[dev]=tty_saved_echo[dev];
-            tty_onlcr[dev]=tty_saved_onlcr[dev];
-            tty_last_cr[dev]=0;
-            tty_mode_owner[dev]=tty_saved_owner[dev];
-            tty_restore_pid[dev]=0;
-            /* Preserve queued input across foreground command exit. */
+            if(dev==t->tty && survivor) {
+                /* Restore the original mode only after the entire foreground
+                 * pipeline has completed, even if its first stage exits early. */
+                tty_restore_pid[dev]=survivor;
+                if(tty_mode_owner[dev]==t->pid) tty_mode_owner[dev]=survivor;
+            } else {
+                tty_canonical[dev]=tty_saved_canon[dev];
+                tty_echo[dev]=tty_saved_echo[dev];
+                tty_onlcr[dev]=tty_saved_onlcr[dev];
+                tty_last_cr[dev]=0;
+                tty_mode_owner[dev]=tty_saved_owner[dev];
+                tty_restore_pid[dev]=0;
+                /* Preserve queued input across foreground command exit. */
+            }
         } else if(tty_mode_owner[dev]==t->pid) tty_mode_reset(dev);
     }
-    if(foreground_pid[t->tty]==t->pid) foreground_pid[t->tty]=0;
-    if(tty_shell_pid[t->tty]==t->pid) tty_shell_pid[t->tty]=0;
+}
+/* All blocked syscalls resume through the saved SVC return register.
+ * Clear borrowed user pointers before allowing the task to run again. */
+static void task_unblock(task_t *t, int result) {
+    t->sp[8]=(uint32_t)result;
+    t->wait_dev=-1;
+    t->wait_fd=-1;
+    t->wait_buf=NULL;
+    t->wait_size=0;
+    t->wait_pid=0;
+    t->wait_status=NULL;
+    t->wait_frame_ready=0;
+    t->state=READY;
 }
 /* Complete suspended pipe I/O only after PendSV saved the task frame. */
 static void wake_pipes(void) {
@@ -402,9 +480,7 @@ static void wake_pipes(void) {
         else {
             result=pipe_transfer(p,t->wait_buf,t->wait_size,writing);
         }
-        t->sp[8]=(uint32_t)result;
-        t->state=READY;
-        t->wait_frame_ready=0;
+        task_unblock(t,result);
     }
 }
 static void wake_waiters(void) {
@@ -414,11 +490,9 @@ static void wake_waiters(void) {
         int pid=take_exit(t->pid,t->wait_pid);
         if(!pid) continue;
         if(t->wait_status) *t->wait_status=0;
-        t->sp[8]=(uint32_t)pid;
         trace_record(TRACE_SVC_EXIT,(uint8_t)t->pid,SYS_WAITPID,
                      (uint32_t)pid,t->program_id,-1,NULL,0);
-        t->state=READY;
-        t->wait_frame_ready=0;
+        task_unblock(t,pid);
     }
 }
 
@@ -583,6 +657,22 @@ static unsigned tty_line_columns(const tty_buffer_t *t) {
         col+=t->line[i]=='\t' ? 4-(col&3u) : 1;
     return col;
 }
+/* Ctrl+C may close an owned TCP socket through finish_task(). Never
+ * do that from the UART IRQ or while another lwIP callback is active. */
+static volatile unsigned char tty1_ctrl_c_pending;
+static void tty_foreground_interrupt(int dev) {
+    uint32_t irq_state=save_and_disable_interrupts();
+    tty_buffer_t *t=&tty_buf[dev];
+    memset(t,0,sizeof *t);
+    for(int g=0;g<3;g++) {
+        int pid=foreground_group[dev][g];
+        for(int i=0;i<OS_MAX_TASKS;i++)
+            if(pid && tasks[i].pid==pid) { finish_task(i,130); break; }
+        foreground_group[dev][g]=0;
+    }
+    restore_interrupts(irq_state);
+    tty_put_dev(dev,'^');tty_put_dev(dev,'C');tty_put_dev(dev,'\r');tty_put_dev(dev,'\n');
+}
 static void tty_input_char(int dev,uint8_t c) {
     tty_buffer_t *t=&tty_buf[dev];
     if(!tty_canonical[dev] && (c!=3 || tty_claim_pid[dev])){
@@ -591,16 +681,12 @@ static void tty_input_char(int dev,uint8_t c) {
         return;
     }
     if(c==3){
-        /* finish_task restores the foreground task's saved TTY mode. */
-        memset(t,0,sizeof *t);
-        /* Terminate all registered foreground pipeline members, not the shell. */
-        for(int g=0;g<3;g++) {
-            int pid=foreground_group[dev][g];
-            for(int i=0;i<OS_MAX_TASKS;i++)
-                if(pid && tasks[i].pid==pid) { finish_task(i,130); break; }
-            foreground_group[dev][g]=0;
+        if(dev==1) {
+            /* IRQ producer: let idle context perform task/socket cleanup. */
+            tty1_ctrl_c_pending=1;
+            return;
         }
-        tty_put_dev(dev,'^');tty_put_dev(dev,'C');tty_put_dev(dev,'\r');tty_put_dev(dev,'\n');
+        tty_foreground_interrupt(dev);
     }else if(c==8||c==127){
         if(t->len){
             unsigned before=tty_line_columns(t);
@@ -683,6 +769,10 @@ static void wifi_session_poll(void) {
 #endif
 void os_console_poll(void) {
     console_tx_poll();
+    if(tty1_ctrl_c_pending) {
+        tty1_ctrl_c_pending=0;
+        tty_foreground_interrupt(1);
+    }
     int ch;
     int received = 0;
     while (tty_buf[0].used < TTY_LINES && (ch = getchar_timeout_us(0)) >= 0) {
@@ -726,9 +816,7 @@ static void wake_readers(int dev) {
                      (uint32_t)n, t->program_id,
                      (int8_t)t->fd[t->wait_fd], n>0 ? t->wait_buf : NULL,
                      n>0 ? (unsigned)n : 0u);
-        t->sp[8]=(uint32_t)n;
-        t->state=READY;
-        t->wait_frame_ready=0;
+        task_unblock(t,n);
         pend();
         if(dev==0) break;
     }
@@ -823,13 +911,7 @@ static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char 
     for(int j=0;j<3;j++) fd_set(t,j,0,0,0,0);
     /* A spawned process inherits the parent's standard streams. */
     if(started && current>=0 && current<OS_MAX_TASKS) {
-        for(int j=0;j<3;j++) {
-            t->fd[j]=tasks[current].fd[j];
-            pipe_ref(t->fd[j],1);
-            t->fd_pos[j]=tasks[current].fd_pos[j];
-            t->fd_task_pid[j]=tasks[current].fd_task_pid[j];
-            t->fd_flags[j]=tasks[current].fd_flags[j];
-        }
+        for(int j=0;j<3;j++) fd_inherit(t,j,&tasks[current],j);
     }
     t->state=READY;
     if(program_id==2 && !tty_shell_pid[t->tty]) tty_shell_pid[t->tty]=t->pid;
@@ -936,6 +1018,11 @@ uint32_t *os_schedule(uint32_t *oldsp) {
         last_net_slice = ticks;
     }
 #endif
+#if PICONIX_WIFI
+    /* NO_SYS lwIP callbacks cannot be preempted by a task issuing
+     * another raw TCP operation on the same PCBs. */
+    if(previous==IDLE_SLOT && net_poll_in_progress()) next=IDLE_SLOT;
+#endif
     if(next<0) {
         next=IDLE_SLOT;
     }
@@ -962,7 +1049,7 @@ void os_start(void) {
 }
 static int slot_from_pid(int pid) {
     for(int i=0;i<TOTAL_SLOTS;i++)
-        if(tasks[i].pid==pid && tasks[i].state!=UNUSED && tasks[i].state!=DEAD) return i;
+        if(tasks[i].pid==pid && task_active(&tasks[i])) return i;
     return -1;
 }
 static int in_task_range(const void *p, size_t n) {
@@ -1037,6 +1124,7 @@ static int proc_device(int dev) {
            dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS || dev==DEV_PROC_FB ||
            dev==DEV_PROC_RAMFILES || dev==DEV_PROC_WIFI ||
            dev==DEV_PROC_AP || dev==DEV_PROC_ARP ||
+           dev==DEV_PROC_NET_MEMORY ||
            (dev>=DEV_PROC_TASK_BASE && dev<DEV_PROC_TASK_BASE+OS_MAX_TASKS);
 }
 static int tmp_open(const char *p,int flags) {
@@ -1102,7 +1190,16 @@ static int absolute_path(const char *input, char out[128]) {
         while(*cwd) { if(n>=sizeof(combined)-2) return -1; combined[n++]=*cwd++; }
         if(n==0 || combined[n-1]!='/') combined[n++]='/';
     }
-    while(*input) { if(!in_task_range(input,1) || n>=sizeof(combined)-1) return -1; combined[n++]=*input++; }
+    /* Check the user address before *every* dereference, including the NUL.
+     * An unterminated string at the end of a task slot must fail safely. */
+    for(;;) {
+        if(!in_task_range(input,1)) return -1;
+        char ch=*input;
+        if(!ch) break;
+        if(n>=sizeof(combined)-1) return -1;
+        combined[n++]=ch;
+        input++;
+    }
     combined[n]=0; out[0]='/'; out[1]=0;
     for(unsigned i=0;i<n;) {
         while(combined[i]=='/') i++;
@@ -1222,14 +1319,7 @@ static uint16_t vdir_entry_device_id(int dir, const char *name, int is_dir) {
     char path[96];
     if(snprintf(path,sizeof path,"%s/%s",parent,name)>=(int)sizeof path) return 0xffff;
     int id=vfs_fixed_path_id(path);
-    if(id<0 && dir==VDIR_GPIO) {
-        unsigned pin=0; const char *q=name;
-        if(*q<'0'||*q>'9') return 0xffff;
-        while(*q>='0'&&*q<='9') {pin=pin*10+(unsigned)(*q++-'0');if(pin>DEV_GPIO_MAX_PIN)return 0xffff;}
-        if(!*q) id=DEV_GPIO_VALUE_BASE+(int)pin;
-        else if(!strcmp(q,".dir")) id=DEV_GPIO_DIR_BASE+(int)pin;
-        else if(!strcmp(q,".pull")) id=DEV_GPIO_PULL_BASE+(int)pin;
-    }
+    if(id<0 && dir==VDIR_GPIO) id=vfs_gpio_id(name);
     if(id<0 && dir==VDIR_ADC && name[0]>='0' && name[0]<='2' && !name[1])
         id=DEV_ADC_BASE+name[0]-'0';
     if(id<0 && dir==VDIR_TASK) {
@@ -1239,17 +1329,12 @@ static uint16_t vdir_entry_device_id(int dir, const char *name, int is_dir) {
                 {id=DEV_PROC_TASK_BASE+i;break;}
         }
     }
-    if(id<0 && dir==VDIR_USERLAND) {
-        for(int i=1;i<PROGRAM_CAPACITY;i++)
-            if(programs[i].entry && programs[i].name && !strcmp(programs[i].name,name))
-                {id=DEV_SYMS_USER_BASE+i;break;}
-    }
     return id>=0 && id<65535 ? (uint16_t)id : 0xffff;
 }
 static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
     if(fd<0 || fd>=OS_FD_MAX) return OS_EBADF;
     int dir=tasks[current].fd[fd];
-    if(dir<VDIR_ROOT || dir>VDIR_DEV_NET) return OS_EBADF;
+    if(dir<VDIR_ROOT || dir>VDIR_I2C) return OS_EBADF;
     if(n<sizeof(*out) || !in_task_range(out,sizeof(*out))) return OS_EINVAL;
     piconix_dirent_t entry={0};
     int found=vdir_nth(dir,tasks[current].fd_pos[fd],&entry);
@@ -1290,18 +1375,8 @@ static int vfs_open(const char *p, int flags) {
                     break;
                 }
     }
-    if(dev<0) {
-        // Avoid unbounded parsing of an invalid pointer.
-        for(int pin=0;pin<=DEV_GPIO_MAX_PIN;pin++) {
-            if(!pin_gpio((unsigned)pin)) continue;
-            char name[20]; snprintf(name,sizeof(name),"/dev/gpio/%d",pin);
-            if(path_match(p,name)) { dev=pin+DEV_GPIO_VALUE_BASE; break; }
-            snprintf(name,sizeof(name),"/dev/gpio/%d.dir",pin);
-            if(path_match(p,name)) { dev=DEV_GPIO_DIR_BASE+pin; break; }
-            snprintf(name,sizeof(name),"/dev/gpio/%d.pull",pin);
-            if(path_match(p,name)) { dev=DEV_GPIO_PULL_BASE+pin; break; }
-        }
-    }
+    if(dev<0 && !strncmp(p,"/dev/gpio/",10))
+        dev=vfs_gpio_id(p+10);
     if(dev<0 && !strncmp(p,"/dev/adc/",9) && p[9]>='0' && p[9]<='2' && p[10]==0 && pin_adc((unsigned)(p[9]-'0')))
         dev=DEV_ADC_BASE+(p[9]-'0');
     /* Fixed PWM paths remain conditional on their configured pins. */
@@ -1394,7 +1469,7 @@ static int proc_fb_read(int fd, void *dst, size_t n) {
 }
 /* Resolve an open descriptor from the kernel's authoritative device IDs. */
 static const char *fd_path(int dev, int task_pid, int tcp_id, char *buf, size_t size) {
-    if(dev>=VDIR_ROOT && dev<=VDIR_DEV_NET) return vfs_directory_path(dev);
+    if(dev>=VDIR_ROOT && dev<=VDIR_I2C) return vfs_directory_path(dev);
     const char *fixed=vfs_fixed_id_path(dev);
     if(fixed) return fixed;
     /* Socket descriptors are not VFS paths; expose meaningful /proc names. */
@@ -1518,6 +1593,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     restore_interrupts(irq_state);
     char text[448]; int len=0;
     if(dev==DEV_PROC_WIFI) len=net_wifi_info(text,sizeof(text));
+    if(dev==DEV_PROC_NET_MEMORY) len=net_memory_info(text,sizeof(text));
     if(dev==DEV_PROC_AP || dev==DEV_PROC_ARP)
         len=net_diag_info(text,sizeof(text),dev==DEV_PROC_ARP);
     if(dev==DEV_PROC_DEVICES) {
@@ -1654,7 +1730,7 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         int r=writing ? net_socket_tcp_write(id,p,(unsigned)n) : net_socket_tcp_read(id,p,(unsigned)n);
         return r==-2 ? (writing ? OS_EIO : 0) : r<0 ? OS_EIO : r==0 ? OS_EAGAIN : r;
     }
-    if(dev>=VDIR_ROOT && dev<=VDIR_DEV_NET) return OS_EBADF;
+    if(dev>=VDIR_ROOT && dev<=VDIR_I2C) return OS_EBADF;
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) return tmp_rw(fd,p,n,writing);
     if(dev==DEV_TRACE) {
         if(writing) return OS_EBADF;
@@ -1794,54 +1870,84 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         return gpio_driver_rw(1,(unsigned)(dev-DEV_GPIO_DIR_BASE),p,n,writing);
     if(dev>=DEV_GPIO_PULL_BASE && dev<=DEV_GPIO_PULL_END)
         return gpio_driver_rw(2,(unsigned)(dev-DEV_GPIO_PULL_BASE),p,n,writing);
-    return gpio_driver_rw(0,(unsigned)(dev-DEV_GPIO_VALUE_BASE),p,n,writing);
+    if(dev>=DEV_GPIO_VALUE_BASE && dev<=DEV_GPIO_VALUE_END)
+        return gpio_driver_rw(0,(unsigned)(dev-DEV_GPIO_VALUE_BASE),p,n,writing);
+    /* I2C uses ioctl(), not read/write; never dispatch unknown IDs as GPIO. */
+    return OS_EBADF;
+}
+/* Terminal control is independent of GPIO, I2C and framebuffer ioctl. */
+static int device_ioctl_tty(int dev,int cmd,int arg) {
+    int tty=dev==DEV_CONSOLE ? 0 :
+            dev==DEV_UART1 ? 1 :
+            (PICONIX_WIFI && dev==DEV_WIFI_TTY) ? 2 : -1;
+    if(tty<0) return OS_EINVAL;
+    if(cmd==OS_TTY_CLAIM) {
+        if(tty_owner_pid(tty)) return OS_EBUSY;
+        /* A background user with an open descriptor also makes it busy. */
+        int id=tty==2 ? DEV_WIFI_TTY : (tty ? DEV_UART1 : DEV_CONSOLE);
+        for(int i=0;i<OS_MAX_TASKS;i++) {
+            if(i==current || tasks[i].state==UNUSED || tasks[i].state==DEAD) continue;
+            for(int f=0;f<OS_FD_MAX;f++) if(tasks[i].fd[f]==id) return OS_EBUSY;
+        }
+        tty_claim_pid[tty]=tasks[current].pid;
+        tty_mode_reset(tty);
+        /* Discard input received before the terminal was claimed. */
+        if(tty<2)rx[tty].tail=rx[tty].head;
+        return 0;
+    }
+    if(cmd==OS_TTY_RELEASE) {
+        if(tty_claim_pid[tty]!=tasks[current].pid)return OS_EIO;
+        tty_claim_pid[tty]=0;
+        tty_mode_reset(tty);
+        return 0;
+    }
+    if(tty_owner_pid(tty)!=tasks[current].pid)return OS_EIO;
+    if(cmd==OS_TTY_PERSIST){
+        tty_mode_owner[tty]=0;
+        /* stty/reset intentionally changes the terminal beyond its lifetime. */
+        if(tty_restore_pid[tty]==tasks[current].pid) tty_restore_pid[tty]=0;
+        return 0;
+    }
+    if(cmd==OS_TTY_GET_CANON)return tty_canonical[tty];
+    if(cmd==OS_TTY_GET_ECHO)return tty_echo[tty];
+    if(cmd==OS_TTY_GET_ONLCR)return tty_onlcr[tty];
+    if(arg!=0 && arg!=1)return OS_EINVAL;
+    if(cmd==OS_TTY_SET_CANON && tty_canonical[tty]!=arg){
+        /* Keep already received bytes when switching input mode. */
+        tty_canonical[tty]=(uint8_t)arg;
+    }
+    if(cmd==OS_TTY_SET_ECHO)tty_echo[tty]=(uint8_t)arg;
+    if(cmd==OS_TTY_SET_ONLCR)tty_onlcr[tty]=(uint8_t)arg;
+    tty_mode_owner[tty]=tasks[current].pid;
+    return 0;
+}
+/* GPIO status can be queried on any GPIO value descriptor. */
+static int device_ioctl_gpio_status(int fd,int cmd) {
+    int dev=tasks[current].fd[fd];
+    if(dev<DEV_GPIO_VALUE_BASE || dev>DEV_GPIO_VALUE_END) return OS_EBADF;
+    unsigned pin=(unsigned)(cmd-OS_GPIO_STATUS_BASE);
+    unsigned mode=GPIO_STATUS_OTHER;
+    unsigned level=0, pull=0;
+    if(pin<16 && fb_active()) mode=GPIO_STATUS_FB;
+    else {
+        gpio_function_t fn=gpio_get_function(pin);
+        if(fn==GPIO_FUNC_PWM) mode=GPIO_STATUS_PWM;
+        else if(fn==GPIO_FUNC_I2C) mode=GPIO_STATUS_I2C;
+        else if(fn==GPIO_FUNC_UART) mode=(pin==20 || pin==0) ? GPIO_STATUS_UART_TX : GPIO_STATUS_UART_RX;
+        else if(fn==GPIO_FUNC_NULL) mode=(pin>=26 && pin<=28 && pin_adc(pin-26)) ? GPIO_STATUS_ADC : GPIO_STATUS_FREE;
+        else if(fn==GPIO_FUNC_SIO) {
+            mode=gpio_get_dir(pin)==GPIO_OUT ? GPIO_STATUS_OUT : GPIO_STATUS_IN;
+            level=gpio_get(pin)!=0;
+            pull=gpio_is_pulled_up(pin)?1u:(gpio_is_pulled_down(pin)?2u:0u);
+        } else if(pin>=26 && pin<=28 && pin_adc(pin-26)) mode=GPIO_STATUS_ADC;
+    }
+    return (int)(mode | (level<<GPIO_STATUS_LEVEL_SHIFT) | (pull<<GPIO_STATUS_PULL_SHIFT));
 }
 static int device_ioctl(int fd,int cmd,int arg) {
     if(fd<0 || fd>=OS_FD_MAX || tasks[current].fd[fd]<0) return OS_EBADF;
     int dev=tasks[current].fd[fd];
-    if(cmd>=OS_TTY_GET_CANON && cmd<=OS_TTY_RELEASE) {
-        if(dev!=DEV_CONSOLE && dev!=DEV_UART1 && !(PICONIX_WIFI && dev==DEV_WIFI_TTY))return OS_EINVAL;
-        int tty=(dev==DEV_CONSOLE)?0:(dev==DEV_WIFI_TTY?2:1);
-        if(cmd==OS_TTY_CLAIM) {
-            if(tty_owner_pid(tty)) return OS_EBUSY;
-            /* A background user with an open descriptor also makes it busy. */
-            int id=tty==2 ? DEV_WIFI_TTY : (tty ? DEV_UART1 : DEV_CONSOLE);
-            for(int i=0;i<OS_MAX_TASKS;i++) {
-                if(i==current || tasks[i].state==UNUSED || tasks[i].state==DEAD) continue;
-                for(int f=0;f<OS_FD_MAX;f++) if(tasks[i].fd[f]==id) return OS_EBUSY;
-            }
-            tty_claim_pid[tty]=tasks[current].pid;
-            tty_mode_reset(tty);
-            /* Discard input received before the terminal was claimed. */
-            if(tty<2)rx[tty].tail=rx[tty].head;
-            return 0;
-        }
-        if(cmd==OS_TTY_RELEASE) {
-            if(tty_claim_pid[tty]!=tasks[current].pid)return OS_EIO;
-            tty_claim_pid[tty]=0;
-            tty_mode_reset(tty);
-            return 0;
-        }
-        if(tty_owner_pid(tty)!=tasks[current].pid)return OS_EIO;
-        if(cmd==OS_TTY_PERSIST){
-            tty_mode_owner[tty]=0;
-            /* stty/reset intentionally changes the terminal beyond its lifetime. */
-            if(tty_restore_pid[tty]==tasks[current].pid) tty_restore_pid[tty]=0;
-            return 0;
-        }
-        if(cmd==OS_TTY_GET_CANON)return tty_canonical[tty];
-        if(cmd==OS_TTY_GET_ECHO)return tty_echo[tty];
-        if(cmd==OS_TTY_GET_ONLCR)return tty_onlcr[tty];
-        if(arg!=0 && arg!=1)return OS_EINVAL;
-        if(cmd==OS_TTY_SET_CANON && tty_canonical[tty]!=arg){
-            /* Keep already received bytes when switching input mode. */
-            tty_canonical[tty]=(uint8_t)arg;
-        }
-        if(cmd==OS_TTY_SET_ECHO)tty_echo[tty]=(uint8_t)arg;
-        if(cmd==OS_TTY_SET_ONLCR)tty_onlcr[tty]=(uint8_t)arg;
-        tty_mode_owner[tty]=tasks[current].pid;
-        return 0;
-    }
+    if(cmd>=OS_TTY_GET_CANON && cmd<=OS_TTY_RELEASE)
+        return device_ioctl_tty(dev,cmd,arg);
     if(dev==DEV_I2C1) {
         if(cmd!=OS_I2C_TRANSFER) return OS_EINVAL;
         piconix_i2c_transfer_t *t=(piconix_i2c_transfer_t *)(uintptr_t)(unsigned)arg;
@@ -1868,27 +1974,8 @@ static int device_ioctl(int fd,int cmd,int arg) {
     }
     /* Query any GP0..28 through an existing GPIO descriptor, even if fb owns it.
      * Return compact mode/level/pull bits; no additional device or state cache. */
-    if(cmd>=OS_GPIO_STATUS_BASE && cmd<OS_GPIO_STATUS_BASE+29) {
-        int dev=tasks[current].fd[fd];
-        if(dev<DEV_GPIO_VALUE_BASE || dev>DEV_GPIO_VALUE_END) return OS_EBADF;
-        unsigned pin=(unsigned)(cmd-OS_GPIO_STATUS_BASE);
-        unsigned mode=GPIO_STATUS_OTHER;
-        unsigned level=0, pull=0;
-        if(pin<16 && fb_active()) mode=GPIO_STATUS_FB;
-        else {
-            gpio_function_t fn=gpio_get_function(pin);
-            if(fn==GPIO_FUNC_PWM) mode=GPIO_STATUS_PWM;
-            else if(fn==GPIO_FUNC_I2C) mode=GPIO_STATUS_I2C;
-            else if(fn==GPIO_FUNC_UART) mode=(pin==20 || pin==0) ? GPIO_STATUS_UART_TX : GPIO_STATUS_UART_RX;
-            else if(fn==GPIO_FUNC_NULL) mode=(pin>=26 && pin<=28 && pin_adc(pin-26)) ? GPIO_STATUS_ADC : GPIO_STATUS_FREE;
-            else if(fn==GPIO_FUNC_SIO) {
-                mode=gpio_get_dir(pin)==GPIO_OUT ? GPIO_STATUS_OUT : GPIO_STATUS_IN;
-                level=gpio_get(pin)!=0;
-                pull=gpio_is_pulled_up(pin)?1u:(gpio_is_pulled_down(pin)?2u:0u);
-            } else if(pin>=26 && pin<=28 && pin_adc(pin-26)) mode=GPIO_STATUS_ADC;
-        }
-        return (int)(mode | (level<<GPIO_STATUS_LEVEL_SHIFT) | (pull<<GPIO_STATUS_PULL_SHIFT));
-    }
+    if(cmd>=OS_GPIO_STATUS_BASE && cmd<OS_GPIO_STATUS_BASE+29)
+        return device_ioctl_gpio_status(fd,cmd);
     if(tasks[current].fd[fd]<DEV_GPIO_VALUE_BASE || tasks[current].fd[fd]>DEV_GPIO_VALUE_END) return OS_EBADF;
     int pin=tasks[current].fd[fd]-DEV_GPIO_VALUE_BASE;
     if(!pin_gpio(pin)) return OS_EINVAL;
@@ -1912,8 +1999,7 @@ void os_svc_dispatch(uint32_t *f) {
         case SYS_SOCKET: {
             if(a!=2 || (b!=1 && b!=2) || c!=0) { result=OS_EINVAL; break; }
             if(b==2 && udp_owner_pid) { result=OS_EBUSY; break; }
-            int fd=-1;
-            for(int i=3;i<OS_FD_MAX;i++) if(tasks[current].fd[i]<0) { fd=i; break; }
+            int fd=free_fd();
             if(fd<0) { result=OS_EMFILE; break; }
             int id=0;
             if(b==1) {
@@ -1937,8 +2023,7 @@ void os_svc_dispatch(uint32_t *f) {
             if(id<0 || tasks[current].fd[a]!=DEV_SOCKET_TCP || !net_socket_tcp_listening(id)) {
                 result=OS_EBADF; break;
             }
-            int fd=-1;
-            for(int i=3;i<OS_FD_MAX;i++) if(tasks[current].fd[i]<0) { fd=i; break; }
+            int fd=free_fd();
             if(fd<0) { result=OS_EMFILE; break; }
             if(!net_socket_tcp_accept_ready(id)) { result=OS_EAGAIN; break; }
             fd_set(&tasks[current],fd,DEV_SOCKET_TCP_ACCEPTED,(uint32_t)id,OS_O_RDWR,0);
@@ -2084,7 +2169,11 @@ void os_svc_dispatch(uint32_t *f) {
                 task_t *child=&tasks[slot];
                 if(tty_shell_pid[0]==child->pid) tty_shell_pid[0]=0;
                 child->tty=(uint8_t)tty;
-                for(int j=0;j<3;j++) fd_set(child,j,tty?30:0,0,0,0);
+                /* Discard inherited stdio first: it may contain pipe ends. */
+                for(int j=0;j<3;j++) {
+                    fd_release(child,j);
+                    fd_set(child,j,tty ? DEV_UART1 : DEV_CONSOLE,0,0,0);
+                }
                 if(b==2) tty_shell_pid[tty]=child->pid;
                 else foreground_pid[tty]=child->pid;
             }
@@ -2201,9 +2290,8 @@ void os_svc_dispatch(uint32_t *f) {
         case SYS_DUP: {
             task_t *t=&tasks[current];
             if(a<0 || a>=OS_FD_MAX || t->fd[a]<0) { result=OS_EBADF; break; }
-            /* Socket ownership is not reference-counted: keep dup consistent with dup2. */
-            if(t->fd[a]==DEV_SOCKET_UDP || t->fd[a]==DEV_SOCKET_TCP ||
-               t->fd[a]==DEV_SOCKET_TCP_ACCEPTED) { result=OS_EINVAL; break; }
+            /* Socket ownership is not reference-counted. */
+            if(fd_is_socket(t->fd[a])) { result=OS_EINVAL; break; }
             int target=free_fd();
             if(target<0) { result=OS_EMFILE; break; }
             fd_copy(t,target,a);
@@ -2211,8 +2299,10 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_DUP2:
-            if((a>=0 && a<OS_FD_MAX && (tasks[current].fd[a]==DEV_SOCKET_UDP || tasks[current].fd[a]==DEV_SOCKET_TCP || tasks[current].fd[a]==DEV_SOCKET_TCP_ACCEPTED)) ||
-               (b>=0 && b<OS_FD_MAX && (tasks[current].fd[b]==DEV_SOCKET_UDP || tasks[current].fd[b]==DEV_SOCKET_TCP || tasks[current].fd[b]==DEV_SOCKET_TCP_ACCEPTED))) { result=OS_EINVAL; break; }
+            if((a>=0 && a<OS_FD_MAX && fd_is_socket(tasks[current].fd[a])) ||
+               (b>=0 && b<OS_FD_MAX && fd_is_socket(tasks[current].fd[b]))) {
+                result=OS_EINVAL; break;
+            }
             if(a<0 || a>=OS_FD_MAX || b<0 || b>=OS_FD_MAX || tasks[current].fd[a]<0) result=OS_EBADF;
             else {
                 if(a!=b) {
@@ -2262,7 +2352,10 @@ void os_svc_dispatch(uint32_t *f) {
             else if(b==1) result=tasks[current].fd_flags[a]; /* F_GETFL */
             else if(b==2) { /* F_SETFL: only O_NONBLOCK is mutable */
                 if(c & ~(OS_O_NONBLOCK | OS_O_RDWR | OS_O_WRONLY | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND)) result=OS_EINVAL;
-                else if(tasks[current].fd[a]!=DEV_SOCKET_TCP && tasks[current].fd[a]!=DEV_SOCKET_TCP_ACCEPTED && tasks[current].fd[a]!=DEV_SOCKET_UDP && tasks[current].fd[a]!=DEV_CONSOLE && tasks[current].fd[a]!=DEV_UART1 && !(PICONIX_WIFI && tasks[current].fd[a]==DEV_WIFI_TTY)) result=OS_EINVAL;
+                else if(!fd_is_socket(tasks[current].fd[a]) &&
+                        tasks[current].fd[a]!=DEV_CONSOLE &&
+                        tasks[current].fd[a]!=DEV_UART1 &&
+                        !(PICONIX_WIFI && tasks[current].fd[a]==DEV_WIFI_TTY)) result=OS_EINVAL;
                 else {
                     tasks[current].fd_flags[a]=(tasks[current].fd_flags[a] & ~OS_O_NONBLOCK) | (c & OS_O_NONBLOCK);
                     result=0;

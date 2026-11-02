@@ -63,7 +63,7 @@ Pico WビルドではlwIPを使用します．Wi-FiモードはAPまたはSTAを
 | HTTP（TCP 80） | ユーザプログラム`httpd` |
 | UDPデバイス制御（UDP 2000） | カーネル側サービス |
 | ソケットAPI | ユーザプログラム用のTCP/UDP機能．BSDソケットの完全互換ではありません |
-| ユーザTCPソケット管理枠 | 4（`kernel/kernel.c`の`TCP_USER_SLOTS`） |
+| ユーザTCPソケット管理枠 | 4（`kernel/net_socket.h`の`NET_SOCKET_TCP_SLOTS`） |
 | UDPデータ転送上限の内部定数 | 512バイト（`NET_SOCKET_UDP_MAX`） |
 
 詳細は[Wi-Fi](WIFI-MODES.md)，[ネットワーク](NETWORK.md)，[ソケットプログラミング](NETWORK-PROGRAMMING.md)を参照してください．TelnetとUDPデバイス制御は暗号化された認証付きサービスではないため，信頼できるネットワークで使用してください．

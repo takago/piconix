@@ -19,7 +19,7 @@ stty cooked
 - `echo` / `-echo` enables / disables input echo.
 - `raw` is shorthand for `-icanon -echo`; `cooked` is shorthand for `icanon echo`. These are not the full POSIX raw/cooked configurations.
 
-C applications can use `ioctl()` with `OS_TTY_GET_CANON`, `OS_TTY_GET_ECHO`, `OS_TTY_SET_CANON`, and `OS_TTY_SET_ECHO`. `stty` calls `OS_TTY_PERSIST` to retain settings after it exits. For foreground applications, the kernel restores saved TTY settings when the task exits; `edit`, `mem`, `gpio`, `mb`, `pong`, and `fbed` therefore do not restore these settings on normal exit. Applications retain startup-failure rollback. `VMIN` and `VTIME` are not supported.
+C applications can use `ioctl()` with `OS_TTY_GET_CANON`, `OS_TTY_GET_ECHO`, `OS_TTY_SET_CANON`, and `OS_TTY_SET_ECHO`. `stty` calls `OS_TTY_PERSIST` to retain settings after it exits. For foreground applications, the kernel restores saved TTY settings when the task exits. In pipelines, terminal input ownership passes to a surviving stage when a stage exits early, and saved settings are restored after the last stage exits; `edit`, `mem`, `gpio`, `mb`, `pong`, and `fbed` therefore do not restore these settings on normal exit. Applications retain startup-failure rollback. `VMIN` and `VTIME` are not supported.
 
 ## Nonblocking I/O: `fcntl()`
 

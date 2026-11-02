@@ -13,7 +13,8 @@ libc = (root / 'userland/libc.c').read_text()
 for token in ('#define NET_TTY_QUEUE_SIZE 2048u',
               'if (needed > queue_space(net_tx_head, net_tx_tail)) return 0;',
               'if (available > TCP_MSS) available = TCP_MSS;',
-              'if (tcp_close(pcb) != ERR_OK) tcp_abort(pcb);',
+              'if (tcp_close(pcb) != ERR_OK) {',
+              'tcp_abort(pcb);', 'return ERR_ABRT;',
               'net_receive_byte(data[i]);', 'client_telnet', 'telnet_hello',
               'tcp_bind(telnet_listener, IP_ANY_TYPE, 23)'):
     assert token in net, token

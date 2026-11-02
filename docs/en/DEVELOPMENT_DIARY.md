@@ -8,7 +8,7 @@
 
 PicoNIX grew into a small UNIX-like operating system for Raspberry Pi Pico (RP2040), intended to make operating-system mechanisms observable and understandable. This diary records **the development process through conversations between the developer and ChatGPT**: design choices, experiments, failures, revisions, and lessons learned. It is not a substitute for the current technical documentation.
 
-The primary period is **October 24 through November 2, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
+The primary period is **October 24 through November 3, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
 
 ## October 24–25: Starting from a small operating system
 
@@ -159,6 +159,38 @@ The assembler's source maximum was likewise raised to **2,048 bytes**. The machi
 
 These changes prioritize predictable fixed memory usage for OS education rather than expanding PicoNIX Python toward full Python compatibility. See [Python](PYTHON.md) and [Assembler](ASM.md) for the current limits.
 
+
+## November 2–3, 2026: System-wide refactoring and regression tests (stages 1–7)
+
+Starting with the latest source ZIP, the project undertook incremental refactoring intended to preserve existing behavior. Changes were delivered as archives containing only modified files, with diffs and host-based regression checks against the preceding stage.
+
+Stage 1 addressed task switching during lwIP polling and socket cleanup triggered from the UART1 Ctrl+C interrupt path. Stages 2–3 reviewed Telnet's required `ERR_ABRT` return after `tcp_abort()`, received-pbuf ownership, TCP receive capacity, send failures, half-close, and deferred close handling. The historical `tcp_receive: valid queue length` assertion **remained unresolved**; preventive fixes are not proof of a root-cause resolution.
+
+Stage 4 consolidated GPIO path parsing and improved user-pointer bounds checking. Stage 5 tightened HTTP request parsing and EOF handling in user-space `httpd`. Stage 6 unified FD inheritance, duplication, and release, including cleanup of inherited descriptors when starting `getty` on another TTY. Stage 7 consolidated task completion and unblock paths used by `waitpid()`, pipes, and terminal input.
+
+A build failure was then discovered in Pico W STA mode: conditional compilation left calls to AP-only `ap_dhcp_server_start()` and `ap_dhcp_active` visible from `net_init()`. The conditional boundary was fixed, and AP/STA compile checks were added. **The developer reported a successful build after this fix.** Subsequent validation should distinguish ordinary Pico, Pico W AP, and Pico W STA configurations.
+
+## November 3: Foreground TTY ownership and trace interrupts (stage 8)
+
+A three-stage pipeline could lose its foreground TTY owner when its final process exited before the others. The exit path was revised to transfer ownership to a surviving foreground process and defer TTY-mode restoration until the pipeline was finished. The trace ring, written from SysTick, UART1, and SVC contexts, was also protected by a short interrupt-disabled critical section.
+
+Host-based regression checks were reported as passing, but this stage still required a full Pico SDK build and hardware load tests.
+
+## November 3: Reusing the 16 KiB network reservation (stage 9)
+
+The network memory reservation was reviewed rather than simply increasing stacks everywhere. For Pico W, the lwIP heap was enlarged from 4 to 10 KiB and the 4 KiB idle stack moved into the 16 KiB reserved region, leaving roughly 2 KiB for boundaries and overhead. The pbuf pool increased from four to eight 512-byte buffers, while remaining in kernel RAM. The regular Pico layout was unchanged.
+
+A new `/proc/net/memory` interface exposes heap, pbuf pool, and idle-stack use, high-water marks, and allocation-failure counters. Link-time layout verification was also extended. The reported 63 passing host regression tests did **not** establish a successful final Pico SDK link, measured hardware stack headroom, or long-duration TCP stability. The earlier TCP assertion is still a separate investigation.
+
+## November 3: Reduced flicker in `watch` and `mem`
+
+The original `watch` cleared and redrew the whole terminal on every cycle. It was changed to capture command output through a pipe and update only lines that differ from the previous display. Because the pipe holds only 256 bytes, output must be drained before waiting for the child to exit. The display uses about 3.2 KiB of buffers, with limits of 20 lines and 78 bytes per line; excess output is drained and indicated as truncated.
+
+Both `watch` and `mem` also gained temporary ANSI autowrap suppression while rendering. Testing on physical USB, UART, and Telnet terminals remains important, particularly for interrupted output and terminal-mode restoration.
+
+## November 3: Shared-memory assembly teaching example
+
+A small Thumb assembly sample, `counter.s`, increments a 32-bit value at the start of shared memory (`0x20032000`). The result can be checked without a temporary file using `dd if=/dev/shm of=- bs=1 count=4 | hexdump`. This example was added to the Japanese and English `MEMORY-LAYOUT.md` documents. It illustrates shared state across process launches, **not** atomic updates under concurrency. Assembly and execution on PicoNIX hardware were not yet verified.
 
 ## Historical accuracy and references
 

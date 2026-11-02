@@ -70,3 +70,5 @@ After obtaining an IPv4 address through DHCP, STA mode sends a gratuitous ARP (G
 
 In diagnostic testing, GARP packets arrived irregularly over one Linux Wi-Fi/AP combination, but regularly on a wired interface on that AP and over Wi-Fi with a different AP. This does not establish a PicoNIX timer defect; investigate access-point and client-driver combinations before drawing conclusions. Periodic GARP is not a permanent fix for ARP connectivity faults.
 
+
+The additional `cat /proc/net/memory` snapshot is available in both AP and STA modes.

@@ -83,7 +83,11 @@ piconix# ps
 
 The Shell implements `<`, `>` and `>>` by setting standard descriptors 0, 1 and 2 before starting a child. `dup2()` is simplified and does not implement POSIX shared file offsets. Pipelines of up to three commands are supported. Quoted argument grouping and `2>` are unsupported.
 
+A child inherits only standard FDs (0–2). Pipe endpoints gain a reference when inherited or duplicated, and lose one on `close()` or task termination. A `getty` spawned for another TTY releases its inherited standard FDs before attaching the new terminal. `dup()`/`dup2()` of TCP/UDP sockets is not supported.
+
 With `command &`, the Shell returns without waiting for the external command. `Ctrl+C` directly terminates the registered foreground tasks of the respective terminal (up to three pipeline stages); it does not deliver POSIX signals to process groups.
+
+On task exit, the kernel releases FDs and sockets and removes the completed PID from the foreground task registry. If a pipeline stage exits early, a surviving stage inherits foreground terminal ownership and responsibility for restoring saved TTY settings. `waitpid()` completion notices are kept separately from reusable task slots (the exit status is reported as zero). When resuming a blocked terminal read, pipe I/O, or `waitpid()`, the kernel fills in the saved SVC return value and clears temporary wait state and borrowed user pointers before marking the task READY.
 
 ## 6. TTY and I/O
 
@@ -105,9 +109,11 @@ Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) 
 
 See [Devices and wiring](DEVICES.md) for device paths and pin assignments. Each task has its own descriptors, and the same `read()` and `write()` APIs operate on files and devices.
 
+Internally, `open()` and `getdents()` share the same parser for `/dev/gpio/N`, `/dev/gpio/N.dir`, and `/dev/gpio/N.pull`; `kernel/pins.h` determines which pins are available. Path normalization checks each user-string address before reading it. Unsupported device IDs are not dispatched to GPIO and unsupported read/write operations return an error. Transfers through `/dev/i2c/1` use `ioctl()`, not `read()` or `write()`.
+
 ## 8. Tracing and debugging
 
-The kernel uses a dedicated ring buffer at `0x20038000`–`0x2003BFFF`, holding 512 records of 32 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text.
+The kernel uses a dedicated ring buffer at `0x20038000`–`0x2003BFFF`, holding 512 records of 32 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text. To prevent competing writes from SysTick, UART1 and SVC, each record and the ring counters are updated in a short interrupt-masked section.
 
 ```text
 trace on
@@ -132,3 +138,5 @@ trace show
 | `userland/slot.ld`, `CMakeLists.txt` | RAM layout, images and PIC validation |
 
 **Next:** [C application development](PROGRAMMING.md) for adding a command, [Devices and wiring](DEVICES.md) for hardware, and [Terminal settings and interactive input](TTY.md) for TTY details.
+
+Pico W uses the 16-KiB network reserve for its 10-KiB lwIP heap and 4-KiB idle task stack; see [Memory layout](MEMORY-LAYOUT.md).

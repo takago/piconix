@@ -16,9 +16,10 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/tcp.h"
 #include "lwip/udp.h"
+#include "lwip/stats.h"
+#include "lwip/memp.h"
 #include <string.h>
 #include <stdint.h>
-#include <stdio.h>
 
 /* One DHCP lease and one TCP connection.
  * Stage 18: bounded queues for the independent network TTY. */
@@ -37,6 +38,12 @@ static int ap_dhcp_active;
  * responsiveness, and 250 us is the current experimental default.
  * This is a minimum interval, not a guaranteed periodic deadline. */
 #define NET_POLL_INTERVAL_US 250ull
+/* Keep lwIP raw-API operations serial across the idle and task contexts. */
+/* lwIP creates lo0 during cyw43_arch_init()/lwip_init().
+ * Keep its packet delivery in the existing serialized idle poll context. */
+static struct netif *loop_iface;
+static volatile unsigned net_poll_active;
+int net_poll_in_progress(void) { return net_poll_active != 0; }
 static uint64_t net_poll_last_us;
 static uint32_t net_poll_count;
 static uint32_t net_poll_max_gap_us;
@@ -361,6 +368,9 @@ void net_init(void) {
         puts("PicoNIX: CYW43 initialization failed");
         return;
     }
+    loop_iface = netif_find("lo0");
+    if (!loop_iface)
+        puts("PicoNIX: loopback interface unavailable");
 #if PICONIX_WIFI_STA
     strncpy(wifi_ssid, PICONIX_STA_SSID, sizeof(wifi_ssid)-1);
     wifi_ssid[sizeof(wifi_ssid)-1] = 0;
@@ -394,7 +404,6 @@ void net_init(void) {
     mdns_resp_init();
     ap_mdns_error = (int)mdns_resp_add_netif(ap_iface, "piconix");
     ap_mdns_registered = (ap_mdns_error == ERR_OK);
-#endif
     int telnet_ready = net_service_telnet_init();
     int dhcp_ready = ap_dhcp_server_start();
     ap_dhcp_active = dhcp_ready;
@@ -404,6 +413,7 @@ void net_init(void) {
     puts(dhcp_ready ? "PicoNIX: DHCP server active (192.168.4.2)"
                     : "PicoNIX: DHCP server initialization failed");
     puts(telnet_ready ? "PicoNIX: Telnet terminal port 23" : "PicoNIX: Telnet listener failed");
+#endif /* PICONIX_WIFI_STA: AP-only initialization */
 }
 #if !PICONIX_WIFI_STA
 /* Called outside cyw43_arch_poll(), never from an lwIP callback. */
@@ -452,7 +462,11 @@ void net_poll(void) {
     }
     net_poll_last_us = now;
     ++net_poll_count;
+    net_poll_active = 1;
     cyw43_arch_poll();
+    /* Drain 127.0.0.1 packets without calling lwIP input recursively.
+     * A response queued by a callback is handled on the next idle poll. */
+    if (loop_iface) netif_poll(loop_iface);
 #if PICONIX_WIFI_STA
     sta_poll();
 #endif
@@ -471,11 +485,39 @@ void net_poll(void) {
     }
 #endif
     net_service_telnet_poll();
+    net_poll_active = 0;
 }
 #else
 void net_init(void) {}
 void net_poll(void) {}
+/* The scheduler calls this on regular Pico builds too. */
+int net_poll_in_progress(void) { return 0; }
 #endif
+
+/* Read-only network memory snapshot.  lwIP stats are accumulated since
+ * startup; they are not the total CYW43 or kernel SRAM consumption. */
+int net_memory_info(char *out, unsigned size) {
+    if (!size) return 0;
+#if PICONIX_WIFI
+    const struct stats_mem *pool = lwip_stats.memp[MEMP_PBUF_POOL];
+    int len = snprintf(out, size,
+        "LWIP_HEAP: %u/%u/%u\nLWIP_HEAP_ERRORS: %u\n"
+        "PBUF_POOL: %u/%u/%u\nPBUF_POOL_ERRORS: %u\n"
+        "IDLE_STACK: %u/%u\n",
+        (unsigned)lwip_stats.mem.used, (unsigned)lwip_stats.mem.max,
+        (unsigned)MEM_SIZE, (unsigned)lwip_stats.mem.err,
+        pool ? (unsigned)pool->used : 0u,
+        pool ? (unsigned)pool->max : 0u,
+        (unsigned)PBUF_POOL_SIZE,
+        pool ? (unsigned)pool->err : 0u,
+        os_idle_stack_used_bytes(), os_idle_stack_capacity_bytes());
+#else
+    int len = snprintf(out, size, "MODE: N/A\nIDLE_STACK: %u/%u\n",
+        os_idle_stack_used_bytes(), os_idle_stack_capacity_bytes());
+#endif
+    if (len < 0) return 0;
+    return (unsigned)len >= size ? (int)(size - 1u) : len;
+}
 
 /* Read-only /proc/net/wifi snapshot. */
 #if PICONIX_WIFI
@@ -545,9 +587,9 @@ int net_wifi_request_restart(void) {
 /* No CYW43 transactions from syscalls: AP clients are cached by net_poll(). */
 int net_diag_info(char *out, unsigned size, int type) {
     if (!size) return 0;
+#if PICONIX_WIFI
     unsigned used = 0;
     int n;
-#if PICONIX_WIFI
     if (!wifi_ready) return snprintf(out,size,"Network unavailable\n");
     if (type == 0) {
 #if PICONIX_WIFI_STA

@@ -19,7 +19,7 @@ stty cooked
 - `echo` / `-echo`：入力文字のエコーを有効 / 無効にします．
 - `raw` は `-icanon -echo`，`cooked` は `icanon echo` の簡易指定です．POSIXの完全なraw/cooked設定ではありません．
 
-Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_SET_CANON`，`OS_TTY_SET_ECHO` を使います．`stty` は `OS_TTY_PERSIST` によりコマンド終了後も設定を維持します．フォアグラウンドで起動されたアプリでは，カーネルが実行前のTTY設定を保存し，終了時（Ctrl+Cやkillを含む）に復元します．`edit`，`mem`，`gpio`，`mb`，`pong`，`fbed` は通常終了時のTTY設定復元をカーネルに任せます．起動途中の設定失敗時にはアプリも復旧を試みます．`VMIN` / `VTIME` には対応していません．
+Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_SET_CANON`，`OS_TTY_SET_ECHO` を使います．`stty` は `OS_TTY_PERSIST` によりコマンド終了後も設定を維持します．フォアグラウンドで起動されたアプリでは，カーネルが実行前のTTY設定を保存し，終了時（Ctrl+Cやkillを含む）に復元します．パイプラインでは，途中の段が先に終了しても実行中の段へ端末入力の所有権を引き継ぎ，TTY設定は最後の段が終了した時点で復元します．`edit`，`mem`，`gpio`，`mb`，`pong`，`fbed` は通常終了時のTTY設定復元をカーネルに任せます．起動途中の設定失敗時にはアプリも復旧を試みます．`VMIN` / `VTIME` には対応していません．
 
 ## FDごとのノンブロッキング：`fcntl()`
 

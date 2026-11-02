@@ -9,7 +9,8 @@ static int sendall(int fd,const char *p,unsigned n){
     unsigned idle=0;
     while(n){int r=send(fd,p,n,0);
         if(r==OS_EAGAIN||r==0){if(++idle>1500)return -1;msleep(2);continue;}
-        if(r<0)return -1;p+=r;n-=(unsigned)r;idle=0;
+        if(r<0)return -1;
+        p+=r;n-=(unsigned)r;idle=0;
     }return 0;
 }
 static int same(const char *a,const char *b){return strcmp(a,b)==0;}
@@ -94,6 +95,39 @@ static void api(int fd,int post,const char *path,const char *body,unsigned count
     if(n<1){text_reply(fd,400,"PWM error\n");return;}
     response(fd,200,value,(unsigned)n,"text/plain; charset=utf-8");
 }
+/* One complete header line at a time: reject ambiguous and malformed lengths.
+ * No allocation or general-purpose HTTP parser is needed for this demo. */
+static int content_length(const char *req,unsigned header,unsigned *length,int *found){
+    *length=0;*found=0;
+    for(unsigned i=0;i+1<header;){
+        unsigned start=i;
+        while(i+1<header&&(req[i]!='\r'||req[i+1]!='\n'))i++;
+        if(i+1>=header)return -1;
+        unsigned end=i;i+=2;
+        if(end-start<15 ||
+           (strncmp(req+start,"Content-Length:",15)!=0&&
+            strncmp(req+start,"content-length:",15)!=0))continue;
+        if(*found)return -1; /* Duplicate lengths are ambiguous. */
+        unsigned j=start+15;
+        while(j<end&&(req[j]==' '||req[j]=='\t'))j++;
+        if(j==end||req[j]<'0'||req[j]>'9')return -1;
+        unsigned n=0;
+        while(j<end&&req[j]>='0'&&req[j]<='9'){
+            n=n*10u+(unsigned)(req[j++]-'0');
+            if(n>32)return -2; /* Check before numeric overflow. */
+        }
+        while(j<end&&(req[j]==' '||req[j]=='\t'))j++;
+        if(j!=end)return -1;
+        *length=n;*found=1;
+    }
+    return 0;
+}
+/* Nonblocking socket: OS_EAGAIN is temporary; zero means TCP EOF. */
+static int recv_timed(int fd,char *buf,unsigned size,unsigned *elapsed){
+    int n=recv(fd,buf,size,0);
+    if(n==OS_EAGAIN){msleep(5);*elapsed+=5;}
+    return n;
+}
 /* A bounded request: only GET and small POST bodies, no chunked encoding.
  * A 2 KiB static request buffer handles normal browser headers without
  * consuming the task's 4 KiB stack. Only one connection is handled at once. */
@@ -101,9 +135,11 @@ static void handle(int fd){
     static char req[2048]; /* Browsers send larger headers than curl; keep off the 4 KiB stack. */
     unsigned used=0,header=0,elapsed=0;
     while(!header&&elapsed<3000){
-        int n=recv(fd,req+used,sizeof req-1-used,0);
-        if(n==OS_EAGAIN||n==0){msleep(5);elapsed+=5;continue;}
-        if(n<0)return;used+=(unsigned)n;req[used]=0;
+        int n=recv_timed(fd,req+used,sizeof req-1-used,&elapsed);
+        if(n==OS_EAGAIN)continue;
+        if(n==0){text_reply(fd,400,"Incomplete headers\n");return;}
+        if(n<0)return;
+        used+=(unsigned)n;req[used]=0;
         for(unsigned i=3;i<used;i++)if(req[i-3]=='\r'&&req[i-2]=='\n'&&req[i-1]=='\r'&&req[i]=='\n') {header=i+1;break;}
         if(!header&&used==sizeof req-1){text_reply(fd,413,"Headers too large\n");return;}
     }
@@ -119,20 +155,12 @@ static void handle(int fd){
     if(!j||k>=header||req[k]!=' '){text_reply(fd,400,"Bad request\n");return;}
     int post=same(method,"POST");
     if(!post&&!same(method,"GET")){text_reply(fd,405,"GET or POST required\n");return;}
-    unsigned length=0;int got_length=0;
-    /* Content-Length is required for POST; inspect complete header lines only. */
-    for(unsigned i=0;i+15<header;i++){
-        if(i!=0&&req[i-1]!='\n')continue;
-        if(strncmp(req+i,"Content-Length:",15)!=0&&strncmp(req+i,"content-length:",15)!=0)continue;
-        unsigned j=i+15;
-        while(j<header&&(req[j]==' '||req[j]=='\t'))j++;
-        got_length=1;
-        if(j>=header||req[j]<'0'||req[j]>'9'){text_reply(fd,400,"Invalid length\n");return;}
-        while(j<header&&req[j]>='0'&&req[j]<='9'){
-            length=length*10u+(unsigned)(req[j++]-'0');
-            if(length>32){text_reply(fd,413,"Body too large\n");return;}
-        }
-        break;
+    unsigned length;int got_length;
+    int length_status=content_length(req,header,&length,&got_length);
+    if(length_status<0){
+        text_reply(fd,length_status==-2?413:400,
+                   length_status==-2?"Body too large\n":"Invalid length\n");
+        return;
     }
     if(post&&!got_length){text_reply(fd,400,"Content-Length required\n");return;}
     if(post){
@@ -141,9 +169,11 @@ static void handle(int fd){
         if(count)memcpy(body,req+header,count);
         elapsed=0;
         while(count<length&&elapsed<3000){
-            int n=recv(fd,body+count,length-count,0);
-            if(n==OS_EAGAIN||n==0){msleep(5);elapsed+=5;continue;}
-            if(n<0)return;count+=(unsigned)n;
+            int n=recv_timed(fd,body+count,length-count,&elapsed);
+            if(n==OS_EAGAIN)continue;
+            if(n==0){text_reply(fd,400,"Incomplete body\n");return;}
+            if(n<0)return;
+            count+=(unsigned)n;
         }
         if(count!=length){text_reply(fd,400,"Incomplete body\n");return;}
         api(fd,1,path,body,length);return;
@@ -172,6 +202,7 @@ int main(void){
     puts("httpd: listening on TCP 80");
     for(;;){int client=accept(server,0,0);
         if(client==OS_EAGAIN){msleep(10);continue;}
-        if(client<0)break;handle(client);close(client);
+        if(client<0)break;
+        handle(client);close(client);
     }close(server);return 0;
 }

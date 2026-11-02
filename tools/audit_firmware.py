@@ -118,7 +118,7 @@ def audit(symbols, sections, slots=6):
             require(False, f'{name} allocated outside 56-KiB kernel SRAM')
     return problems
 
-def memory_report(sections, symbol_sizes, slots=6):
+def memory_report(sections, symbol_sizes, slots=6, wifi_idle=False):
     """Kernel high-water mark from allocated ELF SRAM sections (includes heap/stack)."""
     kernel_base, kernel_end = 0x20000000, SLOT_BASE
     ram_sections = [(name, size, addr) for name, (size, addr, _) in sections.items()
@@ -135,7 +135,13 @@ def memory_report(sections, symbol_sizes, slots=6):
         base = SLOT_BASE + i * 0x6000
         print(f'User slot {i+1} (24 KiB)  0x{base:08x}..0x{base+0x5fff:08x}     reserved (runtime)')
     if slots == 6:
-        print('Network reserved     0x2003c000..0x2003ffff      16384 bytes (not allocated)')
+        print('Network reserved     0x2003c000..0x2003ffff      16384 bytes')
+        if wifi_idle:
+            print('  lwIP heap           0x2003c000..0x2003e7ff      10240 bytes + metadata')
+            print('  allocator gap       0x2003e800..0x2003efff       2048 bytes')
+            print('  Wi-Fi idle stack    0x2003f000..0x2003ffff       4096 bytes')
+        else:
+            print('  ordinary Pico       reserved, Wi-Fi heap/stack not in use')
     print('SHM                    2048 bytes (0x20032000..0x200327ff)')
     print('RAM files             22528 bytes (0x20032800..0x20037fff)')
     print('Trace ring            16384 bytes (0x20038000..0x2003bfff, reserved gap)')
@@ -164,7 +170,8 @@ def main():
             problems.append(f'{symbol} must be at 0x{address:08x}')
     if symbols.get('trace_ring') != 0x20038000:
         problems.append('trace_ring must start at 0x20038000 (reserved 16-KiB gap)')
-    memory_report(sections, symbol_sizes, args.slots)
+    memory_report(sections, symbol_sizes, args.slots,
+                  wifi_idle=(symbols.get('idle_stack') == 0x2003f000))
     for name in ('.boot2', '.flashtext', '.ram_vector_table'):
         print(f'{name}: {sections.get(name, "MISSING")}')
     print(f'__vectors: {symbols.get("__vectors", "MISSING")}')

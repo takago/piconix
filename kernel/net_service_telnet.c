@@ -150,12 +150,17 @@ static err_t client_recv(void *arg, struct tcp_pcb *pcb,
         net_queues_reset();
         /* tcp_close may fail while unsent data remains. The PCB must not
          * survive with callbacks removed and the session forgotten. */
-        if (tcp_close(pcb) != ERR_OK) tcp_abort(pcb);
+        if (tcp_close(pcb) != ERR_OK) {
+            /* An aborted PCB must never be used by lwIP after this callback. */
+            tcp_abort(pcb);
+            return ERR_ABRT;
+        }
         return ERR_OK;
     }
     if (err != ERR_OK) {
+        /* The pbuf is consumed here: only ERR_OK may accompany pbuf_free(). */
         pbuf_free(p);
-        return err;
+        return ERR_OK;
     }
     /* Do not acknowledge bytes that cannot fit the RX ring.
      * lwIP retains its TCP receive window until these bytes can be accepted.

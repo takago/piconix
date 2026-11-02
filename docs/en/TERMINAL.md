@@ -66,3 +66,18 @@ reset
 `reset` enables canonical input and echo and attempts to leave alternate screens, reset text attributes and scrolling regions, show the cursor, and clear the display. It does not modify `O_NONBLOCK`. It cannot help if the user cannot enter commands at all.
 
 Earlier gtkterm/VS Code display issues, troubleshooting procedures, and incremental-build notes have moved to the [development history](../history/en/TERMINAL-DEBUG.md).
+
+## 7. Incremental screen updates with `watch`
+
+`watch [seconds] command [args...]` captures the child's stdout and stderr through a pipe, then compares the completed output to the previous snapshot. Only changed lines are rewritten using ANSI cursor positioning. The screen is cleared once on entry; shorter lines are cleared to end-of-line.
+
+```sh
+watch 1 ps
+watch 1 cat /proc/net/memory
+```
+
+Output is limited to a fixed display region for terminals with at least 24 rows: 20 content rows, up to 78 bytes per row, below the header. Additional output is always drained and marked with `[watch: output truncated]`. Comparison is line-oriented, terminal control sequences in captured output are suppressed, and interactive/full-screen programs are unsupported. Commands that do not terminate prevent the next refresh, as before.
+
+To avoid deadlocking on the kernel's 256-byte pipe, `watch` drains the pipe to EOF **before** calling `waitpid()`. Both screen snapshots live in the user process; the kernel does not store display history.
+
+`mem` and `watch` temporarily disable terminal autowrap during repainting, clipping text at the terminal edge instead of wrapping to the next row, and restore autowrap afterward.

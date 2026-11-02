@@ -2,6 +2,8 @@
 #pragma once
 void net_init(void);
 void net_poll(void);
+/* True while the idle task is running lwIP callbacks and raw operations. */
+int net_poll_in_progress(void);
 
 /* TCP transport for TTY2; the kernel owns the remote shell lifecycle. */
 int net_terminal_connected(void);
@@ -12,6 +14,8 @@ int net_terminal_write(const void *src, unsigned size);
 
 /* Format the current Wi-Fi interface state for /proc/net/wifi. */
 int net_wifi_info(char *out, unsigned size);
+/* /proc/net/memory: lwIP heap/pbuf counters and idle stack watermark. */
+int net_memory_info(char *out, unsigned size);
 /* Read-only diagnostic snapshots.  Type 0: AP associations, 1: ARP. */
 int net_diag_info(char *out, unsigned size, int type);
 

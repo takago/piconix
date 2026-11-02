@@ -259,10 +259,14 @@ pico_add_extra_outputs(piconix)
 # Post-link inspection of six fixed 24-KiB task slots.
 # Enable explicitly while transitioning from SDK's default XIP linker script.
 option(PICONIX_VERIFY_LAYOUT "Check task RAM placement in linked ELF" ON)
+set(PICONIX_LAYOUT_ARGS "")
+if(PICONIX_WIFI_ENABLED)
+  list(APPEND PICONIX_LAYOUT_ARGS --wifi)
+endif()
 if(PICONIX_VERIFY_LAYOUT)
   add_custom_command(TARGET piconix POST_BUILD
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/verify_layout.py"
-            "$<TARGET_FILE:piconix>" --slots "6" --nm "${CMAKE_NM}"
+            "$<TARGET_FILE:piconix>" --slots "6" --nm "${CMAKE_NM}" ${PICONIX_LAYOUT_ARGS}
     VERBATIM)
 endif()
 
