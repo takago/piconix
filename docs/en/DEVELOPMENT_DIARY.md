@@ -66,6 +66,12 @@ The initial networking work involved difficult debugging. DHCP DISCOVER packets 
 
 As network use increased, partial writes and temporary inability to send data became relevant. Garbled or truncated `mem` and `trace` output over Telnet motivated retries on `EAGAIN` and adjustments to Telnet buffering.
 
+## v1.0.0 release: networking as the milestone
+
+**v1.0.0 was released with Pico W networking as its principal milestone.** Wi-Fi station and access-point modes, TCP/UDP communication, Telnet, HTTP, and UDP device control extended PicoNIX from a standalone embedded OS to one that could also be accessed over a network. This networking support was the defining change for v1.0.0.
+
+Later, **mDNS support prompted the v1.1.0 release**, enabling hostname-based access. Thus, networking marks v1.0.0, while mDNS marks v1.1.0. The exact release dates are not asserted here.
+
 ## October 31–November 1: Pipes, TTY recovery, and documentation
 
 The drive for UNIX-like behavior led to pipes, `dup2`, EOF handling, and file-descriptor management, allowing shell pipelines. Multi-line paste, nested shell processes, foreground termination, and lingering TTY state revealed interactions between otherwise working features. Some apparent runtime problems were also resolved by discarding stale build directories.
@@ -84,7 +90,9 @@ The project also introduced **mDNS**, allowing connection without memorizing an 
 
 mDNS also pushed the 64 KiB kernel RAM allocation beyond its limit. Reducing the number of RAM files was considered, but the adopted approach moved the 16 KiB trace ring to previously unused SRAM at `0x20034000..0x20037fff`. This preserved tracing and all six user slots while freeing room inside the kernel's primary memory region.
 
-## v1.1.0 release and its milestones
+## v1.1.0 release prompted by mDNS support
+
+**mDNS support on Pico W was the principal change that prompted the v1.1.0 release.** In STA mode, a device could be reached by a Flash-ID-derived hostname such as `piconix-XXXXXXXX.local`; in AP mode, the hostname was `piconix.local`. This made access possible without manually entering an IP address. mDNS provides name resolution; it does not itself resolve the ARP communication issue investigated earlier.
 
 At the v1.1.0 release, PicoNIX included a shell, independent user commands, VFS, device files, TTY handling, pipes, a small Python-like interpreter, an assembler, an editor, `trace`, `mem`, `lsof`, network services, and mDNS. Its purpose was not to reproduce Linux wholesale; it was to **make UNIX concepts visible in a small, inspectable implementation**.
 
