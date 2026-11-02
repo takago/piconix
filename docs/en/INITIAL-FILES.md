@@ -6,11 +6,10 @@ Initial RAM files are ordinary files under `userland/fs/` on the build host. The
 
 ```text
 userland/fs/
-├── etc_common/
-│   └── index.html
 ├── etc_pico/
 │   └── rc
 ├── etc_picow/
+│   ├── index.html
 │   └── rc
 └── tmp_common/
     ├── test.s
@@ -31,18 +30,19 @@ After changing or adding files, rebuild and flash the firmware for the target bo
 
 PicoNIX does not run a separate `init` process. **The first shell (PID 1) executes `/etc/rc` once.** Telnet shells and nested shells do not run it again. The boot reader reuses the shell command execution path; it skips empty lines and lines beginning with `#`. Use simple commands and an optional trailing `&`; the boot reader does not interpret pipelines or redirections.
 
-In the current minimal configuration, `etc_pico/rc` is empty and `etc_picow/rc` contains:
+In the current minimal configuration, `etc_pico/rc` prints a greeting, while `etc_picow/rc` launches the HTTP server and prints the greeting:
+
+Pico:
 
 ```sh
-httpd &
+echo "Welcome to PicoNIX!"
 ```
 
-For a short greeting, the Pico W file can instead contain:
+Pico W:
 
 ```sh
 httpd &
 echo "Welcome to PicoNIX!"
 ```
-
 
 See also [Filesystem](FILESYSTEM.md), [HTTP server](HTTPD.md), and [Networking](NETWORK.md).

@@ -6,11 +6,10 @@ PicoNIXの起動時RAMファイルは，ホスト側の`userland/fs/`以下に�
 
 ```text
 userland/fs/
-├── etc_common/
-│   └── index.html
 ├── etc_pico/
 │   └── rc
 ├── etc_picow/
+│   ├── index.html
 │   └── rc
 └── tmp_common/
     ├── test.s
@@ -31,18 +30,19 @@ userland/fs/
 
 独立した`init`プロセスは設けず，**PID 1の最初の`sh`が`/etc/rc`を一度だけ実行**します．Telnetで起動する別のシェルや入れ子のシェルでは再実行しません．既存シェルのコマンド処理を再利用し，空行と`#`で始まる行は読み飛ばします．起動スクリプトでは単純なコマンドと末尾の`&`を使用してください．この起動時処理はパイプやリダイレクトを解釈しません．
 
-現在の最小構成では，Pico用の`etc_pico/rc`は空ファイル，Pico W用の`etc_picow/rc`は次の内容です．
+現在の最小構成では，Pico用の`etc_pico/rc`には起動メッセージ，Pico W用の`etc_picow/rc`にはHTTPサーバの起動と起動メッセージが記述されています．
+
+Pico用：
 
 ```sh
-httpd &
+echo "Welcome to PicoNIX!"
 ```
 
-起動時の案内を追加したい場合は，Pico W用の`rc`を例えば次のように編集できます．
+Pico W用：
 
 ```sh
 httpd &
 echo "Welcome to PicoNIX!"
 ```
-
 
 関連：[ファイルシステム](FILESYSTEM.md)・[HTTPサーバ](HTTPD.md)・[ネットワーク](NETWORK.md)．

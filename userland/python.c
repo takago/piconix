@@ -17,21 +17,34 @@ static void outs(const char *s){outn(s,(unsigned)strlen(s));}
 static int same(const char *a,const char *b){return strcmp(a,b)==0;}
 static int idchar(char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_';}
 static char source[1025];
-static unsigned offsets[64],levels[64],count;
+static uint16_t offsets[64],levels[64];
+static unsigned count;
 static struct {char name[16];int32_t val;} vars[16];
+#define STR_MAX 64
+static uint8_t is_string[16];
 static int nvars,error, evaluating=1;
 static unsigned error_line;
 /* Bounded sequences, stored separately from scalar values. */
 #define SEQ_MAX 64
-static struct { uint8_t used, immutable, len; int32_t item[SEQ_MAX]; } seq[16];
+static struct { uint8_t used, immutable, len; union { int32_t item[SEQ_MAX]; char string[STR_MAX+1]; }; } seq[16];
 static int seqslot(const char *name){for(int i=0;i<nvars;i++)if(strcmp(vars[i].name,name)==0)return i;return -1;}
 static int seqnew(const char *name,int immutable,const int32_t *values,int len){
     if(len<0||len>SEQ_MAX){error=1;return 0;}
     int k=seqslot(name);
     if(k<0){if(nvars==16){error=1;return 0;}k=nvars++;unsigned j=0;
         while(name[j]&&j<15){vars[k].name[j]=name[j];j++;}vars[k].name[j]=0;}
-    seq[k].used=1;seq[k].immutable=immutable;seq[k].len=(uint8_t)len;
+    is_string[k]=0;seq[k].used=1;seq[k].immutable=immutable;seq[k].len=(uint8_t)len;
     for(int i=0;i<len;i++)seq[k].item[i]=values[i];return 1;
+}
+/* Strings share the existing bounded 16-name namespace. */
+static void setstring(const char *name,const char *value){
+    int k=seqslot(name);
+    if(k<0){if(nvars==16){error=1;return;}k=nvars++;
+        unsigned j=0;while(name[j]&&j<15){vars[k].name[j]=name[j];j++;}
+        vars[k].name[j]=0;}
+    unsigned n=(unsigned)strlen(value);
+    if(n>STR_MAX){error=1;return;}
+    memcpy(seq[k].string,value,n+1);is_string[k]=1;seq[k].used=0;
 }
 static int transfer(int addr,const int32_t *values,int n,int r,int32_t *output){
     if(addr<8||addr>0x77||n<0||n>32||r<0||r>32){error=1;return 0;}
@@ -48,9 +61,9 @@ static const char *cursor;
 static void ws(void){while(*cursor==' '||*cursor=='\t')cursor++;}
 static int eat(char c){ws();if(*cursor==c){cursor++;return 1;}return 0;}
 static int word(const char *s){ws();const char *p=cursor;while(*s&&*p==*s){s++;p++;}if(*s||idchar(*p))return 0;cursor=p;return 1;}
-static int32_t getvar(const char *name){for(int i=0;i<nvars;i++)if(same(vars[i].name,name))return seq[i].used?(error=1,0):vars[i].val;error=1;return 0;}
-static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same(vars[i].name,name)){vars[i].val=val;seq[i].used=0;return;}
-    if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars].val=val;seq[nvars].used=0;nvars++;}
+static int32_t getvar(const char *name){for(int i=0;i<nvars;i++)if(same(vars[i].name,name))return (seq[i].used||is_string[i])?(error=1,0):vars[i].val;error=1;return 0;}
+static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same(vars[i].name,name)){vars[i].val=val;seq[i].used=0;is_string[i]=0;return;}
+    if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars].val=val;seq[nvars].used=0;is_string[nvars]=0;nvars++;}
 /* Keep the interpreter's divide-by-zero and INT32_MIN/-1 behavior explicit. */
 static int32_t divide(int32_t a,int32_t b,int mod) {
     if(!evaluating)return 0;
@@ -85,10 +98,73 @@ static int read_line(char *buf,unsigned cap){
     buf[n]=0;
     return (int)n;
 }
+/* input() always returns a bounded string, including an empty one. */
+static int input_text(char *dst){
+    if(!eat('(')){error=1;return 0;}
+    ws();
+    if(*cursor=='"'||*cursor=='\''){
+        char prompt[STR_MAX+1];if(!parse_string(prompt,sizeof prompt))return 0;
+        if(evaluating)outs(prompt);
+    }else if(*cursor!=')'){
+        char key[16];unsigned n=0;
+        while(idchar(*cursor)){if(n>=15){error=1;return 0;}key[n++]=*cursor++;}
+        key[n]=0;int k=n?seqslot(key):-1;
+        if(k<0||!is_string[k]){error=1;return 0;}
+        if(evaluating)outs(seq[k].string);
+    }
+    if(!eat(')')){error=1;return 0;}
+    if(!evaluating){dst[0]=0;return 1;}
+    int n=read_line(dst,STR_MAX+1);
+    if(n<0){error=1;return 0;}
+    return 1;
+}
+static int parse_decimal(const char *s,int32_t *out){
+    while(*s==' '||*s=='\t')s++;
+    int neg=0;if(*s=='+'||*s=='-')neg=(*s++=='-');
+    uint32_t v=0,limit=neg?2147483648u:2147483647u;int digits=0;
+    while(*s>='0'&&*s<='9'){
+        unsigned d=(unsigned)(*s++-'0');
+        if(v>(limit-d)/10u)return 0;
+        v=v*10u+d;digits++;
+    }
+    while(*s==' '||*s=='\t')s++;
+    if(!digits||*s)return 0;
+    *out=neg?(int32_t)(0u-v):(int32_t)v;return 1;
+}
+static void decimal_string(int32_t v,char *dst){
+    char reversed[12];unsigned n=0;uint32_t a=v<0?0u-(uint32_t)v:(uint32_t)v;
+    do{reversed[n++]=(char)('0'+a%10u);a/=10u;}while(a);
+    if(v<0)reversed[n++]='-';
+    unsigned j=0;while(n)dst[j++]=reversed[--n];dst[j]=0;
+}
+/* int() accepts an integer expression, a string variable or input(). */
+static int32_t integer_conversion(void){
+    if(!eat('(')){error=1;return 0;}
+    ws();char value[STR_MAX+1];int string_arg=0;
+    if(*cursor=='"'||*cursor=='\''){
+        string_arg=parse_string(value,sizeof value);
+    }else if(word("input")){
+        string_arg=input_text(value);
+    }else{
+        const char *save=cursor;char name[16];unsigned n=0;
+        while(idchar(*cursor)&&n<15)name[n++]=*cursor++;
+        name[n]=0;int k=n?seqslot(name):-1;ws();
+        if(k>=0&&is_string[k]&&*cursor==')'){
+            memcpy(value,seq[k].string,strlen(seq[k].string)+1);string_arg=1;
+        }else cursor=save;
+    }
+    if(string_arg){
+        if(!eat(')'))error=1;
+        int32_t v=0;if(evaluating&&!parse_decimal(value,&v))error=1;
+        return v;
+    }
+    int32_t v=expr();if(!eat(')'))error=1;return v;
+}
 static int32_t expr(void);
 static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=1;return x;}
     if(eat('-'))return (int32_t)(0u-(uint32_t)atom());
     if(eat('+'))return atom();
+    if(eat('~'))return ~atom();
     if(*cursor>='0'&&*cursor<='9'){
         unsigned base=10;uint32_t v=0;int digits=0;
         if(cursor[0]=='0'&&(cursor[1]=='x'||cursor[1]=='X'||cursor[1]=='b'||cursor[1]=='B')){
@@ -115,20 +191,13 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     if(same(name,"FB_ENABLE"))return OS_FB_ENABLE;
     if(same(name,"FB_DISABLE"))return OS_FB_DISABLE;
     if(same(name,"FB_STATUS"))return OS_FB_STATUS;
-    if(same(name,"input")&&eat('(')){
-        ws();if(*cursor=='"'||*cursor=='\''){char quote=*cursor++;const char *start=cursor;
-            while(*cursor&&*cursor!=quote)cursor++;if(evaluating)outn(start,(unsigned)(cursor-start));if(!eat(quote))error=1;}
-        if(!eat(')'))error=1;
-        if(!evaluating)return 0;
-        char buf[32];int m=read_line(buf,sizeof(buf));int32_t v=0,sign=1;unsigned i=0;
-        if(m<=0){error=1;return 0;}if(buf[0]=='-'){sign=-1;i++;}
-        int digits=0;for(;i<(unsigned)m && buf[i]>='0'&&buf[i]<='9';i++){v=(int32_t)((uint32_t)v*10u+(unsigned)(buf[i]-'0'));digits++;}
-        if(!digits)error=1;return sign<0?(int32_t)(0u-(uint32_t)v):v;
-    }
+    if(same(name,"int"))return integer_conversion();
+    /* Bare input() is a string and cannot be used as an integer expression. */
+    if(same(name,"input")){error=1;return 0;}
     if(same(name,"len")&&eat('(')){
         char target[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)target[z++]=*cursor++;
-        target[z]=0;int k=seqslot(target);if(!eat(')')||k<0||!seq[k].used){error=1;return 0;}
-        return seq[k].len;
+        target[z]=0;int k=seqslot(target);if(!eat(')')||k<0||(!seq[k].used&&!is_string[k])){error=1;return 0;}
+        return is_string[k]?(int32_t)strlen(seq[k].string):seq[k].len;
     }
     if(same(name,"open")&&eat('(')){
         char path[96];if(!parse_string(path,sizeof path))return 0;
@@ -169,7 +238,6 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         if(error||!evaluating)return 0;
         int rc=write(fd,buf,(unsigned)len);if(rc<0)error=1;return rc;
     }
-    if(same(name,"int")&&eat('(')){int32_t v=expr();if(!eat(')'))error=1;return v;}
     if(eat('[')){int32_t index=expr();if(!eat(']'))error=1;
         int k=seqslot(name);if(k<0||!seq[k].used||index<0||index>=seq[k].len){error=1;return 0;}
         return seq[k].item[index];}
@@ -181,13 +249,36 @@ static int32_t product(void){int32_t a=atom();for(;;){if(eat('*'))a=(int32_t)((u
     }else if(eat('%'))a=divide(a,atom(),1);else break;}return a;}
 static int32_t sum(void){int32_t a=product();for(;;){if(eat('+'))a=(int32_t)((uint32_t)a+(uint32_t)product());
     else if(eat('-'))a=(int32_t)((uint32_t)a-(uint32_t)product());else break;}return a;}
-static int32_t comparison(void){int32_t a=sum();ws();int op=0;
+/* Recursive precedence levels: |, ^, &, shifts, then arithmetic. */
+static int32_t bits(int level){
+    int32_t a=level==3?sum():bits(level+1);
+    for(;;){
+        ws();int op=0;
+        if(level==0&&cursor[0]=='|'&&cursor[1]!='|')op='|';
+        if(level==1&&*cursor=='^')op='^';
+        if(level==2&&*cursor=='&')op='&';
+        if(level==3&&cursor[0]=='<'&&cursor[1]=='<')op='<';
+        if(level==3&&cursor[0]=='>'&&cursor[1]=='>')op='>';
+        if(!op)break;
+        cursor+=op=='<'||op=='>'?2:1;
+        int32_t b=level==3?sum():bits(level+1);
+        if(op=='|')a|=b;
+        else if(op=='^')a^=b;
+        else if(op=='&')a&=b;
+        else {
+            if(b<0||b>=32){error=1;return 0;}
+            a=op=='<'?(int32_t)((uint32_t)a<<b):(a>>b);
+        }
+    }
+    return a;
+}
+static int32_t comparison(void){int32_t a=bits(0);ws();int op=0;
     if(cursor[0]=='='&&cursor[1]=='='){op=1;cursor+=2;}
     else if(cursor[0]=='!'&&cursor[1]=='='){op=2;cursor+=2;}
     else if(cursor[0]=='<'&&cursor[1]=='='){op=3;cursor+=2;}
     else if(cursor[0]=='>'&&cursor[1]=='='){op=4;cursor+=2;}
     else if(eat('<'))op=5;else if(eat('>'))op=6;
-    if(op){int32_t b=sum();
+    if(op){int32_t b=bits(0);
         if(op==1)return a==b;
         if(op==2)return a!=b;
         if(op==3)return a<=b;
@@ -215,6 +306,44 @@ static int32_t expr(void){int32_t v=logical_and();
 static void number(int32_t v){char b[12];unsigned n=0,x=v<0?0u-(uint32_t)v:(uint32_t)v;
     do{uint32_t r=x%10u;x/=10u;b[n++]=(char)('0'+r);}while(x&&n<11);
     if(v<0)b[n++]='-';while(n){char c=b[--n];outn(&c,1);}}
+/* Print a single value without allocating an unbounded temporary object. */
+static void print_value(void){
+    ws();
+    if(*cursor=='"'||*cursor=='\''){
+        char b[STR_MAX+1];if(parse_string(b,sizeof b))outs(b);return;
+    }
+    if(word("str")){
+        if(!eat('(')){error=1;return;}
+        int32_t v=expr();if(!eat(')'))error=1;
+        if(!error)number(v);return;
+    }
+    if(word("input")){
+        char b[STR_MAX+1];if(input_text(b)&&!error)outs(b);return;
+    }
+    if(eat('[')){
+        outs("[");int first=1;
+        if(!eat(']')){
+            do{if(!first)outs(", ");first=0;number(expr());}while(!error&&eat(','));
+            if(!eat(']'))error=1;
+        }
+        outs("]");return;
+    }
+    const char *start=cursor;char key[16];unsigned z=0;
+    while(idchar(*cursor)&&z<15)key[z++]=*cursor++;
+    key[z]=0;int k=z?seqslot(key):-1;
+    ws();
+    if(k>=0&&(*cursor==','||*cursor==')')){
+        if(is_string[k]){outs(seq[k].string);return;}
+        if(seq[k].used){
+            outs(seq[k].immutable?"b[":"[");
+            for(int j=0;j<seq[k].len;j++){
+                if(j)outs(", ");number(seq[k].item[j]);
+            }
+            outs("]");return;
+        }
+    }
+    cursor=start;number(expr());
+}
 static int repl_mode;
 static void statement(unsigned line){cursor=source+offsets[line];ws();
     if(word("msleep")&&eat('(')){
@@ -247,16 +376,15 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
     }
     cursor=source+offsets[line];ws();
     if(word("print")&&eat('(')){
-        ws();if(*cursor=='\''||*cursor=='"'){char q=*cursor++;const char *start=cursor;
-            while(*cursor&&*cursor!=q)cursor++;outn(start,(unsigned)(cursor-start));if(!eat(q))error=1;}
-        else {const char *save=cursor;char key[16];unsigned z=0;
-            while(idchar(*cursor)&&z<15)key[z++]=*cursor++;key[z]=0;
-            int k=seqslot(key);ws();if(k>=0&&seq[k].used&&*cursor==')'){
-                outs(seq[k].immutable?"b[":"[");for(int j=0;j<seq[k].len;j++){
-                    if(j)outs(", ");number(seq[k].item[j]);}outs("]");
-            }else{cursor=save;number(expr());}}
-        if(!eat(')'))error=1;
-        ws();if(*cursor&&*cursor!='#')error=1;outs("\r\n");return;
+        if(!eat(')')){
+            do{
+                if(cursor[-1]==',')outs(" ");
+                print_value();
+            }while(!error&&eat(','));
+            if(!eat(')'))error=1;
+        }
+        ws();if(*cursor&&*cursor!='#')error=1;
+        if(!error)outs("\r\n");return;
     }
     cursor=source+offsets[line];ws();
     if(word("write")||word("close")||word("ioctl")){
@@ -278,6 +406,31 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
             ws();if(*cursor&&*cursor!='#')error=1;
             if(!error){number(v);outs("\r\n");}return;}
         error=1;return;
+    }
+    if(word("input")){
+        char value[STR_MAX+1];if(!input_text(value))return;
+        ws();if(*cursor&&*cursor!='#')error=1;
+        if(!error)setstring(name,value);return;
+    }
+    if(word("str")){
+        if(!eat('(')){error=1;return;}
+        int32_t v=expr();if(!eat(')'))error=1;
+        ws();if(*cursor&&*cursor!='#')error=1;
+        if(!error){char value[12];decimal_string(v,value);setstring(name,value);}return;
+    }
+    ws();if(*cursor=='"'||*cursor=='\''){
+        char value[STR_MAX+1];if(!parse_string(value,sizeof value))return;
+        ws();if(*cursor&&*cursor!='#')error=1;
+        if(!error)setstring(name,value);return;
+    }
+    /* String-to-string assignment, without converting integers to strings. */
+    {const char *save=cursor;char from[16];unsigned j=0;
+        while(idchar(*cursor)&&j<15)from[j++]=*cursor++;
+        from[j]=0;int k=j?seqslot(from):-1;ws();
+        if(k>=0&&is_string[k]&&(!*cursor||*cursor=='#')){
+            setstring(name,seq[k].string);return;
+        }
+        cursor=save;
     }
     ws();if(*cursor=='[' || (cursor[0]=='b'&&cursor[1]=='y'&&cursor[2]=='t'&&cursor[3]=='e'&&cursor[4]=='s')){
         int immutable=0;if(word("bytes")){immutable=1;if(!eat('(')){error=1;return;}}
