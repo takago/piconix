@@ -21,6 +21,8 @@ int net_socket_tcp_status(int id);
 int net_socket_tcp_read(int id, void *dst, unsigned capacity);
 /* Positive bytes, 0 = send queue full, -1 = disconnected. */
 int net_socket_tcp_write(int id, const void *src, unsigned length);
+/* Half-close TCP send side, preserving receive side. */
+int net_socket_tcp_shutdown_write(int id);
 void net_socket_tcp_close(int id);
 int net_socket_tcp_accept_ready(int id);
 int net_socket_tcp_listening(int id);

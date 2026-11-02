@@ -20,7 +20,7 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 | `/dev/adc/` | Enabled ADC inputs and on-chip temperature sensor |
 | `/dev/pwm/` | Enabled PWM outputs and common frequency |
 | `/dev/i2c/1` | I²C1 master (GP26 SDA, GP27 SCL) |
-| `/dev/mem` | Read-only access to permitted RAM/flash ranges |
+| `/dev/mem` | Read permitted RAM/flash; restricted writes to task slots and RAM-file payloads |
 | `/dev/trace` | Binary trace records |
 
 ## 8×8 LED framebuffer
@@ -147,7 +147,7 @@ The main console uses USB CDC only. UART0 console builds are not supported. UART
 
 - GPIO cannot simultaneously own pins used by ADC, PWM, or I²C.
 - GP18 and GP19 cannot use independent PWM frequencies.
-- `/dev/mem` is read-only and limited to permitted memory ranges.
+- `/dev/mem` permits reading supported Flash/SRAM ranges. Writes are restricted to task slots (0x20010000–0x20033FFF) and RAM-file payload arrays. Other kernel memory, trace, Wi-Fi reserve, and Flash are not writable. Writing a live task may crash the system.
 - `/dev/trace` provides binary records; see [TRACE.md](TRACE.md).
 - Drivers live in `kernel/gpio.c`, `kernel/adc.c`, and `kernel/pwm.c`; FD management stays in `kernel/kernel.c`.
 

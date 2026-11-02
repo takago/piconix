@@ -15,13 +15,13 @@ nc -u -l 12345
 
 ## Exit on standard-input EOF
 
-Use `-N` for one-shot UDP input:
+Use `-N` for one-shot UDP sends or TCP send-side half-close:
 
 ```sh
 echo hello | nc -u -N 192.168.4.2 12345
 ```
 
-`-N` terminates `nc` when a standard-input `read()` returns zero (EOF). Without `-N`, UDP `nc` continues receiving after sending. The current TCP loop does not implement `-N`-driven stdin-EOF termination; do not expect the same behavior for TCP.
+On UDP, `-N` terminates `nc` at stdin EOF. On TCP, `-N` uses `shutdown(SHUT_WR)` on stdin EOF to half-close the sending direction while continuing to receive. Full connection termination depends on the peer as well.
 
 UDP has no FIN-style peer-close notification. Closing the UDP netcat on the other machine does not automatically terminate PicoNIX `nc`. Use Ctrl+C for interactive sessions.
 
@@ -34,3 +34,5 @@ PicoNIX `nc` does **not** support `-w` timeouts. Do not confuse its options with
 ## Quick check
 
 Start `nc -u -l 12345` on Linux, then run the `echo hello | nc -u -N ...` command above on PicoNIX, using `192.168.4.2` as the Linux PC address. Verify receipt and that the PicoNIX prompt returns. If the PC receives another address, substitute it. When connecting from Linux to PicoNIX, use `192.168.4.1`.
+
+For file and memory transfer examples, see the [dd guide](DD.md).

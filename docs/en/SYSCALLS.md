@@ -50,6 +50,7 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 | 36 | `SYS_PIPE` | `pipe(fds)` | `fds` | 0 / negative error | Create read/write pipe FDs |
 | 37 | `SYS_DUP` | `dup(oldfd)` | `oldfd` | new FD / negative error | Duplicate FD to free slot |
 | 38 | `SYS_PROGRAM_ID` | `program_id(name)` | `name` | ID / negative error | Resolve program name to ID |
+| 39 | `SYS_SHUTDOWN_TCP` | `shutdown(fd, SHUT_WR)` | `fd` | 0 / negative error | Half-close TCP sending side |
 
 ## Parameter meanings and important limitations
 

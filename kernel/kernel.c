@@ -1309,7 +1309,7 @@ static int vfs_open(const char *p, int flags) {
        (dev==DEV_PWM_18 && !pin_pwm(18)) ||
        (dev==DEV_PWM_19 && !pin_pwm(19))) dev=-1;
     if(dev<0 || (((dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) ||
-                   proc_device(dev) || dev==DEV_RAND || dev==DEV_MEM || dev==DEV_SYMS_KERNEL ||
+                   proc_device(dev) || dev==DEV_RAND || dev==DEV_SYMS_KERNEL ||
                    (dev>DEV_SYMS_USER_BASE && dev<DEV_SYMS_USER_BASE+PROGRAM_CAPACITY) || dev==DEV_TRACE) &&
                   (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
     if(dev==DEV_WIFI_CTRL && (flags & 3)!=OS_O_WRONLY) return OS_EINVAL;
@@ -1715,7 +1715,8 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         return (int)done;
     }
     if(dev==DEV_MEM) {
-        if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;
+        if(writing ? (tasks[current].fd_flags[fd] & 3)==OS_O_RDONLY
+                   : (tasks[current].fd_flags[fd] & 3)==OS_O_WRONLY) return OS_EBADF;
         if(!n) return 0;
         uint32_t addr=tasks[current].fd_pos[fd];
         uint32_t end=0;
@@ -1724,9 +1725,27 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         if(addr>=0x10000000u && addr<0x10200000u) end=0x10200000u;
         if(addr>=0x20000000u && addr<0x20040000u) end=0x20040000u;
         if(!end) return OS_EINVAL;
+        /* Flash is read-only. Kernel RAM, trace, and Wi-Fi RAM are protected.
+         * Users may explicitly write task-slot SRAM (including live tasks). */
+        if(writing) {
+            /* The file payload buffers are writable, but their VFS metadata
+             * (names, lengths, allocation flags) remains protected. */
+            int file_payload=0;
+            for(int i=0;i<TMP_FILES;i++) {
+                uint32_t base=(uint32_t)(uintptr_t)tmp_files[i].data;
+                if(addr>=base && addr<base+TMP_BYTES) {
+                    end=base+TMP_BYTES; file_payload=1; break;
+                }
+            }
+            if(!file_payload) {
+                if(addr<0x20010000u || addr>=0x20034000u) return OS_EINVAL;
+                end=0x20034000u;
+            }
+        }
         size_t count=n;
         if(count>end-addr) count=end-addr;
-        memmove(p,(const void *)(uintptr_t)addr,count);
+        if(writing) memmove((void *)(uintptr_t)addr,p,count);
+        else memmove(p,(const void *)(uintptr_t)addr,count);
         tasks[current].fd_pos[fd]=addr+(uint32_t)count;
         return (int)count;
     }
@@ -1918,6 +1937,13 @@ void os_svc_dispatch(uint32_t *f) {
                 if(!ep || !in_task_range(ep,sizeof(*ep)) || !ep->peer_port) result=OS_EINVAL;
                 else result=net_socket_tcp_connect(id,ep->peer_ip,ep->peer_port)==0 ? 0 : OS_EIO;
             }
+            break;
+        }
+        case SYS_SHUTDOWN_TCP: {
+            int id=tcp_fd_slot(&tasks[current],a);
+            if(id<0 || (tasks[current].fd[a]!=DEV_SOCKET_TCP &&
+                        tasks[current].fd[a]!=DEV_SOCKET_TCP_ACCEPTED)) result=OS_EBADF;
+            else result=net_socket_tcp_shutdown_write(id)==0 ? 0 : OS_EIO;
             break;
         }
         case SYS_TCP_STATUS: {

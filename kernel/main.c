@@ -49,6 +49,8 @@ extern const unsigned char piconix_fbed_image_start[], piconix_fbed_image_end[];
 extern const unsigned char piconix_asm_image_start[], piconix_asm_image_end[];
 extern const unsigned char piconix_help_image_start[], piconix_help_image_end[];
 extern const unsigned char piconix_edit_image_start[], piconix_edit_image_end[];
+extern const unsigned char piconix_vi_image_start[], piconix_vi_image_end[];
+extern const unsigned char piconix_dd_image_start[], piconix_dd_image_end[];
 extern const unsigned char piconix_mem_image_start[], piconix_mem_image_end[];
 extern const unsigned char piconix_tree_image_start[], piconix_tree_image_end[];
 extern const unsigned char piconix_find_image_start[], piconix_find_image_end[];
@@ -100,6 +102,8 @@ int main(void) {
     register_image(28,"as",piconix_asm_image_start,piconix_asm_image_end);
     register_image(29,"help",piconix_help_image_start,piconix_help_image_end);
     register_image(30,"edit",piconix_edit_image_start,piconix_edit_image_end);
+    register_image(41,"vi",piconix_vi_image_start,piconix_vi_image_end);
+    register_image(42,"dd",piconix_dd_image_start,piconix_dd_image_end);
     register_image(31,"mem",piconix_mem_image_start,piconix_mem_image_end);
     register_image(32,"tree",piconix_tree_image_start,piconix_tree_image_end);
     register_image(33,"find",piconix_find_image_start,piconix_find_image_end);

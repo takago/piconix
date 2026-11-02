@@ -57,6 +57,9 @@ int recvfrom(int fd, void *buf, size_t len, int flags,
              struct sockaddr *from, socklen_t *fromlen);
 /* PicoNIX-specific nonblocking TCP connect status: 0=pending, 1=ready. */
 int tcp_status(int fd);
+/* TCP send-side half-close, equivalent to shutdown(fd, SHUT_WR). */
+#define SHUT_WR 1
+int shutdown(int fd, int how);
 /* Legacy low-level interfaces retained for existing applications. */
 int bind_udp(int fd, unsigned port);
 int sendto_udp(int fd, const piconix_udp_packet_t *packet);

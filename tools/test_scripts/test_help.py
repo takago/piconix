@@ -7,10 +7,10 @@ help_src = (root/'userland/help.c').read_text()
 shell = (root/'userland/shell.c').read_text()
 cmake = (root/'CMakeLists.txt').read_text()
 names = re.findall(r'register_image\(\d+,"([a-z_]+)"', main)
-assert len(names) == 38 and len(set(names)) == 38
+assert len(names) == 40 and len(set(names)) == 40
 for name in names + ['cd','getty','exit','logout']:
     assert f'!strcmp(argv[1],"{name}")' in help_src, name
     assert f'  {name}' in help_src, name
 assert 'if(eq(s,"help"))' not in shell
-assert 'gpio fbed asm help edit mem tree find nc httpd tcp_echod udp_echod)' in cmake
+assert 'gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod)' in cmake
 print('PASS: help coverage, shell delegation, and CMake registration')

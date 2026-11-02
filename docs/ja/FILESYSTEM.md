@@ -50,7 +50,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 |---|:---:|:---:|---|
 | `/dev/console`, `/dev/ttyS1`, `/dev/ttyN0` | ○ | ○ | 端末．`/dev/ttyN0`はWi-Fiビルドのみ |
 | `/dev/rand` | ○ | × | 暗号用途には使えない疑似乱数．1回の読み取りは最大4バイト |
-| `/dev/mem` | ○ | × | XIP Flashと主SRAMの許可範囲．アドレスは`lseek()`で指定 |
+| `/dev/mem` | ○ | 制限付き | XIP Flashと主SRAMの読み取り，ユーザスロットとRAMファイルデータの書き込み．`lseek()`でアドレス指定 |
 | `/dev/trace` | ○ | × | バイナリレコード．`trace`コマンドを参照 |
 | `/dev/gpio/fb` | ○ | ○ | 8バイト単位．有効化は`ioctl()`で行う |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | ○ | ○ | `pins.h`でGPIOに割り当てたピンのみ |

@@ -85,6 +85,10 @@ int connect(int fd, const struct sockaddr *addr, socklen_t len) {
     piconix_tcp_endpoint_t ep = {in->sin_addr.s_addr, ntohs(in->sin_port)};
     return tcp_connect(fd, &ep);
 }
+int shutdown(int fd,int how) {
+    if(how!=SHUT_WR) return OS_EINVAL;
+    return call(SYS_SHUTDOWN_TCP,(uintptr_t)fd,0,0);
+}
 int send(int fd, const void *buf, size_t len, int flags) {
     if (flags || (len && !buf)) return OS_EINVAL;
     return write(fd, buf, len);

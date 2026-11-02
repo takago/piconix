@@ -85,3 +85,5 @@ For a guided reading order, see the [documentation index](DOCS.md). For Pico W n
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.
+
+See [dd guide](DD.md) and [vi editor](VI.md).

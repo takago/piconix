@@ -41,6 +41,8 @@ PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup 
 | Topic | Guide |
 |---|---|
 | Edit text files with `edit` | [Text editor](EDIT.md) |
+| Edit with `vi` | [vi editor](VI.md) |
+| Binary copying, RAM and nc transfers | [dd guide](DD.md) |
 | Build a C application | [Programming](PROGRAMMING.md) |
 | Available C headers, functions, parameters, return values, and limitations | [C library and APIs](LIBC.md) |
 | SVC ABI, call numbers, arguments, and return values | [System calls](SYSCALLS.md) |

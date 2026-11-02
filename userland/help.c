@@ -12,6 +12,8 @@ int main(int argc, char **argv) {
         puts("  tree       Display directory tree");
         puts("  find       Search directory entries");
         puts("  edit       Edit a /tmp file");
+        puts("  vi         Modal /tmp editor (vi-like)");
+        puts("  dd         Copy binary data / RAM blocks");
         puts("  cat        Read file / standard input");
         puts("  grep       Filter lines by matching text");
         puts("  rm         Remove a /tmp file");
@@ -77,6 +79,8 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"httpd")) puts("httpd: Serve /etc/index.html on TCP 80 (GET / only)");
     else if(!strcmp(argv[1],"nc")) puts("nc: Minimal IPv4 netcat\nusage: nc [-u] [-N] -l PORT | nc [-u] [-N] IPv4 PORT\n-N: exit on stdin EOF in UDP mode (not TCP)");
     else if(!strcmp(argv[1],"find")) puts("find: Search directory entries\nusage: find [path] [-name pattern]");
+    else if(!strcmp(argv[1],"dd")) puts("dd: block copy\nusage: dd if=FILE of=FILE [bs=N] [count=N] [skip=N] [seek=N]");
+    else if(!strcmp(argv[1],"vi")) puts("vi: Modal /tmp editor\nusage: vi file\ni/a/o insert, Esc normal, :w, :q, :q!, :wq");
     else if(!strcmp(argv[1],"edit")) puts("edit: Edit a /tmp file\nusage: edit [path]");
     else if(!strcmp(argv[1],"mem")) puts("mem: Live memory viewer\nusage: mem [address] | mem -s [app]\ninteractive: arrows, PgUp/PgDn, g goto, q quit");
     else if(!strcmp(argv[1],"ls")) puts("ls: List files / sizes\nusage: ls [-l] [path]");

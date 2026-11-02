@@ -94,14 +94,20 @@ int main(int argc,char **argv) {
             peer=fd;
         }
         fcntl(0,F_SETFL,O_NONBLOCK);
+        int stdin_finished=0;
         for(;;) {
             int r=recv(peer,data,sizeof(data),0);
             if(r>0) {if(send_all(1,data,(unsigned)r)<0)break;}
             else if(r==0)break;
             else if(r!=OS_EAGAIN)break;
-            r=read(0,data,sizeof(data));
-            if(r>0){if(send_all(peer,data,(unsigned)r)<0)break;}
-            else if(r<0&&r!=OS_EAGAIN)break;
+            if(!stdin_finished) {
+                r=read(0,data,sizeof(data));
+                if(r>0){if(send_all(peer,data,(unsigned)r)<0)break;}
+                else if(r==0 && exit_on_eof) {
+                    if(shutdown(peer,SHUT_WR)<0)break;
+                    stdin_finished=1;
+                } else if(r<0&&r!=OS_EAGAIN)break;
+            }
             msleep(2);
         }
     }

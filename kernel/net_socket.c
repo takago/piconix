@@ -259,6 +259,11 @@ int net_socket_tcp_write(int id,const void *src,unsigned length) {
     tcp_output(s->client);
     return (int)n;
 }
+int net_socket_tcp_shutdown_write(int id) {
+    tcp_slot_t *s=slot_at(id);
+    if(!s || !s->client || !s->established || s->fault) return -1;
+    return tcp_shutdown(s->client,0,1)==ERR_OK ? 0 : -1;
+}
 void net_socket_tcp_close(int id) {
     net_socket_tcp_close_client(id);
     net_socket_tcp_close_listener(id);
@@ -295,6 +300,7 @@ int net_socket_tcp_status(int id) { (void)id; return -1; }
 int net_socket_tcp_connect(int id,uint32_t ip,uint16_t port) { (void)id; (void)ip; (void)port; return -1; }
 int net_socket_tcp_read(int id,void *dst,unsigned n) { (void)id; (void)dst; (void)n; return -1; }
 int net_socket_tcp_write(int id,const void *src,unsigned n) { (void)id; (void)src; (void)n; return -1; }
+int net_socket_tcp_shutdown_write(int id) { (void)id; return -1; }
 void net_socket_tcp_close(int id) { (void)id; }
 uint16_t net_socket_local_port(int kind,int id) { (void)kind; (void)id; return 0; }
 #endif

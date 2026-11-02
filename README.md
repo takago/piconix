@@ -164,4 +164,6 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files
 | [Remote device control (UDP 2000)](docs/en/REMOTE-DEVICE.md) | [リモートデバイス制御（UDP 2000番）](docs/ja/REMOTE-DEVICE.md) |
 | [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
 | [Text editing](docs/en/EDIT.md) | [テキスト編集](docs/ja/EDIT.md) |
+| [vi editor](docs/en/VI.md) | [viエディタ](docs/ja/VI.md) |
+| [dd and binary transfer](docs/en/DD.md) | [ddとバイナリ転送](docs/ja/DD.md) |
 | [Tiny Python](docs/en/PYTHON.md) | [簡易Python](docs/ja/PYTHON.md) |
