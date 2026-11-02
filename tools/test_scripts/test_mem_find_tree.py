@@ -7,7 +7,7 @@ m=(r/'userland/mem.c').read_text()
 main=(r/'kernel/main.c').read_text()
 cmake=(r/'CMakeLists.txt').read_text()
 assert 'DEV_PROC_RAMFILES' in k
-assert 'tmp_files[i].data' in k
+assert 'tmp_payload(i)' in k
 assert 'proc_ramfiles_read' in k
 assert 'RAM_FILE: /%s' in m
 assert "if(c=='g'||c=='G')" in m

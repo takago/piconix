@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* PicoNIX shell: freestanding, slot-linked at 0x20010000.
+/* PicoNIX shell: freestanding, slot-linked at 0x2000E000.
  * Small user libc; no SDK or kernel RAM data references.
  * Syscalls use SVC ABI: r0=number, r1..r3=arguments.
  */

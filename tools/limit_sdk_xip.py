@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Derive PicoNIX RP2040 XIP linker layout from Pico SDK 2.1.1 default script.
 
-Only writable kernel allocations use the first 64 KiB of main SRAM.
+Only writable kernel allocations use the first 56 KiB of main SRAM.
 Task slots and the Pico W networking reservation remain outside this region.
 """
 import pathlib
@@ -15,7 +15,7 @@ def transform(source):
         raise ValueError('expected one 256-KiB RAM declaration in SDK XIP script')
     if not re.search(r'(?m)^\s*(?:INCLUDE\s+["\']?pico_flash_region\.ld|FLASH\s*\()', source):
         raise ValueError('SDK script lacks FLASH region')
-    source = ram.sub(lambda m: m['pre'] + '64k' + m['post'], source, count=1)
+    source = ram.sub(lambda m: m['pre'] + '56k' + m['post'], source, count=1)
     # Fail closed if the SDK changes the standard XIP layout.
     text = re.search(r'(?s)\n\s*\.text\s*:\s*\{.*?\}\s*>\s*FLASH', source)
     rodata = re.search(r'(?s)\n\s*\.rodata\s*:\s*\{.*?\}\s*>\s*FLASH', source)
@@ -44,7 +44,7 @@ def transform(source):
 
 '''
     # Note: this section must precede .data's FLASH load image.
-    return '/* PicoNIX XIP: flash code/const, 64-KiB kernel RAM. */\n' + source[:match.start()] + app + source[match.start():]
+    return '/* PicoNIX XIP: flash code/const, 56-KiB kernel RAM. */\n' + source[:match.start()] + app + source[match.start():]
 
 
 def main():

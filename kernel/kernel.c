@@ -172,15 +172,15 @@ static int pipe_transfer(pipe_t *p, void *buffer, size_t size, int writing) {
 }
 typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[OS_FD_MAX]; uint32_t fd_pos[OS_FD_MAX]; int fd_task_pid[OS_FD_MAX]; uint8_t fd_flags[OS_FD_MAX]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; char cwd[128]; uint16_t adc_values[8]; } task_t;
 // Six fixed 24-KiB SRAM slots, not a .bss reservation.
-// The linker must restrict the kernel to kernel SRAM (0x20000000..0x2000ffff).
+// The linker must restrict the kernel to kernel SRAM (0x20000000..0x2000dfff).
 _Static_assert(OS_MAX_TASKS == 6 && OS_TASK_BYTES == 24576u,
                "fixed RP2040 SRAM slot geometry changed");
-__asm__(".global task_ram\n.set task_ram, 0x20010000");
+__asm__(".global task_ram\n.set task_ram, 0x2000E000");
 extern uint8_t task_ram[OS_MAX_TASKS][OS_TASK_BYTES];
 // Slots are intentionally NOLOAD/unallocated: no linker section occupies them.
 static task_t tasks[TOTAL_SLOTS];
 /* CYW43/lwIP polling and its receive callbacks run on this stack.
- * Keep it in the kernel's 64-KiB SRAM allocation (verified after linking). */
+ * Keep it in the kernel's 56-KiB SRAM allocation (verified after linking). */
 #define IDLE_STACK_BYTES 4096u
 static uint8_t idle_stack[IDLE_STACK_BYTES] __attribute__((aligned(8)));
 static volatile int current = -1;
@@ -227,15 +227,15 @@ typedef struct {
     unsigned head,tail,used,offset;
 } tty_buffer_t;
 static tty_buffer_t tty_buf[OS_TTY_COUNT];
-/* Fixed 16-KiB trace ring in the otherwise unused SRAM gap after six task slots. */
+/* Fixed 16-KiB trace ring after RAM-file payloads. */
 #define TRACE_CAPACITY 512u
 _Static_assert(sizeof(trace_event_t) == 32, "trace record must be 32 bytes");
 _Static_assert(TRACE_CAPACITY * sizeof(trace_event_t) == 0x4000u,
                "trace ring must exactly fit the 16-KiB SRAM gap");
 /* As with task_ram, this is an explicit physical reservation, not kernel .bss.
- * 0x20034000..0x20037fff is after all six 24-KiB task slots, before Wi-Fi.
+ * 0x20038000..0x2003bfff is after the RAM files, before Wi-Fi.
  * The ring is accessed only when trace_count > 0, so no startup zeroing needed. */
-__asm__(".global trace_ring\n.set trace_ring, 0x20034000");
+__asm__(".global trace_ring\n.set trace_ring, 0x20038000");
 extern trace_event_t trace_ring[TRACE_CAPACITY];
 static uint32_t trace_head;
 static uint32_t trace_count;
@@ -745,6 +745,7 @@ static void task_return(void) { os_exit(); }
 
 
 void os_init(void) {
+    memset((void *)(uintptr_t)0x20032000u,0,2048u); /* shared RAM boot reset */
     memset(tasks, 0, sizeof(tasks));
     current=-1; ticks=0; uart1_irq_count=0;
     gpio_driver_init();
@@ -972,17 +973,19 @@ static int in_task_range(const void *p, size_t n) {
 static int path_match(const char *p, const char *s) {
     return strcmp(p,s)==0;
 }
-/* Small volatile regular-file store; IDs are disjoint from devices. */
-/* Reserve one former RAM-file slot for lwIP mDNS static state.
- * Retain the 1024-byte per-file limit used by edit/as/python. */
-#if PICONIX_WIFI && PICONIX_WIFI_STA
-#define TMP_FILES 7
-#else
-#define TMP_FILES 8
-#endif
-/* Keep the RAM filesystem within the 64-KiB kernel SRAM region. */
-#define TMP_BYTES 1024
-static struct { char name[16]; uint16_t size; uint8_t used; uint8_t data[TMP_BYTES]; } tmp_files[TMP_FILES];
+/* Metadata is kernel-private; 11 fixed 2-KiB payloads live outside kernel RAM.
+ * Physical ranges are reserved and audited, not linked into .bss. */
+#define TMP_FILES 11
+#define TMP_BYTES 2048
+#define SHM_BASE 0x20032000u
+#define SHM_BYTES 2048u
+#define RAMFILE_BASE 0x20032800u
+__asm__(".global shared_ram\n.set shared_ram, 0x20032000");
+__asm__(".global ramfile_data\n.set ramfile_data, 0x20032800");
+static struct { char name[16]; uint16_t size; uint8_t used; } tmp_files[TMP_FILES];
+static uint8_t *tmp_payload(int id) {
+    return (uint8_t *)(uintptr_t)(RAMFILE_BASE+(uint32_t)id*TMP_BYTES);
+}
 /* Check a user path without reading outside the caller's address range. */
 /* /tmp and /etc share eight volatile file slots. Names are stored with
  * a short directory prefix so the existing descriptor scheme stays intact. */
@@ -1018,7 +1021,7 @@ static void tmp_init(void) {
     strcpy(tmp_files[0].name,"etc/index.html");
     tmp_files[0].used=1;
     tmp_files[0].size=sizeof(html)-1;
-    memcpy(tmp_files[0].data,html,sizeof(html)-1);
+    memcpy(tmp_payload(0),html,sizeof(html)-1);
     static const char asm_sample[] =
         "@ PicoNIX assembly sample: print a face 3 times.\n"
         "@ r0=syscall, r1-r3=arguments; svc #0 invokes kernel.\n"
@@ -1063,11 +1066,11 @@ static void tmp_init(void) {
     strcpy(tmp_files[1].name,"tmp/test.s");
     tmp_files[1].used=1;
     tmp_files[1].size=sizeof(asm_sample)-1;
-    memcpy(tmp_files[1].data,asm_sample,sizeof(asm_sample)-1);
+    memcpy(tmp_payload(1),asm_sample,sizeof(asm_sample)-1);
     strcpy(tmp_files[2].name,"tmp/test.py");
     tmp_files[2].used=1;
     tmp_files[2].size=sizeof(py_sample)-1;
-    memcpy(tmp_files[2].data,py_sample,sizeof(py_sample)-1);
+    memcpy(tmp_payload(2),py_sample,sizeof(py_sample)-1);
 }
 static int tmp_lookup(const char *name) {
     tmp_init();
@@ -1099,6 +1102,7 @@ static int tmp_open(const char *p,int flags) {
     if(fd<0) return OS_EMFILE;
     if(!tmp_files[index].used) {
         memset(&tmp_files[index],0,sizeof(tmp_files[index]));
+        memset(tmp_payload(index),0,TMP_BYTES);
         strcpy(tmp_files[index].name,name);
         tmp_files[index].used=1;
     }
@@ -1132,9 +1136,9 @@ static int tmp_rw(int fd,void *p,size_t n,int writing) {
     if(count>n) count=n;
     if(writing) {
         if(!count && n) return OS_ENOSPC;
-        memcpy(tmp_files[id].data+pos,p,count);
+        memcpy(tmp_payload(id)+pos,p,count);
         if(pos+count>tmp_files[id].size) tmp_files[id].size=(uint16_t)(pos+count);
-    } else if(count) memcpy(p,tmp_files[id].data+pos,count);
+    } else if(count) memcpy(p,tmp_payload(id)+pos,count);
     tasks[current].fd_pos[fd]=(uint32_t)(pos+count);
     return (int)count;
 }
@@ -1183,7 +1187,6 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
             if(programs[i].entry && programs[i].name) { EMIT(programs[i].name,0); }
         break;
     case VDIR_TMP: case VDIR_ETC:
-        tmp_init();
         tmp_init();
     for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) {
             const char *prefix=dir==VDIR_TMP?"tmp/":"etc/";
@@ -1490,7 +1493,7 @@ static int proc_ramfiles_read(int fd, void *p, size_t n) {
     for(int i=0;i<TMP_FILES;i++) if(tmp_files[i].used) {
         char line[80];
         int len=snprintf(line,sizeof line,"%08lX %s\n",
-                         (unsigned long)(uintptr_t)tmp_files[i].data,
+                         (unsigned long)(uintptr_t)tmp_payload(i),
                          tmp_files[i].name);
         if(len<=0 || (size_t)len>=sizeof line) return OS_EINVAL;
         if(pos>=skip+(size_t)len) {skip+=(size_t)len;continue;}
@@ -1539,7 +1542,7 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
                          (unsigned long)t,(unsigned long)psv,(unsigned long)svc,(unsigned long)uart1_irqs);
             break;
         case DEV_PROC_SWITCHES: len=snprintf(text,sizeof text,"%lu\n",(unsigned long)switches); break;
-        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000FFFF\nslots  20010000-%08lX (%d x 24 KiB)\ntrace  20034000-20037FFF (16 KiB)\n%s", (unsigned long)(0x20010000u + OS_MAX_TASKS * OS_TASK_BYTES - 1u), OS_MAX_TASKS, "net    20038000-2003FFFF (32 KiB reserved)\n"); break;
+        case DEV_PROC_MEMORY: len=snprintf(text,sizeof text,"kernel 20000000-2000DFFF\nslots  2000E000-%08lX (%d x 24 KiB)\nshm    20032000-200327FF (2 KiB)\nfiles  20032800-20037FFF (11 x 2 KiB)\ntrace  20038000-2003BFFF (16 KiB)\n%s", (unsigned long)(0x2000E000u + OS_MAX_TASKS * OS_TASK_BYTES - 1u), OS_MAX_TASKS, "net    2003C000-2003FFFF (16 KiB reserved)\n"); break;
     }
     if(len<0) return OS_EINVAL;
     if((size_t)len>=sizeof text) len=sizeof text-1;
@@ -1714,6 +1717,18 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         tasks[current].fd_pos[fd]=pos+(uint32_t)done;
         return (int)done;
     }
+    if(dev==DEV_SHM) {
+        int mode=tasks[current].fd_flags[fd] & 3;
+        if((writing && mode==OS_O_RDONLY) || (!writing && mode==OS_O_WRONLY)) return OS_EBADF;
+        uint32_t pos=tasks[current].fd_pos[fd];
+        if(pos>=SHM_BYTES) return 0;
+        size_t count=n;
+        if(count>SHM_BYTES-pos) count=SHM_BYTES-pos;
+        if(writing) memmove((void *)(uintptr_t)(SHM_BASE+pos),p,count);
+        else memmove(p,(const void *)(uintptr_t)(SHM_BASE+pos),count);
+        tasks[current].fd_pos[fd]=pos+(uint32_t)count;
+        return (int)count;
+    }
     if(dev==DEV_MEM) {
         if(writing ? (tasks[current].fd_flags[fd] & 3)==OS_O_RDONLY
                    : (tasks[current].fd_flags[fd] & 3)==OS_O_WRONLY) return OS_EBADF;
@@ -1732,14 +1747,16 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
              * (names, lengths, allocation flags) remains protected. */
             int file_payload=0;
             for(int i=0;i<TMP_FILES;i++) {
-                uint32_t base=(uint32_t)(uintptr_t)tmp_files[i].data;
+                uint32_t base=(uint32_t)(uintptr_t)tmp_payload(i);
                 if(addr>=base && addr<base+TMP_BYTES) {
                     end=base+TMP_BYTES; file_payload=1; break;
                 }
             }
             if(!file_payload) {
-                if(addr<0x20010000u || addr>=0x20034000u) return OS_EINVAL;
-                end=0x20034000u;
+                if(addr>=0x2000E000u && addr<SHM_BASE) end=SHM_BASE;
+                else if(addr>=SHM_BASE && addr<SHM_BASE+SHM_BYTES) end=SHM_BASE+SHM_BYTES;
+                else if(addr>=RAMFILE_BASE && addr<0x20038000u) end=0x20038000u;
+                else return OS_EINVAL;
             }
         }
         size_t count=n;
@@ -2082,7 +2099,7 @@ void os_svc_dispatch(uint32_t *f) {
             if(!in_task_range(path,21) || !tmp_name(path,filename)) { result=OS_EINVAL; break; }
             int f=tmp_lookup(filename);
             if(f<0) { result=OS_ENOENT; break; }
-            const uint8_t *image=tmp_files[f].data;
+            const uint8_t *image=tmp_payload(f);
             unsigned size=tmp_files[f].size;
             if(size<10 || image[0]!='P' || image[1]!='N' || image[2]!='X' || image[3]!='1' ||
                image[6] || image[7]) { result=OS_EINVAL; break; }
@@ -2255,7 +2272,9 @@ void os_svc_dispatch(uint32_t *f) {
         case SYS_LSEEK:
             if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]<0) result=OS_EBADF;
             else if(c!=0) result=OS_EINVAL; /* SEEK_SET only */
-            else if(tasks[current].fd[a]==DEV_MEM) {
+            else if(tasks[current].fd[a]==DEV_SHM && b>=0 && b<=SHM_BYTES) {
+                tasks[current].fd_pos[a]=(uint32_t)b; result=b;
+            } else if(tasks[current].fd[a]==DEV_MEM) {
                 uint32_t pos=(uint32_t)b;
                 if((pos>=0x10000000u && pos<0x10200000u) ||
                    (pos>=0x20000000u && pos<0x20040000u)) {

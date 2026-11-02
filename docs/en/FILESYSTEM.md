@@ -14,7 +14,8 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 │   ├── uart1               UART1 terminal
 │   ├── wifi                Wi-Fi terminal (Wi-Fi builds only)
 │   ├── rand                Simple pseudorandom generator
-│   ├── mem                 Read permitted memory regions
+│   ├── mem                 Read/write permitted memory regions
+│   ├── shm                 Shared 2-KiB RAM
 │   ├── trace               Binary trace events
 │   ├── gpio/
 │   │   ├── fb              8×8 LED framebuffer
@@ -50,7 +51,8 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 |---|:---:|:---:|---|
 | `/dev/console`, `/dev/ttyS1`, `/dev/ttyN0` | Yes | Yes | Terminals; `/dev/ttyN0` only in Wi-Fi builds |
 | `/dev/rand` | Yes | No | Non-cryptographic PRNG; at most 4 bytes per read |
-| `/dev/mem` | Yes | Restricted | Read permitted XIP flash/SRAM; writes are limited to task slots and RAM-file payloads; absolute `lseek()` address |
+| `/dev/mem` | Yes | Restricted | Read permitted XIP flash/SRAM; writes are limited to task slots, SHM and RAM-file payloads; absolute `lseek()` address |
+| `/dev/shm` | Yes | Yes | Shared 2-KiB RAM, indexed from offset zero |
 | `/dev/trace` | Yes | No | Binary records; see the `trace` command |
 | `/dev/gpio/fb` | Yes | Yes | Exactly 8 bytes; enable using `ioctl()` |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | Yes | Yes | Only pins configured as GPIO in `pins.h` |
@@ -70,13 +72,15 @@ In the default `kernel/pins.h`, GP0–17 and GP22–25 are configured as GPIO, G
 
 | Item | Limit or behavior |
 |---|---|
-| Number of files | **8 total**, shared between `/tmp` and `/etc` |
-| File size | **1024 bytes each** |
+| Number of files | **11 total**, shared between `/tmp` and `/etc` |
+| File size | **2048 bytes each** |
 | Names | Direct children only; filename up to **11 bytes** (assuming ASCII) |
 | Persistence | None; reset on reboot |
 | Initial files | `/etc/index.html`, `/tmp/test.s`, `/tmp/test.py` (3 slots) |
 | Creation and deletion | Create with `O_CREAT`; delete with `unlink()`. Open files cannot be deleted |
 | Writing | Partial writes at the capacity boundary; `OS_ENOSPC` when no space remains |
+
+File metadata stays in kernel RAM; the eleven 2-KiB payloads are contiguous from `0x20032800`. See [Memory layout](MEMORY-LAYOUT.md).
 
 `/etc/index.html` is served by the user-space `httpd`. It can be edited in RAM but changes are not saved to Flash. Nested subdirectories under `/tmp` and `/etc` cannot be created.
 

@@ -8,7 +8,7 @@ import re
 import subprocess
 import sys
 
-SLOT_BASE = 0x20010000
+SLOT_BASE = 0x2000e000
 SLOT_BYTES = 6 * 0x6000
 
 def run(*argv):
@@ -72,7 +72,7 @@ def audit(symbols, sections, slots=6):
     require(symbols.get('ram_vector_table') == 0x20000000,
             'ram_vector_table symbol must start at 0x20000000')
     base = symbols.get('task_ram')
-    require(base == SLOT_BASE, f'task_ram must start at 0x20010000 ({slots} x 24-KiB slots)')
+    require(base == SLOT_BASE, f'task_ram must start at 0x2000e000 ({slots} x 24-KiB slots)')
     for name in ('tasks', 'idle_stack'):
         address = symbols.get(name)
         require(address is not None, f'missing {name} symbol')
@@ -104,14 +104,18 @@ def audit(symbols, sections, slots=6):
                 and image_end <= app_section[1] + app_section[0]
                 and app_section[2] == app_section[1],
                 f'embedded {app} image is not in flash-backed .piconix_app_images')
-    # Every allocated kernel SRAM section must fit within 64 KiB; no accidental
+    # Every allocated kernel SRAM section must fit within 56 KiB; no accidental
     # use of task banks by SDK sections, and no stack spill into the slots.
     for name, (size, vma, lma) in sections.items():
         if not size or name.startswith(('.debug', '.comment')):
             continue
-        if 0x20000000 <= vma < 0x20010000:
-            require(vma + size <= 0x20010000,
-                    f'{name} crosses kernel 64-KiB boundary')
+        if 0x20000000 <= vma < 0x2000e000:
+            require(vma + size <= 0x2000e000,
+                    f'{name} crosses kernel 56-KiB boundary')
+    for name,(size,vma,_) in sections.items():
+        if not size or name.startswith(('.debug','.comment')): continue
+        if 0x20000000 <= vma < 0x20040000 and vma + size > SLOT_BASE:
+            require(False, f'{name} allocated outside 56-KiB kernel SRAM')
     return problems
 
 def memory_report(sections, symbol_sizes, slots=6):
@@ -125,14 +129,16 @@ def memory_report(sections, symbol_sizes, slots=6):
     capacity = kernel_end - kernel_base
     print('\n=== PicoNIX RP2040 SRAM layout ===')
     print('Region               Address range                Allocated / Capacity')
-    print(f'Kernel (64 KiB)      0x{kernel_base:08x}..0x{kernel_end - 1:08x}     {used:6d} / {capacity:6d} bytes')
+    print(f'Kernel (56 KiB)      0x{kernel_base:08x}..0x{kernel_end - 1:08x}     {used:6d} / {capacity:6d} bytes')
     print(f'Kernel headroom      (after allocated sections)   {max(0, capacity-used):6d} bytes')
     for i in range(slots):
         base = SLOT_BASE + i * 0x6000
         print(f'User slot {i+1} (24 KiB)  0x{base:08x}..0x{base+0x5fff:08x}     reserved (runtime)')
     if slots == 6:
-        print('Network reserved     0x20038000..0x2003ffff      32768 bytes (not allocated)')
-    print('Trace ring            16384 bytes (0x20034000..0x20037fff, reserved gap)')
+        print('Network reserved     0x2003c000..0x2003ffff      16384 bytes (not allocated)')
+    print('SHM                    2048 bytes (0x20032000..0x200327ff)')
+    print('RAM files             22528 bytes (0x20032800..0x20037fff)')
+    print('Trace ring            16384 bytes (0x20038000..0x2003bfff, reserved gap)')
     print('Kernel section breakdown (allocated SRAM):')
     for name, size, addr in sorted(ram_sections, key=lambda x: x[2]):
         print(f'  {name:22s} 0x{addr:08x}  {size:6d} bytes')
@@ -153,8 +159,11 @@ def main():
     except (OSError, subprocess.CalledProcessError) as e:
         sys.exit(f'FAIL: cannot inspect firmware ELF: {e}')
     problems = audit(symbols, sections, args.slots)
-    if symbols.get('trace_ring') != 0x20034000:
-        problems.append('trace_ring must start at 0x20034000 (reserved 16-KiB gap)')
+    for symbol, address in (('shared_ram',0x20032000),('ramfile_data',0x20032800)):
+        if symbols.get(symbol) != address:
+            problems.append(f'{symbol} must be at 0x{address:08x}')
+    if symbols.get('trace_ring') != 0x20038000:
+        problems.append('trace_ring must start at 0x20038000 (reserved 16-KiB gap)')
     memory_report(sections, symbol_sizes, args.slots)
     for name in ('.boot2', '.flashtext', '.ram_vector_table'):
         print(f'{name}: {sections.get(name, "MISSING")}')

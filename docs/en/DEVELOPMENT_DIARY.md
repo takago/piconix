@@ -117,6 +117,20 @@ The next insight was that byte strings could drive the LED framebuffer directly.
 
 Japanese and English documentation for I²C and Python was expanded. Initially these changes were delivered as patch ZIPs. Subsequent work corrected build include paths, missing application registration, and a scan bug that falsely detected every I²C address. **Hardware testing then confirmed `i2cctl scan`, approximately 500 lx readings from `bh1750 5`, Python I²C transfers and lux calculations, framebuffer writes, and display enable via `ioctl()`.** Python integer floor division (`//`), multiline `bytes([...])`, and REPL continuation were improved and tested in scripts and the REPL. These checks do not constitute exhaustive regression testing or a final SRAM-size audit. This work belongs to **development after the v1.1.0 release**.
 
+## November 2: dd, vi, and binary transfers over the network
+
+A small modal `vi` editor was added alongside `edit`. At this point, movement uses `h`, `j`, `k`, and `l`; arrow-key navigation remains a future improvement. The new `dd` utility can copy files and raw memory through `/dev/mem`. Its `if=-` and `of=-` options use standard input and output, while the TCP half-close behavior of `nc -N` makes binary pipelines between Linux and PicoNIX practical.
+
+Hardware tests reported successful RAM-to-`/tmp` dumps and file/memory-data transfers using `dd`, `nc`, and shell pipelines. The combined `DD-VI.md` document was retired in favor of separate bilingual `DD.md` and `VI.md` guides, with `NC.md` updated accordingly. See [dd and binary transfer](DD.md).
+
+## November 2: SRAM reorganization, independent RAM files, and shared memory
+
+The RAM-file data bytes were separated from kernel-owned file metadata and placed in a fixed-address region. Capacity increased from 1 KiB per file to **11 files × 2 KiB**. An independent **2 KiB shared-memory region** was introduced as `/dev/shm`, accessible via the device, physical addresses through `/dev/mem`, and direct pointers in PIC programs. Raw writes to RAM-file data intentionally do not update logical file sizes in the metadata table.
+
+The new 256 KiB main SRAM layout assigns 56 KiB to the kernel, 6 × 24 KiB to user slots, 2 KiB to SHM, 22 KiB to RAM files, 16 KiB to trace, and 16 KiB to networking. Trace and memory inspection address references, PIC slot placement, the lwIP heap pointer, and layout verification scripts were updated together. **The Pico W ELF audit reported 41,460 allocated kernel bytes, 15,884 bytes of linker-address headroom, and PASS for the static layout checks.** Linker headroom is not runtime free heap.
+
+On hardware, `/proc/memory` showed the expected layout and `/proc/ramfiles` showed file data addresses spaced by 2 KiB. After writing `hello` to `/dev/shm`, the 16-byte reads through `/dev/shm` and `/dev/mem` at `0x20032000` matched. Regular file reads and physical-address reads of RAM-file contents also matched; raw memory edits appeared in file reads. Both `mem` and `trace` were reported to work, and Pico W communication was reported functional. These reports do not establish an exhaustive AP/STA regression test. See [Memory layout](MEMORY-LAYOUT.md).
+
 ## Historical accuracy and references
 
 This is a narrative reconstruction from conversations, not an exhaustive Git audit. A code change proposed or produced by ChatGPT is not, by itself, evidence of a successful hardware test. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.

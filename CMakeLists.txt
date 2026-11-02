@@ -33,7 +33,7 @@ set(PICONIX_SYMBOL_BINS "")
 foreach(APP IN ITEMS pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 24-KiB slot address.
-  set(APP_ORIGIN 0x20010000)
+  set(APP_ORIGIN 0x2000E000)
   set(APP_DIR "${CMAKE_CURRENT_BINARY_DIR}/ram_${APP}")
   file(MAKE_DIRECTORY "${APP_DIR}")
   set(APP_LD "${APP_DIR}/slot.ld")
@@ -43,9 +43,9 @@ foreach(APP IN ITEMS pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji
   set(SYSCALLS_OBJ "${APP_DIR}/syscalls.o")
   set(LIBC_OBJ "${APP_DIR}/libc.o")
   set(APP_LD_ALT "${APP_DIR}/slot_alt.ld")
-  set(APP_ORIGIN 0x20016000)
+  set(APP_ORIGIN 0x20014000)
   configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/slot.ld" "${APP_LD_ALT}" @ONLY)
-  set(APP_ORIGIN 0x20010000)
+  set(APP_ORIGIN 0x2000E000)
   set(APP_ELF_ALT "${APP_DIR}/${APP}_alt.elf")
   set(APP_BIN_ALT "${APP_DIR}/${APP}_alt.bin")
   set(APP_ELF "${APP_DIR}/${APP}.elf")
@@ -149,7 +149,7 @@ set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S"
 list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S")
 
 # Kernel .text/.rodata execute from XIP flash on both Pico and Pico W.
-# Only .data/.bss/time-critical code/stacks use the first 64 KiB SRAM.
+# Only .data/.bss/time-critical code/stacks use the first 56 KiB SRAM.
 # The default SDK startup initializes writable sections and RAM vectors.
 # SDK 2.3+ uses modular linker includes; older SDKs have a monolithic script.
 set(PICONIX_MODULAR_XIP_LD "${PICO_SDK_PATH}/src/rp2040/pico_platform/memmap_default.ld")
@@ -187,7 +187,7 @@ endif()
 add_executable(piconix kernel/net.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 if(PICONIX_USE_MODULAR_XIP)
-  pico_set_linker_script_var(piconix RAM_LENGTH 0x10000)
+  pico_set_linker_script_var(piconix RAM_LENGTH 0xE000)
   pico_add_linker_script_override_path(piconix "${PICONIX_LD_OVERRIDES}"
                                       FILES section_extra_post_text.incl)
 else()

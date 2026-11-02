@@ -12,8 +12,8 @@ sections = list(parse_sections(sample))
 assert len(sections) == 2, sections
 errors, size = audit(sections)
 assert not errors and size == 0x1200, (errors, size)
-errors, _ = audit(sections + [('.bad', 0x20038000, 128)])
+errors, _ = audit(sections + [('.bad', 0x2003C000, 128)])
 assert errors and '.bad' in errors[0]
-errors, _ = audit(sections + [('.overflow', 0x2000fff0, 32)])
+errors, _ = audit(sections + [('.overflow', 0x2000dff0, 32)])
 assert errors and '.overflow' in errors[0]
 print('PASS: ELF writable-section parser and reserved-RAM overlap rejection')

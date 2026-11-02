@@ -29,17 +29,17 @@ PicoNIX has no Linux ELF loader, MMU-based process isolation, dynamic linking or
 
 | Start address | Region | Capacity |
 |---|---|---:|
-| Start address | Region | Capacity |
-|---|---|---:|
-| `0x20000000` | Kernel RAM region | 64 KiB |
-| `0x20010000` | Task slot 1 | 24 KiB |
-| `0x20016000` | Task slot 2 | 24 KiB |
-| `0x2001C000` | Task slot 3 | 24 KiB |
-| `0x20022000` | Task slot 4 | 24 KiB |
-| `0x20028000` | Task slot 5 | 24 KiB |
-| `0x2002E000` | Task slot 6 | 24 KiB |
-| `0x20034000` | Dedicated trace ring | 16 KiB |
-| `0x20038000` | Network reserve | 32 KiB |
+| `0x20000000` | Kernel RAM region | 56 KiB |
+| `0x2000E000` | Task slot 1 | 24 KiB |
+| `0x20014000` | Task slot 2 | 24 KiB |
+| `0x2001A000` | Task slot 3 | 24 KiB |
+| `0x20020000` | Task slot 4 | 24 KiB |
+| `0x20026000` | Task slot 5 | 24 KiB |
+| `0x2002C000` | Task slot 6 | 24 KiB |
+| `0x20032000` | Shared memory (SHM) | 2 KiB |
+| `0x20032800` | RAM-file payloads (11 × 2 KiB) | 22 KiB |
+| `0x20038000` | Dedicated trace ring | 16 KiB |
+| `0x2003C000` | Network reserve | 16 KiB |
 
 The final 4 KiB of each task slot is reserved for its stack, leaving at most 20 KiB for application image and static data. Six task slots are available; idle processing is managed separately.
 
@@ -99,7 +99,7 @@ Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) 
 | `/tmp` | Small RAM files, lost on reboot |
 | `/dev/console`, `/dev/ttyS1` | Terminal I/O |
 | `/dev/gpio/N`, `/dev/adc/*`, `/dev/pwm/*` | GPIO, ADC and PWM |
-| `/dev/mem` | Diagnostic memory reads |
+| `/dev/mem` | Memory read/write in permitted ranges |
 | `/dev/trace` | Binary tracing records |
 | `/proc/tasks`, `/proc/uptime`, `/proc/interrupts`, `/proc/memory` | Kernel status |
 
@@ -107,7 +107,7 @@ See [Devices and wiring](DEVICES.md) for device paths and pin assignments. Each 
 
 ## 8. Tracing and debugging
 
-The kernel uses a dedicated ring buffer at `0x20034000`–`0x20037FFF`, holding 512 records of 32 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text.
+The kernel uses a dedicated ring buffer at `0x20038000`–`0x2003BFFF`, holding 512 records of 32 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text.
 
 ```text
 trace on

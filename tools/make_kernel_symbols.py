@@ -29,7 +29,7 @@ for line in result.stdout.splitlines():
         continue
     addr, kind, name = m.groups()
     addr = int(addr, 16)
-    if not (0x10000000 <= addr < 0x10200000 or 0x20000000 <= addr < 0x20010000):
+    if not (0x10000000 <= addr < 0x10200000 or 0x20000000 <= addr < 0x2000E000):
         continue
     if name.startswith(('__', '$')) or name.startswith('piconix_kernel_syms_'):
         continue

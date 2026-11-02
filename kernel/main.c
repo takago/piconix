@@ -58,7 +58,7 @@ extern const unsigned char piconix_nc_image_start[], piconix_nc_image_end[];
 extern const unsigned char piconix_httpd_image_start[], piconix_httpd_image_end[];
 extern const unsigned char piconix_tcp_echod_image_start[], piconix_tcp_echod_image_end[];
 extern const unsigned char piconix_udp_echod_image_start[], piconix_udp_echod_image_end[];
-#define RAM_APP_ORIGIN 0x20010000u
+#define RAM_APP_ORIGIN 0x2000E000u
 
 static void register_image(int id, const char *name,
                            const unsigned char *start, const unsigned char *end) {

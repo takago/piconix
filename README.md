@@ -15,12 +15,13 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, and `udp_echod` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
 - **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`.
-- **Foreground interruption** — Ctrl+C terminates registered foreground tasks, including pipeline stages; `nc -u -N` exits on stdin EOF for one-shot UDP sends.
+- **Foreground interruption** — Ctrl+C terminates registered foreground tasks, including pipeline stages; `nc -N` handles standard-input EOF for TCP half-close and one-shot UDP sends.
 - **Six application slots** — Six fixed 24 KiB RAM slots (4 KiB stack reserve per slot) on RP2040.
 - **Pipes and redirection** — Two- and three-command pipelines using `|`, with `pipe()`, `dup()`, and `dup2()` support.
 - **Device files** — Access GPIO, ADC, PWM, I²C1, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/SYSCALLS.md) ([日本語](docs/ja/SYSCALLS.md)).
-- **Programming on the device** — An editor (`edit`), assembler (`as`), and small Python-like interpreter (`python`).
+- **Programming on the device** — Text editors (`edit`, `vi`), assembler (`as`), and small Python-like interpreter (`python`).
+- **Binary and memory I/O** — `dd` copies files or raw RAM through `/dev/mem`; pipelines with `nc` support network transfers. A 2 KiB `/dev/shm` region is shared by all tasks and is also accessible by physical address.
 - **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call and context-switch tracing, and open-descriptor reporting, including socket ports.
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
@@ -30,10 +31,10 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 
 | Category | Commands |
 |---|---|
-| Shell & files | `sh`, `ls`, `cat`, `grep`, `pwd`, `echo`, `rm`, `find`, `tree` |
+| Shell & files | `sh`, `ls`, `cat`, `grep`, `pwd`, `echo`, `rm`, `find`, `tree`, `dd` |
 | Processes & diagnostics | `ps`, `kill`, `lsof`, `trace`, `mem`, `hexdump`, `watch` |
 | Terminals | `tty`, `stty`, `reset` |
-| Programming | `edit`, `as`, `python` |
+| Programming | `edit`, `vi`, `as`, `python` |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink` |
 | Networking | `nc`, `httpd`, `tcp_echod`, `udp_echod` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
@@ -105,7 +106,7 @@ The Pico SDK and an ARM toolchain are required. See the setup guide linked below
 
 - **Kernel code:** Executes directly from external Flash using XIP.
 - **User programs:** Stored in Flash as PIC images; the selected image is copied into a RAM application slot when launched and executes from SRAM.
-- **SRAM:** Holds kernel data and stacks, user-process code/data/stacks, and other runtime state. PicoNIX uses six fixed 24 KiB application slots on RP2040.
+- **SRAM:** Holds kernel data and stacks, six fixed 24 KiB application slots, 11 × 2 KiB RAM-file data slots, 2 KiB shared memory (`/dev/shm`), a 16 KiB trace ring, and a 16 KiB network reserve. The kernel is allocated 56 KiB.
 
 This approach saves scarce SRAM by keeping kernel instructions in Flash while allowing user applications to run from separate RAM slots. See [Architecture](docs/en/ARCHITECTURE.md) and [全体構造](docs/ja/ARCHITECTURE.md) for details.
 
@@ -121,7 +122,7 @@ This approach saves scarce SRAM by keeping kernel instructions in Flash while al
 
 The socket API is intentionally small rather than fully POSIX-compatible. `send()` and `recv()` currently support `flags = 0` only.
 
-The volatile `/tmp` and `/etc` directories share a pool of up to eight RAM files, each limited to 1 KiB.
+The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM files, each limited to 2 KiB. File metadata resides in kernel RAM, separate from the fixed RAM-file data region. See [Memory layout](docs/en/MEMORY-LAYOUT.md) / [メモリ配置](docs/ja/MEMORY-LAYOUT.md).
 
 ## Documentation / ドキュメント
 

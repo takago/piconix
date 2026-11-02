@@ -53,7 +53,7 @@ The default setup uses a USB CDC console and an 8×8 LED matrix. UART1 uses GP20
 
 ## Design and limitations
 
-PicoNIX has a 64 KiB kernel region and six 24 KiB application slots (4 KiB reserved for the stack in each slot). PIC application images are embedded in flash and loaded into a free slot on launch. Up to six application tasks can run concurrently.
+PicoNIX has a 56 KiB kernel region and six 24 KiB application slots (4 KiB reserved for the stack in each slot). PIC application images are embedded in flash and loaded into a free slot on launch. Up to six application tasks can run concurrently.
 
 PicoNIX is not a fully UNIX-compatible OS. It has no generic signal delivery, signal handlers, per-process memory protection, or dynamic ELF loading. `Ctrl+C` and `kill` terminate tasks directly in the kernel; they do not send UNIX signals. `/tmp` is lost on reboot.
 

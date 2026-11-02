@@ -2,7 +2,7 @@
 
 [日本語](../ja/VI.md) | [Documentation](DOCS.md) | [edit](EDIT.md)
 
-`vi` is a small modal editor separate from `edit`. Use `vi /tmp/hello.txt` to edit a RAM file of up to 1024 bytes. It is not a full vi implementation.
+`vi` is a small modal editor separate from `edit`. Use `vi /tmp/hello.txt` to edit a RAM file. RAM files hold up to 2048 bytes, but the current `vi` editor buffer is limited to 1024 bytes. It is not a full vi implementation.
 
 | Key | Action |
 |---|---|

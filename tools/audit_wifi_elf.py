@@ -9,9 +9,9 @@ import subprocess
 import sys
 
 RAM_START = 0x20000000
-KERNEL_END = 0x20010000
-SLOT_START = 0x20010000
-RESERVE_START = 0x20038000
+KERNEL_END = 0x2000e000
+SLOT_START = 0x2000e000
+RESERVE_START = 0x2003C000
 RAM_END = 0x20040000
 
 
@@ -33,7 +33,7 @@ def audit(sections):
         end = start + size
         if RAM_START <= start < RAM_END or RAM_START < end <= RAM_END:
             if not (RAM_START <= start < end <= KERNEL_END):
-                errors.append(f'{name}: writable section 0x{start:08x}..0x{end-1:08x} outside 64-KiB kernel area')
+                errors.append(f'{name}: writable section 0x{start:08x}..0x{end-1:08x} outside 56-KiB kernel area')
             else:
                 kernel_bytes += size
         elif start < RAM_END and end > RAM_START:
@@ -58,7 +58,7 @@ def main():
         print('ERROR:', error, file=sys.stderr)
     print(f'Pico W writable kernel sections: {kernel_bytes} bytes (sum, not peak RAM)')
     print(f'Kernel boundary: 0x{KERNEL_END:08x}; task slots: 0x{SLOT_START:08x}..0x{RESERVE_START-1:08x}')
-    print(f'Wi-Fi reserve: 0x{RESERVE_START:08x}..0x{RAM_END-1:08x} (32 KiB)')
+    print(f'Wi-Fi reserve: 0x{RESERVE_START:08x}..0x{RAM_END-1:08x} (16 KiB)')
     print('NOTE: SDK scratch SRAM, runtime stacks, CYW43 allocations and lwIP heap require separate checks')
     if errors:
         sys.exit(1)

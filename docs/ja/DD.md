@@ -6,18 +6,18 @@
 
 ```sh
 dd if=/tmp/test.py of=/tmp/copy.py bs=128
-dd if=/dev/mem of=/tmp/dump.bin bs=1 skip=0x20010000 count=256
+dd if=/dev/mem of=/tmp/dump.bin bs=1 skip=0x2000E000 count=256
 hexdump /tmp/dump.bin
 ```
 
-`/dev/mem`のオフセットは絶対アドレスです．`bs=1`なら`skip=`と`seek=`をバイトアドレスとして指定できます．`/dev/mem`から読み出す場合は`count=`が必須です．書き込み可能範囲は現行のユーザスロット`0x20010000`～`0x20033FFF`と，`/proc/ramfiles`で確認できるRAMファイルのデータ領域です．タスク領域への書き込みは実行中のコードやデータを破壊するため，十分注意してください．
+`/dev/mem`のオフセットは絶対アドレスです．`bs=1`なら`skip=`と`seek=`をバイトアドレスとして指定できます．`/dev/mem`から読み出す場合は`count=`が必須です．書き込み可能範囲は現行のユーザスロット`0x2000E000`～`0x20031FFF`と，`/proc/ramfiles`で確認できるRAMファイルのデータ領域です．タスク領域への書き込みは実行中のコードやデータを破壊するため，十分注意してください．
 
 ```sh
 # 空きスロットと確認できた場合に限り，RAMへ書き戻す例
-dd if=/tmp/dump.bin of=/dev/mem bs=1 seek=0x20010000 count=256
+dd if=/tmp/dump.bin of=/dev/mem bs=1 seek=0x2000E000 count=256
 ```
 
-`/dev/mem`によるRAMファイルデータの直接変更は，ファイル名・長さなどの管理情報を更新しません．通常のファイルの作成・転送には`of=/tmp/名前`を使用してください．現在のRAMファイルは1ファイル最大1024バイトです．ファイル領域の固定配置，2 KiB化，SHMは今後の改造案であり，この版では未実装です．
+`/dev/mem`によるRAMファイルデータの直接変更は，ファイル名・長さなどの管理情報を更新しません．通常のファイルの作成・転送には`of=/tmp/名前`を使用してください．現在のRAMファイルは11個，各2048バイトです．データ領域は`0x20032800`から固定配置されています．全タスク共通の2 KiB RAMは`/dev/shm`（相対オフセット）または`/dev/mem`（絶対アドレス`0x20032000`から）でアクセスできます．
 
 ## Linux → PicoNIX：ファイル転送
 
@@ -53,7 +53,7 @@ nc -l 9000 > dump.bin
 ```sh
 # PicoNIX側：256バイトを送信
 # 192.168.4.2はLinux側のIPアドレス例
-dd if=/dev/mem bs=1 skip=0x20010000 count=256 | nc -N 192.168.4.2 9000
+dd if=/dev/mem bs=1 skip=0x2000E000 count=256 | nc -N 192.168.4.2 9000
 ```
 
 ```sh
@@ -66,7 +66,7 @@ hexdump -C dump.bin
 
 ```sh
 # PicoNIX側：書き込み先は事前に確認した安全な領域に変更すること
-nc -N -l 9000 | dd if=- of=/dev/mem bs=1 seek=0x20010000 count=256
+nc -N -l 9000 | dd if=- of=/dev/mem bs=1 seek=0x2000E000 count=256
 ```
 
 ```sh

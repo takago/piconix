@@ -9,6 +9,7 @@ enum {
     DEV_WIFI_CTRL = 138,
     DEV_RAND = 94,
     DEV_MEM = 98,
+    DEV_SHM = 140,
     DEV_TRACE = 99,
     DEV_I2C1 = 139,
 };
@@ -19,6 +20,7 @@ enum {
     X("/dev/ttyS1", DEV_UART1) \
     X("/dev/rand", DEV_RAND) \
     X("/dev/mem", DEV_MEM) \
+    X("/dev/shm", DEV_SHM) \
     X("/dev/trace", DEV_TRACE) \
     X("/dev/i2c/1", DEV_I2C1)
 #define PICONIX_WIFI_DEVICES(X) \

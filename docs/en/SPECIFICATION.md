@@ -17,10 +17,12 @@ This document summarizes the **current implementation and fixed resource limits*
 |---|---|
 | User task slots | 6 |
 | Size per slot | 24 KiB (24,576 bytes) |
-| Kernel SRAM | `0x20000000`–`0x2000FFFF` (64 KiB) |
-| Task slot area | `0x20010000`–`0x20033FFF` (144 KiB) |
-| Dedicated trace ring | `0x20034000`–`0x20037FFF` (16 KiB, kernel-managed) |
-| Reserved networking area | `0x20038000`–`0x2003FFFF` (32 KiB) |
+| Kernel SRAM | `0x20000000`–`0x2000DFFF` (56 KiB) |
+| Task slot area | `0x2000E000`–`0x20031FFF` (144 KiB) |
+| Shared memory | `0x20032000`–`0x200327FF` (2 KiB) |
+| RAM-file payloads | `0x20032800`–`0x20037FFF` (11 files × 2 KiB) |
+| Dedicated trace ring | `0x20038000`–`0x2003BFFF` (16 KiB, kernel-managed) |
+| Reserved networking area | `0x2003C000`–`0x2003FFFF` (16 KiB) |
 | Image/zero-initialized region check | Slot size minus 4 KiB |
 
 The final 4 KiB of a slot is reserved for the stack. The networking address reservation does not imply Wi-Fi functionality on a non-Wi-Fi Pico build. The kernel also has an idle task, separate from the six user slots.

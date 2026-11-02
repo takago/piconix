@@ -6,18 +6,18 @@
 
 ```sh
 dd if=/tmp/test.py of=/tmp/copy.py bs=128
-dd if=/dev/mem of=/tmp/dump.bin bs=1 skip=0x20010000 count=256
+dd if=/dev/mem of=/tmp/dump.bin bs=1 skip=0x2000E000 count=256
 hexdump /tmp/dump.bin
 ```
 
-Offsets into `/dev/mem` are absolute addresses. With `bs=1`, `skip` and `seek` are byte addresses. A `/dev/mem` input requires `count=`. Writes are currently restricted to user-slot RAM `0x20010000`–`0x20033FFF` and RAM-file payload addresses shown in `/proc/ramfiles`. Writing task memory can corrupt a running program; use a verified idle slot only.
+Offsets into `/dev/mem` are absolute addresses. With `bs=1`, `skip` and `seek` are byte addresses. A `/dev/mem` input requires `count=`. Writes are currently restricted to user-slot RAM `0x2000E000`–`0x20031FFF` and RAM-file payload addresses shown in `/proc/ramfiles`. Writing task memory can corrupt a running program; use a verified idle slot only.
 
 ```sh
 # Restore only to a verified unused slot
-dd if=/tmp/dump.bin of=/dev/mem bs=1 seek=0x20010000 count=256
+dd if=/tmp/dump.bin of=/dev/mem bs=1 seek=0x2000E000 count=256
 ```
 
-Raw writes to RAM-file payloads do not update filename or file-length metadata. To create or transfer ordinary files, use `of=/tmp/name`. Current RAM files are limited to 1024 bytes each. Fixed RAM-file layout, 2 KiB files, and shared memory are proposed future changes, not implemented in this version.
+Raw writes to RAM-file payloads do not update filename or file-length metadata. To create or transfer ordinary files, use `of=/tmp/name`. RAM files now have eleven 2048-byte slots, with payloads fixed from `0x20032800`. The shared 2-KiB RAM is available via `/dev/shm` (relative offset) or `/dev/mem` (absolute address starting at `0x20032000`).
 
 ## Linux → PicoNIX: transfer a file
 
@@ -48,7 +48,7 @@ nc -l 9000 > dump.bin
 
 ```sh
 # PicoNIX: send 256 bytes; substitute Linux IP
-dd if=/dev/mem bs=1 skip=0x20010000 count=256 | nc -N 192.168.4.2 9000
+dd if=/dev/mem bs=1 skip=0x2000E000 count=256 | nc -N 192.168.4.2 9000
 ```
 
 ```sh
@@ -61,7 +61,7 @@ hexdump -C dump.bin
 
 ```sh
 # PicoNIX: replace the destination with a verified safe address
-nc -N -l 9000 | dd if=- of=/dev/mem bs=1 seek=0x20010000 count=256
+nc -N -l 9000 | dd if=- of=/dev/mem bs=1 seek=0x2000E000 count=256
 ```
 
 ```sh
