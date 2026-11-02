@@ -14,6 +14,11 @@ PicoNIX is a compact UNIX-like OS for RP2040. For a first visit, follow **setup 
 3. [Devices and wiring](DEVICES.md) — GPIO, PWM, ADC, I²C, LED matrix
 4. [Filesystem and node reference](FILESYSTEM.md) — directories, `/dev`, `/proc`, and RAM file limits
 
+
+[Initial RAM files and boot script](INITIAL-FILES.md) — host file layout, build-time registration, `/etc/rc`, and PID 1 shell.
+
+
+
 ## 2. Learn UNIX concepts
 
 | Topic | Guide |

@@ -76,7 +76,7 @@ In the default `kernel/pins.h`, GP0–17 and GP22–25 are configured as GPIO, G
 | File size | **2048 bytes each** |
 | Names | Direct children only; filename up to **11 bytes** (assuming ASCII) |
 | Persistence | None; reset on reboot |
-| Initial files | `/etc/index.html`, `/tmp/test.s`, `/tmp/test.py` (3 slots) |
+| Initial files | `/etc/index.html`, `/etc/rc`, `/tmp/test.s`, `/tmp/test.py` (normally 4 slots; board-specific initial content) |
 | Creation and deletion | Create with `O_CREAT`; delete with `unlink()`. Open files cannot be deleted |
 | Writing | Partial writes at the capacity boundary; `OS_ENOSPC` when no space remains |
 
@@ -93,3 +93,5 @@ Relative paths resolve against each task's current working directory. `.` and `.
 - `kernel/kernel.c`: `vdir_paths`, `dev_registry`, `vfs_registry`, `vdir_nth()`, `vfs_open()`, `tmp_*()`.
 - `kernel/pins.h`: GPIO, ADC, PWM, and UART assignments.
 - `include/piconix.h`: public API and error constants.
+
+See [Initial RAM Files and /etc/rc](INITIAL-FILES.md) for host layout, file registration, and boot-time restoration.

@@ -51,12 +51,9 @@ static void measure_screen(void){
 /* Redraw only what changed. Full refresh is needed for scrolling and
  * changes to the number of lines; ordinary edits repaint just one row. */
 static void paint_row(int row){
- int p=0,n=0,text_cols=screen_cols-4;
+ int p=0,n=0,text_cols=screen_cols;
  while(p<len&&n<top+row){if(data[p++]=='\n')n++;}
  printf("\033[%d;1H",row+2);
- int number=top+row+1;
- if(number<=999)printf("\033[7m%03d \033[0m",number);
- else printf("\033[7m--- \033[0m");
  int c=0;
  while(p<len&&data[p]!='\n'){
   char ch=data[p++];int w=width(ch,c);
@@ -72,7 +69,7 @@ static void paint_row(int row){
 }
 /* mode: 0 = full, 1 = edited row, 2 = cursor/status only. */
 static void draw(const char *name,const char *notice,int mode){
- int line=line_no(pos),column=col_no(pos),text_cols=screen_cols-4;
+ int line=line_no(pos),column=col_no(pos),text_cols=screen_cols;
  int old_top=top,old_left=left_col;
  if(line<top)top=line;
  if(line>=top+visible_rows)top=line-visible_rows+1;
@@ -93,10 +90,34 @@ static void draw(const char *name,const char *notice,int mode){
   }else if(line>=top&&line<top+visible_rows)paint_row(line-top);
  }
  printf("\033[%d;1H\033[KLn %d Col %d  %s\033[K",visible_rows+3,line+1,column+1,notice?notice:"");
- int y=line-top+2,x=column-left_col+5;
+ int y=line-top+2,x=column-left_col+1;
  if(y<2)y=2;if(y>visible_rows+1)y=visible_rows+1;
- if(x<5)x=5;if(x>screen_cols)x=screen_cols;
+ if(x<1)x=1;if(x>screen_cols)x=screen_cols;
  printf("\033[%d;%dH\033[?25h",y,x);
+}
+
+
+/* Read the remainder of an ANSI cursor-key sequence without blocking Esc.
+ * A lone Esc exits insert mode; ESC [ A/B/C/D moves in either mode.
+ * Unrelated characters following Esc are returned to the main input loop. */
+static int poll_key(char *out){
+ int flags=fcntl(0,F_GETFL,0);
+ if(flags<0)return 0;
+ if(fcntl(0,F_SETFL,flags|O_NONBLOCK)<0)return 0;
+ int got=0;
+ for(int i=0;i<5;i++){
+  if(read(0,out,1)==1){got=1;break;}
+  msleep(10);
+ }
+ fcntl(0,F_SETFL,flags);
+ return got;
+}
+static void move_arrow(char c){
+ int col=col_no(pos);
+ if(c=='A'&&line_start(pos)>0)pos=position_col(line_start(line_start(pos)-1),col);
+ else if(c=='B'&&line_end(pos)<len)pos=position_col(line_end(pos)+1,col);
+ else if(c=='D'&&pos>line_start(pos))pos--;
+ else if(c=='C'&&pos<line_end(pos))pos++;
 }
 
 int main(int argc,char **argv){
@@ -130,18 +151,30 @@ int main(int argc,char **argv){
  }
  printf("\033[?1049h\033[?25h\033[2J");
  measure_screen();
- int esc=0,quit=0,insert_mode=0,pending_d=0;const char *notice="NORMAL";draw(path,notice,0);
+ int quit=0,insert_mode=0,pending_d=0;
+ int queued=-1;
+ const char *notice="NORMAL";draw(path,notice,0);
  while(!quit){
-  char c;if(read(0,&c,1)!=1)break;int repaint=2;
-  if(esc==1){esc=c=='['?2:0;continue;}
-  if(esc==2){esc=0;int col=col_no(pos);
-   if(c=='A'&&line_start(pos)>0)pos=position_col(line_start(line_start(pos)-1),col);
-   else if(c=='B'&&line_end(pos)<len)pos=position_col(line_end(pos)+1,col);
-   else if(c=='D'&&pos>0)pos--;
-   else if(c=='C'&&pos<len)pos++;
-   draw(path,insert_mode?"INSERT":"NORMAL",2);continue;
+  char c;
+  if(queued>=0){c=(char)queued;queued=-1;}
+  else if(read(0,&c,1)!=1)break;
+  int repaint=2;
+  if(c==27){
+   char next;
+   if(poll_key(&next)){
+    if(next=='['){
+     char key;
+     /* Cursor keys are three-byte CSI sequences on supported terminals. */
+     if(poll_key(&key))move_arrow(key);
+     draw(path,insert_mode?"INSERT":"NORMAL",2);
+     continue;
+    }
+    queued=(unsigned char)next;
+   }
+   insert_mode=0;pending_d=0;
+   draw(path,"NORMAL",2);
+   continue;
   }
-  if(c==27){insert_mode=0;pending_d=0;esc=0;draw(path,"NORMAL",2);continue;}
   if(c==3){quit=1;continue;}
   if(insert_mode){
    if(c==127||c==8){int old=len;erase();if(len!=old)repaint=0;}
@@ -151,7 +184,7 @@ int main(int argc,char **argv){
   }
   if(c=='i'){insert_mode=1;notice="INSERT";}
   else if(c=='a'){if(pos<len&&data[pos]!='\n')pos++;insert_mode=1;notice="INSERT";}
-  else if(c=='h'&&pos>0)pos--;
+  else if(c=='h'&&pos>line_start(pos))pos--;
   else if(c=='l'&&pos<len&&data[pos]!='\n')pos++;
   else if(c=='j'&&line_end(pos)<len)pos=position_col(line_end(pos)+1,col_no(pos));
   else if(c=='k'&&line_start(pos)>0)pos=position_col(line_start(line_start(pos)-1),col_no(pos));

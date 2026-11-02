@@ -424,6 +424,29 @@ static int shell_readline(char line[128]) {
         }
     }
 }
+/* Initial boot shell (PID 1) only: use the same command parser as interactive input. */
+static void run_boot_rc(char *cwd) {
+    int fd=open("/etc/rc",O_RDONLY);
+    if(fd<0) return;
+    char line[128]; unsigned len=0; char c;
+    while(read(fd,&c,1)==1) {
+        if(c=='\r') continue;
+        if(c!='\n' && len<sizeof(line)-1) {line[len++]=c;continue;}
+        if(c!='\n') { /* Reject oversized lines instead of executing truncated commands. */
+            while(read(fd,&c,1)==1 && c!='\n') {}
+            len=0;continue;
+        }
+        line[len]=0;len=0;
+        char *cmd=trim(line);
+        if(!*cmd || *cmd=='#') continue;
+        unsigned n=(unsigned)strlen(cmd);int bg=0;
+        if(n && cmd[n-1]=='&') {cmd[n-1]=0;cmd=trim(cmd);bg=1;}
+        if(strchr(cmd,'|') || strchr(cmd,'<') || strchr(cmd,'>')) continue;
+        int pid=0;const char *label=0;
+        command(cmd,cwd,bg,&pid,&label);
+    }
+    close(fd);
+}
 int main(int argc, char *argv[]) {
     char line[128];
     char cwd[128];
@@ -443,8 +466,9 @@ int main(int argc, char *argv[]) {
         "PicoNIX-2026-10-30 (TAKAGO_LAB.)\r\n");
     put(id_line);
     put("Type 'help' for commands.\r\n"
-        "--------------------------------------------------------\r\n"
-        "\033[0m\033[?25h" SHELL_PROMPT);
+        "--------------------------------------------------------\r\n");
+    if(getpid()==1) run_boot_rc(cwd);
+    put("\033[0m\033[?25h" SHELL_PROMPT);
     for(;;) {
         shell_readline(line);
         /* Reap completed background children (no status display yet). */

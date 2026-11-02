@@ -6,7 +6,8 @@
 
 | Key | Action |
 |---|---|
-| `h`, `j`, `k`, `l` | Move cursor |
+| `h`, `j`, `k`, `l` | Move cursor in normal mode |
+| Arrow keys (up/down/left/right) | Move cursor in both normal and insert modes |
 | `i`, `a` | Enter insert mode |
 | `Esc` | Return to normal mode |
 | `x` | Delete character |
@@ -15,3 +16,5 @@
 | `:w`, `:q`, `:q!`, `:wq` | Write, quit, discard and quit, write and quit |
 
 The normal-mode `dd` command for deleting a line is distinct from the separate [binary-copy `dd` command](DD.md).
+
+The editing area starts at the left edge with no line-number gutter. Arrow keys require a terminal that sends ANSI escape sequences.

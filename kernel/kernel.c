@@ -1003,74 +1003,20 @@ static int tmp_name(const char *p, char name[16]) {
     name[4+len]=0;
     return 1;
 }
+/* Initial file payloads are generated from userland/fs, stored in Flash. */
+#include "piconix_initial_fs.h"
 static void tmp_init(void) {
-    static const char html[] =
-        "<!doctype html>\n"
-        "<html lang=\"en\"><head><meta charset=\"utf-8\">"
-        "<title>PicoNIX</title></head><body>\n"
-        "<h1>PicoNIX</h1>\n"
-        "<p>A tiny UNIX-like OS for Raspberry Pi Pico / Pico W.</p>\n"
-        "<p>Created by Daisuke Takago.</p>\n"
-        "<p>Source code: <a href=\"https://github.com/takago/PicoNIX\">"
-        "github.com/takago/PicoNIX</a></p>\n"
-        "<p>Edit /etc/index.html on PicoNIX to change this page.</p>\n"
-        "</body></html>\n";
     static int initialized;
     if(initialized) return;
     initialized=1;
-    strcpy(tmp_files[0].name,"etc/index.html");
-    tmp_files[0].used=1;
-    tmp_files[0].size=sizeof(html)-1;
-    memcpy(tmp_payload(0),html,sizeof(html)-1);
-    static const char asm_sample[] =
-        "@ PicoNIX assembly sample: print a face 3 times.\n"
-        "@ r0=syscall, r1-r3=arguments; svc #0 invokes kernel.\n"
-        "@ 9=write(fd,buf,len), 4=msleep(ms), 3=exit(status)\n"
-        "\n"
-        "        movs    r4, #3          @ Repeat count\n"
-        "loop:\n"
-        "        movs    r0, #9          @ write(1,face,6)\n"
-        "        movs    r1, #1\n"
-        "        adr     r2, face\n"
-        "        movs    r3, #6\n"
-        "        svc     #0\n"
-        "\n"
-        "        movs    r0, #4          @ Sleep 1000 ms\n"
-        "        adr     r2, delay\n"
-        "        ldr     r1, [r2]\n"
-        "        svc     #0\n"
-        "        subs    r4, #1\n"
-        "        bne     loop\n"
-        "\n"
-        "        movs    r0, #9          @ Print goodbye\n"
-        "        movs    r1, #1\n"
-        "        adr     r2, bye\n"
-        "        movs    r3, #7\n"
-        "        svc     #0\n"
-        "\n"
-        "        movs    r0, #3          @ exit(0)\n"
-        "        movs    r1, #0\n"
-        "        svc     #0\n"
-        "\n"
-        "        .align  2              @ 4-byte alignment\n"
-        "delay:\n"
-        "        .word   1000\n"
-        "face:\n"
-        "        .ascii  \"(^_^)\\n\"\n"
-        "        .align  2              @ ADR needs alignment\n"
-        "bye:\n"
-        "        .ascii  \"...bye\\n\"\n";
-    static const char py_sample[] =
-        "n = 3\nwhile n > 0:\n    print(\"(^_^)\")\n"
-        "    msleep(1000)\n    n = n - 1\nprint(\"...bye\")\n";
-    strcpy(tmp_files[1].name,"tmp/test.s");
-    tmp_files[1].used=1;
-    tmp_files[1].size=sizeof(asm_sample)-1;
-    memcpy(tmp_payload(1),asm_sample,sizeof(asm_sample)-1);
-    strcpy(tmp_files[2].name,"tmp/test.py");
-    tmp_files[2].used=1;
-    tmp_files[2].size=sizeof(py_sample)-1;
-    memcpy(tmp_payload(2),py_sample,sizeof(py_sample)-1);
+    for(unsigned i=0;i<piconix_initial_file_count;i++) {
+        const struct piconix_initial_file *file=&piconix_initial_files[i];
+        if(i>=TMP_FILES || file->size>TMP_BYTES) break;
+        strcpy(tmp_files[i].name,file->name);
+        tmp_files[i].used=1;
+        tmp_files[i].size=(uint16_t)file->size;
+        memcpy(tmp_payload((int)i),file->data,file->size);
+    }
 }
 static int tmp_lookup(const char *name) {
     tmp_init();

@@ -1,0 +1,48 @@
+# Initial RAM Files and /etc/rc
+
+Initial RAM files are ordinary files under `userland/fs/` on the build host. They are embedded in Flash during the build and copied into RAM files at boot; HTML and sample source code need not be embedded as C strings in the kernel.
+
+## Host directory layout
+
+```text
+userland/fs/
+├── etc_common/
+│   └── index.html
+├── etc_pico/
+│   └── rc
+├── etc_picow/
+│   └── rc
+└── tmp_common/
+    ├── test.s
+    └── test.py
+```
+
+Directory names encode the destination (`etc` or `tmp`) and board selection (`common`, `pico`, or `picow`). `tmp_pico/` and `tmp_picow/` may be added when needed. `common` applies to both boards; a board-specific file overrides a common file with the same destination path. For example, `etc_picow/rc` becomes `/etc/rc` on Pico W.
+
+**These host-side folders select initial files; they do not create arbitrary directories in PicoNIX.** Only the six supported folder names are accepted. Unknown folders and nested subdirectories are build-generation errors.
+
+## Limits and build
+
+Up to 11 initial files may be selected per build, each no larger than 2048 bytes. Internal VFS paths (such as `etc/rc`) must fit within 15 bytes; destinations are limited to `/etc` and `/tmp`. `tools/generate_initial_fs.py` checks these limits during generation.
+
+After changing or adding files, rebuild and flash the firmware for the target board. Changes made to RAM files on the running device are volatile: reboot restores the Flash-embedded initial content.
+
+## /etc/rc and boot
+
+PicoNIX does not run a separate `init` process. **The first shell (PID 1) executes `/etc/rc` once.** Telnet shells and nested shells do not run it again. The boot reader reuses the shell command execution path; it skips empty lines and lines beginning with `#`. Use simple commands and an optional trailing `&`; the boot reader does not interpret pipelines or redirections.
+
+In the current minimal configuration, `etc_pico/rc` is empty and `etc_picow/rc` contains:
+
+```sh
+httpd &
+```
+
+For a short greeting, the Pico W file can instead contain:
+
+```sh
+httpd &
+echo "Welcome to PicoNIX!"
+```
+
+
+See also [Filesystem](FILESYSTEM.md), [HTTP server](HTTPD.md), and [Networking](NETWORK.md).

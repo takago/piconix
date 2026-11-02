@@ -26,6 +26,20 @@ if(NOT CMAKE_READELF)
   get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
   set(CMAKE_READELF "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-readelf")
 endif()
+# Generate boot RAM files from host files, with board-specific overlay.
+file(GLOB PICONIX_FS_INPUTS CONFIGURE_DEPENDS
+     "${CMAKE_CURRENT_LIST_DIR}/userland/fs/*"
+     "${CMAKE_CURRENT_LIST_DIR}/userland/fs/etc_*/*"
+     "${CMAKE_CURRENT_LIST_DIR}/userland/fs/tmp_*/*")
+set(PICONIX_INITIAL_FS_HEADER "${CMAKE_CURRENT_BINARY_DIR}/piconix_initial_fs.h")
+execute_process(
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/generate_initial_fs.py"
+          "${CMAKE_CURRENT_LIST_DIR}/userland/fs" "${PICO_BOARD}" "${PICONIX_INITIAL_FS_HEADER}"
+  RESULT_VARIABLE PICONIX_FS_RESULT)
+if(NOT PICONIX_FS_RESULT EQUAL 0)
+  message(FATAL_ERROR "Cannot generate initial RAM files")
+endif()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PICONIX_FS_INPUTS})
 # Freestanding slot-linked images. All user program images are embedded in the firmware Flash.
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
@@ -186,6 +200,7 @@ else()
 endif()
 add_executable(piconix kernel/net.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
+set_source_files_properties(kernel/kernel.c PROPERTIES OBJECT_DEPENDS "${PICONIX_INITIAL_FS_HEADER}")
 if(PICONIX_USE_MODULAR_XIP)
   pico_set_linker_script_var(piconix RAM_LENGTH 0xE000)
   pico_add_linker_script_override_path(piconix "${PICONIX_LD_OVERRIDES}"
@@ -234,7 +249,7 @@ if(PICONIX_WIFI_ENABLED)
             "$<TARGET_FILE:piconix>" --readelf "${CMAKE_READELF}"
     VERBATIM)
 endif()
-target_include_directories(piconix PRIVATE include "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/kernel")
+target_include_directories(piconix PRIVATE include "${CMAKE_CURRENT_LIST_DIR}" "${CMAKE_CURRENT_LIST_DIR}/kernel" "${CMAKE_CURRENT_BINARY_DIR}")
 target_link_libraries(piconix pico_stdlib hardware_uart hardware_gpio hardware_adc hardware_pwm hardware_i2c)
 target_link_libraries(piconix pico_stdio_usb)
 pico_enable_stdio_usb(piconix 1)

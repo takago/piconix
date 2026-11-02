@@ -76,7 +76,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 | ファイル容量 | **各2048バイト** |
 | 名前 | 各ディレクトリ直下のみ．ファイル名は**最大11バイト**（ASCII想定） |
 | 永続性 | なし．再起動で初期化 |
-| 初期ファイル | `/etc/index.html`，`/tmp/test.s`，`/tmp/test.py`（計3スロット） |
+| 初期ファイル | `/etc/index.html`，`/etc/rc`，`/tmp/test.s`，`/tmp/test.py`（通常4スロット．ボードごとに初期内容を選択） |
 | 作成・削除 | `O_CREAT`で作成，`unlink()`で削除．開いたままのファイルは削除不可 |
 | 書き込み | 容量末尾では部分書き込み，空きがない場合は`OS_ENOSPC` |
 
@@ -93,3 +93,5 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 - `kernel/kernel.c`：`vdir_paths`，`dev_registry`，`vfs_registry`，`vdir_nth()`，`vfs_open()`，`tmp_*()`．
 - `kernel/pins.h`：GPIO・ADC・PWM・UARTの割り当て．
 - `include/piconix.h`：公開APIとエラー定数．
+
+初期ファイルのホスト側配置，追加方法，起動時復元については[初期RAMファイルと /etc/rc](INITIAL-FILES.md)を参照してください．
