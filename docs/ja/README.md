@@ -12,10 +12,11 @@ PicoNIXは，**Raspberry Pi Pico（RP2040）向けの小型UNIX風OS**です．L
 
 - SysTick／PendSVによるプリエンプティブなタスク切り替え
 - SVCによるカーネルとRAMアプリケーションの呼び出し境界
-- `ps`，`kill`，`sh`，`getty`，`blink`，`omikuji`，`python`，`hello`，`hexdump`などのコマンド
+- `ps`，`kill`，`sh`，`getty`，`blink`，`omikuji`，`python`，`hello`，`hexdump`，`dd`，`vi`，`edit`などのコマンド
 - `&`による簡易バックグラウンド実行，`Ctrl+C`による前景タスクの中断
 - `/dev`と`/proc`の仮想ファイル，`/tmp`と`/etc`の揮発性ファイル
 - 標準入出力の簡易リダイレクト（`<`，`>`，`>>`）と最大3コマンドのパイプライン（`|`）
+- `dd`によるバイナリデータ転送と，2 KiBまでのRAMファイルを扱う`vi`・`edit`
 - 整数演算やGPIOを扱える小型のPython風インタプリタ
 
 `nc -u -N`は標準入力のEOFでUDP送信を終了でき，前景コマンドやパイプラインはCtrl+Cで中断できます．詳細は[ncの使い方](NC.md)を参照してください．

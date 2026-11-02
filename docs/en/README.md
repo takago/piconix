@@ -11,10 +11,11 @@ PicoNIX provides six fixed 24 KiB application slots.
 - **User-process TCP/UDP networking on Pico W:** `socket()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` with `nc`, `httpd`, `tcp_echod`, and `udp_echod`. See [Socket API and network applications](NETWORK-PROGRAMMING.md).
 - Preemptive task switching using SysTick and PendSV
 - An SVC boundary between the kernel and RAM applications
-- Commands including `ps`, `kill`, `sh`, `getty`, `blink`, `omikuji`, `python`, `hello`, and `hexdump`
+- Commands including `ps`, `kill`, `sh`, `getty`, `blink`, `omikuji`, `python`, `hello`, `hexdump`, `dd`, `vi`, and `edit`
 - Simple background execution with `&` and foreground interruption via `Ctrl+C`
 - Virtual files under `/dev` and `/proc`, and volatile files under `/tmp`
 - Basic stdin/stdout redirection (`<`, `>`, `>>`) and pipelines (`|`) of up to three commands
+- Binary copying with `dd`, and text editing with `vi` and `edit` for RAM files up to 2 KiB
 - A tiny Python-like interpreter supporting integer expressions and GPIO
 
 `nc -u -N` exits on stdin EOF for UDP, and Ctrl+C interrupts foreground commands and pipelines. See the [nc guide](NC.md).
@@ -75,6 +76,8 @@ For a guided reading order, see the [documentation index](DOCS.md). For Pico W n
 | Work with GPIO, ADC, and PWM | [Device guide](DEVICES.md) |
 | Understand UART1, `getty`, Ctrl+C/Ctrl+D | [UART and terminals](UART.md) |
 | Use the `python` command | [Python-like interpreter](PYTHON.md) |
+| Copy binary data with `dd` | [dd guide](DD.md) |
+| Edit files with `vi` or `edit` | [vi editor](VI.md) / [Text editor](EDIT.md) |
 | Connect I²C devices and use `i2cctl` or `bh1750` | [I²C1 guide](I2C.md) |
 | Configure TTY input and play `mb` | [Terminal settings and interactive input](TTY.md) |
 | Use the LED framebuffer | [Device guide (framebuffer)](DEVICES.md) |
@@ -86,4 +89,3 @@ For a guided reading order, see the [documentation index](DOCS.md). For Pico W n
 
 GPL-3.0-or-later. See `LICENSE`.
 
-See [dd guide](DD.md) and [vi editor](VI.md).

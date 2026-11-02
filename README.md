@@ -14,13 +14,13 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Open-source TCP/IP networking** — On Pico W, PicoNIX uses lwIP, a lightweight open-source TCP/IP stack, and provides user applications with a compact BSD-style IPv4 socket API (`socket()`, `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()`).
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, and `udp_echod` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
-- **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`.
+- **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`. Binary transfer with `dd` is also supported.
 - **Foreground interruption** — Ctrl+C terminates registered foreground tasks, including pipeline stages; `nc -u -N` exits on stdin EOF for one-shot UDP sends.
 - **Six application slots** — Six fixed 24 KiB RAM slots (4 KiB stack reserve per slot) on RP2040.
 - **Pipes and redirection** — Two- and three-command pipelines using `|`, with `pipe()`, `dup()`, and `dup2()` support.
 - **Device files** — Access GPIO, ADC, PWM, I²C1, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/SYSCALLS.md) ([日本語](docs/ja/SYSCALLS.md)).
-- **Programming on the device** — An editor (`edit`), assembler (`as`), and small Python-like interpreter (`python`).
+- **Programming on the device** — Editors (`edit`, `vi`), a binary-copy utility (`dd`), an assembler (`as`), and a small Python-like interpreter (`python`).
 - **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call and context-switch tracing, and open-descriptor reporting, including socket ports.
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
@@ -30,10 +30,10 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 
 | Category | Commands |
 |---|---|
-| Shell & files | `sh`, `ls`, `cat`, `grep`, `pwd`, `echo`, `rm`, `find`, `tree` |
+| Shell & files | `sh`, `ls`, `cat`, `grep`, `pwd`, `echo`, `rm`, `find`, `tree`, `dd` |
 | Processes & diagnostics | `ps`, `kill`, `lsof`, `trace`, `mem`, `hexdump`, `watch` |
-| Terminals | `tty`, `stty`, `reset` |
-| Programming | `edit`, `as`, `python` |
+| Terminals | `getty`, `tty`, `stty`, `reset` |
+| Programming | `edit`, `vi`, `as`, `python` |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink` |
 | Networking | `nc`, `httpd`, `tcp_echod`, `udp_echod` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
