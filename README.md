@@ -20,7 +20,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Pipes and redirection** — Two- and three-command pipelines using `|`, with `pipe()`, `dup()`, and `dup2()` support.
 - **Device files** — Access GPIO, ADC, PWM, I²C1, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/reference/SYSCALLS.md) ([日本語](docs/ja/reference/SYSCALLS.md)).
-- **Programming on the device** — Editors (`edit`, `vi`), a binary-copy utility (`dd`), an assembler (`as`), and a small Python-like interpreter (`python`).
+- **Programming on the device** — Editors (`edit`, `vi`), an interactive file manager (`fd`), a binary-copy utility (`dd`), an assembler (`as`), and a small Python-like interpreter (`python`).
 - **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call and context-switch tracing, and open-descriptor reporting, including socket ports.
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
@@ -30,7 +30,7 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 
 | Category | Commands |
 |---|---|
-| Shell & files | `sh`, `ls`, `cat`, `grep`, `pwd`, `echo`, `rm`, `find`, `tree`, `dd` |
+| Shell & files | `sh`, `ls`, `cat`, `grep`, `pwd`, `echo`, `rm`, `find`, `tree`, `fd`, `dd` |
 | Processes & diagnostics | `ps`, `kill`, `lsof`, `trace`, `mem`, `hexdump`, `watch` |
 | Terminals | `getty`, `tty`, `stty`, `reset` |
 | Programming | `edit`, `vi`, `as`, `python` |
@@ -167,6 +167,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 | [nc and termination](docs/en/reference/devices/NC.md) | [ncと通信の終了](docs/ja/reference/devices/NC.md) |
 | [Text editing](docs/en/literacy/EDIT.md) | [テキスト編集](docs/ja/literacy/EDIT.md) |
 | [vi editor](docs/en/literacy/VI.md) | [viエディタ](docs/ja/literacy/VI.md) |
+| [fd file manager](docs/en/literacy/FD.md) | [fdファイルマネージャ](docs/ja/literacy/FD.md) |
 | [dd and binary transfer](docs/en/literacy/DD.md) | [ddとバイナリ転送](docs/ja/literacy/DD.md) |
 | [Tiny Python](docs/en/development/apps/python/PYTHON.md) | [簡易Python](docs/ja/development/apps/python/PYTHON.md) |
 
