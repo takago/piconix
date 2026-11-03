@@ -3,10 +3,10 @@
 from pathlib import Path
 r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
-u=(r/'userland/unistd.h').read_text()
-s=(r/'userland/syscalls.c').read_text()
-l=(r/'userland/ls.c').read_text()
-w=(r/'userland/walk.h').read_text()
+u=(r/'userland/lib/unistd.h').read_text()
+s=(r/'userland/lib/syscalls.c').read_text()
+l=(r/'userland/apps/ls.c').read_text()
+w=(r/'userland/apps/walk.h').read_text()
 assert '#include "../include/piconix_syscall.h"' in k
 assert 'case SYS_GETDENTS:' in k and 'vfs_getdents(' in k
 assert 'case VDIR_ROOT:' in k and 'case VDIR_SYM:' in k
@@ -22,13 +22,13 @@ assert '#include "../include/piconix_dirent.h"' in k
 root = r
 
 for app in ('trace', 'mem'):
-    source = (root / 'userland' / f'{app}.c').read_text()
+    source = (root / 'userland/apps' / f'{app}.c').read_text()
     assert 'getdents(fd,' in source, app
     assert 'open("/bin"' in source, app
-assert 'SYS_GETDENTS' in (root / 'userland/trace.c').read_text()
+assert 'SYS_GETDENTS' in (root / 'userland/apps/trace.c').read_text()
 assert 'int program_id(const char *name)' in u
 assert 'return call(SYS_PROGRAM_ID,' in s
 for app in ('shell', 'watch', 'trace'):
-    source=(root/'userland'/f'{app}.c').read_text()
+    source=(root/'userland/apps'/f'{app}.c').read_text()
     assert 'program_id(' in source, app
 print('PASS: getdents API and centralized program-ID lookup')

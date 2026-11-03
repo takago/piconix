@@ -51,14 +51,14 @@ foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omi
   set(APP_DIR "${CMAKE_CURRENT_BINARY_DIR}/ram_${APP}")
   file(MAKE_DIRECTORY "${APP_DIR}")
   set(APP_LD "${APP_DIR}/slot.ld")
-  configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/slot.ld" "${APP_LD}" @ONLY)
+  configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/lib/slot.ld" "${APP_LD}" @ONLY)
   set(APP_OBJ "${APP_DIR}/${APP}.o")
   set(CRT_OBJ "${APP_DIR}/crt0.o")
   set(SYSCALLS_OBJ "${APP_DIR}/syscalls.o")
   set(LIBC_OBJ "${APP_DIR}/libc.o")
   set(APP_LD_ALT "${APP_DIR}/slot_alt.ld")
   set(APP_ORIGIN 0x20014000)
-  configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/slot.ld" "${APP_LD_ALT}" @ONLY)
+  configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/lib/slot.ld" "${APP_LD_ALT}" @ONLY)
   set(APP_ORIGIN 0x2000E000)
   set(APP_ELF_ALT "${APP_DIR}/${APP}_alt.elf")
   set(APP_BIN_ALT "${APP_DIR}/${APP}_alt.bin")
@@ -68,6 +68,14 @@ foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omi
   # Thumb-1 switch helpers such as __gnu_thumb1_case_uqi.
   set(APP_OPT -Oz)
   set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
+  # Source-level screen helpers are used by the terminal applications.
+  set(APP_EDITOR_DEP "")
+  if(APP STREQUAL "edit" OR APP STREQUAL "vi")
+    set(APP_EDITOR_DEP "${CMAKE_CURRENT_LIST_DIR}/userland/apps/editor_common.h")
+  endif()
+  if(APP STREQUAL "edit" OR APP STREQUAL "vi" OR APP STREQUAL "mem" OR APP STREQUAL "mb")
+    list(APPEND APP_EDITOR_DEP "${CMAKE_CURRENT_LIST_DIR}/userland/lib/screen.h")
+  endif()
   add_custom_command(OUTPUT "${APP_BIN}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb ${APP_OPT} -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
@@ -75,21 +83,24 @@ foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omi
             ${APP_EXTRA_CFLAGS}
             -I "${CMAKE_CURRENT_BINARY_DIR}"
             -I "${CMAKE_CURRENT_LIST_DIR}/include"
-            -c "${CMAKE_CURRENT_LIST_DIR}/userland/${APP}.c" -o "${APP_OBJ}"
+            -I "${CMAKE_CURRENT_LIST_DIR}/userland/lib"
+            -c "${CMAKE_CURRENT_LIST_DIR}/userland/apps/${APP}.c" -o "${APP_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb ${APP_OPT} -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
-            -c "${CMAKE_CURRENT_LIST_DIR}/userland/crt0.c" -o "${CRT_OBJ}"
+            -c "${CMAKE_CURRENT_LIST_DIR}/userland/lib/crt0.c" -o "${CRT_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb ${APP_OPT} -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
-            -I "${CMAKE_CURRENT_LIST_DIR}/userland"
-            -c "${CMAKE_CURRENT_LIST_DIR}/userland/syscalls.c" -o "${SYSCALLS_OBJ}"
+            -I "${CMAKE_CURRENT_LIST_DIR}/userland/lib"
+            -I "${CMAKE_CURRENT_LIST_DIR}/include"
+            -c "${CMAKE_CURRENT_LIST_DIR}/userland/lib/syscalls.c" -o "${SYSCALLS_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb ${APP_OPT} -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
-            -I "${CMAKE_CURRENT_LIST_DIR}/userland"
-            -c "${CMAKE_CURRENT_LIST_DIR}/userland/libc.c" -o "${LIBC_OBJ}"
+            -I "${CMAKE_CURRENT_LIST_DIR}/userland/lib"
+            -I "${CMAKE_CURRENT_LIST_DIR}/include"
+            -c "${CMAKE_CURRENT_LIST_DIR}/userland/lib/libc.c" -o "${LIBC_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -nostdlib
             -Wl,--gc-sections "-Wl,-z,max-page-size=0x1000" "-Wl,-T,${APP_LD}"
             "${CRT_OBJ}" "${APP_OBJ}" "${SYSCALLS_OBJ}" "${LIBC_OBJ}" -lgcc -o "${APP_ELF}"
@@ -103,25 +114,26 @@ foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omi
             --readelf "${CMAKE_READELF}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"
             "${APP_ELF}" "${APP_BIN}" "${APP_ORIGIN}" --readelf "${CMAKE_READELF}"
-    DEPENDS "${CMAKE_CURRENT_LIST_DIR}/userland/${APP}.c"
+    DEPENDS "${CMAKE_CURRENT_LIST_DIR}/userland/apps/${APP}.c"
             "${CMAKE_CURRENT_LIST_DIR}/kernel/pins.h"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/crt0.c"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/syscalls.c"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/unistd.h"
+            "${CMAKE_CURRENT_LIST_DIR}/userland/lib/crt0.c"
+            "${CMAKE_CURRENT_LIST_DIR}/userland/lib/syscalls.c"
+            "${CMAKE_CURRENT_LIST_DIR}/userland/lib/unistd.h"
             "${CMAKE_CURRENT_LIST_DIR}/include/piconix_dirent.h"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/fcntl.h"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/libc.c"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/stdio.h"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/stdlib.h"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/string.h"
-            "${CMAKE_CURRENT_LIST_DIR}/userland/trace.h"
+            "${CMAKE_CURRENT_LIST_DIR}/userland/lib/fcntl.h"
+            "${CMAKE_CURRENT_LIST_DIR}/userland/lib/libc.c"
+            "${CMAKE_CURRENT_LIST_DIR}/userland/lib/stdio.h"
+            "${CMAKE_CURRENT_LIST_DIR}/userland/lib/stdlib.h"
+            "${CMAKE_CURRENT_LIST_DIR}/userland/lib/string.h"
+            "${CMAKE_CURRENT_LIST_DIR}/include/piconix_trace.h"
+            ${APP_EDITOR_DEP}
             "${APP_LD}" "${APP_LD_ALT}"
             "${CMAKE_CURRENT_LIST_DIR}/tools/check_pic.py"
             "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"
     VERBATIM)
   set(EMBED_APP ${APP})
   set(EMBED_BIN "${APP_BIN}")
-  configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/embed_image.S.in"
+  configure_file("${CMAKE_CURRENT_LIST_DIR}/cmake/embed_image.S.in"
                  "${APP_DIR}/embed_image.S" @ONLY)
   set_source_files_properties("${APP_DIR}/embed_image.S" PROPERTIES OBJECT_DEPENDS "${APP_BIN}")
   list(APPEND PICONIX_EMBED_SOURCES "${APP_DIR}/embed_image.S")
@@ -136,7 +148,7 @@ add_custom_command(OUTPUT "${PICONIX_SYMBOL_FILE}"
           ${PICONIX_SYMBOL_ELFS}
   DEPENDS ${PICONIX_SYMBOL_BINS} "${CMAKE_CURRENT_LIST_DIR}/tools/make_symbols.py"
   VERBATIM)
-configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/embed_symbols.S.in"
+configure_file("${CMAKE_CURRENT_LIST_DIR}/cmake/embed_symbols.S.in"
                "${CMAKE_CURRENT_BINARY_DIR}/embed_symbols.S" @ONLY)
 set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_symbols.S"
   PROPERTIES OBJECT_DEPENDS "${PICONIX_SYMBOL_FILE}")
@@ -157,7 +169,7 @@ if(NOT EXISTS "${PICONIX_KERNEL_SYMBOL_FILE}" OR
     "import pathlib;pathlib.Path(r'${PICONIX_KERNEL_SYMBOL_FILE}').write_bytes(bytes(${PICONIX_KERNEL_SYMBOL_CAPACITY}))"
     COMMAND_ERROR_IS_FATAL ANY)
 endif()
-configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/embed_kernel_symbols.S.in"
+configure_file("${CMAKE_CURRENT_LIST_DIR}/cmake/embed_kernel_symbols.S.in"
                "${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S" @ONLY)
 set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S"
   PROPERTIES OBJECT_DEPENDS "${PICONIX_KERNEL_SYMBOL_FILE}")

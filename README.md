@@ -19,7 +19,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Six application slots** — Six fixed 24 KiB RAM slots (4 KiB stack reserve per slot) on RP2040.
 - **Pipes and redirection** — Two- and three-command pipelines using `|`, with `pipe()`, `dup()`, and `dup2()` support.
 - **Device files** — Access GPIO, ADC, PWM, I²C1, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
-- **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/SYSCALLS.md) ([日本語](docs/ja/SYSCALLS.md)).
+- **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/reference/SYSCALLS.md) ([日本語](docs/ja/reference/SYSCALLS.md)).
 - **Programming on the device** — Editors (`edit`, `vi`), a binary-copy utility (`dd`), an assembler (`as`), and a small Python-like interpreter (`python`).
 - **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call and context-switch tracing, and open-descriptor reporting, including socket ports.
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
@@ -39,7 +39,7 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
 | Help | `help` |
 
-Shell features include redirection (`<`, `>`) and pipelines (`|`); these are shell operators rather than separate commands. On Pico W, network applications use the user-space socket API. See the [programming guide](docs/en/PROGRAMMING.md) and [日本語の開発ガイド](docs/ja/PROGRAMMING.md) for more details.
+Shell features include redirection (`<`, `>`) and pipelines (`|`); these are shell operators rather than separate commands. On Pico W, network applications use the user-space socket API. See the [programming guide](docs/en/development/apps/c/PROGRAMMING.md) and [日本語の開発ガイド](docs/ja/development/apps/c/PROGRAMMING.md) for more details.
 
 ## Network demo
 
@@ -58,7 +58,7 @@ Open the PicoNIX shell from the PC:
 telnet 192.168.4.1
 ```
 
-The Pico W `/etc/rc` starts `httpd` automatically. Visit `http://192.168.4.1/` in a browser; `/` is the introduction page, `/fbcheck.html` controls the LED matrix, and `/pwm.html` controls PWM. Use `edit /etc/index.html` to edit the introduction page. If `httpd` has been stopped, restart it from the shell:
+The Pico W `/etc/rc` starts `httpd` automatically. Visit `http://192.168.4.1/` in a browser; `/` is the introduction page, `/fbcheck.html` controls the LED matrix, and `/pwm.html` controls PWM. To change the introduction page, copy it to `/tmp` with `dd if=/etc/index.html of=/tmp/index.html`, edit `/tmp/index.html`, and copy it back with `dd if=/tmp/index.html of=/etc/index.html`. The editors only open `/tmp` files, and RAM changes are lost on reboot. If `httpd` has been stopped, restart it from the shell:
 
 ```sh
 # PicoNIX shell
@@ -107,7 +107,7 @@ The Pico SDK and an ARM toolchain are required. See the setup guide linked below
 - **User programs:** Stored in Flash as PIC images; the selected image is copied into a RAM application slot when launched and executes from SRAM.
 - **SRAM:** Holds kernel data and stacks, user-process code/data/stacks, and other runtime state. PicoNIX uses six fixed 24 KiB application slots on RP2040.
 
-This approach saves scarce SRAM by keeping kernel instructions in Flash while allowing user applications to run from separate RAM slots. See [Architecture](docs/en/ARCHITECTURE.md) and [全体構造](docs/ja/ARCHITECTURE.md) for details.
+This approach saves scarce SRAM by keeping kernel instructions in Flash while allowing user applications to run from separate RAM slots. See [Architecture](docs/en/reference/ARCHITECTURE.md) and [全体構造](docs/ja/reference/ARCHITECTURE.md) for details.
 
 | Component | Responsibility |
 |---|---|
@@ -116,8 +116,8 @@ This approach saves scarce SRAM by keeping kernel instructions in Flash while al
 | `kernel/net_socket.c` | Socket backend for user processes |
 | `kernel/net_service_telnet.c` | Built-in Telnet service (TCP 23) |
 | `kernel/net_service_remote_devctl.c` | Remote device-control service (UDP 2000) |
-| `userland/nc.c`, `userland/httpd.c` | User-space networking applications |
-| `userland/tcp_echod.c`, `userland/udp_echod.c` | User-space echo servers |
+| `userland/apps/nc.c`, `userland/apps/httpd.c` | User-space networking applications |
+| `userland/apps/tcp_echod.c`, `userland/apps/udp_echod.c` | User-space echo servers |
 
 The socket API is intentionally small rather than fully POSIX-compatible. `send()` and `recv()` currently support `flags = 0` only.
 
@@ -125,49 +125,49 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 
 ## Documentation / ドキュメント
 
-**Start here ：** [Documentation Guide](docs/en/DOCS.md) / [文書案内](docs/ja/DOCS.md) — recommended reading order and links to detailed references.
+**Start here ：** [Documentation Guide](docs/DOCS.md) / [文書案内](docs/DOCS.ja.md) — recommended reading order and links to detailed references.
 
 ### Setup
 
 | English | 日本語 |
 |---|---|
-| [Setup](docs/en/SETUP.md) | [セットアップ](docs/ja/SETUP.md) |
-| [Network access](docs/en/NETWORK.md) | [ネットワーク接続](docs/ja/NETWORK.md) |
-| [Wi-Fi modes](docs/en/WIFI-MODES.md) | [Wi-Fiモード](docs/ja/WIFI-MODES.md) |
-| [Initial RAM files and /etc/rc](docs/en/INITIAL-FILES.md) | [初期RAMファイルと /etc/rc](docs/ja/INITIAL-FILES.md) |
+| [Setup](docs/en/setup/SETUP.md) | [セットアップ](docs/ja/setup/SETUP.md) |
+| [Network access](docs/en/reference/devices/NETWORK.md) | [ネットワーク接続](docs/ja/reference/devices/NETWORK.md) |
+| [Wi-Fi modes](docs/en/reference/devices/WIFI-MODES.md) | [Wi-Fiモード](docs/ja/reference/devices/WIFI-MODES.md) |
+| [Initial RAM files and /etc/rc](docs/en/reference/INITIAL-FILES.md) | [初期RAMファイルと /etc/rc](docs/ja/reference/INITIAL-FILES.md) |
 
 ### Understanding PicoNIX
 
 | English | 日本語 |
 |---|---|
-| [Overview and guides](docs/en/README.md) | [概要・文書一覧](docs/ja/README.md) |
-| [Development diary](docs/en/DEVELOPMENT_DIARY.md) | [開発日誌](docs/ja/DEVELOPMENT_DIARY.md) |
-| [Architecture](docs/en/ARCHITECTURE.md) | [全体構造](docs/ja/ARCHITECTURE.md) |
-| [Internals](docs/en/INTERNAL.md) | [内部構造](docs/ja/INTERNAL.md) |
-| [Pipes and standard I/O](docs/en/PIPE.md) | [パイプと標準入出力](docs/ja/PIPE.md) |
-| [Terminal and screen](docs/en/TERMINAL.md) | [端末と画面制御](docs/ja/TERMINAL.md) |
-| [TTY settings](docs/en/TTY.md) | [TTY設定](docs/ja/TTY.md) |
-| [Devices and pin assignments](docs/en/DEVICES.md) | [デバイスとピン割り当て](docs/ja/DEVICES.md) |
-| [I²C1 and BH1750](docs/en/I2C.md) | [I²C1とBH1750](docs/ja/I2C.md) |
-| [System-call and context-switch tracing](docs/en/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/TRACE.md) |
-| [Memory inspection](docs/en/MEM.md) | [メモリ参照](docs/ja/MEM.md) |
-| [SRAM layout and shared memory](docs/en/MEMORY-LAYOUT.md) | [SRAMレイアウトと共有メモリ](docs/ja/MEMORY-LAYOUT.md) |
+| [Overview and guides](docs/en/literacy/README.md) | [概要・文書一覧](docs/ja/literacy/README.md) |
+| [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
+| [Architecture](docs/en/reference/ARCHITECTURE.md) | [全体構造](docs/ja/reference/ARCHITECTURE.md) |
+| [Internals](docs/en/reference/INTERNAL.md) | [内部構造](docs/ja/reference/INTERNAL.md) |
+| [Pipes and standard I/O](docs/en/literacy/PIPE.md) | [パイプと標準入出力](docs/ja/literacy/PIPE.md) |
+| [Terminal and screen](docs/en/literacy/TERMINAL.md) | [端末と画面制御](docs/ja/literacy/TERMINAL.md) |
+| [TTY settings](docs/en/literacy/TTY.md) | [TTY設定](docs/ja/literacy/TTY.md) |
+| [Devices and pin assignments](docs/en/reference/devices/DEVICES.md) | [デバイスとピン割り当て](docs/ja/reference/devices/DEVICES.md) |
+| [I²C1 and BH1750](docs/en/reference/devices/I2C.md) | [I²C1とBH1750](docs/ja/reference/devices/I2C.md) |
+| [System-call and context-switch tracing](docs/en/literacy/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/literacy/TRACE.md) |
+| [Memory inspection](docs/en/literacy/MEM.md) | [メモリ参照](docs/ja/literacy/MEM.md) |
+| [SRAM layout and shared memory](docs/en/reference/MEMORY-LAYOUT.md) | [SRAMレイアウトと共有メモリ](docs/ja/reference/MEMORY-LAYOUT.md) |
 
 ### Development
 
 | English | 日本語 |
 |---|---|
-| [C application development](docs/en/PROGRAMMING.md) | [Cアプリ開発](docs/ja/PROGRAMMING.md) |
-| [Kernel development](docs/en/KERNEL-DEVELOPMENT.md) | [カーネル拡張ガイド](docs/ja/KERNEL-DEVELOPMENT.md) |
-| [Assembly programming](docs/en/ASM.md) | [アセンブリプログラミング](docs/ja/ASM.md) |
-| [C library and APIs](docs/en/LIBC.md) | [CライブラリとAPI](docs/ja/LIBC.md) |
-| [System call reference](docs/en/SYSCALLS.md) | [システムコール一覧](docs/ja/SYSCALLS.md) |
-| [Sockets and servers](docs/en/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/NETWORK-PROGRAMMING.md) |
-| [Remote device control (UDP 2000)](docs/en/REMOTE-DEVICE.md) | [リモートデバイス制御（UDP 2000番）](docs/ja/REMOTE-DEVICE.md) |
-| [nc and termination](docs/en/NC.md) | [ncと通信の終了](docs/ja/NC.md) |
-| [Text editing](docs/en/EDIT.md) | [テキスト編集](docs/ja/EDIT.md) |
-| [vi editor](docs/en/VI.md) | [viエディタ](docs/ja/VI.md) |
-| [dd and binary transfer](docs/en/DD.md) | [ddとバイナリ転送](docs/ja/DD.md) |
-| [Tiny Python](docs/en/PYTHON.md) | [簡易Python](docs/ja/PYTHON.md) |
+| [C application development](docs/en/development/apps/c/PROGRAMMING.md) | [Cアプリ開発](docs/ja/development/apps/c/PROGRAMMING.md) |
+| [Kernel development](docs/en/development/kernel/KERNEL-DEVELOPMENT.md) | [カーネル拡張ガイド](docs/ja/development/kernel/KERNEL-DEVELOPMENT.md) |
+| [Assembly programming](docs/en/development/apps/asm/ASM.md) | [アセンブリプログラミング](docs/ja/development/apps/asm/ASM.md) |
+| [C library and APIs](docs/en/development/apps/c/LIBC.md) | [CライブラリとAPI](docs/ja/development/apps/c/LIBC.md) |
+| [System call reference](docs/en/reference/SYSCALLS.md) | [システムコール一覧](docs/ja/reference/SYSCALLS.md) |
+| [Sockets and servers](docs/en/development/apps/c/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/development/apps/c/NETWORK-PROGRAMMING.md) |
+| [Remote device control (UDP 2000)](docs/en/reference/devices/REMOTE-DEVICE.md) | [リモートデバイス制御（UDP 2000番）](docs/ja/reference/devices/REMOTE-DEVICE.md) |
+| [nc and termination](docs/en/reference/devices/NC.md) | [ncと通信の終了](docs/ja/reference/devices/NC.md) |
+| [Text editing](docs/en/literacy/EDIT.md) | [テキスト編集](docs/ja/literacy/EDIT.md) |
+| [vi editor](docs/en/literacy/VI.md) | [viエディタ](docs/ja/literacy/VI.md) |
+| [dd and binary transfer](docs/en/literacy/DD.md) | [ddとバイナリ転送](docs/ja/literacy/DD.md) |
+| [Tiny Python](docs/en/development/apps/python/PYTHON.md) | [簡易Python](docs/ja/development/apps/python/PYTHON.md) |
 
-Boot RAM files and startup script: [Japanese](docs/ja/INITIAL-FILES.md) / [English](docs/en/INITIAL-FILES.md).
+Boot RAM files and startup script: [Japanese](docs/ja/reference/INITIAL-FILES.md) / [English](docs/en/reference/INITIAL-FILES.md).

@@ -37,13 +37,15 @@ int main(void){
 with tempfile.TemporaryDirectory() as d:
     test=Path(d)/'test.c';test.write_text(source)
     exe=Path(d)/'check'
-    subprocess.run(['cc','-std=c11','-I',str(root/'userland'),str(test),'-o',str(exe)],check=True)
+    subprocess.run(['cc','-std=c11','-DPICONIX_HOST_TEST','-I',str(root/'userland/apps'),'-I',str(root/'userland/lib'),str(test),'-o',str(exe)],check=True)
     subprocess.run([str(exe)],check=True)
 print('PASS: tiny assembler encodes SVC, ADR, data, and backward branches')
 
 # Assemble each bundled teaching example with the same native encoder.
 import json
-for asm_source in sorted((root/'examples'/'asm').glob('*.s')):
+examples = sorted((root/'userland'/'examples'/'asm').glob('*.s'))
+assert len(examples) == 4, f'expected four assembler examples, got {len(examples)}'
+for asm_source in examples:
     data=asm_source.read_text()
     assert len(data.encode())<=1024, f'{asm_source.name}: source exceeds /tmp limit'
     probe='''#define main asm_app_main
@@ -60,6 +62,6 @@ int main(void){strcpy(src, SOURCE);int a=compile(0);return a>0 && compile(1)==a 
     with tempfile.TemporaryDirectory() as d:
         unit=Path(d)/'example.c';unit.write_text(probe)
         exe=Path(d)/'example'
-        subprocess.run(['cc','-std=c11','-I',str(root/'userland'),str(unit),'-o',str(exe)],check=True)
+        subprocess.run(['cc','-std=c11','-DPICONIX_HOST_TEST','-I',str(root/'userland/apps'),'-I',str(root/'userland/lib'),str(unit),'-o',str(exe)],check=True)
         subprocess.run([str(exe)],check=True)
 print('PASS: all four assembly examples fit /tmp and encode successfully')

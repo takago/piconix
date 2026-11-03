@@ -3,8 +3,8 @@ from pathlib import Path
 r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
 m=(r/'kernel/main.c').read_text()
-sh=(r/'userland/shell.c').read_text()
-w=(r/'userland/watch.c').read_text()
+sh=(r/'userland/apps/shell.c').read_text()
+w=(r/'userland/apps/watch.c').read_text()
 for i,name in enumerate(('ps','cat','watch'),8):
     assert f'register_image({i},' in m and f'"{name}"' in m
     assert f'userland/{name}.c' in (r/'CMakeLists.txt').read_text() or name in (r/'CMakeLists.txt').read_text()

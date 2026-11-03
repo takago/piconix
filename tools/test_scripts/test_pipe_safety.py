@@ -3,7 +3,7 @@ from pathlib import Path
 import re
 root=Path(__file__).resolve().parents[2]
 k=(root/'kernel/kernel.c').read_text()
-s=(root/'userland/shell.c').read_text()
+s=(root/'userland/apps/shell.c').read_text()
 checks={
  'sixteen descriptors per task': 'int fd[OS_FD_MAX]' in k and '#define OS_FD_MAX 16' in k,
  'spawn inherits standard streams': 'for(int j=0;j<3;j++) fd_inherit(t,j,&tasks[current],j);' in k,

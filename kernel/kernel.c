@@ -16,7 +16,7 @@
 #include "net_socket.h"
 #include <string.h>
 #include <stdio.h>
-#include "../userland/trace.h"
+#include "../include/piconix_trace.h"
 #include "../include/piconix_dirent.h"
 #include "../include/piconix_syscall.h"
 #include "pico/stdio_usb.h"

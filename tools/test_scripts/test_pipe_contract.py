@@ -7,7 +7,7 @@ import re
 root = Path(__file__).resolve().parents[2]
 kernel = (root / 'kernel/kernel.c').read_text()
 header = (root / 'include/piconix.h').read_text()
-shell = (root / 'userland/shell.c').read_text()
+shell = (root / 'userland/apps/shell.c').read_text()
 checks = {
     'public pipe API': bool(re.search(r'\b(?:os_)?pipe\s*\(', header)),
     'pipe syscall dispatch': bool(re.search(r'\bSYS_PIPE\b', kernel)),

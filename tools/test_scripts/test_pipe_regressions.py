@@ -3,7 +3,7 @@
 from pathlib import Path
 root=Path(__file__).resolve().parents[2]
 k=(root/'kernel/kernel.c').read_text()
-s=(root/'userland/shell.c').read_text()
+s=(root/'userland/apps/shell.c').read_text()
 assert 'if(a!=b) {' in k and 'fd_release(&tasks[current],b);' in k
 assert 'fd_copy(&tasks[current],b,a);' in k
 assert 'fd_copy(t,target,a);' in k

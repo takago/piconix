@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
-src = (ROOT / 'userland/httpd.c').read_text()
+src = (ROOT / 'userland/apps/httpd.c').read_text()
 # Replace PicoNIX-only includes with host libc and a minimal syscall double.
 src = '\n'.join(line for line in src.splitlines()
                 if not line.startswith('#include '))

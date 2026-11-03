@@ -39,23 +39,23 @@ def test_app(tmp, name, base):
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
         opt, '-fno-jump-tables', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
         '-fdata-sections', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
-        '-I', ROOT / 'include',
-        '-c', ROOT / 'userland' / f'{name}.c', '-o', obj)
+        '-I', ROOT / 'include', '-I', ROOT / 'userland/lib',
+        '-c', ROOT / 'userland/apps' / f'{name}.c', '-o', obj)
     crt_obj = tmp / f'{name}_crt0.o'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
         opt, '-ffreestanding', '-fno-builtin', '-ffunction-sections',
-        '-fdata-sections', '-c', ROOT / 'userland' / 'crt0.c', '-o', crt_obj)
+        '-fdata-sections', '-c', ROOT / 'userland/lib/crt0.c', '-o', crt_obj)
     syscall_obj = tmp / f'{name}_syscalls.o'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
         opt, '-ffreestanding', '-fno-builtin', '-ffunction-sections', '-fdata-sections',
-        '-I', ROOT / 'userland', '-c', ROOT / 'userland' / 'syscalls.c', '-o', syscall_obj)
+        '-I', ROOT / 'userland/lib', '-I', ROOT / 'include', '-c', ROOT / 'userland/lib/syscalls.c', '-o', syscall_obj)
     libc_obj = tmp / f'{name}_libc.o'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
         opt, '-ffreestanding', '-fno-builtin', '-ffunction-sections',
         '-fdata-sections', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
-        '-c', ROOT / 'userland' / 'libc.c', '-o', libc_obj)
+        '-c', ROOT / 'userland/lib/libc.c', '-o', libc_obj)
     linker_script = tmp / f'{name}.ld'  
-    linker_script.write_text((ROOT / 'userland' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base:#x}'))
+    linker_script.write_text((ROOT / 'userland/lib/slot.ld').read_text().replace('@APP_ORIGIN@', f'{base:#x}'))
     run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T',
         linker_script, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, LIBGCC, '-o', elf)
     run(OBJCOPY, '-O', 'binary', elf, binary)
@@ -73,7 +73,7 @@ def test_app(tmp, name, base):
     alt_ld = tmp / f'{name}_alt.ld'
     alt_elf = tmp / f'{name}_alt.elf'
     alt_bin = tmp / f'{name}_alt.bin'
-    alt_ld.write_text((ROOT / 'userland' / 'slot.ld').read_text().replace('@APP_ORIGIN@', f'{base+24576:#x}'))
+    alt_ld.write_text((ROOT / 'userland/lib/slot.ld').read_text().replace('@APP_ORIGIN@', f'{base+24576:#x}'))
     run(LLD, '-flavor', 'gnu', '-m', 'armelf', '-z', 'max-page-size=0x1000', '-T', alt_ld, '--gc-sections', crt_obj, obj, syscall_obj, libc_obj, LIBGCC, '-o', alt_elf)
     run(OBJCOPY, '-O', 'binary', alt_elf, alt_bin)
     run(sys.executable, ROOT / 'tools' / 'check_slot_image.py', alt_elf, alt_bin, hex(base+24576), '--readelf', READELF)

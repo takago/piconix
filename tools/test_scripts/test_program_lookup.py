@@ -3,10 +3,10 @@
 from pathlib import Path
 r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
-s=(r/'userland/shell.c').read_text()
-t=(r/'userland/trace.c').read_text()
-w=(r/'userland/watch.c').read_text()
-u=(r/'userland/syscalls.c').read_text()
+s=(r/'userland/apps/shell.c').read_text()
+t=(r/'userland/apps/trace.c').read_text()
+w=(r/'userland/apps/watch.c').read_text()
+u=(r/'userland/lib/syscalls.c').read_text()
 assert '#include "../include/piconix_syscall.h"' in k
 assert 'case SYS_PROGRAM_ID:' in k
 assert 'for(int id=1;id<PROGRAM_CAPACITY;id++)' in k

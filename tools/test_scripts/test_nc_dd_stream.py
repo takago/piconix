@@ -2,8 +2,8 @@
 from pathlib import Path
 root = Path(__file__).resolve().parents[2]
 read = lambda f: (root / f).read_text()
-dd=read("userland/dd.c")
-nc=read("userland/nc.c")
+dd=read("userland/apps/dd.c")
+nc=read("userland/apps/nc.c")
 assert '(in && strcmp(in,"-"))' in dd
 assert '(out && strcmp(out,"-"))' in dd
 assert 'shutdown(peer,SHUT_WR)' in nc

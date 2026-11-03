@@ -22,7 +22,7 @@ c_code=r'''
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include "trace.h"
+#include "piconix_trace.h"
 #define OS_MAX_TASKS 6
 #define TRACE_CAPACITY 512u
 #define UNUSED 0
@@ -73,5 +73,5 @@ with tempfile.TemporaryDirectory(prefix='piconix_trace_writer_') as tmp:
     f=Path(tmp)/'trace_writer.c'
     exe=Path(tmp)/'trace_writer'
     f.write_text(c_code+'\n'+writer+'\n'+main)
-    subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror', '-I',str(root/'userland'),str(f),'-o',str(exe)],check=True)
+    subprocess.run(['cc','-std=c11','-DPICONIX_HOST_TEST','-Wall','-Wextra','-Werror', '-I',str(root/'include'),str(f),'-o',str(exe)],check=True)
     subprocess.run([str(exe)],check=True)

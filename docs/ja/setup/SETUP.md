@@ -1,0 +1,141 @@
+# セットアップ
+
+[English](../../en/setup/SETUP.md) | [概要](../literacy/README.md)
+
+Ubuntu／Debian系Linuxを想定した導入手順です．Raspberry Pi PicoまたはPico W（RP2040）とデータ通信可能なUSBケーブルを用意してください．
+
+## ハードウェアの準備
+
+PicoNIXの起動とUSB CDCコンソールの操作だけなら，**Pico／Pico Wとデータ通信可能なUSBケーブル**で十分です．LEDマトリクスなどの外付け回路は必須ではありません．
+
+GPIOや周辺機器を試す場合は，使用する部品と接続方法を事前に確認してください．
+
+- [ハードウェアと配線](../reference/hardware/HARDWARE.md)：対応ボード，ピン配置と回路情報への入口
+- [デバイスガイド](../reference/devices/DEVICES.md)：8×8 LEDマトリクス，スイッチ，PWMなどのピン配置と使用方法
+- [I²C](../reference/devices/I2C.md)：GP26（SDA）／GP27（SCL）への接続
+- [UART](../reference/devices/UART.md)：GP20（TX）／GP21（RX）への接続
+
+**配線前の注意：** GPIOは3.3 V系です．LEDには電流制限抵抗と適切な駆動回路が必要です．USBケーブルを抜いた状態で配線し，ピンの用途と極性を確認してから通電してください．最新の割り当ては`kernel/pins.h`を基準にしてください．
+
+## 1．開発ツールのインストール
+
+```sh
+sudo apt update
+sudo apt install git cmake ninja-build python3 unzip picocom \
+    gcc-arm-none-eabi libnewlib-arm-none-eabi
+sudo apt install clang lld llvm
+```
+
+ARM GCCはRP2040向けのビルドに使用します．Clang，LLD，LLVMは主にRAMアプリケーションのPIC検証で使用します．
+
+## 2．Pico SDK 2.1.1の取得
+
+```sh
+mkdir -p ~/.pico-sdk/sdk
+cd ~/.pico-sdk/sdk
+
+git clone --branch 2.1.1 \
+    https://github.com/raspberrypi/pico-sdk.git 2.1.1
+
+cd 2.1.1
+git submodule update --init --recursive
+```
+
+既にディレクトリがある場合は再度cloneせず，そのチェックアウトでサブモジュールを更新してください．
+
+## 3．PicoNIXの展開
+
+PicoNIXのZIPをダウンロードしたディレクトリで実行します．以下のファイル名は今回の配布物の例です．
+
+```sh
+unzip PicoNIX-<version>.zip
+cd <extracted-directory>
+chmod +x ./tools/build_sdk.sh
+```
+
+Gitから取得した場合は，PicoNIXリポジトリのルートディレクトリへ移動してください．
+
+## 4．ビルド（MinSizeRel）
+
+使用するボードに応じて，`-DPICO_BOARD=pico`または`-DPICO_BOARD=pico_w`を指定します．以下は通常のPico向けの例です．
+
+UbuntuのパッケージでインストールしたARM GCCを使う場合は，次のコマンドでビルドします．
+
+```sh
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+LC_ALL=C LANG=C \
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
+```
+
+**ARM GCC 14.2を別途`~/.pico-sdk/toolchain/14_2_Rel1`に導入済みの場合**は，次のようにツールチェーンを明示できます．このディレクトリはSDKの`git clone`や上記の`apt install`では自動的に作成されません．
+
+```sh
+PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+LC_ALL=C LANG=C \
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
+```
+
+**Pico W向け**には，どちらのコマンドでも`-DPICO_BOARD=pico`を`-DPICO_BOARD=pico_w`に置き換えてください．
+
+```sh
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+LC_ALL=C LANG=C \
+./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
+```
+
+実機では，**Pico W向けにビルドしたファームウェアが通常のPicoでも起動・動作することを確認しています**．ただし通常のPicoにはWi-Fiチップがないため，Wi-Fi機能は利用できません．この互換動作は現在の実装で確認されたものであり，すべての将来の版で保証されるものではありません．ボードごとの正式なビルド指定は上記のとおりです．
+
+`MinSizeRel`（通常`-Os`）を明示してください．ビルドスクリプトはホスト側の監査とPIC検証も実行します．別のツールチェーンに切り替えた場合は，CMakeのキャッシュを避けるため該当する`build-pico/`または`build-pico_w/`を削除してから再ビルドしてください．
+
+ビルド成果物は，Pico向けでは`build-pico/piconix.uf2`と`build-pico/piconix.elf`，Pico W向けでは`build-pico_w/piconix.uf2`と`build-pico_w/piconix.elf`です．
+
+## 5．Pico／Pico Wへの書き込み
+
+1. BOOTSELボタンを押しながらPicoまたはPico WをUSB接続します．
+2. 現れた`RPI-RP2`ドライブに対象ボードに応じて`build-pico/piconix.uf2`または`build-pico_w/piconix.uf2`をコピーします．
+3. Picoが再起動したら，Linux側のUSB CDCポートを確認します．
+
+```sh
+ls -l /dev/ttyACM*
+picocom -b 115200 /dev/ttyACM0
+```
+
+`/dev/ttyACM0`は一例です．実際のデバイス名は環境に合わせて変更してください．USB CDCでは`115200`は端末側の設定値であり，物理UARTの通信速度ではありません．
+
+## 6．動作確認
+
+```text
+piconix# help
+piconix# ps
+piconix# tty
+piconix# cat /proc/uptime
+piconix# blink &
+piconix# ps
+```
+
+前景で起動したプログラムはCtrl+Cで中断できます．PIDを指定する場合は`ps`で確認した番号を使用してください．
+
+## 7．トラブルシューティング
+
+| 症状 | 確認事項 |
+|---|---|
+| SDKが見つからない | `PICO_SDK_PATH`とサブモジュール |
+| ARM GCCが見つからない | `arm-none-eabi-gcc --version`，`PICO_TOOLCHAIN_PATH`の指定先 |
+| Clang／LLDが見つからない | `clang --version`，`ld.lld --version` |
+| RAM領域の超過・リンクエラー | `MinSizeRel`，ビルドキャッシュ，24 KiBのアプリ領域 |
+| `/dev/ttyACM0`が出ない | `sudo dmesg -w`でUSB列挙を確認，ケーブル・書き込みを確認 |
+| シリアルポートを開けない | デバイス名，アクセス権，他の端末による占有 |
+| GPIO25が動かない | Raspberry Pi Picoのボード種別 |
+
+USBと別にUART1からShellを利用するには`getty /dev/ttyS1 sh &`を実行します．UART1の設定とCtrl+C／Ctrl+Dは[UARTと端末操作](../reference/devices/UART.md)を参照してください．内部のRAM配置は[内部構造](../reference/INTERNAL.md)を参照してください．
+
+## Pico Wのネットワーク接続
+
+Pico Wのビルド，Wi-Fi設定，Telnet／socatの接続と終了方法は[Pico WのWi-Fi・Telnet・生TCP接続](../reference/devices/NETWORK.md)を参照してください．
+
+PWMデューティ比は `/dev/pwm/1/a` と `/dev/pwm/1/b` に `7.5` のような0.1％刻みの値を書き込めます．読み取りも `7.5` のように小数1桁で返します．周波数 `/dev/pwm/1/freq` は従来どおり整数Hzです．
+
+## 次に学ぶこと
+
+接続できたら，[学習ガイド](../literacy/LEARNING-PATH.md)の短い演習で，ファイル，パイプ，タスクを確認してください．PCで実行するビルドコマンドと，`piconix#`で実行するOSコマンドを混同しないようにします．
