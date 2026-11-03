@@ -8,7 +8,7 @@
 
 PicoNIX grew into a small UNIX-like operating system for Raspberry Pi Pico (RP2040), intended to make operating-system mechanisms observable and understandable. This diary records **the development process through conversations between the developer and ChatGPT**: design choices, experiments, failures, revisions, and lessons learned. It is not a substitute for the current technical documentation.
 
-The primary period is **October 24 through November 3, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
+The primary period is **October 24 through November 4, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
 
 ## October 24–25: Starting from a small operating system
 
@@ -209,6 +209,46 @@ After adding Python sockets, its task image exceeded the usable portion of a 24 
 The size experiment led to **`-Oz` becoming the standard for every user program**; the kernel retained Pico SDK `MinSizeRel` (`-Os`). Across 43 programs, the measured pre-link Clang object-size total changed from 112,457 bytes with `-Os` to 104,842 bytes with `-Oz`. These are not final Flash/RAM usage or performance measurements.
 
 During migration, Clang emitted ARM EABI memory helpers such as `__aeabi_memcpy` that were missing from the user-space C library, preventing the shell from linking. Shared helper implementations were added to `libc.c`. A subsequent PIC check for `omikuji` found `.got` or `.dynamic` sections. A proposed application-level rewrite of `omikuji.c` was **rejected**: instead, library declarations in `stdio.h`, `stdlib.h`, `string.h`, and `unistd.h` were given `hidden` visibility, allowing calls to functions within the same PIC image without GOT references. **The developer reported that the build then completed successfully.** This does not imply that all commands and networking paths had already passed hardware regression testing. The approach keeps optimization and PIC ABI constraints in the shared runtime and build configuration rather than imposing special cases on individual applications.
+
+## v1.2.1: Python networking and smaller user programs
+
+After v1.1.0, the small Python interpreter gained TCP/UDP networking, along with improvements to device and file operations. All user-space programs were also standardized on Clang `-Oz` to reduce code size. These changes were released as **v1.2.1**. This section summarizes the preceding November 2–3 account rather than claiming a separate implementation event on the date of this update.
+
+## November 3: Separating source code by responsibility
+
+Applications formerly mixed under `userland/` were moved to `userland/apps/`; shared library code, startup code, and linker settings moved to `userland/lib/`. The editor-specific `editor_common.h` remained with the apps, while reusable terminal control in `screen.h` belonged in the library. Three CMake image-embedding templates moved into `cmake/`, and shared tracing definitions moved into `include/`.
+
+Even a nominally structural change affected CMake paths, tests, relative includes, and documentation links. The migration included checks of old-file removal and eventually a fully assembled source ZIP. The developer reported a successful Pico SDK build on the refactoring branch. The goal was not only a tidier tree, but a codebase whose changes could be tested and explained.
+
+## November 3: Documentation as a staged undergraduate learning path
+
+Documentation was reorganized into Setup, Literacy, Development, and Reference. Development was subdivided into C, Python, and assembly application programming; system-call extension; device drivers; and kernel development. Device interfaces, circuit information, and pin assignments were placed under Reference, with links from Setup. This lighter historical diary remained at the root of `docs/`.
+
+A **ten-topic** curriculum was assembled: basic UNIX commands, standard I/O and IPC, device I/O, processes, memory and execution, terminals, system monitoring, networking, programming, and OS extension. Hands-on exercises were separated from detailed API references, with observation and reflection prioritized. English and Japanese documentation links were checked together.
+
+## November 3–4: Shared screen control and more responsive tools
+
+Duplicated editor logic was reduced, while terminal-size queries and ANSI control were consolidated in `screen.h`. `watch` moved beyond its fixed 20-line-by-78-column display, and `mem` gained a variable dump area of up to 36 lines instead of 16. `mb` adjusted the position of its fixed game area rather than expanding game mechanics. `pong` gained Up/Down arrow-key controls. Screen buffers retained explicit limits to respect the 24 KiB user slot, including the reserved 4 KiB stack.
+
+The shell gained `Ctrl+A`, `Ctrl+E`, `Ctrl+W`, and `Ctrl+K` editing, plus Tab completion. A second Tab could show multiple candidates close to the prompt. These small changes highlighted how much care terminal redraw and noncanonical input require even in a compact system.
+
+## November 4: The `fd` browser and PIC constraints
+
+A small FDclone-style file manager, `fd`, was introduced. It supports arrow-key directory navigation, file viewing, launching the existing `edit` program, and periodic refresh while viewing. The first viewer was limited to the initial 2 KiB. Line-by-line scrolling and streaming reads allowed larger pseudo-files such as `/proc/sym/kernel` to be explored. The kernel-symbol file subsequently gained `lseek()`, and `fd` recorded a small index of offsets every 16 lines to revisit known positions efficiently.
+
+A PIC validation failure exposed a subtle C restriction: the initializer `static const char *notice = "";` embedded an address-dependent pointer, so the binary differed when linked at two RAM positions. The initialization was changed and the C programming guide gained an explanation of why code supported by more general PIC systems can fail PicoNIX's relocation-free image test. An editor that briefly opened and exited was also traced to inherited `O_NONBLOCK` settings; terminal-mode handling around child launches was adjusted.
+
+## November 4: VFS dot entries and foreground TTY handoff
+
+The difficulty navigating upwards in `fd` prompted a distinction between **resolving** `.` and `..` in paths and **enumerating** those entries through `getdents()`. The VFS now lists both; `ls` hides them by default and shows them with `-a`, `fd` uses the returned parent entry, and `find`/`tree` skip both to avoid recursive loops.
+
+Some interactive programs intermittently failed on restart with `terminal required`. A possible race let a newly spawned child execute before the shell handed over foreground TTY ownership. A foreground-spawn API was introduced to combine process creation with TTY ownership transfer. This addresses a plausible race by design, but it is not proof that every triggering condition has been eliminated.
+
+## November 4: Wi-Fi diagnostics and the v1.3.0 release candidate
+
+Occasional Telnet stalls in Pico W STA mode, absent in a nearby AP-mode setup, pointed towards environmental network differences. The initial `MAC: N/A` and `RSSI: N/A` output was not a failed reading; it was a placeholder. MAC address reporting was added for both modes, and STA RSSI was sampled periodically and cached. The indicator was simplified to `RSSI: -44 dBm (100%)`; the percentage is an RSSI-derived approximation, not measured throughput or packet-loss quality. AP mode shows its own MAC address and leaves upstream RSSI as `N/A`. The developer reported a hardware reading of `-44 dBm`.
+
+The `refactor-20261103` branch combined the source layout changes, interactive tools, `fd`, VFS/TTY behavior, Wi-Fi diagnostics, and learning materials. After build and on-device checks, it was merged into `main`; a missing `fd` entry in the root README was also corrected. **v1.3.0 is the proposed next release**, but this diary update does not claim that the public release has already been published. Consult the Git history and GitHub Releases for the authoritative tag and publication date.
 
 ## Historical accuracy and references
 
