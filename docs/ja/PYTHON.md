@@ -8,6 +8,8 @@ PicoNIXの小型Python風インタプリタです．CPythonやMicroPythonとは�
 
 まず`python`で対話入力を始め，`print(1 << 3)`や`print("hello", 123)`を試します．スクリプトを書く場合は`edit /tmp/test.py`などでファイルを作り，`python /tmp/test.py`で実行します．**`python3`コマンドはありません**．
 
+起動時に配置される`/tmp/test.py`は，内蔵温度センサー`/dev/adc/temp`を1秒間隔で5回読み取り，温度を表示するサンプルです．ネットワークは使用しません．`read()`の結果はバイト列なので，画面表示には`write(1, temp)`を使います．新しい測定値を得るため，毎回デバイスを開き直します．
+
 GPIOの配線や8×8表示の座標は[デバイスガイド](DEVICES.md)，BH1750の配線は[I²Cガイド](I2C.md)を参照してください．以下のPythonは**標準Pythonではなく，実装機能が限定された小型インタプリタ**です．
 
 ## 起動とスクリプト
@@ -47,6 +49,63 @@ print()
 ```
 
 これは小型インタプリタのための限定的な文字列機能であり，Pythonの文字列演算全般をサポートするものではありません．
+
+## ソケット通信（Pico W）
+
+PicoNIX独自の整数FD型APIです．CPythonの`import socket`とは互換ではありません．IPv4の数値アドレスを使用します．ソケットはノンブロッキングです．
+
+| API | 内容 |
+|---|---|
+| `socket(1)` / `socket(2)` | TCP / UDPソケットを作成 |
+| `connect(fd, "127.0.0.1", 80)`，`status(fd)` | 非同期TCP接続と状態確認（0=処理中，1=成功） |
+| `listen(fd, port)`，`accept(fd)` | TCP待受・接続受入（未到着=-11） |
+| `bind(fd, port)` | UDP受信ポートを割り当て |
+| `send(fd, data)`，`write(fd, data)` | TCP送信．部分送信に注意 |
+| `data = recv(fd, n)` | TCP受信．最大64バイト．未到着とEOFはいずれも空配列 |
+| `sendto(fd, data, "192.168.4.2", port)` | UDP送信 |
+| `data = recvfrom(fd, n)` | UDP受信．最大64バイト，未到着は空配列 |
+| `peerport()` | 直近の`recvfrom()`の送信元ポート |
+| `sendto(fd, data, "peer", 0)` | 直近の`recvfrom()`の送信元へ返信（`peer`，0は専用表記） |
+
+`data`には64バイト以下の文字列リテラル，文字列変数，`bytes`/リスト変数または`str(整数式)`を渡せます．文字列リテラルには`\n`，`\r`，`\t`，`\\`，`\"`，`\'`，`\xHH`を指定できます．文字列内のNULは通常の文字列変数では扱えませんが，送信リテラルの`\0`は1バイトとして送信します．
+
+```python
+fd = socket(1)
+rc = connect(fd, "127.0.0.1", 80)
+if rc == 0:
+    state = 0
+    while state == 0:
+        state = status(fd)
+        msleep(10)
+    if state == 1:
+        send(fd, "GET / HTTP/1.0\r\n\r\n")
+        data = recv(fd, 64)
+        print(data)
+close(fd)
+```
+
+### 内蔵温度センサーのTCP・UDP配信サーバ
+
+両サンプルはPico W用で，専用の温度関数を使わず，`/dev/adc/temp`を`open()`・`read()`で読みます．応答は摂氏温度のテキスト（例：`26.3\n`）です．センサーは要求ごとに開いて閉じます．RP2040の内蔵温度センサーはチップ温度の概算値であり，正確な室温ではありません．
+
+| サンプル | 方式 | 動作 |
+|---|---|---|
+| `userland/examples/python/temp_tcp.py` | TCP 9000 | 接続を受けたら温度を1回送信して切断 |
+| `userland/examples/python/temp_udp.py` | UDP 9000 | データグラムを受けたら送信元へ返信 |
+
+Pico W側では，それぞれ`/tmp/temp_tcp.py`，`/tmp/temp_udp.py`にコピーまたは入力し，`python /tmp/temp_tcp.py`または`python /tmp/temp_udp.py`で実行します．
+
+PC側の例：
+
+```bash
+# TCP: 接続すると1回分の温度を受信
+nc <Pico WのIPアドレス> 9000
+
+# UDP: 要求を送信して温度を受信
+printf 'temp' | nc -u -w 2 <Pico WのIPアドレス> 9000
+```
+
+TCPとUDPは同じ9000番でも別のポート空間です．`accept()`と`recvfrom()`はノンブロッキングです．TCP `send()`には部分送信・一時的な送信不可があり得ますが，サンプルは短い応答を1度だけ送信する最小構成であり，再送処理はありません．UDPの`"peer"`，ポート`0`は直近の`recvfrom()`の送信元を指し，記憶する送信元は1件だけです．このPythonの`while`は1ループ最大10,000回で終了する制限があるため，恒久稼働を想定していません．外部公開せず実験用LANで利用してください．
 
 ## ファイルディスクリプタAPI
 
@@ -144,7 +203,7 @@ BH1750で測定した照度が高いほど，8×8 LEDマトリクス上の波が
 
 BH1750を3.3 VとGNDに接続し，SDAをGP26，SCLをGP27へ接続します．ADDRはGND側（I²Cアドレス`0x23`）にしてください．配線とI²Cの詳細は[I²Cガイド](I2C.md)を参照してください．
 
-`/tmp/wave.py`として保存し，`python /tmp/wave.py`で実行します．`/tmp`はRAMファイルで，初期配置されたサンプルではありません．ソース上限2048バイトとRAMファイル上限2 KiBに注意してください．
+サンプルのソースは[`userland/examples/python/wave.py`](../../userland/examples/python/wave.py)にあります．`/tmp/wave.py`に保存し，`python /tmp/wave.py`で実行します．`/tmp`はRAMファイルで，初期配置されたサンプルではありません．ソース上限2048バイトとRAMファイル上限2 KiBに注意してください．
 
 ```python
 # PicoNIX: light-controlled wave

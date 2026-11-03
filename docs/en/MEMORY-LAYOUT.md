@@ -11,7 +11,7 @@
 
 File metadata remains in kernel RAM; only the 11 fixed 2-KiB payloads are relocated. `/proc/ramfiles` reports their data addresses. Direct `/dev/mem` writes do not update file lengths.
 
-`/dev/shm` exposes a common 2-KiB byte-addressed RAM area with `read`, `write` and `lseek` (SEEK_SET). PIC applications can access the same physical region directly. SHM is cleared on boot.
+`/dev/shm` exposes a common 2-KiB byte-addressed RAM area with `read`, `write` and `lseek` (SEEK_SET / SEEK_CUR / SEEK_END). PIC applications can access the same physical region directly. SHM is cleared on boot.
 
 The `mem` viewer labels the relocated regions, and the `trace` ring is at the new 16-KiB address.
 

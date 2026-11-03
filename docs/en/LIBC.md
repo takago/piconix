@@ -60,7 +60,7 @@ For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboar
 - `sprintf()` has no destination length parameter: prefer `snprintf()` to avoid overflow.
 - `fgets()` reads from `stream->fd`; its behavior is simpler than a fully buffered standard C stream.
 - Most OS wrapper functions use **negative `OS_*` error codes directly**, without POSIX `errno`. Do not write code that assumes a host `errno` implementation.
-- PicoNIX `O_*` and `F_*` flag values are **not host POSIX constants**. `lseek()` currently supports `SEEK_SET` only.
+- PicoNIX `O_*` and `F_*` flag values are **not host POSIX constants**. `lseek()` supports `SEEK_SET`, `SEEK_CUR`, and `SEEK_END` for `/tmp` and `/dev/shm`, but only `SEEK_SET` for `/dev/mem`.
 - Socket operations are a deliberately reduced IPv4 API, not full BSD sockets; `listen()` is a compatibility no-op after TCP `bind()` starts listening.
 
 ## `fgets()` edge cases

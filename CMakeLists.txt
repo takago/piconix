@@ -68,23 +68,23 @@ foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omi
   # Thumb-1 switch helpers such as __gnu_thumb1_case_uqi.
   set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
   add_custom_command(OUTPUT "${APP_BIN}"
-    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Oz -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             ${APP_EXTRA_CFLAGS}
             -I "${CMAKE_CURRENT_BINARY_DIR}"
             -I "${CMAKE_CURRENT_LIST_DIR}/include"
             -c "${CMAKE_CURRENT_LIST_DIR}/userland/${APP}.c" -o "${APP_OBJ}"
-    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Oz -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             -c "${CMAKE_CURRENT_LIST_DIR}/userland/crt0.c" -o "${CRT_OBJ}"
-    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Oz -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             -I "${CMAKE_CURRENT_LIST_DIR}/userland"
             -c "${CMAKE_CURRENT_LIST_DIR}/userland/syscalls.c" -o "${SYSCALLS_OBJ}"
-    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Os -fPIC
+    COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb -Oz -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
             -I "${CMAKE_CURRENT_LIST_DIR}/userland"

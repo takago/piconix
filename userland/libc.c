@@ -21,6 +21,18 @@ char *strstr(const char *s,const char *sub) { if(!*sub)return (char *)s; for(;*s
 void *memcpy(void *d,const void *s,size_t n) { unsigned char *a=d;const unsigned char *b=s;while(n--)*a++=*b++;return d; }
 void *memmove(void *d,const void *s,size_t n) { unsigned char *a=d;const unsigned char *b=s;if(a<b){while(n--)*a++=*b++;}else if(a>b){a+=n;b+=n;while(n--)*--a=*--b;}return d; }
 void *memset(void *d,int c,size_t n) { unsigned char *a=d;while(n--)*a++=(unsigned char)c;return d; }
+/* Clang -Oz may lower structure copies and zero-initialization to ARM EABI
+ * memory helpers instead of calls to the C memcpy()/memset() functions.
+ * Supply the helpers locally: RAM applications are standalone PIC images.
+ * In particular, libgcc does not necessarily provide these routines. */
+void __aeabi_memcpy(void *d, const void *s, size_t n) { (void)memcpy(d, s, n); }
+void __aeabi_memcpy4(void *d, const void *s, size_t n) { __aeabi_memcpy(d, s, n); }
+void __aeabi_memcpy8(void *d, const void *s, size_t n) { __aeabi_memcpy(d, s, n); }
+void __aeabi_memmove(void *d, const void *s, size_t n) { (void)memmove(d, s, n); }
+/* EABI memset has (destination, length, value), unlike ISO C memset. */
+void __aeabi_memset(void *d, size_t n, int c) { (void)memset(d, c, n); }
+void __aeabi_memset4(void *d, size_t n, int c) { __aeabi_memset(d, n, c); }
+void __aeabi_memset8(void *d, size_t n, int c) { __aeabi_memset(d, n, c); }
 int memcmp(const void *a,const void *b,size_t n) {const unsigned char *x=a,*y=b;while(n--){int diff=(int)*x++-(int)*y++;if(diff)return diff;}return 0;}
 int abs(int x) { return x<0?-x:x; } /* As in ISO C, abs(INT_MIN) is undefined. */
 long strtol(const char *s,char **end,int base) {

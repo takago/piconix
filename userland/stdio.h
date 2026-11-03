@@ -2,6 +2,8 @@
 #define PICONIX_STDIO_H
 #include <stddef.h>
 #include <stdarg.h>
+/* All user-space runtime symbols are linked within the same PIC image. */
+#pragma GCC visibility push(hidden)
 typedef struct { int fd; } FILE;
 extern FILE __piconix_stdin, __piconix_stdout, __piconix_stderr;
 #define stdin (&__piconix_stdin)
@@ -15,4 +17,5 @@ char *fgets(char *s, int size, FILE *stream);
 int printf(const char *fmt, ...);
 int sprintf(char *s, const char *fmt, ...);
 int snprintf(char *s, size_t size, const char *fmt, ...);
+#pragma GCC visibility pop
 #endif

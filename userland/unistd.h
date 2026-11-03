@@ -4,6 +4,8 @@
 #include <stddef.h>
 #include "../include/piconix.h"
 #include "../include/piconix_dirent.h"
+/* All user-space runtime symbols are linked within the same PIC image. */
+#pragma GCC visibility push(hidden)
 #define FB_ENABLE  0x100
 /* PicoNIX console ioctl commands (minimal, not POSIX termios). */
 #define OS_TTY_GET_CANON 0x200
@@ -67,8 +69,10 @@ int recvfrom_udp(int fd, piconix_udp_packet_t *packet);
 int tcp_listen(int fd, unsigned port);
 int tcp_accept(int fd);
 int tcp_connect(int fd, const piconix_tcp_endpoint_t *endpoint);
-/* Seek to an absolute offset; PicoNIX currently supports SEEK_SET only. */
+/* Seek from start, current offset, or end (regular files and /dev/shm). */
 #define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 long lseek(int fd, long offset, int whence);
 int open(const char *path, int flags);
 int unlink(const char *path);
@@ -96,4 +100,5 @@ int set_foreground(int pid);
 int console_ready(void);
 int get_tty(void);
 void _exit(int status) __attribute__((noreturn));
+#pragma GCC visibility pop
 #endif

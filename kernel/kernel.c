@@ -1175,6 +1175,8 @@ static int tmp_rw(int fd,void *p,size_t n,int writing) {
     if(count>n) count=n;
     if(writing) {
         if(!count && n) return OS_ENOSPC;
+        if(pos>tmp_files[id].size)
+            memset(tmp_payload(id)+tmp_files[id].size,0,pos-tmp_files[id].size);
         memcpy(tmp_payload(id)+pos,p,count);
         if(pos+count>tmp_files[id].size) tmp_files[id].size=(uint16_t)(pos+count);
     } else if(count) memcpy(p,tmp_payload(id)+pos,count);
@@ -1694,7 +1696,8 @@ static int device_rw_pwm(int fd, int dev, void *p, size_t n, int writing) {
     tasks[current].fd_pos[fd]+=(uint32_t)count;
     return (int)count;
 }
-/* Sample on the first read, not open; subsequent reads drain the cached text. */
+/* An ADC read samples once per value. Short reads drain that value;
+ * after its final byte, the next read starts a fresh conversion. */
 static int device_rw_adc(int fd, int dev, void *p, size_t n, int writing) {
     if(writing || (tasks[current].fd_flags[fd] & 3)!=OS_O_RDONLY) return OS_EBADF;
     if(!n) return 0;
@@ -1704,11 +1707,13 @@ static int device_rw_adc(int fd, int dev, void *p, size_t n, int writing) {
     char text[20];
     int len=adc_driver_format(raw,dev==DEV_ADC_END,text,sizeof text);
     size_t pos=tasks[current].fd_pos[fd];
-    if(pos>=(size_t)len) return 0;
+    if(pos>=(size_t)len) pos=0;
     size_t count=(size_t)len-pos;
     if(count>n) count=n;
     memcpy(p,text+pos,count);
-    tasks[current].fd_pos[fd]=(uint32_t)(pos+count);
+    pos+=count;
+    /* Restart at the next read boundary, not mid-value. */
+    tasks[current].fd_pos[fd]=(uint32_t)(pos==(size_t)len ? 0 : pos);
     return (int)count;
 }
 extern const unsigned char piconix_symbols_start[], piconix_symbols_end[];
@@ -2362,23 +2367,38 @@ void os_svc_dispatch(uint32_t *f) {
                 }
             } else result=OS_EINVAL;
             break;
-        case SYS_LSEEK:
-            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]<0) result=OS_EBADF;
-            else if(c!=0) result=OS_EINVAL; /* SEEK_SET only */
-            else if(tasks[current].fd[a]==DEV_SHM && b>=0 && b<=SHM_BYTES) {
-                tasks[current].fd_pos[a]=(uint32_t)b; result=b;
-            } else if(tasks[current].fd[a]==DEV_MEM) {
+        case SYS_LSEEK: {
+            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]<0) { result=OS_EBADF; break; }
+            int dev=tasks[current].fd[a];
+            if(dev==DEV_MEM) {
+                /* /dev/mem uses absolute hardware addresses, never relative seeks. */
+                if(c!=0) { result=OS_EINVAL; break; }
                 uint32_t pos=(uint32_t)b;
                 if((pos>=0x10000000u && pos<0x10200000u) ||
                    (pos>=0x20000000u && pos<0x20040000u)) {
                     tasks[current].fd_pos[a]=pos;
                     result=b;
                 } else result=OS_EINVAL;
-            } else if(tasks[current].fd[a]>=DEV_TMP_FIRST &&
-                      tasks[current].fd[a]<DEV_TMP_FIRST+TMP_FILES && b>=0 && b<=TMP_BYTES) {
-                tasks[current].fd_pos[a]=(uint32_t)b; result=b;
-            } else result=OS_EINVAL;
+                break;
+            }
+            int32_t end;
+            if(dev==DEV_SHM) end=SHM_BYTES;
+            else if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES &&
+                    tmp_files[dev-DEV_TMP_FIRST].used)
+                end=tmp_files[dev-DEV_TMP_FIRST].size;
+            else { result=OS_EINVAL; break; }
+            int32_t base;
+            if(c==0) base=0;                 /* SEEK_SET */
+            else if(c==1) base=(int32_t)tasks[current].fd_pos[a]; /* SEEK_CUR */
+            else if(c==2) base=end;          /* SEEK_END */
+            else { result=OS_EINVAL; break; }
+            int64_t pos=(int64_t)base+(int32_t)b;
+            int32_t limit=(dev==DEV_SHM)?SHM_BYTES:TMP_BYTES;
+            if(pos<0 || pos>limit) { result=OS_EINVAL; break; }
+            tasks[current].fd_pos[a]=(uint32_t)pos;
+            result=(int)pos;
             break;
+        }
     }
     if(num==SYS_OPEN && result>=0 && result<OS_FD_MAX && tasks[current].fd[result]<=127)
         file_id=(int8_t)tasks[current].fd[result];

@@ -214,7 +214,7 @@ cat /dev/adc/temp
 watch 1 cat /dev/adc/temp
 ```
 
-An ADC sample is captured when the file is opened and returned as decimal text. Temperature assumes a 3.3-V reference and is not a precision measurement. Reassigning GP26–28 to GPIO hides the corresponding ADC devices. The on-chip temperature sensor remains independent of pin assignments.
+An ADC sample is captured at the first `read()` and returned as decimal text. Short reads drain the same sample; after its final byte, the next `read()` obtains a new sample. Temperature assumes a 3.3-V reference and is not a precision measurement. Reassigning GP26–28 to GPIO hides the corresponding ADC devices. The on-chip temperature sensor remains independent of pin assignments.
 
 ## PWM
 

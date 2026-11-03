@@ -11,7 +11,7 @@
 
 RAMファイルの管理テーブルはKernel内に残し，実データだけを専用領域に置く．`/proc/ramfiles`は実データの開始アドレスを表示する．`/dev/mem`経由の書き込みではファイル長は更新されない．
 
-`/dev/shm`は2 KiBの連続した共有RAMデバイスで，`read`，`write`，`lseek`（SEEK_SET）に対応する．同じ実体に`/dev/mem`やPICプログラムの絶対アドレスでもアクセスできる．起動時にSHMをゼロクリアする．
+`/dev/shm`は2 KiBの連続した共有RAMデバイスで，`read`，`write`，`lseek`（SEEK_SET / SEEK_CUR / SEEK_END）に対応する．同じ実体に`/dev/mem`やPICプログラムの絶対アドレスでもアクセスできる．起動時にSHMをゼロクリアする．
 
 `mem`では各領域を識別でき，`trace`は新しい16 KiBリングを使用する．
 

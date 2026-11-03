@@ -6,7 +6,9 @@ PicoNIX provides a small Python-like interpreter, not CPython or MicroPython. Th
 
 ## First steps
 
-Start the interactive interpreter with `python` and try `print(1 << 3)` or `print("hello", 123)`. For a script, create `/tmp/test.py` using `edit` and run `python /tmp/test.py`. There is **no `python3` command**. See [Devices](DEVICES.md) for the LED matrix orientation and [I²C](I2C.md) for BH1750 wiring. This is a deliberately limited Python-like interpreter, not CPython.
+Start the interactive interpreter with `python` and try `print(1 << 3)` or `print("hello", 123)`. For a script, create `/tmp/test.py` using `edit` and run `python /tmp/test.py`. There is **no `python3` command**. The preinstalled `/tmp/test.py` reads the RP2040 on-chip temperature sensor at `/dev/adc/temp` five times at one-second intervals, without networking. Since `read()` returns a byte sequence, it displays each reading with `write(1, temp)` and reopens the device for a fresh measurement.
+
+See [Devices](DEVICES.md) for the LED matrix orientation and [I²C](I2C.md) for BH1750 wiring. This is a deliberately limited Python-like interpreter, not CPython.
 
 ## REPL and scripts
 
@@ -142,7 +144,7 @@ A BH1750 illuminance sensor controls the speed of a wave on the 8×8 LED matrix:
 
 Connect the BH1750 to 3.3 V and GND, SDA to GP26, and SCL to GP27. Connect ADDR to GND to select I²C address `0x23`. See the [I²C guide](I2C.md) for wiring and bus details.
 
-Save this code as `wave.py` and run `python wave.py` (or specify the saved path). It is **not** installed as an initial RAM file.
+The sample source is [`userland/examples/python/wave.py`](../../userland/examples/python/wave.py). Save it to `/tmp/wave.py` and run `python /tmp/wave.py`. It is **not** installed as an initial RAM file.
 
 ```python
 # PicoNIX: light-controlled wave
@@ -174,4 +176,62 @@ close(fd)
 ```
 
 The `wave` array specifies the lit column in each row, and `phase` advances the pattern. The delay is computed as `350 - lux/3` milliseconds, clamped to a minimum of 35 ms. After about 10,000 frames, the script powers down the BH1750 and exits. Division in PicoNIX Tiny Python is integer division. This requires an external sensor and does not show numeric lux values on the display.
+
+
+## Socket communication (Pico W)
+
+This is a PicoNIX-specific integer-FD API, not CPython's `import socket`. It uses numeric IPv4 addresses. Sockets are nonblocking.
+
+| API | Behavior |
+|---|---|
+| `socket(1)` / `socket(2)` | Create a TCP / UDP socket |
+| `connect(fd, "127.0.0.1", 80)`, `status(fd)` | Start TCP connection / poll status (0=pending, 1=ready) |
+| `listen(fd, port)`, `accept(fd)` | TCP listener / accept (-11 when no client) |
+| `bind(fd, port)` | Bind UDP receive port |
+| `send(fd, data)`, `write(fd, data)` | TCP send; may be partial |
+| `data = recv(fd, n)` | TCP receive, up to 64 bytes; pending and EOF both return empty sequences |
+| `sendto(fd, data, "192.168.4.2", port)` | UDP send |
+| `data = recvfrom(fd, n)` | UDP receive, up to 64 bytes; empty sequence if pending |
+| `peerport()` | Source port of the most recent `recvfrom()` |
+| `sendto(fd, data, "peer", 0)` | Reply to the most recent UDP sender (`peer` / 0 are special syntax) |
+
+`data` may be a string literal, string variable, list/bytes variable, or `str(integer_expression)` (maximum 64 bytes). String literals support `\n`, `\r`, `\t`, `\\`, `\"`, `\'`, and `\xHH`. NUL is not supported in ordinary stored strings, but `\0` in a send literal transmits a zero byte.
+
+```python
+fd = socket(1)
+rc = connect(fd, "127.0.0.1", 80)
+if rc == 0:
+    state = 0
+    while state == 0:
+        state = status(fd)
+        msleep(10)
+    if state == 1:
+        send(fd, "GET / HTTP/1.0\r\n\r\n")
+        data = recv(fd, 64)
+        print(data)
+close(fd)
+```
+
+### TCP and UDP temperature servers
+
+Both Pico W examples use `open("/dev/adc/temp", 0)` and `read(sensor, 32)`, returning Celsius text such as `26.3\n`. The sensor is opened for each request. The RP2040 on-chip sensor approximates chip temperature, not room temperature.
+
+| Example | Protocol | Behavior |
+|---|---|---|
+| `userland/examples/python/temp_tcp.py` | TCP 9000 | Send one reading upon connection, then close |
+| `userland/examples/python/temp_udp.py` | UDP 9000 | Reply to each incoming request datagram |
+
+Copy these scripts to `/tmp/temp_tcp.py` and `/tmp/temp_udp.py`, then run `python /tmp/temp_tcp.py` or `python /tmp/temp_udp.py` on Pico W.
+
+On a host on the same LAN:
+
+```bash
+# TCP
+nc <Pico W IP address> 9000
+
+# UDP
+printf 'temp' | nc -u -w 2 <Pico W IP address> 9000
+```
+
+TCP and UDP have separate port spaces. `accept()` and `recvfrom()` are nonblocking. TCP `send()` may be partial or temporarily unavailable; the TCP sample makes a single short send without retries. UDP `"peer"` with port `0` addresses only the most recently received sender. Each Python `while` loop is limited to 10,000 iterations, so these examples are not permanent services. Use only on a trusted test LAN.
 

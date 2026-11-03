@@ -96,6 +96,8 @@ static int transfer(int addr,const int32_t *values,int n,int r,int32_t *output){
     if(rc<0){error=1;return 0;}
     for(int i=0;i<r;i++)output[i]=req.read_data[i];return 1;
 }
+static uint32_t last_peer_ip;
+static unsigned last_peer_port;
 static const char *cursor;
 static void ws(void){while(*cursor==' '||*cursor=='\t')cursor++;}
 static int eat(char c){ws();if(*cursor==c){cursor++;return 1;}return 0;}
@@ -114,12 +116,97 @@ static int32_t divide(int32_t a,int32_t b,int mod) {
 }
 static int32_t expr(void);
 /* File descriptors are PicoNIX integers, not Python file objects. */
+static void decimal_string(int32_t v,char *dst);
+static unsigned parsed_string_len;
 static int parse_string(char *dst,unsigned cap){
-    ws();char q=*cursor;if(q!='\"'&&q!='\'') {error=1;return 0;}
+    ws();char q=*cursor;if(q!='"'&&q!='\''){error=1;return 0;}
     cursor++;unsigned n=0;
-    while(*cursor&&*cursor!=q){if(n+1>=cap){error=1;return 0;}dst[n++]=*cursor++;}
-    if(!eat(q)){error=1;return 0;}dst[n]=0;return 1;
+    while(*cursor&&*cursor!=q){
+        unsigned char c=(unsigned char)*cursor++;
+        if(c=='\\'){
+            c=(unsigned char)*cursor++;
+            if(!c){error=1;return 0;}
+            if(c=='n')c='\n';else if(c=='r')c='\r';else if(c=='t')c='\t';
+            else if(c=='0')c=0;
+            else if(c=='x'){
+                unsigned v=0;
+                for(int i=0;i<2;i++){
+                    char h=*cursor++;unsigned d;
+                    if(h>='0'&&h<='9')d=(unsigned)(h-'0');
+                    else if(h>='a'&&h<='f')d=(unsigned)(h-'a'+10);
+                    else if(h>='A'&&h<='F')d=(unsigned)(h-'A'+10);
+                    else {error=1;return 0;}
+                    v=v*16+d;
+                }
+                c=(unsigned char)v;
+            }else if(c!='\\'&&c!='"'&&c!='\''){error=1;return 0;}
+        }
+        if(n+1>=cap){error=1;return 0;}dst[n++]=(char)c;
+    }
+    if(!eat(q)){error=1;return 0;}dst[n]=0;parsed_string_len=n;return 1;
 }
+/* Socket payloads may be strings, byte arrays, or str(integer). */
+static int payload(char *buf,unsigned cap){
+    ws();
+    if(*cursor=='"'||*cursor=='\''){
+        if(!parse_string(buf,cap+1))return -1;
+        /* NUL embedded in a string is not a valid text payload here. */
+        return (int)parsed_string_len;
+    }
+    if(word("str")){
+        if(!eat('(')){error=1;return -1;}
+        int32_t v=expr();if(!eat(')')){error=1;return -1;}
+        char tmp[12];decimal_string(v,tmp);
+        unsigned n=(unsigned)strlen(tmp);
+        if(n>cap){error=1;return -1;}memcpy(buf,tmp,n);return (int)n;
+    }
+    char key[16];unsigned z=0;
+    while(idchar(*cursor)&&z<15)key[z++]=*cursor++;
+    key[z]=0;int k=z?seqslot(key):-1;
+    if(k<0){error=1;return -1;}
+    if(is_string[k]){
+        unsigned n=(unsigned)strlen(string_at(k));
+        if(n>cap){error=1;return -1;}memcpy(buf,string_at(k),n);return (int)n;
+    }
+    if(!seq[k].used||seq[k].len>cap){error=1;return -1;}
+    for(int i=0;i<seq[k].len;i++){
+        int32_t v=items(k)[i];if(v<0||v>255){error=1;return -1;}
+        buf[i]=(char)v;
+    }
+    return seq[k].len;
+}
+/* IPv4 dotted-decimal conversion; matches the lwIP address layout in nc.c. */
+static int parse_ip(const char *s,uint32_t *out){
+    unsigned parts[4]={0},i=0,digits=0;
+    for(;*s;s++){
+        if(*s>='0'&&*s<='9'){
+            if(++digits>3)return 0;
+            parts[i]=parts[i]*10u+(unsigned)(*s-'0');
+            if(parts[i]>255)return 0;
+        }else if(*s=='.'&&i<3&&digits){i++;digits=0;}
+        else return 0;
+    }
+    if(i!=3||!digits)return 0;
+    uint8_t *p=(uint8_t *)out;
+    for(i=0;i<4;i++)p[i]=(uint8_t)parts[i];
+    return 1;
+}
+/* Shared endpoint parser for connect() and sendto(). */
+static int socket_address(struct sockaddr_in *addr){
+    char ip[20];
+    if(!parse_string(ip,sizeof ip))return 0;
+    if(!eat(','))error=1;
+    int32_t port=expr();
+    addr->sin_family=AF_INET;
+    if(same(ip,"peer")){
+        addr->sin_addr.s_addr=last_peer_ip;
+        if(port==0)port=(int32_t)last_peer_port;
+    }else if(!parse_ip(ip,&addr->sin_addr.s_addr))error=1;
+    if(port<1||port>65535)error=1;
+    addr->sin_port=htons((uint16_t)port);
+    return !error;
+}
+static int valid_port(int32_t port){return port>0&&port<=65535;}
 static int parse_fd(void){int fd=expr();if(fd<0)error=1;return fd;}
 /* Build a line from byte-stream UART reads as well as console reads. */
 static int read_line(char *buf,unsigned cap){
@@ -230,6 +317,9 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     if(same(name,"FB_ENABLE"))return OS_FB_ENABLE;
     if(same(name,"FB_DISABLE"))return OS_FB_DISABLE;
     if(same(name,"FB_STATUS"))return OS_FB_STATUS;
+    if(same(name,"SEEK_SET"))return SEEK_SET;
+    if(same(name,"SEEK_CUR"))return SEEK_CUR;
+    if(same(name,"SEEK_END"))return SEEK_END;
     if(same(name,"int"))return integer_conversion();
     /* Bare input() is a string and cannot be used as an integer expression. */
     if(same(name,"input")){error=1;return 0;}
@@ -237,6 +327,41 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         char target[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)target[z++]=*cursor++;
         target[z]=0;int k=seqslot(target);if(!eat(')')||k<0||(!seq[k].used&&!is_string[k])){error=1;return 0;}
         return is_string[k]?(int32_t)strlen(string_at(k)):seq[k].len;
+    }
+    /* Small, integer-FD socket API. Returns raw OS status for polling. */
+    if(same(name,"socket")&&eat('(')){
+        int32_t type=expr();if(!eat(')'))error=1;
+        if(type!=SOCK_STREAM&&type!=SOCK_DGRAM)error=1;
+        if(error||!evaluating)return 0;
+        return socket(AF_INET,type,0);
+    }
+    if(same(name,"connect")&&eat('(')){
+        int fd=parse_fd();if(!eat(','))error=1;
+        struct sockaddr_in addr={0};
+        if(!socket_address(&addr))return 0;
+        if(!eat(')'))error=1;
+        if(error||!evaluating)return 0;
+        return connect(fd,(const struct sockaddr *)&addr,sizeof addr);
+    }
+    if(same(name,"bind")&&eat('(')){
+        int fd=parse_fd();if(!eat(','))error=1;
+        int port=expr();if(!eat(')')||!valid_port(port))error=1;
+        if(error||!evaluating)return 0;return bind_udp(fd,(unsigned)port);
+    }
+    if(same(name,"listen")&&eat('(')){
+        int fd=parse_fd();if(!eat(','))error=1;
+        int32_t port=expr();if(!eat(')')||!valid_port(port))error=1;
+        if(error||!evaluating)return 0;
+        return tcp_listen(fd,(unsigned)port);
+    }
+    if((same(name,"accept")||same(name,"status"))&&eat('(')){
+        int accepting=same(name,"accept");int fd=parse_fd();
+        if(!eat(')'))error=1;
+        if(error||!evaluating)return 0;
+        return accepting?tcp_accept(fd):tcp_status(fd);
+    }
+    if(same(name,"peerport")&&eat('(')){
+        if(!eat(')'))error=1;return (int32_t)last_peer_port;
     }
     if(same(name,"open")&&eat('(')){
         char path[96];if(!parse_string(path,sizeof path))return 0;
@@ -250,33 +375,31 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         if(error||!evaluating)return 0;
         int rc=close(fd);if(rc<0)error=1;return rc;
     }
+    if(same(name,"lseek")&&eat('(')){
+        int fd=parse_fd();if(!eat(','))error=1;
+        int32_t offset=expr();if(!eat(','))error=1;
+        int32_t whence=expr();if(!eat(')'))error=1;
+        if(error||!evaluating)return 0;
+        return (int32_t)lseek(fd,offset,whence);
+    }
     if(same(name,"ioctl")&&eat('(')){
         int fd=parse_fd();if(!eat(','))error=1;int cmd=expr();
         if(!eat(','))error=1;int arg=expr();if(!eat(')'))error=1;
         if(error||!evaluating)return 0;
         int rc=ioctl(fd,cmd,arg);if(rc<0)error=1;return rc;
     }
-    if(same(name,"write")&&eat('(')){
+    if((same(name,"write")||same(name,"send")||same(name,"sendto"))&&eat('(')){
+        int udp=same(name,"sendto"),tcp=same(name,"send");
         int fd=parse_fd();if(!eat(','))error=1;
-        char buf[SEQ_MAX];int len=0;ws();
-        if(*cursor=='\"'||*cursor=='\''){
-            char q=*cursor++;while(*cursor&&*cursor!=q){
-                if(len==SEQ_MAX){error=1;break;}buf[len++]=*cursor++;}
-            if(!eat(q))error=1;
-        }else{
-            char target[16];unsigned z=0;
-            while(idchar(*cursor)&&z<15)target[z++]=*cursor++;
-            target[z]=0;int k=seqslot(target);
-            if(k<0||!seq[k].used)error=1;
-            else for(int i=0;i<seq[k].len;i++){
-                int32_t v=items(k)[i];if(v<0||v>255){error=1;break;}
-                buf[len++]=(char)v;
-            }
-        }
+        char buf[SEQ_MAX+1];int len=payload(buf,SEQ_MAX);
+        struct sockaddr_in addr={0};
+        if(udp){if(!eat(','))error=1;socket_address(&addr);}
         if(!eat(')'))error=1;
-        if(error||!evaluating)return 0;
-        int rc=write(fd,buf,(unsigned)len);if(rc<0)error=1;return rc;
+        if(error||!evaluating||len<0)return 0;
+        return udp?sendto(fd,buf,(unsigned)len,0,(struct sockaddr *)&addr,sizeof addr):
+               tcp?send(fd,buf,(unsigned)len,0):write(fd,buf,(unsigned)len);
     }
+
     if(eat('[')){int32_t index=expr();if(!eat(']'))error=1;
         int k=seqslot(name);if(k<0||!seq[k].used||index<0||index>=seq[k].len){error=1;return 0;}
         return items(k)[index];}
@@ -426,7 +549,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         if(!error)outs("\r\n");return;
     }
     cursor=source+offsets[line];ws();
-    if(word("write")||word("close")||word("ioctl")){
+    if(word("write")||word("close")||word("ioctl")||word("connect")||word("listen")||word("bind")||word("send")||word("sendto")){
         cursor=source+offsets[line];(void)expr();
         ws();if(*cursor&&*cursor!='#')error=1;return;
     }
@@ -481,14 +604,21 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         if(immutable)for(int j=0;j<len;j++)if(values[j]<0||values[j]>255)error=1;
         if(!error)seqnew(name,immutable,values,len);return;
     }
-    if(word("read")){
+    if(word("read")||word("recv")||word("recvfrom")){
+        int is_udp=cursor[-1]=='m';
+        int nonblocking=cursor[-1]=='v'||is_udp;
         if(!eat('(')){error=1;return;}
         int fd=parse_fd();if(!eat(','))error=1;
         int32_t size=expr();if(!eat(')')||size<0||size>SEQ_MAX)error=1;
         ws();if(*cursor&&*cursor!='#')error=1;
         if(error)return;
         uint8_t buf[SEQ_MAX];int32_t values[SEQ_MAX];
-        int rc=read(fd,buf,(unsigned)size);if(rc<0||rc>size){error=1;return;}
+        struct sockaddr_in from={0};socklen_t fromlen=sizeof from;
+        int rc=is_udp?recvfrom(fd,buf,(unsigned)size,0,(struct sockaddr *)&from,&fromlen):
+               nonblocking?recv(fd,buf,(unsigned)size,0):read(fd,buf,(unsigned)size);
+        if(is_udp&&rc>=0){last_peer_ip=from.sin_addr.s_addr;last_peer_port=ntohs(from.sin_port);}
+        if(nonblocking&&rc==OS_EAGAIN)rc=0;
+        if(rc<0||rc>size){error=1;return;}
         for(int i=0;i<rc;i++)values[i]=buf[i];
         seqnew(name,1,values,rc);return;
     }

@@ -60,7 +60,7 @@
 - `set_foreground(pid)`：`pid` は自分の子タスクのPIDです．`pid=0` は前景所有の復元要求です．
 - `tty_spawn(tty, program)`：`tty` は1または2，`program` は対応するシェル／gettyの登録ID（実装では2または4）です．
 - `getcwd(buf, size)`：ABIでは書き込み成功時に0を返します．Cラッパーは成功時に `buf` を返すよう変換しています．
-- `lseek(fd, offset, whence)`：`whence` は `SEEK_SET` (0) のみです．対応するファイルやデバイスも限定されます．
+- `lseek(fd, offset, whence)`：`/tmp`の通常ファイルと`/dev/shm`は`SEEK_SET` (0)，`SEEK_CUR` (1)，`SEEK_END` (2)に対応します．`/dev/mem`は絶対アドレスによる`SEEK_SET`のみです．
 - `fcntl(fd, cmd, value)`：`cmd=1` は `F_GETFL`，`cmd=2` は `F_SETFL` に相当します．`F_SETFL`で`O_NONBLOCK`を変更できるのはTTY（コンソール，UART1，Wi-Fi有効時のWi-Fi TTY）とTCP/UDPソケットです．パイプや通常ファイル，その他のデバイスには対応していません．TTY設定には `ioctl()` を使用します．
 - `pipe(fds)`：`fds[0]` に読み取り側，`fds[1]` に書き込み側のFDを設定します．`dup()`／`dup2()` はソケットFDを複製できません．
 - `socket(domain, type, protocol)`：`domain=AF_INET` (2)，`type=SOCK_STREAM` (1) または `SOCK_DGRAM` (2)，`protocol=0` のみです．

@@ -36,21 +36,21 @@ def test_app(tmp, name, base):
     elf = tmp / f'{name}.elf'
     binary = tmp / f'{name}.bin'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
-        '-Os', '-fno-jump-tables', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
+        '-Oz', '-fno-jump-tables', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
         '-fdata-sections', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
         '-I', ROOT / 'include',
         '-c', ROOT / 'userland' / f'{name}.c', '-o', obj)
     crt_obj = tmp / f'{name}_crt0.o'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
-        '-Os', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
+        '-Oz', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
         '-fdata-sections', '-c', ROOT / 'userland' / 'crt0.c', '-o', crt_obj)
     syscall_obj = tmp / f'{name}_syscalls.o'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
-        '-Os', '-ffreestanding', '-fno-builtin', '-ffunction-sections', '-fdata-sections',
+        '-Oz', '-ffreestanding', '-fno-builtin', '-ffunction-sections', '-fdata-sections',
         '-I', ROOT / 'userland', '-c', ROOT / 'userland' / 'syscalls.c', '-o', syscall_obj)
     libc_obj = tmp / f'{name}_libc.o'
     run(CLANG, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-fPIC',
-        '-Os', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
+        '-Oz', '-ffreestanding', '-fno-builtin', '-ffunction-sections',
         '-fdata-sections', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables',
         '-c', ROOT / 'userland' / 'libc.c', '-o', libc_obj)
     linker_script = tmp / f'{name}.ld'  
