@@ -248,17 +248,44 @@ def map_report(path, sections, embedded=()):
     return counters
 
 
+def sram_region_totals(sections):
+    """Return unique allocated ELF SRAM bytes, partitioned by fixed regions."""
+    ranges = [(a, a + sz) for _, a, sz in sections
+              if sz > 0 and memory_kind(a) == 'SRAM']
+    totals = []
+    for name, start, end in RAM_LAYOUT:
+        inside = [(max(a, start), min(b, end)) for a, b in ranges
+                  if min(b, end) > max(a, start)]
+        totals.append((name, interval_union(inside)))
+    # Anything in the RP2040 scratch SRAM or outside documented reserved regions.
+    covered = [(start, end) for _, start, end in RAM_LAYOUT]
+    cuts = sorted({x for pair in covered for x in pair} |
+                  {SRAM_START, SRAM_END})
+    outside = 0
+    for lo, hi in zip(cuts, cuts[1:]):
+        if not any(start <= lo and hi <= end for start, end in covered):
+            outside += interval_union([(max(a, lo), min(b, hi))
+                                       for a, b in ranges if min(b, hi) > max(a, lo)])
+    return totals, outside
+
+
 def print_fixed_layout(sections):
     print('\n=== Fixed SRAM map (KiB, RP2040) ===')
     print(f"{'Region':23} {'Start':>11} {'End excl.':>11} {'Reserved':>9} {'ELF bytes':>10}")
     print('-' * 71)
-    elf_ranges = [(a, a + sz) for _, a, sz in sections if sz and SRAM_START <= a < SRAM_END]
-    for name, start, end in RAM_LAYOUT:
-        elf_in_region = interval_union([(max(start, a), min(end, b)) for a, b in elf_ranges
-                                       if min(end, b) > max(start, a)])
+    region_totals, outside = sram_region_totals(sections)
+    for (name, start, end), (_, elf_in_region) in zip(RAM_LAYOUT, region_totals):
         print(f'{name:23} 0x{start:08x} 0x{end:08x} {fmt(end - start)} {fmt(elf_in_region)}')
     print('  Reserved is a fixed allocation, not additional ELF consumption.')
     print('  Network: 10 KiB lwIP heap + 2 KiB gap + 4 KiB idle stack (Pico W).')
+    print(f'  Other ELF SRAM (including scratch banks): {fmt(outside).strip()} KiB')
+    region_sum = sum(v for _, v in region_totals) + outside
+    total = interval_union([(a, a + sz) for _, a, sz in sections
+                            if sz and memory_kind(a) == 'SRAM'])
+    print(f'  Reconciliation: regions + other = {fmt(region_sum).strip()} KiB; '
+          f'ELF SRAM = {fmt(total).strip()} KiB')
+    if region_sum != total:
+        print('  WARNING: SRAM regions do not reconcile; check ELF addresses/layout.')
     print('  RP2040 also has 8 KiB scratch SRAM (0x20040000..0x20041fff).')
 
 
@@ -306,8 +333,14 @@ def print_kernel(build, readelf, map_path):
     print('  Used/Free = allocated SRAM within the shared 56 KiB kernel RAM region.')
     if not stack:
         print('  WARNING: Free is an upper bound; unknown stack/runtime allocations not subtracted.')
-    print(f'  Firmware total: Flash {fmt(flash).strip()} KiB, ELF SRAM {fmt(sram).strip()} KiB')
-    print('  Data/BSS omit other allocated RAM sections; Used includes those sections.')
+    kernel_other = sram - kernel_allocated
+    print(f'  Firmware total: Flash {fmt(flash).strip()} KiB, '
+          f'ELF SRAM (all regions) {fmt(sram).strip()} KiB')
+    print(f'  SRAM split: kernel region {fmt(kernel_allocated).strip()} KiB; '
+          f'outside kernel region {fmt(kernel_other).strip()} KiB')
+    if kernel_other:
+        print('  NOTE: Outside-kernel ELF sections are excluded from the 56 KiB Free calculation.')
+    print('  Data/BSS = sections inside kernel region; Used also includes other allocated kernel-region sections.')
     if not map_path.exists():
         print(f'  Link map not found: {map_path}')
         print('  Kernel-only section attribution unavailable without the linker map.')
@@ -346,6 +379,8 @@ def print_kernel(build, readelf, map_path):
     print(f'{"Attributed objects":19} {fmt(total_flash)} {fmt(total_sram)}')
     print(f'{"Unattributed / padding":19} {fmt(max(0, flash-total_flash))} {fmt(max(0, sram-total_sram))}')
     print(f'{"ELF allocated":19} {fmt(flash)} {fmt(sram)}')
+    print('  SRAM column is for the ENTIRE ELF, including any sections outside kernel RAM.')
+    print('  It is not the same measure as the 56 KiB kernel-region Used/Free above.')
     print('  Entries are address-clipped and deduplicated; archive/object paths estimate ownership.')
     print('  Embedded apps use ELF image_start/end symbols; their bytes take precedence over map paths.')
     if not images:

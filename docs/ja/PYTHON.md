@@ -203,7 +203,7 @@ BH1750で測定した照度が高いほど，8×8 LEDマトリクス上の波が
 
 BH1750を3.3 VとGNDに接続し，SDAをGP26，SCLをGP27へ接続します．ADDRはGND側（I²Cアドレス`0x23`）にしてください．配線とI²Cの詳細は[I²Cガイド](I2C.md)を参照してください．
 
-サンプルのソースは[`userland/examples/python/wave.py`](../../userland/examples/python/wave.py)にあります．`/tmp/wave.py`に保存し，`python /tmp/wave.py`で実行します．`/tmp`はRAMファイルで，初期配置されたサンプルではありません．ソース上限2048バイトとRAMファイル上限2 KiBに注意してください．
+サンプルのソースは[`userland/examples/python/wave.py`](../../userland/examples/python/wave.py)にあります．`/tmp/wave.py`として初期配置されるため，`python /tmp/wave.py`で実行できます．ソース上限2048バイトとRAMファイル上限2 KiBに注意してください．
 
 ```python
 # PicoNIX: light-controlled wave

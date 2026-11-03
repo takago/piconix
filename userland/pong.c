@@ -71,7 +71,8 @@ int main(int argc,char **argv) {
         puts("usage: pong [-2]");return 1;
     }
     int side=get_tty();
-    if(side!=0 && side!=1) {puts("pong: unknown terminal");return 1;}
+    if(side<0 || side>2) {puts("pong: unknown terminal");return 1;}
+    if(two && side==2) {puts("pong: -2 requires USB or UART1");return 1;}
     int other=-1;
     if(two) {
         const char *remote=side ? "/dev/console" : "/dev/ttyS1";

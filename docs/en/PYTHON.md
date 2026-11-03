@@ -144,7 +144,7 @@ A BH1750 illuminance sensor controls the speed of a wave on the 8×8 LED matrix:
 
 Connect the BH1750 to 3.3 V and GND, SDA to GP26, and SCL to GP27. Connect ADDR to GND to select I²C address `0x23`. See the [I²C guide](I2C.md) for wiring and bus details.
 
-The sample source is [`userland/examples/python/wave.py`](../../userland/examples/python/wave.py). Save it to `/tmp/wave.py` and run `python /tmp/wave.py`. It is **not** installed as an initial RAM file.
+The sample source is [`userland/examples/python/wave.py`](../../userland/examples/python/wave.py). It is preinstalled as `/tmp/wave.py` at boot. Run `python /tmp/wave.py`.
 
 ```python
 # PicoNIX: light-controlled wave

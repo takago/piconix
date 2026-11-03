@@ -88,7 +88,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 | ファイル容量 | **各2048バイト** |
 | 名前 | 各ディレクトリ直下のみ．ファイル名は**最大27バイト**（ASCII想定．`tmp/`または`etc/`を含む内部パスは最大31バイト） |
 | 永続性 | なし．再起動で初期化 |
-| 初期ファイル | Pico：`/etc/rc`，`/tmp/test.s`，`/tmp/test.py`（3個）．Pico W：これらに`/etc/index.html`，`/etc/fbcheck.html`，`/etc/pwm.html`を追加（6個） |
+| 初期ファイル | Pico：`/etc/rc`，`/tmp/test.s`，`/tmp/test.py`，`/tmp/wave.py`（4個）．Pico W：これらに`/etc/index.html`，`/etc/fbcheck.html`，`/etc/pwm.html`を追加（7個） |
 | 作成・削除 | `O_CREAT`で作成，`unlink()`で削除．開いたままのファイルは削除不可 |
 | 書き込み | 容量末尾では部分書き込み，空きがない場合は`OS_ENOSPC` |
 

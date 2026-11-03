@@ -39,17 +39,17 @@ Drag a finger over the matrix on a phone to paint or erase several LEDs in one g
 
 ### Periodic framebuffer synchronization
 
-The browser polls `GET /api/fb` about every 250 ms without caching so changes made by another program or `curl` appear on the page. Polling is skipped while touching the matrix, while local edits are pending, or while an HTTP request is active. GET and POST never overlap. Edited frames are sent with the existing 50 ms minimum interval, subject to the Pico W response time.
+The browser polls `GET /api/fb` about every 50 ms without caching so changes made by another program or `curl` appear on the page. Polling is skipped while touching the matrix, while local edits are pending, or while an HTTP request is active. GET and POST never overlap. Edited frames are sent with the existing 50 ms minimum interval, subject to the Pico W response time.
 
 `fbctl test` switches frames at 500 ms intervals; the former one-second poll could repeatedly sample the same phase.
 
-The web page has `Clear` and `All` buttons. There is no manual `Read` button because the framebuffer is polled automatically every 250 ms.
+The web page has `Clear` and `All` buttons. There is no manual `Read` button because the framebuffer is polled automatically every 50 ms.
 
 
 ### Web pages and PWM demo
 
 - `/` (`/index.html`): small introduction and demo links.
-- `/fbcheck.html`: LED matrix drawing (50 ms minimum write interval, 250 ms reads).
+- `/fbcheck.html`: LED matrix drawing (50 ms minimum write interval, 50 ms reads).
 - `/pwm.html`: select servo on GP19/PWM1 B or passive buzzer on GP18/PWM1 A.
 
 PWM output starts disabled. Start enables the selected mode; Stop sets its PWM channel duty to zero. Servo: 50 Hz, pulse width 0.7–2.3 ms in 0.02 ms steps (3.5–11.5% duty). Buzzer: fixed 50% duty, adjustable 100–5000 Hz. Mode changes stop both channels. Both channels share PWM slice 1 and cannot run at independent frequencies. Use a suitable external supply for the servo, common GND, and verify its permitted pulse-width range.
