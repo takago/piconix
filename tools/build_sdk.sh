@@ -42,6 +42,11 @@ python3 tools/make_kernel_symbols.py --nm "$NM" --elf "$build_dir/piconix.elf" \
   --output "$build_dir/piconix_kernel_symbols.bin" --verify-only
 
 
+# Report memory usage after the final link and before flashing.
+# Also report for --no-flash builds.
+echo "=== PicoNIX memory report ($build_dir) ==="
+python3 tools/size_ram.py --build "$build_dir"
+
 # Flash only an already mounted Pico in BOOTSEL mode.
 if (( flash )); then
     uf2="$build_dir/piconix.uf2"
