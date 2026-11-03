@@ -66,12 +66,7 @@ foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omi
   set(APP_BIN "${APP_DIR}/${APP}.bin")
   # RAM apps link libgcc for compiler-generated arithmetic helpers. Prevent GCC from emitting
   # Thumb-1 switch helpers such as __gnu_thumb1_case_uqi.
-  # Keep the large Python interpreter size-optimized; favor speed elsewhere.
-  if(APP STREQUAL "python")
-    set(APP_OPT -Oz)
-  else()
-    set(APP_OPT -O2)
-  endif()
+  set(APP_OPT -Oz)
   set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
   add_custom_command(OUTPUT "${APP_BIN}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb ${APP_OPT} -fPIC
