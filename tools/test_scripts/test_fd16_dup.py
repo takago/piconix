@@ -2,8 +2,8 @@
 from pathlib import Path
 r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
-s=(r/'userland/shell.c').read_text()
-u=(r/'userland/unistd.h').read_text()
+s=(r/'userland/apps/shell.c').read_text()
+u=(r/'userland/lib/unistd.h').read_text()
 assert '#define OS_FD_MAX 16' in k
 for name in ('fd','fd_pos','fd_task_pid','fd_flags'):
     assert f'{name}[OS_FD_MAX]' in k

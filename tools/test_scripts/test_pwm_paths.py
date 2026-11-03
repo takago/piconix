@@ -5,8 +5,8 @@ root=Path(__file__).resolve().parents[2]
 k=(root/'kernel/kernel.c').read_text()
 v=k
 h=k
-ls=(root/'userland/ls.c').read_text()
-ctl=(root/'userland/pwmctl.c').read_text()
+ls=(root/'userland/apps/ls.c').read_text()
+ctl=(root/'userland/apps/pwmctl.c').read_text()
 for name in ('freq','a','b'):
     path=f'/dev/pwm/1/{name}'
     assert path in v and path in ctl
@@ -17,5 +17,5 @@ for old in ('/dev/pwm/freq','/dev/pwm/18','/dev/pwm/19'):
         if source.is_file() and source.suffix in ('.c','.h','.md'):
             assert old not in source.read_text(), (old,source)
 assert 'eq(argv[1],"a")' in ctl and 'eq(argv[1],"b")' in ctl
-assert '"/dev/pwm/1/a"' in (root/'userland/kitesys.c').read_text()
+assert '"/dev/pwm/1/a"' in (root/'userland/apps/kitesys.c').read_text()
 print('PASS: PWM slice 1 device paths and clients')

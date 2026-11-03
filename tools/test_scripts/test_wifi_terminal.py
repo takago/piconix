@@ -9,7 +9,7 @@ assert 'net_service_telnet_poll();' in entry
 kern = (root / 'kernel/kernel.c').read_text()
 hdr = (root / 'kernel/net.h').read_text()
 opts = (root / 'kernel/lwipopts.h').read_text()
-libc = (root / 'userland/libc.c').read_text()
+libc = (root / 'userland/lib/libc.c').read_text()
 for token in ('#define NET_TTY_QUEUE_SIZE 2048u',
               'if (needed > queue_space(net_tx_head, net_tx_tail)) return 0;',
               'if (available > TCP_MSS) available = TCP_MSS;',

@@ -1,0 +1,30 @@
+# 2．標準入出力とプロセス間通信
+
+[学習ガイド](LEARNING-PATH.md) | [English](../../en/literacy/IO-IPC.md) | [パイプの詳細](PIPE.md)
+
+## 目的と準備
+
+**目的：** 標準入力（FD 0），標準出力（FD 1），標準エラー（FD 2），リダイレクト，パイプの違いを説明することです．USB接続のPicoだけで実習できます．`/tmp`のファイルは再起動すると消えます．
+
+## 実習
+
+```text
+piconix# echo hello
+piconix# echo hello > /tmp/hello.txt
+piconix# cat /tmp/hello.txt
+piconix# echo hello | cat
+piconix# echo hello | grep hello | cat
+piconix# lsof
+```
+
+`>`はコマンドの標準出力をファイルに向けます．`|`はコマンド間でバイト列を受け渡します．PicoNIXのシェルではパイプは最大3段で，パイプとリダイレクトの併用には制約があります．Linuxの一般的なシェルと完全に同じではありません．
+
+## 観察・考察
+
+- `cat /tmp/hello.txt`と`echo hello | cat`では，`cat`の入力元はどのように異なりますか．
+- ファイルは後から読めますが，パイプの内容はどうなりますか．
+- `lsof`で見えるFDは実行時点のものです．終了済みの`echo`が表示されない理由を考えてください．
+
+## 発展
+
+[パイプの実装と制約](PIPE.md)で`pipe()`，`dup2()`，EOFを確認し，[プロセス](PROCESSES.md)に進んでください．

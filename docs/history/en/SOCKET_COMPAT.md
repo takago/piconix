@@ -1,12 +1,12 @@
-> Historical implementation notes. For the current overview see [Socket API and network applications](../../en/NETWORK-PROGRAMMING.md).
+> Historical implementation notes. For the current overview see [Socket API and network applications](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
 
-> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/README.md), [Internals](../../en/INTERNAL.md), [Pipes](../../en/PIPE.md), and [Network programming](../../en/NETWORK-PROGRAMMING.md).
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/literacy/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/literacy/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
 
 
 # Minimal BSD-style socket compatibility API
 
-PicoNIX provides a small IPv4 socket interface in `userland/unistd.h`,
-implemented as wrappers in `userland/syscalls.c`. Existing kernel syscalls
+PicoNIX provides a small IPv4 socket interface in `userland/lib/unistd.h`,
+implemented as wrappers in `userland/lib/syscalls.c`. Existing kernel syscalls
 and legacy `tcp_*` / `*_udp` entry points are retained.
 
 - `socket(AF_INET, SOCK_STREAM/SOCK_DGRAM, 0)`
@@ -20,7 +20,7 @@ and legacy `tcp_*` / `*_udp` entry points are retained.
 
 `sin_port` and `sin_addr.s_addr` use network byte order; use `htons`/`ntohs`
 for ports. IPv4 address bytes can be parsed into `sin_addr.s_addr` as in
-`userland/nc.c`. No DNS, errno, socket options, `getsockname`, or full
+`userland/apps/nc.c`. No DNS, errno, socket options, `getsockname`, or full
 POSIX blocking semantics are provided. Errors are returned directly as
 negative `OS_*` codes. TCP `bind()` currently starts listening; `listen()`
 does not change the kernel state or validate the descriptor. `accept()` does

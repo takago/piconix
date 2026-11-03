@@ -18,5 +18,5 @@ assert '"/dev/adc/temp"' in v
 assert 'temp_01c' in a
 assert '"/dev/adc/"' in k
 assert 'hardware_adc' in (r/'CMakeLists.txt').read_text()
-assert 'TICKx1K' in (r/'userland/trace.c').read_text()
+assert 'TICKx1K' in (r/'userland/apps/trace.c').read_text()
 print('PASS: ADC device and 1 ms SysTick integration')

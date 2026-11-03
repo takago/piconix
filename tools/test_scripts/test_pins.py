@@ -3,7 +3,7 @@
 from pathlib import Path
 r=Path(__file__).resolve().parents[2]
 k=(r/'kernel/kernel.c').read_text()
-a=(r/'userland/pins.c').read_text()
+a=(r/'userland/apps/pins.c').read_text()
 h=(r/'include/gpio_status.h').read_text()
 assert not (r/'include/pins_snapshot.h').exists()
 assert 'DEV_PINS' not in k and '/dev/pins' not in k

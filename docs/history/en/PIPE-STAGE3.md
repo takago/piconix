@@ -1,6 +1,6 @@
 # Pipe stage 3: kernel foundation (not yet a working shell pipeline)
 
-> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/README.md), [Internals](../../en/INTERNAL.md), [Pipes](../../en/PIPE.md), and [Network programming](../../en/NETWORK-PROGRAMMING.md).
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/literacy/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/literacy/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
 
 
 Implemented: `os_pipe(int fds[2])`, two statically allocated 256-byte rings, read/write endpoint validation, reference accounting in `dup2`, standard-FD inheritance during `spawn`, and task-exit/close release. Standard descriptors can now be closed. Pipes return EOF after the last writer closes and their buffer empties; writes with no readers return `OS_EIO`.

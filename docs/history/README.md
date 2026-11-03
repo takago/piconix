@@ -1,6 +1,6 @@
 # PicoNIX 開発履歴 / Development History
 
-このディレクトリには過去の設計案，実装段階，障害調査の記録を保存しています．**現行仕様ではありません**．現在の使い方と仕様は[日本語の文書案内](../ja/DOCS.md)，[English documentation](../en/DOCS.md)，[日本語仕様書](../ja/SPECIFICATION.md)，[English specification](../en/SPECIFICATION.md)を参照してください．
+このディレクトリには過去の設計案，実装段階，障害調査の記録を保存しています．**現行仕様ではありません**．現在の使い方と仕様は[日本語の文書案内](../DOCS.ja.md)，[English documentation](../DOCS.md)，[日本語仕様書](../ja/reference/SPECIFICATION.md)，[English specification](../en/reference/SPECIFICATION.md)を参照してください．
 
 This directory preserves earlier designs, implementation stages, and debugging notes. **These documents are historical, not current specifications.** Follow the current guides and source code for actual behavior.
 

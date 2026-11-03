@@ -25,6 +25,29 @@
  * Stage 18: bounded queues for the independent network TTY. */
 static int wifi_ready;
 static char wifi_ssid[33];
+/* Driver transactions are restricted to net_poll(), never /proc reads. */
+static uint8_t wifi_mac[6];
+static int wifi_mac_valid;
+static uint64_t wifi_mac_next_us;
+#define WIFI_MAC_RETRY_US 5000000ull
+static void wifi_cache_mac(uint64_t now) {
+    if (wifi_mac_valid || (int64_t)(now - wifi_mac_next_us) < 0) return;
+    int itf = PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP;
+    if (cyw43_wifi_get_mac(&cyw43_state, itf, wifi_mac) == 0)
+        wifi_mac_valid = 1;
+    else
+        wifi_mac_next_us = now + WIFI_MAC_RETRY_US;
+}
+static void wifi_mac_text(char *out, unsigned size) {
+    if (!wifi_mac_valid) {
+        snprintf(out, size, "N/A");
+        return;
+    }
+    snprintf(out, size, "%02X:%02X:%02X:%02X:%02X:%02X",
+        wifi_mac[0], wifi_mac[1], wifi_mac[2],
+        wifi_mac[3], wifi_mac[4], wifi_mac[5]);
+}
+
 #if !PICONIX_WIFI_STA
 #define AP_STAS_MAX 8
 static uint8_t ap_stas[AP_STAS_MAX][6];
@@ -55,6 +78,40 @@ static volatile int sta_manual_restart;
 static int sta_link;
 static int sta_tcpip_link;
 static int sta_dhcp_bound;
+/* RSSI is a cached STA-only diagnostic, sampled at most every 5 seconds. */
+#define STA_RSSI_INTERVAL_US 5000000ull
+static uint64_t sta_rssi_next_us;
+static int32_t sta_rssi_dbm;
+static int sta_rssi_valid;
+static void sta_rssi_clear(void) {
+    sta_rssi_valid = 0;
+    sta_rssi_next_us = 0;
+}
+static void sta_rssi_poll(uint64_t now) {
+    if ((int64_t)(now - sta_rssi_next_us) < 0) return;
+    int32_t value = 0;
+    if (cyw43_wifi_get_rssi(&cyw43_state, &value) == 0 &&
+            value < 0 && value >= -127) {
+        sta_rssi_dbm = value;
+        sta_rssi_valid = 1;
+    } else {
+        sta_rssi_valid = 0;
+    }
+    sta_rssi_next_us = now + STA_RSSI_INTERVAL_US;
+}
+/* RSSI-based signal-strength estimate, not measured link quality.
+ * -100 dBm maps to 0%, -50 dBm or stronger maps to 100%. */
+static void sta_rssi_text(char *out, unsigned size) {
+    if (!sta_rssi_valid) {
+        snprintf(out, size, "N/A");
+        return;
+    }
+    int quality = ((int)sta_rssi_dbm + 100) * 2;
+    if (quality < 0) quality = 0;
+    if (quality > 100) quality = 100;
+    snprintf(out, size, "%ld dBm (%d%%)", (long)sta_rssi_dbm, quality);
+}
+
 /* Stable per-device .local hostname; service is only active after DHCP. */
 static char sta_mdns_name[18]; /* piconix- + 8 hex digits + NUL */
 static int sta_mdns_registered;
@@ -117,6 +174,7 @@ static const char *sta_link_name(int status) {
 /* Only the idle/network poll context may touch the CYW43 association. */
 static void sta_reset_association(char reason) {
     sta_last_reset = reason;
+    sta_rssi_clear();
     cyw43_wifi_leave(&cyw43_state, CYW43_ITF_STA);
     sta_connecting = 0;
     sta_connected = 0;
@@ -126,6 +184,7 @@ static void sta_reset_association(char reason) {
 }
 
 static void sta_begin_connect(void) {
+    sta_rssi_clear();
     ++sta_attempts;
     sta_started_us = time_us_64();
     sta_error = cyw43_arch_wifi_connect_async(PICONIX_STA_SSID,
@@ -169,6 +228,7 @@ static void sta_poll(void) {
         sta_connected = 1;
         sta_link_lost_us = 0;
         sta_error = 0;
+        sta_rssi_poll(now);
         if (!ip4_addr_isany_val(*netif_ip4_addr(iface))) {
             sta_start_services();
             sta_mdns_ready(iface);
@@ -186,6 +246,8 @@ static void sta_poll(void) {
         return;
     }
 
+    sta_rssi_valid = 0; /* Never expose stale RSSI during link loss. */
+    sta_rssi_next_us = 0;
     sta_garp_next_us = 0; /* Re-arm only after DHCP/link readiness. */
     if (sta_mdns_registered) sta_mdns_link_was_down = 1;
     if (!sta_dhcp_bound) sta_mdns_remove();
@@ -464,6 +526,7 @@ void net_poll(void) {
     ++net_poll_count;
     net_poll_active = 1;
     cyw43_arch_poll();
+    wifi_cache_mac(now);
     /* Drain 127.0.0.1 packets without calling lwIP input recursively.
      * A response queued by a callback is handled on the next idle poll. */
     if (loop_iface) netif_poll(loop_iface);
@@ -527,7 +590,14 @@ int net_wifi_info(char *out, unsigned size) {
     struct netif *iface = &cyw43_state.netif[PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP];
     /* /proc reads run inside a syscall.  Never issue synchronous CYW43
      * commands here: the driver may require polling to make progress. */
-    const char *rssi = "N/A";
+    char mac[18];
+    wifi_mac_text(mac, sizeof(mac));
+#if PICONIX_WIFI_STA
+    char rssi[32];
+    sta_rssi_text(rssi, sizeof(rssi));
+#else
+    const char *rssi = "N/A (AP mode)"; /* No upstream AP signal to measure. */
+#endif
     char ip[20], mask[20], gw[20];
     ip4addr_ntoa_r(netif_ip4_addr(iface), ip, sizeof(ip));
     ip4addr_ntoa_r(netif_ip4_netmask(iface), mask, sizeof(mask));
@@ -537,14 +607,14 @@ int net_wifi_info(char *out, unsigned size) {
         "MODE: STA\nSTATUS: %s\nSSID: %s\nDHCP: Client\n"
         "ATTEMPTS: %u\nCONNECT_ERROR: %d\nLINK_CODE: %d\n"
         "WIFI_LINK: %d\nTCPIP_LINK: %d\nDHCP_BOUND: %d\n"
-        "LAST_RESET: %c\nIP: %s\nNETMASK: %s\nGATEWAY: %s\nMAC: N/A\nRSSI: %s\n"
+        "LAST_RESET: %c\nIP: %s\nNETMASK: %s\nGATEWAY: %s\nMAC: %s\nRSSI: %s\n"
         "PM_ERROR: %d\nPOLL_COUNT: %lu\nPOLL_MAX_GAP_MS: %lu\n"
         "GARP_INTERVAL_S: 60\nGARP_OK: %lu\nGARP_ERROR: %lu\n"
         "MDNS_NAME: %s.local\nMDNS_ACTIVE: %d\nMDNS_ERROR: %d\n"
         "IDLE_STACK: %u/%u\n",
         sta_link_name(sta_tcpip_link), wifi_ssid, sta_attempts, sta_error,
         sta_link, sta_link, sta_tcpip_link, sta_dhcp_bound,
-        sta_last_reset, ip, mask, gw, rssi,
+        sta_last_reset, ip, mask, gw, mac, rssi,
         sta_pm_error, (unsigned long)net_poll_count,
         (unsigned long)(net_poll_max_gap_us / 1000u),
         (unsigned long)sta_garp_ok, (unsigned long)sta_garp_error,
@@ -555,10 +625,10 @@ int net_wifi_info(char *out, unsigned size) {
     return len;
 #else
     return snprintf(out,size,
-        "MODE: AP\nSSID: %s\nDHCP: %s\nCLIENTS: %d\nMAC: N/A\n"
+        "MODE: AP\nSSID: %s\nDHCP: %s\nCLIENTS: %d\nMAC: %s\n"
         "IP: %s\nNETMASK: %s\nGATEWAY: %s\nRSSI: %s\n"
         "MDNS_NAME: piconix.local\nMDNS_ACTIVE: %d\nMDNS_ERROR: %d\n",
-        wifi_ssid, ap_dhcp_active ? "Server" : "Inactive", ap_sta_count,
+        wifi_ssid, ap_dhcp_active ? "Server" : "Inactive", ap_sta_count, mac,
         ip, mask, gw, rssi,
         ap_mdns_registered, ap_mdns_error);
 #endif

@@ -3,7 +3,7 @@
 from pathlib import Path
 root = Path(__file__).resolve().parents[2]
 k = (root / 'kernel/kernel.c').read_text()
-echo = (root / 'userland/echo.c').read_text()
+echo = (root / 'userland/apps/echo.c').read_text()
 assert 'write(1,&c,1)' in echo
 assert 'static const char cmd[] = "restart\\n"' in k
 assert 'tasks[current].fd_pos[fd]' in k

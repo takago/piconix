@@ -3,8 +3,8 @@
 from pathlib import Path
 root = Path(__file__).resolve().parents[2]
 k = (root / "kernel/kernel.c").read_text()
-h = (root / "userland/unistd.h").read_text()
-p = (root / "userland/python.c").read_text()
+h = (root / "userland/lib/unistd.h").read_text()
+p = (root / "userland/apps/python.c").read_text()
 t = (root / "userland/fs/tmp_common/test.py").read_text()
 assert 'X(SYS_LSEEK,         21' in (root / 'include/piconix_syscall.h').read_text()
 assert 'pos==(size_t)len ? 0 : pos' in k

@@ -16,7 +16,7 @@
 #include "net_socket.h"
 #include <string.h>
 #include <stdio.h>
-#include "../userland/trace.h"
+#include "../include/piconix_trace.h"
 #include "../include/piconix_dirent.h"
 #include "../include/piconix_syscall.h"
 #include "pico/stdio_usb.h"
@@ -311,6 +311,31 @@ static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t det
     restore_interrupts(irq_state);
 }
 
+/* Grant foreground control before a newly spawned task can execute.
+ * Doing this in a second userspace syscall races with the 10 ms scheduler. */
+static int foreground_child(int pid) {
+    int tty=tasks[current].tty;
+    for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==pid &&
+        tasks[i].parent_pid==tasks[current].pid && tasks[i].state!=DEAD) {
+        if(foreground_pid[tty]!=pid && !tty_restore_pid[tty]) {
+            tty_saved_canon[tty]=tty_canonical[tty];
+            tty_saved_echo[tty]=tty_echo[tty];
+            tty_saved_onlcr[tty]=tty_onlcr[tty];
+            tty_saved_owner[tty]=tty_mode_owner[tty];
+            tty_restore_pid[tty]=pid;
+        }
+        if(foreground_pid[tty]==tasks[current].pid)
+            for(int g=0;g<3;g++) foreground_group[tty][g]=0;
+        foreground_pid[tty]=pid;
+        int present=0;
+        for(int g=0;g<3;g++) if(foreground_group[tty][g]==pid) present=1;
+        if(!present) for(int g=0;g<3;g++) if(!foreground_group[tty][g]) {
+            foreground_group[tty][g]=pid; break;
+        }
+        return 0;
+    }
+    return OS_ESRCH;
+}
 static int tty_owner_pid(int tty) { return tty_claim_pid[tty] ? tty_claim_pid[tty] :
     (foreground_pid[tty] ? foreground_pid[tty] : tty_shell_pid[tty]); }
 /* Bounded completion notices, independent of reusable RAM slots. */
@@ -1229,6 +1254,8 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
     unsigned count=0;
 #define EMIT(n,d) do { if(count++==nth) { snprintf(ent->name,sizeof(ent->name),"%s",(n)); ent->is_dir=(d); return 1; } } while(0)
     char name[32];
+    /* UNIX directory entries: getdents() reports dot names first. */
+    EMIT(".",1); EMIT("..",1);
     switch(dir) {
     case VDIR_ROOT:
         EMIT("bin",1); EMIT("dev",1); EMIT("proc",1); EMIT("tmp",1); EMIT("etc",1); break;
@@ -2136,29 +2163,7 @@ void os_svc_dispatch(uint32_t *f) {
                 if(parent) foreground_group[tty][0]=owner;
                 result=0; break;
             }
-            result=OS_ESRCH;
-            for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==a &&
-                tasks[i].parent_pid==tasks[current].pid && tasks[i].state!=DEAD) {
-                if(foreground_pid[tty]!=a && !tty_restore_pid[tty]) {
-                    tty_saved_canon[tty]=tty_canonical[tty];
-                    tty_saved_echo[tty]=tty_echo[tty];
-                    tty_saved_onlcr[tty]=tty_onlcr[tty];
-                    tty_saved_owner[tty]=tty_mode_owner[tty];
-                    tty_restore_pid[tty]=a;
-                }
-                /* A nested shell replaces its own foreground membership;
-                 * otherwise Ctrl+C may terminate the waiting parent too. */
-                if(foreground_pid[tty]==tasks[current].pid) {
-                    for(int g=0;g<3;g++) foreground_group[tty][g]=0;
-                }
-                foreground_pid[tty]=a;
-                int present=0;
-                for(int g=0;g<3;g++) if(foreground_group[tty][g]==a) present=1;
-                if(!present) for(int g=0;g<3;g++) if(!foreground_group[tty][g]) {
-                    foreground_group[tty][g]=a; break;
-                }
-                result=0; break;
-            }
+            result=foreground_child(a);
             break;
         }
         case SYS_TTY_SPAWN: {
@@ -2186,6 +2191,7 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_SPAWN_TMP: {
+            if(b!=0 && b!=1) { result=OS_EINVAL; break; }
             /* A tiny flat Thumb image: PNX1, LE16 code length, LE16 reserved. */
             const char *path=(const char *)(uintptr_t)a;
             char filename[TMP_NAME_CAP];
@@ -2204,6 +2210,7 @@ void os_svc_dispatch(uint32_t *f) {
             int slot=free_program_slot();
             result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,0,
                 (os_entry_t)((uintptr_t)task_ram[slot]|1u),"a.out",0,NULL,image+8,length);
+            if(result>0 && b==1) foreground_child(result);
             break;
         }
         case SYS_PROGRAM_ID: {
@@ -2230,7 +2237,8 @@ void os_svc_dispatch(uint32_t *f) {
         }
         case SYS_SPAWN: {
             if(a<1 || a>=PROGRAM_CAPACITY || !programs[a].entry) { result=OS_ENOENT; break; }
-            int argc=(int)b;
+            int foreground=((unsigned)b & 0x100u)!=0;
+            int argc=(int)((unsigned)b & ~0x100u);
             const char *const *argv=(const char *const *)(uintptr_t)c;
             if(argc<1 || argc>8 || !in_task_range(argv,(size_t)argc*sizeof(char *))) {
                 result=OS_EINVAL; break;
@@ -2250,6 +2258,7 @@ void os_svc_dispatch(uint32_t *f) {
             if(result<0) break;
             int slot=free_program_slot();
             result=slot<0 ? OS_EAGAIN : spawn_in_slot(slot,a,programs[a].entry,programs[a].name,argc,argv,NULL,0);
+            if(result>0 && foreground) foreground_child(result);
             break;
         }
         case SYS_CONSOLE_READY:
@@ -2383,6 +2392,14 @@ void os_svc_dispatch(uint32_t *f) {
             }
             int32_t end;
             if(dev==DEV_SHM) end=SHM_BYTES;
+            else if(dev==DEV_SYMS_KERNEL) {
+                /* The embedded kernel symbol table is length-prefixed in XIP Flash. */
+                size_t reserved=(size_t)(piconix_kernel_syms_end-piconix_kernel_syms_start);
+                uint32_t length=0;
+                if(reserved>=4u) memcpy(&length,piconix_kernel_syms_start,4u);
+                if(reserved<4u || length>reserved-4u) length=0;
+                end=(int32_t)length;
+            }
             else if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES &&
                     tmp_files[dev-DEV_TMP_FIRST].used)
                 end=tmp_files[dev-DEV_TMP_FIRST].size;
@@ -2393,7 +2410,8 @@ void os_svc_dispatch(uint32_t *f) {
             else if(c==2) base=end;          /* SEEK_END */
             else { result=OS_EINVAL; break; }
             int64_t pos=(int64_t)base+(int32_t)b;
-            int32_t limit=(dev==DEV_SHM)?SHM_BYTES:TMP_BYTES;
+            int32_t limit=(dev==DEV_SHM)?SHM_BYTES:
+                          (dev==DEV_SYMS_KERNEL)?end:TMP_BYTES;
             if(pos<0 || pos>limit) { result=OS_EINVAL; break; }
             tasks[current].fd_pos[a]=(uint32_t)pos;
             result=(int)pos;

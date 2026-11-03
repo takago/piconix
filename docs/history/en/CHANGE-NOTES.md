@@ -1,6 +1,6 @@
 # Program Capacity and Terminal Display Improvements
 
-> **Historical development note:** This document records an earlier design or implementation stage. For current behavior, start with the [documentation index](../../en/DOCS.md).
+> **Historical development note:** This document records an earlier design or implementation stage. For current behavior, start with the [documentation index](../../DOCS.md).
 
 
 - The program registry in `kernel/kernel.c` now accepts IDs 1 through 64, with ID 0 reserved. This does not increase the number of concurrently running tasks. New apps still require a registration in `kernel/main.c` and an entry in `CMakeLists.txt`.

@@ -2,7 +2,7 @@
 """Guard the current bounded HTTP parser and lwIP deferred-close behavior."""
 from pathlib import Path
 root = Path(__file__).resolve().parents[2]
-http = (root/'userland/httpd.c').read_text()
+http = (root/'userland/apps/httpd.c').read_text()
 net = (root/'kernel/net_socket.c').read_text()
 assert 'static char req[2048]' in http
 assert "req[i-3]=='\\r'&&req[i-2]=='\\n'&&req[i-1]=='\\r'&&req[i]=='\\n'" in http

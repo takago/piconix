@@ -117,8 +117,8 @@ with tempfile.TemporaryDirectory() as temp:
     cfile = Path(temp) / 'watch_test.c'
     binary = Path(temp) / 'watch_test'
     cfile.write_text(code)
-    subprocess.run([cc, '-std=c11', '-O1', '-Wall', '-Wextra', '-Werror',
-                    '-I', str(root / 'userland'), '-o', str(binary), str(cfile)],
+    subprocess.run([cc, '-std=c11','-DPICONIX_HOST_TEST', '-O1', '-Wall', '-Wextra', '-Werror',
+                    '-I', str(root / 'userland' / 'lib'), '-I', str(root / 'userland' / 'apps'), '-o', str(binary), str(cfile)],
                    cwd=root / 'tools/test_scripts', check=True)
     proc = subprocess.run([str(binary)], capture_output=True, text=True)
     assert proc.returncode == 0, f'watch runtime test failed: line {proc.returncode}\n{proc.stderr}'
