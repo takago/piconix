@@ -49,6 +49,35 @@ The firmware must still pass the linked ELF's 56-KiB kernel SRAM limit checks.
 Build and hardware validation are required before treating the workaround
 as a confirmed solution.
 
+
+## MAC address and signal-strength indicator
+
+`net` and `cat /proc/net/wifi` show the interface's own `MAC` address on
+Pico W (in both AP and STA modes). The address is read from CYW43 by the
+network polling task and cached; before the first successful read, `N/A`
+is shown. It is **not** the router's MAC address.
+
+In STA mode, `RSSI` is sampled approximately every 5 seconds while the
+connection is up, for example:
+
+```text
+MAC: 28:CD:C1:12:34:56
+RSSI: -44 dBm (100%)
+```
+
+The percentage is an **estimate derived from RSSI**, not a measurement
+of Wi-Fi link quality or throughput. The integer conversion uses
+`-100 dBm = 0%` and `-50 dBm or stronger = 100%`, with linear values
+between these limits and clamping to the range 0–100%.
+For example, `-67 dBm` corresponds to `66%`. Signal strength alone
+cannot indicate interference, retransmissions, or packet loss.
+
+`RSSI: N/A` means no valid measurement is available (not connected,
+measurement failure, or before the first sample). AP mode has no upstream
+access-point RSSI, so it shows `RSSI: N/A (AP mode)`.
+The CYW43 query runs only in the idle network polling context,
+not in `/proc` reads.
+
 ## mDNS hostnames
 
 Pico W builds use the lwIP mDNS responder. In STA mode, after DHCP has assigned an address, the device advertises `piconix-xxxxxxxx.local`, where `xxxxxxxx` is the eight-digit lowercase hexadecimal Flash ID (for example, `piconix-4353ba2e.local`). In AP mode, the fixed hostname is `piconix.local`, and the AP address is `192.168.4.1`.

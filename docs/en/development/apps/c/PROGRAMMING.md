@@ -66,10 +66,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 Add a call alongside the other `register_image(...)` calls in `main()`:
 
 ```c
-register_image(44, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(45, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**44 is unused in this supplied revision (39 is `i2cctl`, 40 `bh1750`, 41 `vi`, 42 `dd`, and 43 `net`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
+**45 is one currently unused example ID (43 belongs to `net` and 44 to `fd`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
 
 ## 4. Build and run
 
@@ -124,9 +124,47 @@ For example, `greet Alice > /tmp/message` redirects output to a RAM file. File a
 | Process creation | `spawn(program_id, argc, argv)`; fails when no free slot is available |
 | Waiting | `waitpid()` is a small PicoNIX subset, not full POSIX semantics |
 
-Use `stdio.h`, `stdlib.h`, `string.h`, `unistd.h`, and `fcntl.h` as supplied in `userland/`. For their actual functions, argument types, error returns, and supported formats, see [LIBC.md](LIBC.md). For low-level ABI details see [SYSCALLS.md](../../../reference/SYSCALLS.md). The kernel interface returns PicoNIX error values rather than standard `errno` semantics.
+Use `stdio.h`, `stdlib.h`, `string.h`, `unistd.h`, and `fcntl.h` as supplied in `userland/lib/`. For their actual functions, argument types, error returns, and supported formats, see [LIBC.md](LIBC.md). For low-level ABI details see [SYSCALLS.md](../../../reference/SYSCALLS.md). The kernel interface returns PicoNIX error values rather than standard `errno` semantics.
 
 `O_NONBLOCK` (set with `fcntl()`) does not turn canonical TTY input into character-at-a-time input; for interactive games, see [TTY](../../../literacy/TTY.md) and `userland/apps/mb.c`. Network applications have additional constraints; see [Network programming](NETWORK-PROGRAMMING.md).
+
+### 6.1. PicoNIX-specific PIC and RAM constraints
+
+Unlike an ordinary Linux executable, a PicoNIX C application must use the **same binary image in any available RAM task slot**. The build links the program at two different addresses and checks that the resulting binaries match and require no unsupported relocations or GOT. There is no dynamic linker to relocate absolute references at load time.
+
+#### Static pointer initializers
+
+The following may compile but fail the PicoNIX PIC check:
+
+```c
+/* Avoid on PicoNIX: stores an address in static data */
+static const char *message = "Hello";
+```
+
+Assign the address during execution instead:
+
+```c
+static const char *message;  /* initially zero */
+
+int main(void)
+{
+    message = "Hello";
+    puts(message);
+    return 0;
+}
+```
+
+If no pointer is necessary, `static const char message[] = "Hello";` defines the array itself and is another option. Watch for static initializers containing addresses of functions or other objects. This is **not a general C-language prohibition**: it follows from PicoNIX's current loader not applying runtime relocations.
+
+#### Image size, stack and optimization
+
+- Each user slot is 24 KiB, including a reserved 4 KiB stack. Code, static data and BSS must fit in the remaining region.
+- Avoid large local arrays, deep recursion and unbounded buffers. Successful linking does not prove stack use is safe.
+- **All user applications are compiled with Clang `-Oz`**; size/PIC tests should use matching optimization.
+- `ld.lld: task image overlaps reserved stack` indicates that the program image exceeds the non-stack portion. Reduce code or static storage rather than increasing the slot limit.
+- `PIC image changes with link address` indicates an address-dependent binary. Inspect static pointer initializers, absolute references and relocation requirements.
+
+When adding the `fd` browser, `static const char *notice = "";` caused exactly this PIC error. Moving the pointer assignment to runtime fixed it. This illustrates why **a successful C compilation alone is not enough**.
 
 ## 7. Diagnose problems
 

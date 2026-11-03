@@ -10,6 +10,22 @@ Shells can use the USB CDC `/dev/console`, UART1 `/dev/ttyS1`, or `/dev/ttyN0` i
 
 TTY processing includes canonical line input, local echo, and ONLCR output newline conversion. Pipes, ordinary files, and sockets are not TTYs and do not receive this processing.
 
+## Shell line editing and completion
+
+Interactive `sh` reads characters directly for line editing and restores the original TTY input settings when the line is submitted.
+
+| Key | Action |
+| --- | --- |
+| `Ctrl+A` / `Ctrl+E` | Move to start / end of line |
+| `Ctrl+W` | Delete the previous whitespace-delimited word |
+| `Ctrl+K` | Delete from the cursor to end of line |
+| `Ctrl+L` | Clear the screen while preserving the edited line |
+| `←` / `→` | Move the cursor |
+| `↑` / `↓` | Navigate command history |
+| `Tab` | Complete a name at the end of the line; press twice to list candidates |
+
+For the first word, `Tab` searches command names in `/bin`; for later words it searches the current directory or the specified path. A unique directory match receives a trailing `/`; multiple matches complete only their shared prefix. Press Tab twice to list matching candidates below the current input line and repaint the prompt. Candidate listing shows up to 48 matches. Quoted or space-containing names and completion in the middle of a line are not supported. This is a deliberately small shell, not Bash completion.
+
 ## 2. TTY settings versus descriptor blocking
 
 Canonical input (`icanon`), input echo (`echo`), and output newline conversion (`onlcr`) are per-terminal settings configured by `stty` or `ioctl()`. In contrast, `fcntl()` with `O_NONBLOCK` controls descriptor I/O waiting behavior. These are independent. `raw` only means `-icanon -echo`; it is not full POSIX raw mode.
@@ -87,3 +103,8 @@ To avoid deadlocking on the kernel's 256-byte pipe, `watch` drains the pipe to E
 `edit`, `vi`, `mem`, and `mb` use a small header for alternate-screen entry/exit and cursor movement. `edit`, `vi`, and `mb` optionally query the terminal size using a cursor position report (DSR, `ESC[6n`). The query must happen **after disabling canonical input**. When a terminal does not respond, the caller retains the 80-column, 24-row default. The kernel does not provide terminal window dimensions.
 
 To bound resource use, `edit` and `vi` cap their layouts at 160 columns and 60 rows. `mb` centers its existing 52-by-10 playing field (unchanged physics) on larger terminals. `mem` still displays a fixed 16-by-16-byte window. `pong` (multi-terminal rendering) and `watch` (fixed capture buffers) are not migrated in this pass. Live terminal resizing is not supported.
+
+
+### Foreground launch and terminal control
+
+`sh` transfers foreground TTY ownership as part of foreground `spawn`, avoiding a scheduling race in which an interactive child starts before a separate `set_foreground()` call. This matters for full-screen tools including `fd`, `pong`, and editors. Background tasks continue to use ordinary `spawn()` and must not take foreground TTY control. The kernel still restores the previous TTY mode when the foreground task finishes.

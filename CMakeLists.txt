@@ -44,7 +44,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PICONIX_FS_INPU
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
-foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod)
+foreach(APP IN ITEMS fd net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 24-KiB slot address.
   set(APP_ORIGIN 0x2000E000)
@@ -73,7 +73,7 @@ foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omi
   if(APP STREQUAL "edit" OR APP STREQUAL "vi")
     set(APP_EDITOR_DEP "${CMAKE_CURRENT_LIST_DIR}/userland/apps/editor_common.h")
   endif()
-  if(APP STREQUAL "edit" OR APP STREQUAL "vi" OR APP STREQUAL "mem" OR APP STREQUAL "mb")
+  if(APP STREQUAL "edit" OR APP STREQUAL "vi" OR APP STREQUAL "mem" OR APP STREQUAL "mb" OR APP STREQUAL "fd")
     list(APPEND APP_EDITOR_DEP "${CMAKE_CURRENT_LIST_DIR}/userland/lib/screen.h")
   endif()
   add_custom_command(OUTPUT "${APP_BIN}"

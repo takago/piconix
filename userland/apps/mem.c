@@ -7,18 +7,31 @@
 #include "string.h"
 #include <stdint.h>
 #include "../lib/screen.h"
-#define ROWS 16
+/* A bounded screen-sized window keeps the application within its 24-KiB slot.
+ * Six rows are reserved for headers and controls; a larger terminal uses at
+ * most 36 data rows, matching the bounded watch viewer. */
+#define MAX_ROWS 36
 #define BYTES_PER_ROW 16
-#define COUNT (ROWS*BYTES_PER_ROW)
+#define MAX_COUNT (MAX_ROWS*BYTES_PER_ROW)
+static unsigned view_rows = 16;
+static unsigned view_count = 16*BYTES_PER_ROW;
+static unsigned goto_row = 21;
+static void mem_layout(int rows) {
+ if(rows<8) rows=24;
+ view_rows=(unsigned)(rows-6);
+ if(view_rows>MAX_ROWS)view_rows=MAX_ROWS;
+ view_count=view_rows*BYTES_PER_ROW;
+ goto_row=view_rows+5;
+}
 #define SYMBOL_NAME_MAX 128
-static unsigned char previous[COUNT],current[COUNT];
-static char labels[ROWS][SYMBOL_NAME_MAX];
+static unsigned char previous[MAX_COUNT],current[MAX_COUNT];
+static char labels[MAX_ROWS][SYMBOL_NAME_MAX];
 static char symbol_app[96];
 static int symbols_available;
 static char slot_names[6][20];
 static int valid(unsigned a){return (a>=0x20000000u&&a<=0x2003ffffu)||(a>=0x10000000u&&a<=0x101fffffu);}
 static void hex(unsigned v,int digits){const char *h="0123456789ABCDEF";for(int i=(digits-1)*4;i>=0;i-=4)putchar(h[(v>>i)&15]);}
-static int fetch(int fd,unsigned address){if(!valid(address)||!valid(address+COUNT-1))return -1;if(lseek(fd,(long)address,SEEK_SET)<0)return -1;return read(fd,current,COUNT)==COUNT?0:-1;}
+static int fetch(int fd,unsigned address){if(!valid(address)||!valid(address+view_count-1))return -1;if(lseek(fd,(long)address,SEEK_SET)<0)return -1;return read(fd,current,view_count)==(int)view_count?0:-1;}
 static const char *region(unsigned addr){
  if(addr>=0x10000000u&&addr<=0x101fffffu)return "XIP FLASH";
  if(addr<0x2000e000u)return "KERNEL SRAM";
@@ -72,7 +85,7 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
       if(list_mode==2){hex(offset,4);printf("  %c  %s\n",kind,name);}
       else if(!strcmp(app,"kernel")){
        unsigned actual=offset;
-       if(actual>=base&&actual-base<COUNT){
+       if(actual>=base&&actual-base<view_count){
         unsigned row=(actual-base)/BYTES_PER_ROW;
         unsigned pos=(unsigned)strlen(labels[row]), len=(unsigned)strlen(name);
         unsigned sep=pos?2u:0u;
@@ -89,7 +102,7 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
        /* A task may occupy one of six 24-KiB slots. */
        unsigned slot_base=0x2000e000u+((slot_hint-0x2000e000u)/0x6000u)*0x6000u;
        unsigned actual=slot_base+offset;
-       if(actual>=base&&actual<base+COUNT){
+       if(actual>=base&&actual<base+view_count){
         unsigned row=(actual-base)/BYTES_PER_ROW;
         /* Keep all symbols on the same 16-byte row, in catalog order.
            Reserve space for an ellipsis if the combined names are too long. */
@@ -237,7 +250,7 @@ static void refresh_ram_labels(unsigned addr) {
       x>='A'&&x<='F'?(unsigned)(x-'A'+10):x>='a'&&x<='f'?(unsigned)(x-'a'+10):16u;
    if(d>15){ok=0;break;}a=(a<<4)|d;
   }
-  if(!ok || a<addr || a-addr>=COUNT)continue;
+  if(!ok || a<addr || a-addr>=view_count)continue;
   unsigned row=(a-addr)/BYTES_PER_ROW;
   char *dst=labels[row];size_t n=strlen(dst);
   if(n+2<sizeof labels[row] && n){dst[n++]=',';dst[n++]=' ';dst[n]=0;}
@@ -246,14 +259,20 @@ static void refresh_ram_labels(unsigned addr) {
  close(fd);
 }
 static int refresh_labels(unsigned addr){
- char old[ROWS][SYMBOL_NAME_MAX],old_app[sizeof symbol_app];
- memcpy(old,labels,sizeof old);
+ char old_app[sizeof symbol_app];
+ /* Hash the previous labels without allocating a 4+ KiB stack buffer. */
+ unsigned old_hash=2166136261u;
+ for(unsigned r=0;r<view_rows;r++){
+  const unsigned char *p=(const unsigned char *)labels[r];
+  while(*p){old_hash=(old_hash^*p++)*16777619u;}
+  old_hash=(old_hash^0xffu)*16777619u;
+ }
  memcpy(old_app,symbol_app,sizeof old_app);
  int old_available=symbols_available;
  memset(labels,0,sizeof labels);
  symbol_app[0]=0;symbols_available=0;
- /* A 256-byte window can straddle a task-slot boundary. */
- for(unsigned off=0;off<COUNT;off+=BYTES_PER_ROW){
+ /* The visible window can straddle a task-slot boundary. */
+ for(unsigned off=0;off<view_count;off+=BYTES_PER_ROW){
   unsigned a=addr+off;
   char app[32]={0};
   if(a<0x2000e000u || (a>=0x10000000u&&a<0x10200000u)){
@@ -275,19 +294,30 @@ static int refresh_labels(unsigned addr){
   if(n>0)symbols_available=1;
  }
  refresh_ram_labels(addr);
- return memcmp(old,labels,sizeof old)!=0 ||
-        strcmp(old_app,symbol_app)!=0 || old_available!=symbols_available;
+ unsigned new_hash=2166136261u;
+ for(unsigned r=0;r<view_rows;r++){
+  const unsigned char *s=(const unsigned char *)labels[r];
+  while(*s){new_hash=(new_hash^*s++)*16777619u;}
+  new_hash=(new_hash^0xffu)*16777619u;
+ }
+ return old_hash!=new_hash || strcmp(old_app,symbol_app)!=0 ||
+        old_available!=symbols_available;
 }
 static void draw(unsigned addr,int pause,int have,int changed){
  /* Disable autowrap only while painting; restore it before input. */
  printf("\033[?7l");
- printf("\033[H\033[7mPicoNIX mem   %s   %s\033[K\033[0m\r\n",region(addr),pause?"PAUSED":"LIVE");
- printf("Address 0x");hex(addr,8);printf("  256 bytes  16 bytes/row\033[K\r\n");
- printf("          00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F   ASCII            SYMBOL: %s\033[K\r\n",symbol_app[0]?symbol_app:"-");
- for(int r=0;r<ROWS;r++){
+ screen_move(1,1);
+ printf("\033[7mPicoNIX mem   %s   %s\033[K\033[0m",region(addr),pause?"PAUSED":"LIVE");
+ screen_move(2,1);
+ printf("Address 0x");hex(addr,8);
+ printf("  %u bytes  16 bytes/row\033[K",view_count);
+ screen_move(3,1);
+ printf("          00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F   ASCII            SYMBOL: %s\033[K",symbol_app[0]?symbol_app:"-");
+ for(unsigned r=0;r<view_rows;r++){
+  screen_move((int)r+4,1);
   hex(addr+BYTES_PER_ROW*r,8);printf("  ");
   for(int i=0;i<BYTES_PER_ROW;i++){
-   int j=r*BYTES_PER_ROW+i;
+   unsigned j=r*BYTES_PER_ROW+(unsigned)i;
    if(have&&changed&&previous[j]!=current[j])printf("\033[7m");
    hex(current[j],2);
    if(have&&changed&&previous[j]!=current[j])printf("\033[0m");
@@ -295,20 +325,23 @@ static void draw(unsigned addr,int pause,int have,int changed){
   }
   putchar('|');
   for(int i=0;i<BYTES_PER_ROW;i++){
-   unsigned char c=current[r*BYTES_PER_ROW+i];putchar(c>=32&&c<127?c:'.');
+   unsigned char c=current[r*BYTES_PER_ROW+(unsigned)i];putchar(c>=32&&c<127?c:'.');
   }
-  printf("| %s\033[K\r\n",labels[r]);
+  printf("| %s\033[K",labels[r]);
  }
- printf("\033[7mArrows: 16B  PgUp/Dn: 256B  SPACE Pause  [q] Quit\033[K\033[0m\r\n");
- printf("[k] Kernel RAM  [K] Kernel XIP  [1-6] Slots  [g] Goto  Symbols: %s\033[K\r\n",symbol_app[0]?(symbols_available?"loaded":"unavailable"):"none");
+ screen_move((int)view_rows+4,1);
+ printf("\033[7mArrows: 16B  PgUp/Dn: %uB  SPACE Pause  [q] Quit\033[K\033[0m",view_count);
+ screen_move((int)view_rows+5,1);
+ printf("[k] Kernel RAM  [K] Kernel XIP  [1-6] Slots  [g] Goto  Symbols: %s\033[K",symbol_app[0]?(symbols_available?"loaded":"unavailable"):"none");
+ screen_move((int)view_rows+6,1);
  printf("Slots:");
  for(int i=0;i<6;i++)printf(" %d:%s",i+1,slot_names[i][0]?slot_names[i]:"free");
- printf("\033[K\r\n\033[K\033[?7h");
+ printf("\033[K\033[?7h");
 }
 static int parse(const char *s,unsigned *out){char *end;long n=strtol(s,&end,0);if(!*s||*end||n<0||!valid((unsigned)n))return -1;*out=(unsigned)n&~15u;return 0;}
 static int shifted(unsigned addr,int delta,unsigned *next){
  unsigned n=addr+(unsigned)delta;
- if(!valid(n)||!valid(n+COUNT-1))return 0;
+ if(!valid(n)||!valid(n+view_count-1))return 0;
  *next=n;return 1;
 }
 static int list_symbol_sources(void){
@@ -342,13 +375,18 @@ int main(int argc,char **argv){
   puts("usage: mem [address] | mem -s [app]");return 1;
  }
  int fd=open("/dev/mem",O_RDONLY);if(fd<0){puts("mem: cannot open /dev/mem");return 1;}
- if(!valid(addr+COUNT-1)){puts("mem: invalid memory range");close(fd);return 1;}
+ if(!valid(addr+view_count-1)){puts("mem: invalid memory range");close(fd);return 1;}
  int canon=ioctl(0,OS_TTY_GET_CANON,0),echo=ioctl(0,OS_TTY_GET_ECHO,0),flags=fcntl(0,F_GETFL,0);
  if(canon<0||echo<0||flags<0){close(fd);return 1;}
  if(ioctl(0,OS_TTY_SET_CANON,0)<0||ioctl(0,OS_TTY_SET_ECHO,0)<0||fcntl(0,F_SETFL,flags|O_NONBLOCK)<0){
   ioctl(0,OS_TTY_SET_ECHO,echo);ioctl(0,OS_TTY_SET_CANON,canon);close(fd);return 1;
  }
  screen_enter();
+ screen_size_t size={24,80};
+ screen_measure(&size);
+ mem_layout(size.rows);
+ printf("\033[2J\033[H");
+ if(!valid(addr+view_count-1)){screen_leave();close(fd);return 1;}
  int have=0,pause=0,esc=0,run=1,dirty=1;
  int goto_mode=0;char goto_buf[12];int goto_len=0;
  int ticks=25,highlighted=0;
@@ -359,7 +397,7 @@ int main(int argc,char **argv){
     if(c=='\r'||c=='\n'){
      if(goto_len){unsigned next;goto_buf[goto_len]=0;
       char input[14];snprintf(input,sizeof input,"0x%s",goto_buf);
-      if(parse(input,&next)==0 && valid(next+COUNT-1)){
+      if(parse(input,&next)==0 && valid(next+view_count-1)){
        addr=next;have=0;dirty=1;
       }
      }
@@ -369,7 +407,7 @@ int main(int argc,char **argv){
     else if(((c>='0'&&c<='9')||(c>='a'&&c<='f')||(c>='A'&&c<='F')) && goto_len<8)
      goto_buf[goto_len++]=c;
     goto_buf[goto_len]=0;
-    printf("\033[23;1HGoto HEX: %s_  (Enter / Esc)\033[K",goto_buf);
+    screen_move((int)goto_row,1);printf("Goto HEX: %s_  (Enter / Esc)\033[K",goto_buf);
     continue;
    }
    if(esc==1){esc=c=='['?2:0;continue;}
@@ -378,10 +416,10 @@ int main(int argc,char **argv){
     else if(c=='5'){esc=5;continue;}else if(c=='6'){esc=6;continue;}
     if(delta){unsigned next;if(shifted(addr,delta,&next)){addr=next;have=0;dirty=1;}}continue;
    }
-   if(esc==5||esc==6){int delta=esc==5?-COUNT:COUNT;esc=0;if(c=='~'){unsigned next;if(shifted(addr,delta,&next)){addr=next;have=0;dirty=1;}}continue;}
+   if(esc==5||esc==6){int delta=esc==5?-(int)view_count:(int)view_count;esc=0;if(c=='~'){unsigned next;if(shifted(addr,delta,&next)){addr=next;have=0;dirty=1;}}continue;}
    if(c==27){esc=1;continue;}
    if(c=='q'||c=='Q'||c==3){run=0;break;}
-   if(c=='g'||c=='G'){goto_mode=1;goto_len=0;goto_buf[0]=0;printf("\033[23;1HGoto HEX: _  (Enter / Esc)\033[K");continue;}
+   if(c=='g'||c=='G'){goto_mode=1;goto_len=0;goto_buf[0]=0;screen_move((int)goto_row,1);printf("Goto HEX: _  (Enter / Esc)\033[K");continue;}
    if(c==' '){pause=!pause;dirty=1;}
    if(c=='k'||c=='K'||c=='f'||(c>='1'&&c<='6')){
     addr=c=='k'?0x20000000u:(c=='K'||c=='f')?0x10000000u:0x2000e000u+(unsigned)(c-'1')*0x6000u;
@@ -390,15 +428,15 @@ int main(int argc,char **argv){
   }
   if(dirty||(!pause&&ticks>=25)){
    if(fetch(fd,addr)==0){
-    int changed=have&&memcmp(previous,current,COUNT)!=0;
+    int changed=have&&memcmp(previous,current,view_count)!=0;
     int labels_changed=refresh_labels(addr);
     int slots_changed=refresh_slots();
     if(dirty||changed||highlighted||labels_changed||slots_changed){
      draw(addr,pause,have,changed&&!pause);
-     if(goto_mode)printf("\033[23;1HGoto HEX: %s_  (Enter / Esc)\033[K",goto_buf);
+     if(goto_mode){screen_move((int)goto_row,1);printf("Goto HEX: %s_  (Enter / Esc)\033[K",goto_buf);}
      highlighted=changed&&!pause;
     }
-    memcpy(previous,current,COUNT);have=1;
+    memcpy(previous,current,view_count);have=1;
    }else if(dirty){printf("\033[Hmem: invalid/unreadable address\033[K");}
    dirty=0;ticks=0;
   }

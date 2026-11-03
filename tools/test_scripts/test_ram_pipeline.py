@@ -32,7 +32,8 @@ def run(*args):
 
 
 def test_app(tmp, name, base):
-    opt = '-Oz' if name == 'python' else '-O2'
+    # Match the production CMake RAM-app build (-Oz for every application).
+    opt = '-Oz'
     obj = tmp / f'{name}.o'
     elf = tmp / f'{name}.elf'
     binary = tmp / f'{name}.bin'

@@ -71,7 +71,7 @@ int recvfrom_udp(int fd, piconix_udp_packet_t *packet);
 int tcp_listen(int fd, unsigned port);
 int tcp_accept(int fd);
 int tcp_connect(int fd, const piconix_tcp_endpoint_t *endpoint);
-/* Seek from start, current offset, or end (regular files and /dev/shm). */
+/* Seek from start, current offset, or end (/tmp, /dev/shm, /proc/sym/kernel). */
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
@@ -96,8 +96,10 @@ int ioctl(int fd, int command, int value);
 /* PicoNIX-specific process and terminal operations. */
 int program_id(const char *name); /* Registered /bin ID, or negative error. */
 int spawn(int program, int argc, const char *const argv[]);
+int spawn_foreground(int program, int argc, const char *const argv[]);
 int tty_spawn(int tty, int program);
 int spawn_tmp(const char *path);
+int spawn_tmp_foreground(const char *path);
 int set_foreground(int pid);
 int console_ready(void);
 int get_tty(void);

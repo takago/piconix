@@ -60,7 +60,7 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 - `set_foreground(pid)`: `pid` is the PID of a child; 0 requests foreground restoration.
 - `tty_spawn(tty, program)`: `tty` is 1 or 2; `program` is the registered shell/getty program ID (currently 2 or 4).
 - `getcwd(buf, size)`: the raw syscall returns 0 on success; the C wrapper instead returns `buf` on success.
-- `lseek(fd, offset, whence)`: regular `/tmp` files and `/dev/shm` support `SEEK_SET` (0), `SEEK_CUR` (1), and `SEEK_END` (2); `/dev/mem` supports absolute-address `SEEK_SET` only.
+- `lseek(fd, offset, whence)`: regular `/tmp` files, `/dev/shm`, and the read-only `/proc/sym/kernel` support `SEEK_SET` (0), `SEEK_CUR` (1), and `SEEK_END` (2). Symbol table offsets are byte offsets within the exposed text; seeking beyond EOF is rejected. `/dev/mem` supports absolute-address `SEEK_SET` only. Other `/proc` files, including `/proc/sym/userland/*`, remain non-seekable.
 - `fcntl(fd, cmd, value)`: `cmd=1` corresponds to `F_GETFL`, and `cmd=2` to `F_SETFL`. `F_SETFL` can change `O_NONBLOCK` on TTYs (console, UART1, and Wi-Fi TTY when enabled) and TCP/UDP sockets. Pipe descriptors, regular files, and other devices are not supported. Use `ioctl()` for TTY modes.
 - `pipe(fds)`: stores read FD in `fds[0]` and write FD in `fds[1]`. `dup()` and `dup2()` do not duplicate socket FDs.
 - `socket(domain, type, protocol)`: only `AF_INET` (2), `SOCK_STREAM` (1) or `SOCK_DGRAM` (2), and protocol 0 are accepted.
@@ -84,3 +84,6 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 `getdents()` now returns `device_id` (`0xffff` when unavailable).
 
 The `device_id` field returned by `getdents()` identifies the directory entry: device ID for `/dev` and `/proc`, program ID for `/bin`, and zero-based RAM-file slot for `/tmp` and `/etc`. Directories or entries without an ID use `0xffff`. `ls -l` prints a `TYPE ID SIZE NAME` header, where `p` means program, `f` RAM file, `c` device, and `d` directory. RAM-file slot IDs are not persistent across deletion and recreation.
+
+
+The `spawn_foreground()` and `spawn_tmp_foreground()` C wrappers are not extra syscall numbers: they request an atomic foreground TTY handoff as part of `SYS_SPAWN` (argument count flag `0x100`) or `SYS_SPAWN_TMP` (second argument 1). Ordinary `spawn()` remains suitable for background tasks. This avoids the scheduling race between `spawn()` and a separate `set_foreground()` call.

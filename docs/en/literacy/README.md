@@ -2,6 +2,8 @@
 
 **First time here?** Follow the [guided learning path](LEARNING-PATH.md) for hands-on exercises before the detailed reference.
 
+**File browser:** [fd](FD.md) supports directory navigation, live viewing, and `/tmp` editing.
+
 **Hands-on themes:** [System monitoring](MONITORING.md) (Pico / Pico W) and [Networking](NETWORKING.md) (Pico W) are separate labs.
 
 [日本語](../../ja/literacy/README.md) | [Documentation guide](../../DOCS.md)

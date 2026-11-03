@@ -35,7 +35,7 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
     }
     return 0;
 }
-static int detailed;
+static int detailed, show_all;
 /* IDs: device nodes use device IDs, /bin uses program IDs, RAM files use slots. */
 static void entry(const char *directory,const char *name,int directory_entry,unsigned id) {
     if(detailed) {
@@ -65,6 +65,7 @@ static void ls(const char *path) {
  int fd=open(path,0);if(fd<0){put("ls: cannot open directory\r\n");return;}
  piconix_dirent_t e;int n;
  while((n=getdents(fd,&e,sizeof e))>0) {
+     if(!show_all && e.name[0]=='.')continue;
      char name[40];snprintf(name,sizeof name,"%s%s",e.name,e.is_dir?"/":"");
      entry(path,name,e.is_dir,e.device_id);
  }
@@ -77,9 +78,17 @@ static void ls(const char *path) {
 int main(int argc,char *argv[]) {
     char cwd[128], path[128];
     const char *arg=".";
-    if(argc>=2 && eq(argv[1],"-l")) {detailed=1;if(argc==3)arg=argv[2];else if(argc>3){puts("usage: ls [-l] [PATH]");return 1;}}
-    else if(argc==2)arg=argv[1];
-    else if(argc>2){puts("usage: ls [-l] [PATH]");return 1;}
+    int i=1;
+    if(i<argc && argv[i][0]=='-') {
+        for(const char *a=argv[i]+1;*a;a++) {
+            if(*a=='l') detailed=1;
+            else if(*a=='a')show_all=1;
+            else {puts("usage: ls [-la] [PATH]");return 1;}
+        }
+        i++;
+    }
+    if(i<argc)arg=argv[i++];
+    if(i!=argc){puts("usage: ls [-la] [PATH]");return 1;}
     if(!getcwd(cwd,sizeof cwd)) {puts("ls: cannot get cwd");return 1;}
     if(resolve(cwd,arg,path)<0) {puts("ls: path too long");return 1;}
     ls(path);

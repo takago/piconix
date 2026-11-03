@@ -43,7 +43,10 @@ static int walk_dir(const char *p){
 static int walk_entries(const char *p,walk_visit visit,void *arg){
  int fd=open(p,0);if(fd<0)return -1;
  piconix_dirent_t entry;int rc;
- while((rc=getdents(fd,&entry,sizeof entry))>0)visit(entry.name,entry.is_dir,arg);
+ while((rc=getdents(fd,&entry,sizeof entry))>0) {
+  if(walk_eq(entry.name,".")||walk_eq(entry.name,".."))continue;
+  visit(entry.name,entry.is_dir,arg);
+ }
  close(fd);return rc<0?-1:0;
 }
 static int walk_join(const char *parent,const char *name,char out[WALK_PATH]){

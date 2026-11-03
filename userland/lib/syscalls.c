@@ -34,12 +34,14 @@ int dup2(int oldfd,int newfd) { return call(SYS_DUP2,(uintptr_t)oldfd,(uintptr_t
 
 int program_id(const char *name) { return call(SYS_PROGRAM_ID,(uintptr_t)name,0,0); }
 int spawn(int program,int argc,const char *const argv[]) { return call(SYS_SPAWN,(uintptr_t)program,(uintptr_t)argc,(uintptr_t)argv); }
+int spawn_foreground(int program,int argc,const char *const argv[]) { return call(SYS_SPAWN,(uintptr_t)program,(uintptr_t)(argc|0x100),(uintptr_t)argv); }
 int tty_spawn(int tty,int program) { return call(SYS_TTY_SPAWN,(uintptr_t)tty,(uintptr_t)program,0); }
 int set_foreground(int pid) { return call(SYS_SET_FG,(uintptr_t)pid,0,0); }
 int console_ready(void) { return call(SYS_CONSOLE_READY,0,0,0); }
 int get_tty(void) { return call(SYS_GET_TTY,0,0,0); }
 
 int spawn_tmp(const char *path) { return call(SYS_SPAWN_TMP,(uintptr_t)path,0,0); }
+int spawn_tmp_foreground(const char *path) { return call(SYS_SPAWN_TMP,(uintptr_t)path,1,0); }
 
 int socket(int domain,int type,int protocol) { return call(SYS_SOCKET,domain,type,protocol); }
 int bind_udp(int fd,unsigned port) { return call(SYS_BIND,fd,port,0); }

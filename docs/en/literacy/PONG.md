@@ -15,9 +15,12 @@ piconix# pong -2    # Two players on two terminals
 
 ## Controls
 
-- `W` or `I`: move up
-- `S` or `K`: move down
+- **Up arrow**: move up
+- **Down arrow**: move down
+- `W`/`I` and `S`/`K`: alternative movement keys
 - `Q`: quit
+
+Arrow keys use ANSI escape sequences (`ESC [ A` / `ESC [ B`, or `ESC O A` / `ESC O B`). Each terminal decodes input independently in two-player mode.
 
 Disable line-input mode in the terminal emulator. ANSI cursor control and an alternate screen are required.
 

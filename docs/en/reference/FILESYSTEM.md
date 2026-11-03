@@ -107,3 +107,8 @@ Relative paths resolve against each task's current working directory. `.` and `.
 - `include/piconix.h`: public API and error constants.
 
 See [Initial RAM Files and /etc/rc](INITIAL-FILES.md) for host layout, file registration, and boot-time restoration.
+
+
+### Dot directory entries
+
+`getdents()` reports `.` (current directory) and `..` (parent directory) before ordinary entries. The VFS also resolves these components in paths (including `..` at `/`, which remains `/`). Both entries are read-only directory names, not creatable or removable files. `ls` hides them by default; `ls -a` shows them. Recursive `find` and `tree` ignore them to avoid cycles.

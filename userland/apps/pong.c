@@ -36,7 +36,7 @@ static void render(int a,int b,int left,int right,int bx,int by,int score0,int s
     }
     /* Headers are viewer-specific; only the playing field is mirrored. */
     char title[W+1],score[W+1];
-    snprintf(title,sizeof title,"PicoNIX PONG   YOU: W/S   Q: QUIT");
+    snprintf(title,sizeof title,"PicoNIX PONG   UP/DOWN: MOVE   Q: QUIT");
     if(reset) { row(a,0,title); row(b,0,title); }
     snprintf(score,sizeof score,"YOU: %d    OPPONENT: %d",score0,score1);
     if(reset || strcmp(old[1],score)) {
@@ -63,6 +63,26 @@ static void render(int a,int b,int left,int right,int bx,int by,int score0,int s
         row(b,y,mirror);
         memcpy(old[y],grid[y],W+1);
     }
+}
+
+/* Each terminal has its own ANSI arrow-key decoder. An ESC sequence may
+ * arrive split across reads or even across frames. */
+static int pong_key(int c,int *escape) {
+    if(*escape==1) {
+        *escape=(c=='[' || c=='O') ? 2 : 0;
+        return 0;
+    }
+    if(*escape==2) {
+        *escape=0;
+        if(c=='A')return -1;  /* Up */
+        if(c=='B')return 1;   /* Down */
+        return 0;
+    }
+    if(c==27) {*escape=1;return 0;}
+    if(c=='q'||c=='Q'||c==3)return 2;
+    if(c=='w'||c=='W'||c=='i'||c=='I')return -1;
+    if(c=='s'||c=='S'||c=='k'||c=='K')return 1;
+    return 0;
 }
 
 int main(int argc,char **argv) {
@@ -99,16 +119,18 @@ int main(int argc,char **argv) {
     int left=3,right=3,bx=W/2,by=8,dx=1,dy=1,score0=0,score1=0,live=1;
     char old[H][W+1]; /* Local RAM, no writable PIC globals. */
     int initial=1,ticks=0;
+    int escapes[2]={0,0};
     while(live) {
         char c;
         for(int player=0;player<(two?2:1);player++) {
             int fd=player?other:0;
             int r;
             while((r=read(fd,&c,1))==1) {
-                if(c=='q'||c=='Q'||c==3){live=0;break;}
+                int key=pong_key((unsigned char)c,&escapes[player]);
+                if(key==2){live=0;break;}
                 int *paddle=((side==0)==(player==0) ? &left : &right);
-                if((c=='w'||c=='W'||c=='i'||c=='I') && *paddle>0) --*paddle;
-                if((c=='s'||c=='S'||c=='k'||c=='K') && *paddle<H-6-PADDLE) ++*paddle;
+                if(key<0 && *paddle>0) --*paddle;
+                if(key==1 && *paddle<H-6-PADDLE) ++*paddle;
             }
             if(r<0){live=0;break;}
         }

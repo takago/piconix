@@ -10,6 +10,7 @@ int main(int argc, char **argv) {
         puts("  sh         Interactive shell");
         puts("  ls         List files / sizes");
         puts("  tree       Display directory tree");
+        puts("  fd         Interactive directory/file browser");
         puts("  find       Search directory entries");
         puts("  edit       Edit a /tmp file");
         puts("  vi         Modal /tmp editor (vi-like)");
@@ -74,6 +75,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"ps")) puts("ps: Show processes\nusage: ps");
     else if(!strcmp(argv[1],"grep")) puts("grep: Filter matching lines from a file or standard input\nusage: grep PATTERN [file]");
     else if(!strcmp(argv[1],"cat")) puts("cat: Read file / standard input\nusage: cat [file]  (shell: cat > file)");
+    else if(!strcmp(argv[1],"fd")) puts("fd: Interactive file browser\nusage: fd [directory]\nArrows: select/navigate, Enter: open, Backspace: parent, e: edit /tmp, q: quit");
     else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command\nusage: watch [seconds] command [args...]");
     else if(!strcmp(argv[1],"pwd")) puts("pwd: Print working directory\nusage: pwd");
     else if(!strcmp(argv[1],"tree")) puts("tree: Display directory tree\nusage: tree [-L 0..8] [path]");

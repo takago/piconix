@@ -60,7 +60,7 @@
 - `set_foreground(pid)`：`pid` は自分の子タスクのPIDです．`pid=0` は前景所有の復元要求です．
 - `tty_spawn(tty, program)`：`tty` は1または2，`program` は対応するシェル／gettyの登録ID（実装では2または4）です．
 - `getcwd(buf, size)`：ABIでは書き込み成功時に0を返します．Cラッパーは成功時に `buf` を返すよう変換しています．
-- `lseek(fd, offset, whence)`：`/tmp`の通常ファイルと`/dev/shm`は`SEEK_SET` (0)，`SEEK_CUR` (1)，`SEEK_END` (2)に対応します．`/dev/mem`は絶対アドレスによる`SEEK_SET`のみです．
+- `lseek(fd, offset, whence)`：`/tmp`の通常ファイル，`/dev/shm`，読み取り専用の`/proc/sym/kernel`は`SEEK_SET` (0)，`SEEK_CUR` (1)，`SEEK_END` (2)に対応します．シンボル表は公開テキスト内のバイト位置で指定し，EOFを超える移動は拒否します．`/dev/mem`は絶対アドレスによる`SEEK_SET`のみです．`/proc/sym/userland/*`を含むその他の`/proc`ファイルはシーク非対応です．
 - `fcntl(fd, cmd, value)`：`cmd=1` は `F_GETFL`，`cmd=2` は `F_SETFL` に相当します．`F_SETFL`で`O_NONBLOCK`を変更できるのはTTY（コンソール，UART1，Wi-Fi有効時のWi-Fi TTY）とTCP/UDPソケットです．パイプや通常ファイル，その他のデバイスには対応していません．TTY設定には `ioctl()` を使用します．
 - `pipe(fds)`：`fds[0]` に読み取り側，`fds[1]` に書き込み側のFDを設定します．`dup()`／`dup2()` はソケットFDを複製できません．
 - `socket(domain, type, protocol)`：`domain=AF_INET` (2)，`type=SOCK_STREAM` (1) または `SOCK_DGRAM` (2)，`protocol=0` のみです．
@@ -84,3 +84,6 @@
 `getdents()` の結果に`device_id`を追加しました．デバイスIDがない場合は`0xffff`です．
 
 `getdents()`の`device_id`フィールドはディレクトリ項目のIDです．`/dev`と`/proc`ではデバイスID，`/bin`ではプログラムID，`/tmp`・`/etc`ではRAMファイルのスロット番号（0始まり）を返します．ディレクトリやIDのない項目は`0xffff`です．`ls -l`は`TYPE ID SIZE NAME`の見出しを表示し，`p`をプログラム，`f`をRAMファイル，`c`をデバイス，`d`をディレクトリとして区別します．スロット番号はファイルの削除・再生成で変わるため，恒久的な識別子ではありません．
+
+
+`spawn_foreground()`と`spawn_tmp_foreground()`は新しいシステムコール番号ではありません．`SYS_SPAWN`の引数個数に`0x100`を付加する方法，または`SYS_SPAWN_TMP`の第2引数を1にする方法で，起動とフォアグラウンドTTY制御権の移譲を不可分に行います．従来の`spawn()`はバックグラウンド起動に使えます．

@@ -66,10 +66,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 さらに`main()`内の既存の`register_image(...)`と並べて登録します．
 
 ```c
-register_image(44, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(45, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**44は，この添付版で未使用のプログラム登録IDです（39は`i2cctl`，40は`bh1750`，41は`vi`，42は`dd`，43は`net`が使用）．** 今後アプリが増えた場合は，登録済みIDを確認して空いている番号に変更してください．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
+**45は，この版で未使用の登録IDの一例です（43は`net`，44は`fd`が使用）．** 今後アプリが増えた場合は，登録済みIDを確認して空いている番号に変更してください．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
 
 ## 4．ビルド・書き込み・実行
 
@@ -124,9 +124,47 @@ int main(int argc, char *argv[])
 | タスク生成 | `spawn(program_id, argc, argv)`．空きスロットがなければ失敗 |
 | 終了待ち | `waitpid()`はPOSIXの完全な実装ではない |
 
-`userland/`以下の`stdio.h`，`stdlib.h`，`string.h`，`unistd.h`，`fcntl.h`を使用します．関数の引数・戻り値・対応範囲は[LIBC.md](LIBC.md)，低水準の呼び出し規約は[SYSCALLS.md](../../../reference/SYSCALLS.md)を参照してください．通常の`errno`を前提とせず，PicoNIXのエラー戻り値を確認します．
+`userland/lib/`以下の`stdio.h`，`stdlib.h`，`string.h`，`unistd.h`，`fcntl.h`を使用します．関数の引数・戻り値・対応範囲は[LIBC.md](LIBC.md)，低水準の呼び出し規約は[SYSCALLS.md](../../../reference/SYSCALLS.md)を参照してください．通常の`errno`を前提とせず，PicoNIXのエラー戻り値を確認します．
 
 `fcntl()`による`O_NONBLOCK`だけでは，TTYのcanonical入力が文字単位にはなりません．対話的なプログラムについては[TTY](../../../literacy/TTY.md)と`userland/apps/mb.c`を参照してください．ネットワークプログラムには別の制約もあるため，[ネットワークプログラミング](NETWORK-PROGRAMMING.md)も参照してください．
+
+### 6.1．PicoNIX特有のPICとRAMの注意点
+
+PicoNIXのCアプリは，Linuxの通常の実行形式とは違い，**任意のRAMタスクスロットで同じイメージが動作すること**を要求します．ビルドでは2つのアドレスにリンクしたバイナリを比較し，位置に依存するデータや再配置が含まれていないことを検査します．Linuxの動的リンカのようなGOT・リロケーション処理は用意していません．
+
+#### 静的ポインタの初期化
+
+次はコンパイルできても，PIC検査で失敗することがあります．
+
+```c
+/* PicoNIXでは避ける：実行時アドレスを静的データに埋め込む */
+static const char *message = "Hello";
+```
+
+代わりに，関数実行時に代入します．
+
+```c
+static const char *message;  /* ゼロ初期化 */
+
+int main(void)
+{
+    message = "Hello";
+    puts(message);
+    return 0;
+}
+```
+
+文字列を変更する必要がなければ，`static const char message[] = "Hello";`のように**配列そのもの**を定義する方法もあります．ポインタや関数ポインタを静的に別のオブジェクトのアドレスで初期化するコードでは，同様の注意が必要です．これはC言語一般の禁止事項ではなく，**現在のPicoNIXのローダが実行時再配置を行わない**ことによる制約です．
+
+#### イメージ・スタック・最適化
+
+- ユーザスロットは24 KiBで，末尾4 KiBはスタック用です．コード・静的データ・BSSを含むイメージは残りの領域に収めます．
+- 大きなローカル配列，深い再帰，無制限のバッファを避けます．スタック使用量の安全性はリンク成功だけでは保証されません．
+- **全ユーザアプリをClangの`-Oz`でビルド**します．検査用コンパイルも同じ最適化条件に揃えます．
+- `ld.lld: task image overlaps reserved stack`は，イメージがスタック予約領域に食い込んだことを意味します．スロットを広げる前に，静的データやコードを減らします．
+- `PIC image changes with link address`は，2つの配置アドレスでバイナリが一致しなかったことを意味します．静的ポインタ初期化，絶対アドレス参照，リンク時再配置などを確認します．
+
+実際に`fd`を追加した際には，`static const char *notice = "";`がPIC検査に失敗し，ポインタの初期化を実行時へ移すことで解消しました．**Cコンパイル成功とPIC検査成功は別**である点を確認できる例です．
 
 ## 7．問題が起きたとき
 

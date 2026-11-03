@@ -143,10 +143,10 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     if(prefix(name,"./") || prefix(name,"/tmp/")) {
         char path[128];
         if(argc!=1 || resolve(cwd,name,path)<0) { put("invalid executable path\r\n"); return 1; }
-        int pid=spawn_tmp(path);
+        int pid=background?spawn_tmp(path):spawn_tmp_foreground(path);
         if(pid<0) { put("cannot execute image\r\n"); return 1; }
         if(background) {*bg_pid=pid;*bg_name="a.out";}
-        else { int status=0; set_foreground(pid); waitpid(pid,&status,0); set_foreground(0); }
+        else { int status=0; waitpid(pid,&status,0); set_foreground(0); }
         return 1;
     }
     int id=program_id(name);
@@ -163,17 +163,16 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     unsigned total=0;
     for(int i=0;i<argc;i++) total+=(unsigned)strlen(args[i])+1;
     if(total>128) {put("arguments too long (max 128 bytes)\r\n");return 1;}
-    int pid=spawn(id,argc,(const char *const *)args);
+    int pid=background?spawn(id,argc,(const char *const *)args):spawn_foreground(id,argc,(const char *const *)args);
     if(pid<0) {put("cannot start program\r\n");return 1;}
     if(background) {*bg_pid=pid;*bg_name="program";}
     else {
         int status=0;
-        set_foreground(pid);
         waitpid(pid,&status,0);
         set_foreground(0);
         /* Full-screen programs may be killed before restoring the screen. */
         if(eq(name,"mb") || eq(name,"gpio") || eq(name,"pong") ||
-           eq(name,"fbed") || eq(name,"edit") || eq(name,"mem"))
+           eq(name,"fbed") || eq(name,"edit") || eq(name,"mem") || eq(name,"fd"))
             put("\033[?1049l");
     }
     return 1;
@@ -335,9 +334,103 @@ static void shell_redraw_tail(const char *line, unsigned len, unsigned cursor) {
     put("\033[K");
     shell_move_left(len-cursor);
 }
+/* Complete a plain filename or /bin command at the end of a line.
+ * No quoting, globbing or candidate list: keep shell RAM use small. */
+static int shell_complete(char line[128], unsigned *len, unsigned *cursor,
+                          const char cwd[128]) {
+    if(*cursor!=*len) return 0;
+    unsigned start=*len;
+    while(start && line[start-1]!=' ' && line[start-1]!='\t') start--;
+    const char *word=line+start;
+    if(!*word) return 0;
+    unsigned slash=*len;
+    while(slash>start && line[slash-1]!='/') slash--;
+    char directory[128], name_prefix[128];
+    unsigned prefix_len=*len-slash;
+    if(prefix_len>=sizeof name_prefix) return 0;
+    for(unsigned i=0;i<prefix_len;i++) name_prefix[i]=line[slash+i];
+    name_prefix[prefix_len]=0;
+    if(slash>start) {
+        char path[128];
+        unsigned n=slash-start;
+        if(n>=sizeof path) return 0;
+        for(unsigned i=0;i<n;i++)path[i]=word[i];
+        path[n]=0;
+        if(resolve(cwd,path,directory)<0) return 0;
+    } else if(start==0) strcpy(directory,"/bin");
+    else strcpy(directory,cwd);
+    int fd=open(directory,O_RDONLY);
+    if(fd<0) return 0;
+    piconix_dirent_t entry;
+    char common[32]={0};
+    int matches=0, is_dir=0, status;
+    while((status=getdents(fd,&entry,sizeof entry))>0) {
+        if((entry.name[0]=='.' && !prefix_len) ||
+           strncmp(entry.name,name_prefix,prefix_len)!=0) continue;
+        if(matches==0) {
+            strcpy(common,entry.name);
+            is_dir=entry.is_dir;
+        } else {
+            unsigned i=0;
+            while(common[i] && entry.name[i] && common[i]==entry.name[i]) i++;
+            common[i]=0;
+        }
+        matches++;
+    }
+    close(fd);
+    if(!matches) return 0;
+    unsigned common_len=(unsigned)strlen(common);
+    unsigned append=common_len>prefix_len?common_len-prefix_len:0;
+    if(*len+append+(matches==1 && is_dir?1u:0u)>127) return 0;
+    if(append) {
+        memcpy(line+*len,common+prefix_len,append);
+        *len+=append;
+    }
+    if(matches==1 && is_dir && *len<127) line[(*len)++]='/';
+    line[*len]=0;
+    *cursor=*len;
+    return matches;
+}
+/* Print matches beneath the edited input, then repaint the prompt.
+ * Rescan the directory instead of storing a candidate array in 24 KiB RAM. */
+static void shell_list_matches(const char line[128], unsigned len,
+                               const char cwd[128]) {
+    unsigned start=len;
+    while(start && line[start-1]!=' ' && line[start-1]!='\t')start--;
+    if(start==len)return;
+    unsigned slash=len;
+    while(slash>start && line[slash-1]!='/')slash--;
+    char dir[128];
+    if(slash>start) {
+        char input[128];unsigned n=slash-start;
+        if(n>=sizeof input)return;
+        memcpy(input,line+start,n);input[n]=0;
+        if(resolve(cwd,input,dir)<0)return;
+    } else if(!start)strcpy(dir,"/bin");
+    else strcpy(dir,cwd);
+    int fd=open(dir,O_RDONLY);
+    if(fd<0)return;
+    unsigned nmatch=0, prefix_len=len-slash;
+    piconix_dirent_t ent;
+    while(getdents(fd,&ent,sizeof ent)>0) {
+        if(ent.name[0]=='.' && (!prefix_len || line[slash]!='.'))continue;
+        if(strncmp(ent.name,line+slash,prefix_len))continue;
+        if(!nmatch++)put("\r\n");
+        if(nmatch<=48) {
+            put(ent.name);
+            if(ent.is_dir)put("/");
+            put("  ");
+            if(nmatch%3==0)put("\r\n");
+        }
+    }
+    close(fd);
+    if(!nmatch)return;
+    if(nmatch>48)put("... (more matches)");
+    put("\r\n");
+}
 /* Read one line in raw/no-echo mode; restore the TTY before commands run.
  * If this TTY cannot be controlled, keep the original canonical fallback. */
-static int shell_readline(char line[128]) {
+static int shell_readline(char line[128], const char cwd[128]) {
     int canon=ioctl(0,OS_TTY_GET_CANON,0);
     int echo=ioctl(0,OS_TTY_GET_ECHO,0);
     if(canon<0 || echo<0 || ioctl(0,OS_TTY_SET_CANON,0)<0 ||
@@ -358,7 +451,7 @@ static int shell_readline(char line[128]) {
     line[0]=0;
     unsigned len=0,cursor=0;
     unsigned selected=history_count; /* history_count means draft */
-    int escape=0;
+    int escape=0, tab_pending=0;
     for(;;) {
         char c;
         int n=read(0,&c,1);
@@ -385,6 +478,47 @@ static int shell_readline(char line[128]) {
             shell_redraw(line,len,cursor);
             continue;
         }
+        if(c==1) { /* Ctrl+A: beginning of line. */
+            cursor=0;
+            shell_redraw(line,len,cursor);
+            continue;
+        }
+        if(c==5) { /* Ctrl+E: end of line. */
+            cursor=len;
+            shell_redraw(line,len,cursor);
+            continue;
+        }
+        if(c==11) { /* Ctrl+K: kill from cursor to end. */
+            len=cursor;
+            line[len]=0;
+            shell_redraw(line,len,cursor);
+            continue;
+        }
+        if(c==23) { /* Ctrl+W: erase previous whitespace-delimited word. */
+            unsigned end=cursor;
+            while(cursor && (line[cursor-1]==' ' || line[cursor-1]=='\t')) cursor--;
+            while(cursor && line[cursor-1]!=' ' && line[cursor-1]!='\t') cursor--;
+            if(cursor!=end) {
+                memmove(line+cursor,line+end,len-end+1);
+                len-=end-cursor;
+                shell_redraw(line,len,cursor);
+            }
+            continue;
+        }
+        if(c=='\t') {
+            if(tab_pending) {
+                shell_list_matches(line,len,cwd);
+                shell_redraw(line,len,cursor);
+                tab_pending=0;
+            } else {
+                int matches=shell_complete(line,&len,&cursor,cwd);
+                if(matches) shell_redraw(line,len,cursor);
+                else put("\a");
+                tab_pending=matches>1;
+            }
+            continue;
+        }
+        tab_pending=0;
         if(c==12) { /* Ctrl+L: clear screen, preserve the edited line and cursor. */
             put("\033[2J\033[H");
             shell_redraw(line,len,cursor);
@@ -410,7 +544,7 @@ static int shell_readline(char line[128]) {
                 if(cursor==len) put(" \b");
                 else shell_redraw_tail(line,len,cursor);
             }
-        } else if((c=='\t' || (c>=32 && c<=126)) && len<127) {
+        } else if((c>=32 && c<=126) && len<127) {
             int at_end=(cursor==len);
             for(unsigned i=len;i>cursor;i--)line[i]=line[i-1];
             line[cursor++]=c;line[++len]=0;
@@ -470,7 +604,7 @@ int main(int argc, char *argv[]) {
     if(getpid()==1) run_boot_rc(cwd);
     put("\033[0m\033[?25h" SHELL_PROMPT);
     for(;;) {
-        shell_readline(line);
+        shell_readline(line,cwd);
         /* Reap completed background children (no status display yet). */
         int bg_status;
         while(waitpid(-1, &bg_status, 1)>0) {}
