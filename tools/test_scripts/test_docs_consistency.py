@@ -35,4 +35,15 @@ for lang in ('en', 'ja'):
     trace = (docs/lang/'guides'/'TRACE.md').read_text()
     assert 'ls -l' in trace
     assert ('device' in trace.lower()) if lang == 'en' else ('デバイス' in trace)
+# pingはPico Wのユーザコマンドとして実装され，専用ICMPデバイスを使う．
+# Wi-Fi診断文書に旧版の「pingは未実装」という記述を戻さないための回帰検査．
+ping_app = (root / 'userland' / 'apps' / 'ping.c').read_text(encoding='utf-8')
+assert 'open("/dev/net/icmp",O_RDWR)' in ping_app
+for lang in ('en', 'ja'):
+    wifi_modes = (docs / lang / 'reference' / 'network' / 'WIFI-MODES.md').read_text(encoding='utf-8')
+    link = '[Ping](PING.md)' if lang == 'en' else '[ping](PING.md)'
+    assert link in wifi_modes
+    assert 'not** a PicoNIX command' not in wifi_modes
+    assert 'PicoNIXに`ping`コマンドは実装していません' not in wifi_modes
+
 print(f'PASS: {len(ja)} bilingual manual pairs, {count} local links and interface claims')

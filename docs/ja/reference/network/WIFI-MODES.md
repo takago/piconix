@@ -44,7 +44,7 @@ STAモードの`/proc/net/wifi`には，次の診断項目も表示します．
 オーバーフローがなかったことを保証するものではありません．
 また，起動処理用スタックの使用量は含みません．
 
-`STATUS: UP`やDHCPによるIPアドレス取得は，ARPやホストPCからの`ping`，Telnetの成功を保証しません．ここでいう`ping`はLinuxなど接続元PCのコマンドであり，PicoNIXに`ping`コマンドは実装していません．
+`STATUS: UP`やDHCPによるIPアドレス取得は，ARP，ICMP，Telnetの通信成功を保証しません．LinuxなどのホストPCから`ping`で疎通を調べるほか，Pico W版のPicoNIXでも`ping -c 2 PCのIPv4アドレス`を実行できます（[ping](PING.md)を参照）．通常のPico版ではこのICMP機能は利用できません．
 以前のファームウェアとの比較，電源の入れ直しを伴う複数回の接続試験，
 Linux側でのARP/ICMPの観測を行ってください．
 4 KiBへの増量後も，リンク時のカーネルRAM 56 KiB制限の検証が必要です．
