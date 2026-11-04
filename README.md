@@ -130,17 +130,24 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 
 ## Documentation
 
-Choose a guide based on what you want to do. If you are new to PicoNIX, start with the setup guide.
+Choose the documentation that matches your purpose. Start with **Setup** if you are new to PicoNIX. The technical references below link directly to the most frequently consulted specifications.
 
 | Category | English | 日本語 |
 |---|---|---|
-| **Setup** — Install the tools and connect PicoNIX | [Setup guide](docs/en/setup/SETUP.md) | [セットアップ手順](docs/ja/setup/SETUP.md) |
-| **Learning roadmap** — Suggested order for learning UNIX with the practical guides | [Learning roadmap](docs/en/ROADMAP.md) | [学習ロードマップ](docs/ja/ROADMAP.md) |
-| **Task index** — Find instructions by what you want to do | [Task index](docs/en/TASKS.md) | [目的別索引](docs/ja/TASKS.md) |
-| **Usage guides** — Look up commands and examples | [Usage guides](docs/en/guides/README.md) | [操作ガイド](docs/ja/guides/README.md) |
-| **Technical reference** — Check specifications and APIs | [Technical reference](docs/en/reference/README.md) | [技術リファレンス](docs/ja/reference/README.md) |
-| **Development guides** — Develop applications or extend the kernel | [Development guides](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
+| **Setup** — Install the development tools | [Setup guide](docs/en/setup/SETUP.md) | [セットアップ手順](docs/ja/setup/SETUP.md) |
+| **Learning roadmap** — Suggested order for learning UNIX | [Learning roadmap](docs/en/ROADMAP.md) | [学習ロードマップ](docs/ja/ROADMAP.md) |
+| **Task index** — Find instructions by goal | [Task index](docs/en/TASKS.md) | [目的別索引](docs/ja/TASKS.md) |
+| **Usage guides** — Commands and practical examples | [Usage guides](docs/en/guides/README.md) | [操作ガイド](docs/ja/guides/README.md) |
+| **System specifications** — Features and limitations | [Specifications](docs/en/reference/SPECIFICATION.md) | [システム仕様](docs/ja/reference/SPECIFICATION.md) |
+| **Architecture** — Kernel and process design | [Architecture](docs/en/reference/ARCHITECTURE.md) | [システム構成](docs/ja/reference/ARCHITECTURE.md) |
+| **System calls** — ABI and call definitions | [System calls](docs/en/reference/SYSCALLS.md) | [システムコール一覧](docs/ja/reference/SYSCALLS.md) |
+| **C library** — User-space C interfaces | [C library](docs/en/development/apps/c/LIBC.md) | [Cライブラリ](docs/ja/development/apps/c/LIBC.md) |
+| **Memory layout** — Flash and RAM allocation | [Memory layout](docs/en/reference/MEMORY-LAYOUT.md) | [メモリ配置](docs/ja/reference/MEMORY-LAYOUT.md) |
+| **Hardware** — Boards, pins and wiring | [Hardware](docs/en/reference/hardware/README.md) | [ハードウェア](docs/ja/reference/hardware/README.md) |
+| **Devices** — Device files and interfaces | [Devices](docs/en/reference/devices/README.md) | [デバイス仕様](docs/ja/reference/devices/README.md) |
+| **Networking** — Wi-Fi, TCP/IP and services | [Networking](docs/en/reference/network/README.md) | [ネットワーク仕様](docs/ja/reference/network/README.md) |
+| **Development guides** — Applications and kernel extensions | [Development guides](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
 | **Function index** — Browse source functions (Japanese only) | [Function index (Japanese)](docs/FUNCTIONS.md) | [関数索引](docs/FUNCTIONS.md) |
-| **Development diary** — Follow the development history | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
+| **Development diary** — Project development history | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
 
-The roadmap gives a suggested learning order. Practical guides and references contain the detailed instructions.
+The learning roadmap gives the recommended sequence; usage guides and development guides provide the hands-on instructions. The reference pages describe the interfaces and constraints.
