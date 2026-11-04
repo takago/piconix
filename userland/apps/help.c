@@ -12,8 +12,8 @@ int main(int argc, char **argv) {
         puts("  tree       Display directory tree");
         puts("  fd         Interactive directory/file browser");
         puts("  find       Search directory entries");
-        puts("  edit       Edit a /tmp file");
-        puts("  vi         Modal /tmp editor (vi-like)");
+        puts("  edit       Edit a /tmp or /etc file");
+        puts("  vi         Modal /tmp or /etc editor (vi-like)");
         puts("  dd         Copy binary data / RAM blocks");
         puts("  cat        Read file / standard input");
         puts("  grep       Filter lines by matching text");
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"ping")) puts("ping: ICMP Echo tests (Pico W)\nusage: ping [-c COUNT] IPv4\nDefault: 4 probes; numerical IPv4 only\nexample: ping -c 2 192.168.4.2");
     else if(!strcmp(argv[1],"tcpdump")) puts("tcpdump: Observe IPv4 packets (Pico W)\nusage: tcpdump [-x] [-c COUNT]\n-x: show DATA length and up to 16 payload bytes in HEX and ASCII on an indented second line\n-c: stop after COUNT packets; Ctrl+C to stop\nexample: tcpdump -c 10");
     else if(!strcmp(argv[1],"cat")) puts("cat: Display a file or standard input\nusage: cat [-n] [file]\n-n: Number all lines, including empty lines\nexample: cat -n /tmp/test.py\nexample: echo hello | cat -n");
-    else if(!strcmp(argv[1],"fd")) puts("fd: Interactive file browser\nusage: fd [directory]\nArrows: select/navigate, Enter: open, Backspace: parent, e: edit /tmp, q: quit");
+    else if(!strcmp(argv[1],"fd")) puts("fd: Interactive file browser\nusage: fd [directory]\nArrows: select/navigate, Enter: open, Backspace: parent, e: edit /tmp or /etc, q: quit");
     else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command\nusage: watch [seconds] command [args...]");
     else if(!strcmp(argv[1],"pwd")) puts("pwd: Print working directory\nusage: pwd");
     else if(!strcmp(argv[1],"tree")) puts("tree: Display directory tree\nusage: tree [-L 0..8] [path]");
@@ -92,8 +92,8 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"nc")) puts("nc: Minimal IPv4 netcat\nusage: nc [-u] [-N] -l PORT | nc [-u] [-N] IPv4 PORT\n-N: exit on stdin EOF in UDP mode (not TCP)");
     else if(!strcmp(argv[1],"find")) puts("find: Search directory entries\nusage: find [path] [-name pattern]");
     else if(!strcmp(argv[1],"dd")) puts("dd: block copy\nusage: dd [if=FILE] [of=FILE] [bs=1..256] [count=N] [skip=N] [seek=N]\nif=-: stdin; of=-: stdout (also defaults)");
-    else if(!strcmp(argv[1],"vi")) puts("vi: Modal /tmp editor\nusage: vi file\ni/a/o insert, Esc normal, :w, :q, :q!, :wq");
-    else if(!strcmp(argv[1],"edit")) puts("edit: Edit a /tmp file\nusage: edit /tmp/FILE\nCtrl+S: save; Ctrl+Q: quit (twice to discard unsaved changes); Ctrl+C: abort");
+    else if(!strcmp(argv[1],"vi")) puts("vi: Modal /tmp or /etc editor\nusage: vi file\ni/a/o insert, Esc normal, :w, :q, :q!, :wq");
+    else if(!strcmp(argv[1],"edit")) puts("edit: Edit a /tmp or /etc file\nusage: edit /tmp/FILE or /etc/FILE\nCtrl+S: save; Ctrl+Q: quit (twice to discard unsaved changes); Ctrl+C: abort");
     else if(!strcmp(argv[1],"mem")) puts("mem: Live memory viewer\nusage: mem [address] | mem -s [app]\ninteractive: arrows, PgUp/PgDn, g goto, q quit");
     else if(!strcmp(argv[1],"ls")) puts("ls: List files / sizes\nusage: ls [-la] [path]\n-l: show type, ID and size; -a: include . and ..");
     else if(!strcmp(argv[1],"rm")) puts("rm: Remove a /tmp file\nusage: rm path");

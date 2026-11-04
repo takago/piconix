@@ -90,7 +90,7 @@ static void draw(const char *name,const char *notice,int mode){
  printf("\033[%d;%dH\033[?25h",y,x);
 }
 
-/* Normalize . and .. before checking the editor's /tmp-only restriction. */
+/* Normalize . and .. before checking the writable RAM-file paths. */
 static void editor_normalize_path(char path[128]){
  char normalized[128];unsigned out=0;
  for(const char *p=path;*p;){
@@ -129,8 +129,9 @@ static int editor_start(const char *arg, char path[128]){
   strcpy(path+a,arg);
  }
  editor_normalize_path(path);
- if(strncmp(path,"/tmp/",5)!=0||!path[5]||strchr(path+5,'/')){
-  puts(EDITOR_NAME ": only files in /tmp supported");return -1;
+ if((strncmp(path,"/tmp/",5)&&strncmp(path,"/etc/",5))||
+    !path[5]||strchr(path+5,'/')){
+  puts(EDITOR_NAME ": only files in /tmp or /etc supported");return -1;
  }
  int fd=open(path,O_RDWR|O_CREAT);
  if(fd<0){puts(EDITOR_NAME ": cannot open file");return -1;}

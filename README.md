@@ -62,7 +62,7 @@ Open the PicoNIX shell from the PC:
 telnet 192.168.4.1
 ```
 
-The Pico W `/etc/rc` starts `httpd` automatically. Visit `http://192.168.4.1/` in a browser; `/` is the introduction page, `/fbcheck.html` controls the LED matrix, and `/pwm.html` controls PWM. To change the introduction page, copy it to `/tmp` with `dd if=/etc/index.html of=/tmp/index.html`, edit `/tmp/index.html`, and copy it back with `dd if=/tmp/index.html of=/etc/index.html`. The editors only open `/tmp` files, and RAM changes are lost on reboot. If `httpd` has been stopped, restart it from the shell:
+The Pico W `/etc/rc` starts `httpd` automatically. Visit `http://192.168.4.1/` in a browser; `/` is the introduction page, `/fbcheck.html` controls the LED matrix, and `/pwm.html` controls PWM. To change the introduction page, run `edit /etc/index.html` (or `vi /etc/index.html`) and save. The editors open RAM files directly under `/tmp` and `/etc`; changes are lost on reboot. If `httpd` has been stopped, restart it from the shell:
 
 ```sh
 # PicoNIX shell

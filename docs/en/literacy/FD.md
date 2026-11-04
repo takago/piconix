@@ -6,7 +6,7 @@
 
 For `/tmp`, `/etc`, and `/proc` files, Enter opens a **read-only viewer that reloads the path roughly once per second**. This is useful for changing `/proc` status values. The viewer displays printable ASCII and replaces other bytes with dots; it is not a binary viewer. Up/Down scrolls one line and PgUp/PgDn scrolls one screen. The viewer can reach the end of large files such as `/proc/sym/kernel` while keeping only the current display window in a 2 KiB buffer. Long lines are clipped to the terminal width. File changes are not saved by the viewer. `q` or Esc returns to the list.
 
-Press `e` on a selected file, or while viewing, to launch `edit`. Editing is supported only for files directly in `/tmp`, consistent with the existing editor. Leave `edit` normally to return to `fd`. The browser clears nonblocking stdin before launching the editor and restores its input settings afterwards.
+Press `e` on a selected file, or while viewing, to launch `edit`. Editing is supported for files directly in `/tmp` or `/etc`, consistent with the editor. Leave `edit` normally to return to `fd`. The browser clears nonblocking stdin before launching the editor and restores its input settings afterwards.
 
 The list shows up to 48 entries (including `../` when applicable) and adapts to screen dimensions (capped at 40 rows × 110 columns). Other entries are counted but not shown. No file operations such as copying, deleting, renaming, or moving are implemented. `/dev` nodes are deliberately not previewed, since reading hardware devices may block or have side effects. A terminal supporting ANSI cursor keys is required.
 

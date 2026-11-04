@@ -35,7 +35,7 @@ The `flags` argument to `send()`, `recv()`, `sendto()`, and `recvfrom()` must be
 
 Start `tcp_echod 1234` on PicoNIX and run `nc 192.168.4.1 1234` on Linux. For UDP, start `udp_echod 1234` and run `printf 'hello\n' | nc -u -w 2 192.168.4.1 1234` on Linux. TCP and UDP have separate port spaces.
 
-Start `httpd` to serve `http://192.168.4.1/`. To change the page, run `dd if=/etc/index.html of=/tmp/index.html`, edit it with `edit /tmp/index.html`, then run `dd if=/tmp/index.html of=/etc/index.html`. The editor opens only `/tmp` files; the `/etc` copy is a volatile RAM file. Use `lsof` to inspect socket descriptors and local ports.
+Start `httpd` to serve `http://192.168.4.1/`. To change the page, run `edit /etc/index.html` and save it. Files under `/etc` are RAM-backed, so changes are lost on reboot. Use `lsof` to inspect socket descriptors and local ports.
 
 ## Built-in kernel services
 

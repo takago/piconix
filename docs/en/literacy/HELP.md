@@ -30,7 +30,7 @@ PicoNIX provides `python`, not `python3`. Run a script with `python /tmp/test.py
 
 `cat FILE` shows the file as it is; `cat -n FILE` shows every line with a number, starting at 1. Blank lines are numbered too. With no FILE, `cat` reads standard input, so `echo hello | cat -n` also works. Use `help cat` to see the command format and [Standard I/O lab](IO-IPC.md) for a short exercise.
 
-Some other important usage details: `ls -a` shows `.` and `..`; `ls -l` shows type, ID and size. `edit` requires a `/tmp` file path. `dd` accepts `if=` and `of=` (or defaults to stdin/stdout), with `bs=1..256`; `grep` matches literal substrings and skips input lines longer than 128 bytes.
+Some other important usage details: `ls -a` shows `.` and `..`; `ls -l` shows type, ID and size. `edit` accepts RAM files directly under `/tmp` or `/etc`. `dd` accepts `if=` and `of=` (or defaults to stdin/stdout), with `bs=1..256`; `grep` matches literal substrings and skips input lines longer than 128 bytes.
 
 ## Selected commands and options
 

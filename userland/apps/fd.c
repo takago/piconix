@@ -224,7 +224,8 @@ static int edit_selected(void){
         if(!count||entries[selected].dir||join(current,entries[selected].name,path)<0)return -1;
         edit_path=path;
     }
-    if(strncmp(edit_path,"/tmp/",5)||strchr(edit_path+5,'/'))return -1;
+    if((strncmp(edit_path,"/tmp/",5)&&strncmp(edit_path,"/etc/",5))||
+       !edit_path[5]||strchr(edit_path+5,'/'))return -1;
     int editor=program_id("edit");
     if(editor<0)return -1;
     /* The child inherits stdin flags. edit expects a BLOCKING read(), while
@@ -335,7 +336,7 @@ int main(int argc,char **argv){
         if(key==8||key==127||key==27||key==1004){parent_dir();refresh_dir();draw_dir();continue;}
         if(key==1001&&selected>0){selected--;draw_dir();continue;}
         if(key==1002&&selected+1<count){selected++;draw_dir();continue;}
-        if(key=='e'){if(edit_selected()<0){notice="Only /tmp files can be edited";draw_dir();}continue;}
+        if(key=='e'){if(edit_selected()<0){notice="Only /tmp or /etc files can be edited";draw_dir();}continue;}
         if(key=='\r'||key=='\n'||key==1003){
             if(count==0)continue;
             if(join(current,entries[selected].name,path)<0){notice="Path too long";draw_dir();continue;}

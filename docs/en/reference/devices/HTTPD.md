@@ -59,3 +59,5 @@ When a smartphone cannot reach the PicoNIX AP web page, try disabling mobile dat
 The LED grid suppresses touch scrolling and text selection; gestures outside remain available.
 
 The browser serializes all servo and buzzer control requests because GP18 and GP19 share PWM slice 1. The servo requires 50 Hz; an outstanding buzzer request could otherwise restore an audio frequency after moving the servo slider. Check external servo power, ground sharing, and duty/frequency with `pwmctl status` if it still does not move.
+
+To edit the introduction page on Pico W, run `edit /etc/index.html` and save with Ctrl+S. This modifies the RAM copy only; reboot restores the original content.

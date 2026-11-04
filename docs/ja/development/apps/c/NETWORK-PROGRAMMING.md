@@ -35,7 +35,7 @@ Pico WではlwIPをカーネル側で利用し，ユーザプロセスに小さ�
 
 PicoNIX側で`tcp_echod 1234`を起動し，Linuxから`nc 192.168.4.1 1234`で接続できます．UDPならPicoNIXで`udp_echod 1234`を起動し，Linuxから`printf 'hello\n' | nc -u -w 2 192.168.4.1 1234`を実行します．同一のポート7を使う場合もTCPとUDPは別プロトコルです．
 
-`httpd`を起動すれば`http://192.168.4.1/`でページを表示できます．`edit`が開けるのは`/tmp`直下のファイルだけです．紹介ページの変更は，`dd if=/etc/index.html of=/tmp/index.html`でコピーし，`edit /tmp/index.html`で編集した後，`dd if=/tmp/index.html of=/etc/index.html`で戻してください．`/etc`の内容もRAM上にあるため，再起動時に元に戻ります．`lsof`ではソケットとローカルポートを確認できます．
+`httpd`を起動すれば`http://192.168.4.1/`でページを表示できます．紹介ページは`edit /etc/index.html`で直接編集・保存できます．`/etc`の内容もRAM上にあるため，再起動時に元に戻ります．`lsof`ではソケットとローカルポートを確認できます．
 
 ## カーネル標準サービス
 

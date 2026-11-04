@@ -2,7 +2,7 @@
 
 [日本語](../../ja/literacy/VI.md) | [Documentation](../../DOCS.md) | [edit](EDIT.md)
 
-`vi` is a small modal editor separate from `edit`. Run `vi /tmp/hello.txt` to edit a RAM file directly under `/tmp`. Its buffer holds up to 2,048 bytes, matching the RAM-file limit. It is not a full vi implementation. If a file exceeds 2,048 bytes, the editor rejects it instead of silently truncating its contents.
+`vi` is a small modal editor separate from `edit`. Run `vi /tmp/hello.txt` or `vi /etc/rc` to edit a RAM file directly under `/tmp` or `/etc`. Its buffer holds up to 2,048 bytes, matching the RAM-file limit. It is not a full vi implementation. If a file exceeds 2,048 bytes, the editor rejects it instead of silently truncating its contents.
 
 | Key | Action |
 |---|---|
