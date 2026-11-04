@@ -1191,7 +1191,7 @@ static int tmp_name(const char *p, char name[TMP_NAME_CAP]) {
     else return 0;
     p+=5;
     unsigned len=0;
-    while(p[len] && p[len]!='/' && len<TMP_NAME_CAP-5) len++;
+    while(p[len] && p[len]!='/' && len<TMP_NAME_CAP-4) len++;
     if(!len || p[len]) return 0;
     memcpy(name,prefix,4);
     memcpy(name+4,p,len);

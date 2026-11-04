@@ -72,6 +72,15 @@
 - `getdents(fd, entry, size)`：`entry` は `piconix_dirent_t *` です．1はエントリ取得，0は終端を表します．
 - `spawn_tmp(path)`：`path` は `/tmp` 内のPNX1形式のThumbイメージを指定します．
 
+## `open()`，`unlink()`，`getdents()`の境界条件
+
+- `open()`で指定するフラグは`O_RDONLY`，`O_WRONLY`，`O_RDWR`と，対応する`O_CREAT`，`O_TRUNC`，`O_APPEND`，`O_NONBLOCK`の組合せに限定されます．不正な組合せは`OS_EINVAL`を返します．`O_NONBLOCK`を`open()`時に指定できるのはコンソールとUART1だけです（Wi-Fi端末を含め，対応するTTYやソケットでは開いた後に`fcntl(F_SETFL)`で変更できます）．
+- `/tmp`と`/etc`のファイルが存在せず，`O_CREAT`も指定しなければ`OS_ENOENT`です．11個のRAMファイル枠がすべて使用中なら，新規作成は`OS_ENOSPC`を返します．利用可能なFDがなければ`OS_EMFILE`です．RAMファイル名はASCIIで最大27バイト（内部形式の`tmp/`または`etc/`を含めて31バイト）です．
+- `/tmp`と`/etc`で`O_TRUNC`は書込可能モードで開いた場合だけサイズを0にします．`O_APPEND`では各書込み時にファイル末尾を使用します．2 KiBの上限では部分書込みが可能ですが，書き込めるバイトが0のときは`OS_ENOSPC`を返します．
+- `unlink()`でRAMファイルを削除するとき，どれかのタスクがそのファイルを開いていれば`OS_EBUSY`です．存在しなければ`OS_ENOENT`です．
+- `getdents()`はディレクトリFDにのみ有効で，正常時は1件につき`1`，末尾で`0`を返します．サイズが`sizeof(piconix_dirent_t)`未満の場合は`OS_EINVAL`，ディレクトリではないFDの場合は`OS_EBADF`です．
+- `lseek()`は対応するファイルに限定されます．RAMファイルと`/dev/shm`はサイズ末尾を超えた位置までシークできますが，それぞれ2 KiBを超える位置は`OS_EINVAL`です．シーク非対応のFDも`OS_EINVAL`を返します．
+
 ## C APIと低水準ABIの違い
 
 `bind()`，`listen()`，`accept()`，`connect()`，`send()`，`recv()`，`sendto()`，`recvfrom()` はユーザ側のBSD風アダプターで，個々に独立したSVC番号はありません．特にTCPの `bind()` は待受開始を行い，`listen()` はバックログ管理を実装しません．`accept()` は相手アドレスの取得に対応していません．詳しくは [NETWORK-PROGRAMMING.md](../development/apps/c/NETWORK-PROGRAMMING.md) を参照してください．

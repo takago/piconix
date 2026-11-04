@@ -72,6 +72,15 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 - `getdents(fd, entry, size)`: `entry` is `piconix_dirent_t *`. Returns 1 for an entry and 0 at directory end.
 - `spawn_tmp(path)`: path names a PNX1-format Thumb image under `/tmp`.
 
+## Boundary conditions for `open()`, `unlink()`, and `getdents()`
+
+- `open()` accepts the access modes `O_RDONLY`, `O_WRONLY`, `O_RDWR` and supported combinations of `O_CREAT`, `O_TRUNC`, `O_APPEND`, and `O_NONBLOCK`. Invalid combinations return `OS_EINVAL`. At `open()` time, `O_NONBLOCK` is accepted only for the console and UART1; supported TTYs (including Wi-Fi TTY) and sockets can change it later with `fcntl(F_SETFL)`.
+- Opening a missing file under `/tmp` or `/etc` without `O_CREAT` returns `OS_ENOENT`. Creating a file when all eleven RAM-file slots are occupied returns `OS_ENOSPC`; running out of FDs returns `OS_EMFILE`. RAM filenames are at most 27 ASCII bytes (31 bytes including the internal `tmp/` or `etc/` prefix).
+- `O_TRUNC` truncates RAM files only when opened in a writable mode. `O_APPEND` targets the end of the file on every write. A write at the 2-KiB boundary may be partial; when no bytes fit, a nonempty write returns `OS_ENOSPC`.
+- `unlink()` returns `OS_EBUSY` when any task still has that RAM file open, or `OS_ENOENT` if it is missing.
+- `getdents()` works on directory FDs only. It returns `1` per entry and `0` at the end. A buffer smaller than `sizeof(piconix_dirent_t)` returns `OS_EINVAL`; a non-directory FD returns `OS_EBADF`.
+- `lseek()` is restricted to supported FD types. RAM files and `/dev/shm` can seek past their current data end, but not beyond 2 KiB (`OS_EINVAL`). Unsupported FDs also return `OS_EINVAL`.
+
 ## C APIs versus raw ABI
 
 `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` are user-space BSD-style adapters, not separate SVC numbers. TCP `bind()` starts listening, `listen()` does not maintain a backlog, and `accept()` cannot return the peer address. See [NETWORK-PROGRAMMING.md](../development/apps/c/NETWORK-PROGRAMMING.md).

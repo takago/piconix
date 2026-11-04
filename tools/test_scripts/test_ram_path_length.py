@@ -8,7 +8,10 @@ root = Path(__file__).resolve().parents[2]
 source = (root / "kernel/kernel.c").read_text()
 assert "#define TMP_NAME_CAP 32" in source
 assert "char name[TMP_NAME_CAP]" in source
-assert "len<TMP_NAME_CAP-5" in source
+# Four bytes for "tmp/" or "etc/", plus one terminating NUL:
+# the runtime must accept 27 ASCII filename bytes, matching the generator.
+assert "len<TMP_NAME_CAP-4" in source
+assert "name[4+len]=0" in source
 spec = importlib.util.spec_from_file_location("generate_initial_fs", root / "tools/generate_initial_fs.py")
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
