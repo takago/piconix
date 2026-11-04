@@ -12,6 +12,12 @@ Learn PicoNIX in three steps: **use the system → observe how it works → read
 
 Complete the exercises in each course in order. Move to the next level when you can explain the end-of-level questions in your own words. You can also follow a particular topic after checking its prerequisites. Kernel modifications are not required for the first two levels.
 
+## Moving between pages
+
+Each learning page ends with **Previous, Contents, and Next** links. Next follows the core learning sequence. Supplementary topics such as `help`, `edit`, and `vi`, as well as the Pico W-only networking lab, are optional detours: their Next link returns to the main course. **You can proceed to Advanced without the networking lab.**
+
+A course section does not necessarily correspond to exactly one separate lesson page. Course pages provide exercises and checkpoints; linked lessons provide deeper explanations.
+
 ## Preparation and conventions
 
 - Follow [Setup](../setup/SETUP.md) to build, flash and connect over USB. A regular Pico is sufficient except for the optional network lab.
@@ -55,3 +61,11 @@ The courses define *learning order*. For exact options, APIs and limits, use the
 | System call | Interface from a user program to a kernel service |
 | PIC | Code that does not depend on one placement address |
 | XIP | Execute code directly from Flash without copying all of it into RAM |
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [PicoNIX overview](README.md) | [Documentation](../../DOCS.md) | [Beginner course](BEGINNER.md) |

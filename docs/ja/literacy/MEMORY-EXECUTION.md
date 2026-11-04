@@ -25,3 +25,11 @@ piconix# mem
 ## 発展
 
 [メモリビューアの操作](MEM.md)，[RAM配置](../reference/MEMORY-LAYOUT.md)，[内部構造](../reference/INTERNAL.md)を順番に参照し，起動時にイメージがどこからどこへ配置されるかを調べてください．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [端末実習](TERMINALS-LAB.md) | [中級コース](INTERMEDIATE.md) | [システム観察](MONITORING.md) |

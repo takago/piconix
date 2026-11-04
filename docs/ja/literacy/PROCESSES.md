@@ -26,3 +26,11 @@ piconix# cat /proc/tasks
 ## 発展
 
 [システムモニタリング](MONITORING.md)でFDとシステムコールを観察し，[アーキテクチャ](../reference/ARCHITECTURE.md)でタスク切り替えを調べます．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [標準入出力とパイプ](IO-IPC.md) | [初級コース](BEGINNER.md) | [中級コース](INTERMEDIATE.md) |

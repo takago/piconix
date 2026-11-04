@@ -95,3 +95,13 @@ See the [assembly examples](../../../../../userland/examples/asm/en/README.md) f
 ## System call ABI
 
 The immediate `0` in `svc #0` is **not** the system call number; the call number is passed in `r0`. See the [system call reference](../../../reference/SYSCALLS.md) for current numbers and arguments. This is a small educational Thumb-1 assembler, not a full GNU `as` implementation.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [C application development](../c/PROGRAMMING.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel reading](../../kernel/KERNEL-READING-GUIDE.md) |

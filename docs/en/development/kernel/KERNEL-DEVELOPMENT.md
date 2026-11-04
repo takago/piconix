@@ -160,3 +160,11 @@ The goal is to learn **two ways of exposing existing kernel state**, not to add 
 - [INTERNAL.md](../../reference/INTERNAL.md): Tasks, VFS and internals
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md): User-space C development
 - [TRACE.md](../../literacy/TRACE.md): Inspecting SVCs and task switches
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Driver development](../drivers/DRIVER-DEVELOPMENT.md) | [Advanced course](../../literacy/ADVANCED.md) | [Learning path](../../literacy/LEARNING-PATH.md) |

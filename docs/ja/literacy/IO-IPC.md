@@ -39,3 +39,11 @@ piconix# lsof
 ## 発展
 
 [パイプの実装と制約](PIPE.md)で`pipe()`，`dup2()`，EOFを確認し，[プロセス](PROCESSES.md)に進んでください．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [基本操作](BASICS.md) | [初級コース](BEGINNER.md) | [プロセス](PROCESSES.md) |

@@ -160,3 +160,13 @@ int main(int argc, char *argv[]) {
 `getdents()`の`device_id`フィールドはディレクトリ項目のIDです．`/dev`と`/proc`ではデバイスID，`/bin`ではプログラムID，`/tmp`・`/etc`ではRAMファイルのスロット番号（0始まり）を返します．ディレクトリやIDのない項目は`0xffff`です．`ls -l`は`TYPE ID SIZE NAME`の見出しを表示し，`p`をプログラム，`f`をRAMファイル，`c`をデバイス，`d`をディレクトリとして区別します．スロット番号はファイルの削除・再生成で変わるため，恒久的な識別子ではありません．
 
 対話型子プロセスには`spawn_foreground(program, argc, argv)`または`spawn_tmp_foreground(path)`を利用できます．起動とTTY制御権移譲を一体化し，子プロセスが先に走る競合を防ぎます．`waitpid()`の後は親が`set_foreground(0)`でTTY制御権を回収します．バックグラウンド処理には通常の`spawn()`を使います．
+
+---
+
+## 学習ナビゲーション
+
+**補助教材**です．「前へ」は関連する本編，「次へ」は本編の次のテーマを示します．
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [Cアプリ開発](PROGRAMMING.md) | [上級コース](../../../literacy/ADVANCED.md) | [カーネル読解](../../kernel/KERNEL-READING-GUIDE.md) |

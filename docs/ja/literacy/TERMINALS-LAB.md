@@ -28,3 +28,11 @@ piconix# stty
 ## 発展
 
 [TTYの仕様](TTY.md)で`ioctl()`と`fcntl()`の役割を比較し，[端末表示と復帰](TERMINAL.md)で代替画面と`reset`の扱いを調べましょう．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [中級コース](INTERMEDIATE.md) | [中級コース](INTERMEDIATE.md) | [メモリと実行](MEMORY-EXECUTION.md) |

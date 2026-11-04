@@ -42,3 +42,10 @@ case SYS_EXAMPLE:
 - Cラッパーの番号と引数順がディスパッチ側と一致すること
 - 必要なら`trace`にSVCイベントが記録されること
 
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [カーネル読解](../kernel/KERNEL-READING-GUIDE.md) | [上級コース](../../literacy/ADVANCED.md) | [ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md) |

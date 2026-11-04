@@ -160,3 +160,13 @@ In long listing mode (`ls -l /dev`), device nodes display their kernel-assigned 
 The `device_id` field returned by `getdents()` identifies the directory entry: device ID for `/dev` and `/proc`, program ID for `/bin`, and zero-based RAM-file slot for `/tmp` and `/etc`. Directories or entries without an ID use `0xffff`. `ls -l` prints a `TYPE ID SIZE NAME` header, where `p` means program, `f` RAM file, `c` device, and `d` directory. RAM-file slot IDs are not persistent across deletion and recreation.
 
 Interactive child programs can use `spawn_foreground(program, argc, argv)` or `spawn_tmp_foreground(path)` when the child needs TTY access immediately. These functions make the spawn and foreground ownership change atomic; after `waitpid()` the parent calls `set_foreground(0)` to reclaim the terminal. Use plain `spawn()` for background jobs.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [C application development](PROGRAMMING.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel reading](../../kernel/KERNEL-READING-GUIDE.md) |

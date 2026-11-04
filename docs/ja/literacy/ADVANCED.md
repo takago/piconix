@@ -2,6 +2,8 @@
 
 [学習コース一覧](LEARNING-PATH.md) | [中級へ](INTERMEDIATE.md) | [English](../../en/literacy/ADVANCED.md)
 
+**このコースの順路：** [Cアプリ開発](../development/apps/c/PROGRAMMING.md) → [カーネル読解](../development/kernel/KERNEL-READING-GUIDE.md) → [システムコール開発](../development/syscalls/SYSCALL-DEVELOPMENT.md) → [ドライバ開発](../development/drivers/DRIVER-DEVELOPMENT.md) → [カーネル拡張](../development/kernel/KERNEL-DEVELOPMENT.md)．各教材の末尾から「次へ」で進めます．補助教材やPico Wのネットワーク実習は任意です．
+
 **到達目標：** 小さなCプログラムがシステムコールを通じてカーネルへ処理を依頼する経路を追跡し，カーネル内の担当機能と安全な拡張手順を説明できることです．最後の改造課題は任意です．
 
 **前提：** [中級コース](INTERMEDIATE.md)相当の知識，Cの関数・ポインタ・構造体，Linux PCでのビルド操作．Cortex-M0+の例外処理とThumbアセンブリは必要になったところで学びます．作業前に[全体構造](../reference/ARCHITECTURE.md)，[メモリ配置](../reference/MEMORY-LAYOUT.md)，[Linuxとの違い](../reference/DIFFERENCES.md)を確認してください．
@@ -70,3 +72,11 @@ userland/apps/hello.c
 4. デバイス・ネットワークを別の機能群として把握し，それぞれの責務を説明できる．
 
 **次の資料：** 実装の仕様は[システムコール](../reference/SYSCALLS.md)，[内部構造](../reference/INTERNAL.md)，[関数一覧](../../FUNCTIONS.md)で確認します．設計の歴史を知る場合は[開発日誌](../../DEVELOPMENT_DIARY.ja.md)を参照してください．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [デバイスI/O](DEVICE-IO.md) | [学習コース一覧](LEARNING-PATH.md) | [Cアプリ開発](../development/apps/c/PROGRAMMING.md) |

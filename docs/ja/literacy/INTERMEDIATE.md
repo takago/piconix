@@ -2,6 +2,8 @@
 
 [学習コース一覧](LEARNING-PATH.md) | [初級へ](BEGINNER.md) | [上級へ](ADVANCED.md) | [English](../../en/literacy/INTERMEDIATE.md)
 
+**このコースの順路：** [端末実習](TERMINALS-LAB.md) → [メモリと実行](MEMORY-EXECUTION.md) → [システム観察](MONITORING.md) → [デバイスI/O](DEVICE-IO.md) → [上級コース](ADVANCED.md)．各教材の末尾から「次へ」で進めます．補助教材やPico Wのネットワーク実習は任意です．
+
 **到達目標：** 目に見えるコマンドの動作を，ファイルディスクリプタ（FD），端末，タスク，メモリ，デバイスなどのOSの仕組みと結び付けて説明できることです．ソースコードの変更は必要ありません．
 
 **前提：** [初級コース](BEGINNER.md)相当の操作．USB接続だけで1～5を実施できます．第6節のネットワークはPico Wを使う場合の選択実習です．
@@ -78,3 +80,11 @@ piconix# cat /proc/fb
 5. デバイスとネットワークを混同せず，Pico Wの通信が追加機能であることを説明できる．
 
 次は[上級コース](ADVANCED.md)です．OSの実装を読む前に，[全体構造](../reference/ARCHITECTURE.md)と[Linuxとの違い](../reference/DIFFERENCES.md)に目を通します．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [プロセス](PROCESSES.md) | [学習コース一覧](LEARNING-PATH.md) | [端末実習](TERMINALS-LAB.md) |

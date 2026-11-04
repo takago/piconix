@@ -28,3 +28,11 @@ PicoNIX `raw` and `cooked` are simplified modes, not complete POSIX `termios` se
 ## Next step
 
 Compare `ioctl()` and `fcntl()` in the [TTY reference](TTY.md), and study alternate screens and `reset` in [Terminal display](TERMINAL.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Intermediate course](INTERMEDIATE.md) | [Intermediate course](INTERMEDIATE.md) | [Memory and execution](MEMORY-EXECUTION.md) |

@@ -259,3 +259,11 @@ Like the earlier `greet` example, this application must be added to CMake and re
 - [Assembly programming](../asm/ASM.md) and [Python](../python/PYTHON.md): programs created inside PicoNIX (a different workflow from host-compiled C)
 - [Architecture](../../../reference/ARCHITECTURE.md) and [Internals](../../../reference/INTERNAL.md): PIC loading, scheduling, and kernel implementation
 - [Network programming](NETWORK-PROGRAMMING.md): TCP/UDP application development on Pico W
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Advanced course](../../../literacy/ADVANCED.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel reading](../../kernel/KERNEL-READING-GUIDE.md) |

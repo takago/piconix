@@ -28,3 +28,13 @@ The editing area starts at the left edge with no line-number gutter. Arrow keys 
 5. Check the file with `cat /tmp/hello.txt`.
 
 If there are unsaved changes, `:q` displays a warning instead of quitting. Use `:q!` only when you want to discard edits. Exiting with `Ctrl+C` does not save.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Command basics](BASICS.md) | [Beginner course](BEGINNER.md) | [Standard I/O and pipes](IO-IPC.md) |

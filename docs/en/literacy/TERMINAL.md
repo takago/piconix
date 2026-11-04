@@ -121,3 +121,13 @@ cat note.txt | grep hello
 ```
 
 An invalid option or argument count is reported by the command itself. The small shell does not implement full POSIX quoting, and `/tmp` executable images currently do not accept arguments. Without an argument, `omikuji` counts down for 10 seconds, so `omikuji &` works too. `omikuji -i` repeatedly reads integers from standard input as an input exercise. `echo "3 4" | omikuji -i` runs a 3-second and then a 4-second fortune, stopping at EOF. Whitespace separates values; invalid tokens and numbers outside 1..30 are ignored. Avoid running interactive `-i` in the background because it may compete for terminal input.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Terminal lab](TERMINALS-LAB.md) | [Intermediate course](INTERMEDIATE.md) | [Memory and execution](MEMORY-EXECUTION.md) |

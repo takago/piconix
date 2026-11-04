@@ -80,3 +80,13 @@ SysTick runs every 1ms and the usual time slice is 10ms. A sleeping task can tri
 ### Device names and IDs
 
 Fixed device IDs and paths are shared between the kernel VFS and `trace` through `include/device_names.h`. `trace` prints a canonical path when available, falling back to `id=N` for unknown or dynamic devices. The TTY column shows `console`, `ttyS1`, or `ttyN0`. `ls -l` shows IDs for device nodes, program entries, and RAM-file slots; use `/proc/task/<pid>` or `lsof` to inspect which descriptors are open. Existing binary trace logs from older firmware should not be mixed with this format because TTY metadata moved into the event-kind byte.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [System monitoring](MONITORING.md) | [Intermediate course](INTERMEDIATE.md) | [Device I/O](DEVICE-IO.md) |

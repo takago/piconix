@@ -46,3 +46,13 @@ cat test.s | grep movs | hexdump
 前景パイプラインの実行中にCtrl+Cを入力すると，登録された最大3段の前景タスクをカーネルが中断します．POSIXのシグナル配送ではありません．`echo hello | nc -u -N 192.168.4.2 12345`のような単発送信は，[ncの解説](../reference/devices/NC.md)を参照してください．
 
 **実装の参照先：** `userland/apps/shell.c` の `run_pipeline()` とコマンド解析，`kernel/kernel.c` の `PIPE_COUNT`，`PIPE_BYTES`，`pipe_transfer()` およびパイプ関連システムコール．
+
+---
+
+## 学習ナビゲーション
+
+**補助教材**です．「前へ」は関連する本編，「次へ」は本編の次のテーマを示します．
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [標準入出力とパイプ](IO-IPC.md) | [初級コース](BEGINNER.md) | [プロセス](PROCESSES.md) |

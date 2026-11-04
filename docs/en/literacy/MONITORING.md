@@ -59,3 +59,11 @@ The standard Pico has no Wi-Fi. Pico W must be configured for networking to inte
 - Why can observations of the live system change between commands?
 
 Next, try the [Networking lab](NETWORKING.md) or write your own observable program using the [C programming guide](../development/apps/c/PROGRAMMING.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Memory and execution](MEMORY-EXECUTION.md) | [Intermediate course](INTERMEDIATE.md) | [Device I/O](DEVICE-IO.md) |

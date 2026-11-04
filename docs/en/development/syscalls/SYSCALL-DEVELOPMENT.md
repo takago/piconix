@@ -42,3 +42,10 @@ case SYS_EXAMPLE:
 - Wrapper argument positions match the dispatcher
 - SVC events appear in `trace` where relevant
 
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Kernel reading](../kernel/KERNEL-READING-GUIDE.md) | [Advanced course](../../literacy/ADVANCED.md) | [Driver development](../drivers/DRIVER-DEVELOPMENT.md) |

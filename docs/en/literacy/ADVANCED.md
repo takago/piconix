@@ -2,6 +2,8 @@
 
 [Learning path](LEARNING-PATH.md) | [Intermediate](INTERMEDIATE.md) | [日本語](../../ja/literacy/ADVANCED.md)
 
+**Course route:** [C application development](../development/apps/c/PROGRAMMING.md) → [Kernel reading](../development/kernel/KERNEL-READING-GUIDE.md) → [System call development](../development/syscalls/SYSCALL-DEVELOPMENT.md) → [Driver development](../development/drivers/DRIVER-DEVELOPMENT.md) → [Kernel development](../development/kernel/KERNEL-DEVELOPMENT.md). Use Next at the end of each lesson. Supplementary topics and the Pico W networking lab are optional.
+
 **Goal:** Trace how a small C program invokes a kernel service through a system call; explain the responsibilities of key kernel modules and a safe approach to extension. Modifying the OS in the final exercise is optional.
 
 **Prerequisites:** [Intermediate](INTERMEDIATE.md) concepts, basic C functions/pointers/structures, and a Linux build environment. Study Cortex-M0+ exceptions and Thumb assembly as needed. Read [Architecture](../reference/ARCHITECTURE.md), [Memory layout](../reference/MEMORY-LAYOUT.md), and [Differences from Linux](../reference/DIFFERENCES.md) first.
@@ -70,3 +72,11 @@ If you make changes, follow [Setup](../setup/SETUP.md) and the existing tests. S
 4. Describe the separate responsibilities of device I/O and networking.
 
 **References:** [Syscalls](../reference/SYSCALLS.md), [Internals](../reference/INTERNAL.md), [Function index](../../FUNCTIONS.md), and the [Development diary](../../DEVELOPMENT_DIARY.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Device I/O](DEVICE-IO.md) | [Learning path](LEARNING-PATH.md) | [C application development](../development/apps/c/PROGRAMMING.md) |

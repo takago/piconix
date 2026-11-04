@@ -26,3 +26,11 @@ piconix# cat /proc/tasks
 ## Next step
 
 Inspect FDs and system calls in [Monitoring](MONITORING.md), and learn about task switching in the [Architecture reference](../reference/ARCHITECTURE.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Standard I/O and pipes](IO-IPC.md) | [Beginner course](BEGINNER.md) | [Intermediate course](INTERMEDIATE.md) |

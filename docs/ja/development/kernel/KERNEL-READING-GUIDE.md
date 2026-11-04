@@ -141,3 +141,11 @@ Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイ�
 - [システムコール一覧](../../reference/SYSCALLS.md)：番号，引数と動作
 - [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md)：自分で呼び出しを追加する
 - [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)：機能を変更する実習
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [Cアプリ開発](../apps/c/PROGRAMMING.md) | [上級コース](../../literacy/ADVANCED.md) | [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md) |

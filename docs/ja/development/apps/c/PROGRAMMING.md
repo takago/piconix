@@ -259,3 +259,11 @@ restore:
 - [アセンブリプログラミング](../asm/ASM.md)・[Python](../python/PYTHON.md)：PicoNIX上で作るプログラム（ホストでCをビルドする方式とは異なる）
 - [全体構造](../../../reference/ARCHITECTURE.md)・[内部構造](../../../reference/INTERNAL.md)：PICロード，スケジューラ，カーネル実装
 - [ネットワークプログラミング](NETWORK-PROGRAMMING.md)：Pico W上のTCP/UDPアプリ開発
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [上級コース](../../../literacy/ADVANCED.md) | [上級コース](../../../literacy/ADVANCED.md) | [カーネル読解](../../kernel/KERNEL-READING-GUIDE.md) |

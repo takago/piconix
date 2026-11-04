@@ -29,3 +29,11 @@ piconix# ls /tmp
 ## Next step
 
 Continue with [Files and standard I/O](IO-IPC.md) and save a command's output in a file.
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Beginner course](BEGINNER.md) | [Beginner course](BEGINNER.md) | [Standard I/O and pipes](IO-IPC.md) |

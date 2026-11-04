@@ -59,3 +59,11 @@ piconix# cat /proc/net/memory
 - 実行中の状態を繰り返し読み取るとき，なぜ値が変わるのでしょうか．
 
 次は[ネットワーク実習](NETWORKING.md)へ進むか，[アプリ開発](../development/apps/c/PROGRAMMING.md)で観察対象のプログラムを作ってみてください．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [メモリと実行](MEMORY-EXECUTION.md) | [中級コース](INTERMEDIATE.md) | [デバイスI/O](DEVICE-IO.md) |

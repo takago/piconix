@@ -29,3 +29,13 @@ Memory browsing continues if symbols are unavailable.
 4. Quit with `q`, then run `mem -s` or `mem -s kernel` to inspect available symbol information. Symbols help identify addresses, but not every address has a symbol.
 
 **Note:** Live RAM can change during inspection. The display is not an atomic snapshot, and `mem` cannot write to memory.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Memory and execution](MEMORY-EXECUTION.md) | [Intermediate course](INTERMEDIATE.md) | [System monitoring](MONITORING.md) |

@@ -30,3 +30,11 @@ piconix# tty
 ## 発展
 
 [Cによるアプリ開発](../development/apps/c/PROGRAMMING.md)でデバイスへの読み書きを学び，[ドライバ開発](../development/drivers/DRIVER-DEVELOPMENT.md)で新しいノードを追加する方法へ進めます．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [システム観察](MONITORING.md) | [中級コース](INTERMEDIATE.md) | [上級コース](ADVANCED.md) |

@@ -30,3 +30,11 @@ If an LED matrix is correctly connected, consult the [framebuffer instructions](
 ## Next step
 
 Use the [C application guide](../development/apps/c/PROGRAMMING.md) to access devices, then explore [adding a driver](../development/drivers/DRIVER-DEVELOPMENT.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [System monitoring](MONITORING.md) | [Intermediate course](INTERMEDIATE.md) | [Advanced course](ADVANCED.md) |

@@ -114,3 +114,13 @@ This address illustrates the Pico W's own AP-mode IP address. Check the actual a
 - Record the timing of PC communication and PicoNIX observations and explain any changes.
 
 For C-based TCP/UDP clients or servers, continue to [Network programming](../development/apps/c/NETWORK-PROGRAMMING.md). Before remote device control, read the [safety notes and protocol reference](../reference/devices/REMOTE-DEVICE.md).
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Device I/O](DEVICE-IO.md) | [Intermediate course](INTERMEDIATE.md) | [Advanced course](ADVANCED.md) |

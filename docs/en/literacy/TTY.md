@@ -68,3 +68,13 @@ During shell line editing, Ctrl+L clears the terminal screen using ANSI sequence
 
 
 **Implementation references:** `tty_canonical`, `tty_echo`, `tty_onlcr`, `tty_saved_*`, `foreground_group`, and `OS_TTY_*` handling in `kernel/kernel.c`; line editing and pipelines in `userland/apps/shell.c`.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Terminal lab](TERMINALS-LAB.md) | [Intermediate course](INTERMEDIATE.md) | [Memory and execution](MEMORY-EXECUTION.md) |

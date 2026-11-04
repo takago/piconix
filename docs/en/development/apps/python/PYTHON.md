@@ -240,3 +240,12 @@ printf 'temp' | nc -u -w 2 <Pico W IP address> 9000
 
 TCP and UDP have separate port spaces. `accept()` and `recvfrom()` are nonblocking. TCP `send()` may be partial or temporarily unavailable; the TCP sample makes a single short send without retries. UDP `"peer"` with port `0` addresses only the most recently received sender. Each Python `while` loop is limited to 10,000 iterations, so these examples are not permanent services. Use only on a trusted test LAN.
 
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [C application development](../c/PROGRAMMING.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel reading](../../kernel/KERNEL-READING-GUIDE.md) |

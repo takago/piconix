@@ -57,3 +57,10 @@ Confirm actual public macro names and types against the headers when implementin
 | Contention | Ownership and concurrent access rules are defined |
 | Hardware | Missing peripherals are handled safely on Pico and Pico W |
 
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [System call development](../syscalls/SYSCALL-DEVELOPMENT.md) | [Advanced course](../../literacy/ADVANCED.md) | [Kernel development](../kernel/KERNEL-DEVELOPMENT.md) |

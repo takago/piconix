@@ -21,3 +21,13 @@ For a simple exercise, run `edit /tmp/hello.txt`, type and save a short line, th
 - Files over 2,048 bytes are rejected rather than silently truncated.
 - On a save failure, the status line shows `Save failed`. Check file size and available space.
 - The editor temporarily changes terminal input and display settings; use an ANSI-compatible terminal.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Command basics](BASICS.md) | [Beginner course](BEGINNER.md) | [Standard I/O and pipes](IO-IPC.md) |

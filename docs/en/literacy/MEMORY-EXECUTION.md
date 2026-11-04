@@ -25,3 +25,11 @@ In full-screen `mem`, press `1`–`6` for user slots, `k` for kernel RAM, `K` fo
 ## Next step
 
 Read the [memory viewer guide](MEM.md), [memory layout](../reference/MEMORY-LAYOUT.md), and [internals](../reference/INTERNAL.md) to trace how a program image is placed at run time.
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Terminal lab](TERMINALS-LAB.md) | [Intermediate course](INTERMEDIATE.md) | [System monitoring](MONITORING.md) |

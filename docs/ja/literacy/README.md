@@ -109,3 +109,11 @@ GPL-3.0-or-later．詳細は`LICENSE`を参照してください．
 [文書一覧](../../DOCS.ja.md) | [English](../../en/literacy/README.md)
 
 RAMファイルのコピーには`cp SRC DST`を使用します（例：`cp /etc/index.html /tmp/index.html`）．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [文書案内](../../DOCS.ja.md) | [学習コース一覧](LEARNING-PATH.md) | [学習コース一覧](LEARNING-PATH.md) |

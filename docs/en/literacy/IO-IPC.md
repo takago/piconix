@@ -38,3 +38,11 @@ piconix# lsof
 ## Next step
 
 Explore `pipe()`, `dup2()`, and EOF in the [Pipe reference](PIPE.md), then move to [Processes](PROCESSES.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Command basics](BASICS.md) | [Beginner course](BEGINNER.md) | [Processes](PROCESSES.md) |

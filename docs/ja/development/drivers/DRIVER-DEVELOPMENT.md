@@ -57,3 +57,10 @@ if (fd >= 0) {
 | 排他 | 機器を同時利用するときの所有者・競合条件を定義する |
 | ハードウェア | Pico/Pico Wの両方で未搭載機能を安全に扱う |
 
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md) | [上級コース](../../literacy/ADVANCED.md) | [カーネル拡張](../kernel/KERNEL-DEVELOPMENT.md) |

@@ -34,3 +34,11 @@ echo hello | grep hello | cat
 **Final exercise:** trace a complete `hello` execution: the shell's `spawn()` call, task-slot allocation and initial context, PendSV scheduling, `write()` through VFS/TTY, and cleanup on exit. Next, draw the FD and pipe flow for `echo hello | cat`. Explain each transition with the names of the functions responsible, without modifying the kernel.
 
 Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../literacy/TRACE.md), [Memory inspection](../../literacy/MEM.md), [TTY](../../literacy/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../FUNCTIONS.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [C application development](../apps/c/PROGRAMMING.md) | [Advanced course](../../literacy/ADVANCED.md) | [System call development](../syscalls/SYSCALL-DEVELOPMENT.md) |

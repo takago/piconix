@@ -2,6 +2,8 @@
 
 [学習コース一覧](LEARNING-PATH.md) | [中級へ](INTERMEDIATE.md) | [English](../../en/literacy/BEGINNER.md)
 
+**このコースの順路：** [基本操作](BASICS.md) → [標準入出力とパイプ](IO-IPC.md) → [プロセス](PROCESSES.md) → [中級コース](INTERMEDIATE.md)．各教材の末尾から「次へ」で進めます．補助教材やPico Wのネットワーク実習は任意です．
+
 **到達目標：** PicoNIXのシェルでコマンドを探し，RAMファイルを作り，標準入出力をつなぎ，実行中のプロセスを調べられるようになることです．OSのソースコードを読む必要はありません．
 
 **準備：** [セットアップ](../setup/SETUP.md)を終えたPicoまたはPico WとUSB端末．以下はすべてPicoNIX上で入力します．`/tmp`の内容は再起動すると消えます．
@@ -72,3 +74,11 @@ piconix# cat /proc/tasks
 4. `/dev`，`/proc`，`/tmp`の違いを例示できる．
 
 ここまで説明できたら[中級コース](INTERMEDIATE.md)へ進み，FDやメモリの内部動作を調べます．もっとコマンドに慣れたい場合は，[dd](DD.md)，[Pong](PONG.md)，[Python](../development/apps/python/PYTHON.md)を選択しても構いません．
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [学習コース一覧](LEARNING-PATH.md) | [学習コース一覧](LEARNING-PATH.md) | [基本操作](BASICS.md) |

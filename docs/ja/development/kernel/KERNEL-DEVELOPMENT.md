@@ -162,3 +162,11 @@ int main(void) {
 - [INTERNAL.md](../../reference/INTERNAL.md)：タスク，VFS，カーネル内部
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md)：ユーザ空間Cアプリ追加
 - [TRACE.md](../../literacy/TRACE.md)：SVCとタスク切替の観察
+
+---
+
+## 学習ナビゲーション
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md) | [上級コース](../../literacy/ADVANCED.md) | [学習コース一覧](../../literacy/LEARNING-PATH.md) |

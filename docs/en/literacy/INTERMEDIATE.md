@@ -2,6 +2,8 @@
 
 [Learning path](LEARNING-PATH.md) | [Beginner](BEGINNER.md) | [Advanced](ADVANCED.md) | [日本語](../../ja/literacy/INTERMEDIATE.md)
 
+**Course route:** [Terminal lab](TERMINALS-LAB.md) → [Memory and execution](MEMORY-EXECUTION.md) → [System monitoring](MONITORING.md) → [Device I/O](DEVICE-IO.md) → [Advanced course](ADVANCED.md). Use Next at the end of each lesson. Supplementary topics and the Pico W networking lab are optional.
+
 **Goal:** Connect observed command behavior to file descriptors (FDs), terminals, tasks, memory, and devices without modifying source code.
 
 **Prerequisite:** [Beginner-level](BEGINNER.md) operations. Sections 1–5 work over USB on either board. Section 6 is optional and requires Pico W.
@@ -78,3 +80,11 @@ Follow the [networking lab](NETWORKING.md) to investigate Wi-Fi, Telnet, HTTP, a
 5. Distinguish device I/O from networking and explain what is Pico W-specific.
 
 Move to the [advanced course](ADVANCED.md) after reviewing [Architecture](../reference/ARCHITECTURE.md) and [Differences from Linux](../reference/DIFFERENCES.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Processes](PROCESSES.md) | [Learning path](LEARNING-PATH.md) | [Terminal lab](TERMINALS-LAB.md) |

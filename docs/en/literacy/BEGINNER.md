@@ -2,6 +2,8 @@
 
 [Learning path](LEARNING-PATH.md) | [Intermediate](INTERMEDIATE.md) | [日本語](../../ja/literacy/BEGINNER.md)
 
+**Course route:** [Command basics](BASICS.md) → [Standard I/O and pipes](IO-IPC.md) → [Processes](PROCESSES.md) → [Intermediate course](INTERMEDIATE.md). Use Next at the end of each lesson. Supplementary topics and the Pico W networking lab are optional.
+
 **Goal:** Find shell commands, create RAM files, connect standard I/O, and inspect running processes. No kernel source knowledge is required.
 
 **Before starting:** Complete [Setup](../setup/SETUP.md) on a Pico or Pico W and connect a USB terminal. All commands here run on PicoNIX. `/tmp` is lost on reboot.
@@ -72,3 +74,11 @@ piconix# cat /proc/tasks
 4. Explain the distinct roles of `/dev`, `/proc`, and `/tmp`.
 
 Then move to the [intermediate course](INTERMEDIATE.md). For optional exploration, see [dd](DD.md), [Pong](PONG.md), or [Python](../development/apps/python/PYTHON.md).
+
+---
+
+## Learning navigation
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Learning path](LEARNING-PATH.md) | [Learning path](LEARNING-PATH.md) | [Command basics](BASICS.md) |

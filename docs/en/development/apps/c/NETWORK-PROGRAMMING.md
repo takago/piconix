@@ -47,3 +47,13 @@ Example: `printf 'READ /dev/adc/temp\n' | nc -u -w 2 192.168.4.1 2000`. These se
 ## Exploring the implementation
 
 Kernel network services are separate from user-space socket applications. `trace` can observe system calls and `lsof` can show socket FDs and local ports. Older `NETWORK_STAGE*.md` and experimental notes document development history; this guide describes the current interface.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Driver development](../../drivers/DRIVER-DEVELOPMENT.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel development](../../kernel/KERNEL-DEVELOPMENT.md) |

@@ -68,3 +68,13 @@ TAB（`0x09`）はシェルの行編集とcanonical入力で受け付け，フ�
 
 
 **実装の参照先：** `kernel/kernel.c` の `tty_canonical`，`tty_echo`，`tty_onlcr`，`tty_saved_*`，`foreground_group` と `OS_TTY_*` の処理，`userland/apps/shell.c` の行編集とパイプ処理．
+
+---
+
+## 学習ナビゲーション
+
+**補助教材**です．「前へ」は関連する本編，「次へ」は本編の次のテーマを示します．
+
+| ← 前へ | ↑ 目次へ | 次へ → |
+| :--- | :---: | ---: |
+| [端末実習](TERMINALS-LAB.md) | [中級コース](INTERMEDIATE.md) | [メモリと実行](MEMORY-EXECUTION.md) |

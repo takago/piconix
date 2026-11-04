@@ -44,3 +44,13 @@ This is a deliberately small UNIX-like implementation, not a complete POSIX shel
 Ctrl+C interrupts registered foreground pipeline tasks (up to three stages) directly in the kernel, without POSIX signal delivery. For one-shot UDP transmission such as `echo hello | nc -u -N 192.168.4.2 12345`, see the [nc guide](../reference/devices/NC.md).
 
 **Implementation references:** `run_pipeline()` and command parsing in `userland/apps/shell.c`; `PIPE_COUNT`, `PIPE_BYTES`, `pipe_transfer()`, and pipe syscalls in `kernel/kernel.c`.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Standard I/O and pipes](IO-IPC.md) | [Beginner course](BEGINNER.md) | [Processes](PROCESSES.md) |

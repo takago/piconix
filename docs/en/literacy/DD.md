@@ -71,3 +71,13 @@ head -c 256 data.bin | nc -N 192.168.4.1 9000
 ```
 
 Check transfer length and EOF handling. `/dev/shm` is shared by all tasks: do not overwrite data used by another program. Direct writes to task slots are not recommended as a normal learning exercise. `/dev/mem` does not allow unrestricted writes to all RAM. Wi-Fi transfers require Pico W.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Command basics](BASICS.md) | [Beginner course](BEGINNER.md) | [Standard I/O and pipes](IO-IPC.md) |

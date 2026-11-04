@@ -53,3 +53,13 @@ Some other important usage details: `ls -a` shows `.` and `..`; `ls -l` shows ty
 `ip addr` displays the loopback and Wi-Fi interfaces on Pico W. For `edit`, press Ctrl+Q twice to discard changes (or Ctrl+S to save); Ctrl+C also aborts without saving.
 
 Use `cp SRC DST` to copy a RAM file, for example `cp /etc/index.html /tmp/index.html`. Only RAM files under `/tmp` and `/etc` are supported.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Command basics](BASICS.md) | [Beginner course](BEGINNER.md) | [Standard I/O and pipes](IO-IPC.md) |

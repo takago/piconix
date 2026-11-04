@@ -13,3 +13,13 @@ The list shows up to 48 entries (including `../` when applicable) and adapts to 
 The `../` entry now comes from the VFS `getdents()` interface rather than being synthesized by `fd`. The browser hides the `.` entry and avoids showing `..` at the root.
 
 For `/proc/sym/kernel`, if the kernel supports `lseek()`, the viewer keeps a bounded index of file offsets every 16 lines and seeks to the nearest known position before reading. The index is reset when opening a file or pressing `r`. Other `/proc` files may change at any time, so they continue to use sequential scanning to avoid stale offsets. Older kernels without symbol-file seek support also fall back to sequential scanning. The index holds at most 128 offsets; distant lines past its coverage can still be read, but may require scanning.
+
+---
+
+## Learning navigation
+
+**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
+
+| ← Previous | ↑ Contents | Next → |
+| :--- | :---: | ---: |
+| [Command basics](BASICS.md) | [Beginner course](BEGINNER.md) | [Standard I/O and pipes](IO-IPC.md) |
