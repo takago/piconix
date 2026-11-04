@@ -61,21 +61,50 @@ piconix# nc 127.0.0.1 80
 
 You can try typing `GET / HTTP/1.0` followed by a blank line to request a page. Terminal newline behavior differs, so this is an optional exercise rather than a guaranteed one-line test. PicoNIX provides both `nc` and a small ICMP `ping` command.
 
-## 6. Observe packets and check reachability
+## 6. Observe IPv4 packets with `tcpdump`
 
-On the **PicoNIX USB console**, start a short capture:
+`tcpdump` is a **packet observation command** for Pico W. It summarizes the PicoNIX device's own IPv4 TCP, UDP and ICMP traffic. Unlike Linux `tcpdump`, it does not capture Ethernet frames or traffic between other devices, and it cannot write pcap files.
 
-```text
-piconix# tcpdump -x -c 10
-```
-
-On a **second PicoNIX terminal** (Telnet), try:
+### Command usage
 
 ```text
-piconix# ping -c 2 192.168.4.2
+piconix# tcpdump             # Print summaries until Ctrl+C
+piconix# tcpdump -c 10       # Stop after 10 packets
+piconix# tcpdump -x          # Include data length and up to 16 initial bytes
+piconix# tcpdump -x -c 10    # Combine the options
 ```
 
-`192.168.4.2` is normally the PC connected to the PicoNIX AP. If the PC blocks ICMP Echo, try the Pico W’s own address `192.168.4.1` instead; responses depend on the network configuration. **Check:** Compare TX/RX, IP addresses, ICMP TYPE=8/0, `LEN` and `DATA`. Use `-x` to inspect up to 16 payload bytes, in HEX and ASCII. Open only on your own isolated lab network. Capture records can be lost if packets arrive faster than they are read. `ping` sends four probes by default; `-c` changes the count. See [Network reference](../reference/devices/NETWORK.md).
+`-c COUNT` limits the number of displayed packets. With `-x`, `DATA=` on the first line gives the data length. If data exists, an indented second line shows spaced hexadecimal bytes and their ASCII representation.
+
+### Lab: Observe HTTP traffic
+
+1. On the **PicoNIX USB console**, run `tcpdump -x -c 20` and leave it waiting for packets.
+
+2. From a **Linux PC connected to the PicoNIX AP**, run `curl http://192.168.4.1/` in another terminal. `curl` runs on the PC, **not** on PicoNIX. Alternatively open the same URL in the PC browser. If HTTP does not respond, check `ps` on PicoNIX to see whether `httpd` is running.
+
+3. Inspect the USB console. The following is an **illustrative formatting example**, not a measured capture. Addresses, ports, packet lengths and flags vary.
+
+```text
+RX TCP 192.168.4.2:52000 > 192.168.4.1:80 LEN=60 DATA=16 ACK PSH
+    DATA:  47 45 54 20 2f 20 48 54 54 50 2f 31 2e 30 0d 0a | GET / HTTP/1.0..|
+RX TCP 192.168.4.2:52000 > 192.168.4.1:80 LEN=40 DATA=0 ACK
+```
+
+`RX` means received and `TX` means transmitted. `LEN` is the total IPv4 packet length in bytes; `DATA` excludes IP and transport headers. The second line displays **at most the first 16 bytes**. Each hex byte corresponds to the ASCII character on the right; non-printable characters become `.`. The ASCII column remains aligned for shorter samples. There is no second line for `DATA=0`. When the data length exceeds 16, only its beginning is shown.
+
+**Investigate:** Find TCP flags such as `SYN`, `ACK` and `PSH`, and follow connection setup, data transfer and replies. SYN and pure ACK packets normally carry no data. Output may wrap on narrow terminals.
+
+### Lab: Observe ICMP Echo
+
+While `tcpdump -x -c 10` is running on USB, use a **second PicoNIX terminal** (for example Telnet) to run:
+
+```text
+piconix# ping -c 2 192.168.4.1
+```
+
+This address illustrates the Pico W's own AP-mode IP address. Check the actual address with `ip addr`. To test a PC, use its assigned IP address instead. `TYPE=8` is Echo Request; `TYPE=0` is Echo Reply. Compare the transmitted and received records.
+
+**Notes:** Packets seen before capture starts are not retained. The 16-record ring buffer can overwrite old records during heavy traffic. If the `-c` packet count is not reached, the command keeps waiting; stop it with Ctrl+C. Observe only an isolated lab network you control. See the [network reference](../reference/devices/NETWORK.md).
 
 ## Review
 

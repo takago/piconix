@@ -50,6 +50,6 @@ piconix# fbed
 
 ## Pico Wのネットワークコマンド
 
-`ping [-c COUNT] IPv4`は既定で4回のEcho Requestを送ります．`192.168.4.2`のような数値のIPv4アドレスを指定してください．`tcpdump [-x] [-c COUNT]`はIPv4のTCP/UDP/ICMPを観察します．`-x`を指定すると字下げした2行目にデータ長と先頭最大16バイト（HEX・ASCII）を表示します．どちらもPico W専用です．詳しくは[ネットワーク実習](NETWORKING.md)を参照してください．
+`ping [-c COUNT] IPv4`は既定で4回のEcho Requestを送ります．`192.168.4.2`のような数値のIPv4アドレスを指定してください．`tcpdump [-x] [-c COUNT]`はIPv4のTCP/UDP/ICMPを観察します．`-x`を指定すると1行目に`DATA=`（データ長）を追加し，データがあれば2行目に先頭最大16バイト（HEX・ASCII）を表示します．どちらもPico W専用です．詳しくは[ネットワーク実習](NETWORKING.md)を参照してください．
 
 `ip addr`でPico WのループバックとWi-Fiインターフェースを確認できます．`edit`は未保存の変更がある場合，Ctrl+Qを2回押すと破棄して終了します．保存するときはCtrl+Sです．Ctrl+Cでも保存せず終了できます．
