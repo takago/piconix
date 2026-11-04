@@ -256,8 +256,14 @@ static volatile int foreground_pid[OS_TTY_COUNT];
 static int foreground_group[OS_TTY_COUNT][3];
 static int tty_shell_pid[OS_TTY_COUNT];
 /* 端末モードは前景プログラムが一時的に使用し，終了時に復元する． */
-static uint8_t tty_canonical[OS_TTY_COUNT]={1,1,1}, tty_echo[OS_TTY_COUNT]={1,1,1};
-static uint8_t tty_onlcr[OS_TTY_COUNT]={1,1,1}, tty_last_cr[OS_TTY_COUNT];
+#if PICONIX_WIFI
+#define TTY_DEFAULTS {1,1,1}
+#else
+#define TTY_DEFAULTS {1,1}
+#endif
+static uint8_t tty_canonical[OS_TTY_COUNT]=TTY_DEFAULTS, tty_echo[OS_TTY_COUNT]=TTY_DEFAULTS;
+static uint8_t tty_onlcr[OS_TTY_COUNT]=TTY_DEFAULTS, tty_last_cr[OS_TTY_COUNT];
+#undef TTY_DEFAULTS
 static int tty_mode_owner[OS_TTY_COUNT];
 /* 前景タスクの終了時には，親の端末モードを復元する． */
 static int tty_restore_pid[OS_TTY_COUNT];

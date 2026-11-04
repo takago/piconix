@@ -196,7 +196,7 @@ void net_capture_init(void) {}
 void net_capture_poll(void) {}
 
 /* 観測フックをネットワークIFへ接続する． */
-void net_capture_attach(void *iface) { (void)iface; }
+void net_capture_attach(struct netif *iface) { (void)iface; }
 
 /* パケット観測リングへ記録した通算番号を返す．非Wi-Fi版では0を返す． */
 uint32_t net_packet_serial(void) { return 0; }
