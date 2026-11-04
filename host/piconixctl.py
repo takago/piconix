@@ -5,6 +5,7 @@ import socket
 import sys
 
 
+# PicoNIXのUDPデバイス制御サービスへコマンドを送り，応答を受け取る．
 def request(host: str, port: int, message: bytes, timeout: float) -> bytes:
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.settimeout(timeout)
@@ -17,7 +18,7 @@ def request(host: str, port: int, message: bytes, timeout: float) -> bytes:
         raise RuntimeError("invalid PicoNIX response")
     return response[3:]
 
-
+# 接続先・操作対象を解析し，PicoNIX向けのデバイス制御要求を実行する．
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="192.168.4.1")

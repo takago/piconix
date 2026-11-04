@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Common RAM-file editing and terminal rendering used by edit and vi.
- * Each program includes this header in its own PIC image. */
+/* editとviが共有する，端末入出力と編集処理． */
+
+/* editとviで共有するRAMファイル編集・端末描画処理．各アプリのPICイメージ内へ個別に組み込まれる． */
 #ifndef PICONIX_EDITOR_COMMON_H
 #define PICONIX_EDITOR_COMMON_H
 #include "unistd.h"
@@ -17,18 +18,37 @@ static int visible_rows=DEFAULT_ROWS-4, left_col;
 static char data[CAP];
 static int len,pos,top,changed;
 
+/* 文字の画面表示幅を返す．タブは4桁境界までの空白として計算する． */
 static int width(char c,int col) {return c=='\t'?4-col%4:1;}
+
+/* 指定位置を含む行の先頭オフセットを探す． */
 static int line_start(int p){while(p>0&&data[p-1]!='\n')p--;return p;}
+
+/* 指定位置を含む行の改行手前のオフセットを探す． */
 static int line_end(int p){while(p<len&&data[p]!='\n')p++;return p;}
+
+/* テキスト先頭から指定位置までの改行数を数え，行番号を返す． */
 static int line_no(int p){int n=0;for(int i=0;i<p;i++)if(data[i]=='\n')n++;return n;}
+
+/* 指定位置の表示桁をタブ展開込みで求める． */
 static int col_no(int p){int c=0;for(int i=line_start(p);i<p;i++)c+=width(data[i],c);return c;}
+
+/* 行頭から指定表示桁まで進め，対応する文字オフセットを返す． */
 static int position_col(int p,int col){int e=line_end(p),x=0;while(p<e&&x<col){int w=width(data[p],x);if(x+w>col)break;x+=w;p++;}return p;}
+
+/* カーソル位置に文字を挿入する．2 KiB上限を超える挿入は行わない． */
 static void insert(char c){if(len>=CAP)return;memmove(data+pos+1,data+pos,len-pos);data[pos++]=c;len++;changed=1;}
+
+/* カーソル直前の文字を削除し，後続バイトを左へ詰める． */
 static void erase(void){if(!pos)return;memmove(data+pos-1,data+pos,len-pos);pos--;len--;changed=1;}
+
+/* カーソル位置の文字を削除し，後続バイトを左へ詰める． */
 static void del(void){if(pos>=len)return;memmove(data+pos,data+pos+1,len-pos-1);len--;changed=1;}
+
+/* 編集バッファを指定RAMファイルへ保存する．成功時だけ変更フラグを消す． */
 static int save(const char *name){int fd=open(name,O_WRONLY|O_CREAT|O_TRUNC);if(fd<0)return -1;int n=write(fd,data,len);close(fd);if(n==len){changed=0;return 0;}return -1;}
 
-/* Keep the editor's output bounded even on extremely large terminals. */
+/* 端末サイズが極端に大きくても，描画出力は固定上限に収める． */
 static void measure_screen(void){
  screen_size_t size={DEFAULT_ROWS,DEFAULT_COLS};
  screen_measure(&size);
@@ -37,7 +57,7 @@ static void measure_screen(void){
  visible_rows=screen_rows-4;
 }
 
-/* EDITOR_GUTTER is 4 for edit's line numbers, 0 for vi. */
+/* EDITOR_GUTTERはeditで行番号用の4桁，viでは0となる． */
 static void paint_row(int row){
  int p=0,n=0,text_cols=screen_cols-EDITOR_GUTTER;
  while(p<len&&n<top+row){if(data[p++]=='\n')n++;}
@@ -60,7 +80,8 @@ static void paint_row(int row){
  }
  printf("\033[K");
 }
-/* mode: 0 = full, 1 = changed row, 2 = cursor/status only. */
+
+/* 表示モードは0=全体，1=変更行，2=カーソルと状態のみ． */
 static void draw(const char *name,const char *notice,int mode){
  int line=line_no(pos),column=col_no(pos),text_cols=screen_cols-EDITOR_GUTTER;
  int old_top=top,old_left=left_col;
@@ -90,7 +111,7 @@ static void draw(const char *name,const char *notice,int mode){
  printf("\033[%d;%dH\033[?25h",y,x);
 }
 
-/* Normalize . and .. before checking the writable RAM-file paths. */
+/* 書込み可能なRAMパスを検査する前に「.」「..」を正規化する． */
 static void editor_normalize_path(char path[128]){
  char normalized[128];unsigned out=0;
  for(const char *p=path;*p;){
@@ -113,8 +134,7 @@ static void editor_normalize_path(char path[128]){
  strcpy(path,normalized);
 }
 
-/* Path resolution, strict 2-KiB read, and TTY setup are identical for both.
- * The kernel restores foreground TTY modes after process termination. */
+/* パス解決・2 KiBまでの読出し・TTY設定を共通化する．前景プログラム終了後のTTYモードはカーネルが復旧する． */
 static int editor_start(const char *arg, char path[128]){
  char cwd[128];
  if(arg[0]=='/'){

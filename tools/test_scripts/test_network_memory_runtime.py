@@ -6,9 +6,20 @@ import tempfile
 
 root = Path(__file__).resolve().parents[2]
 net = (root / 'kernel/net.c').read_text()
-start = net.index('/* Read-only network memory snapshot.')
-end = net.index('/* Read-only /proc/net/wifi snapshot. */')
-formatter = net[start:end]
+# 実装本体を抽出し，コメントの文言に依存しない．
+start = net.index('int net_memory_info(')
+brace = net.index('{', start)
+depth = 0
+for end in range(brace, len(net)):
+    if net[end] == '{':
+        depth += 1
+    elif net[end] == '}':
+        depth -= 1
+        if depth == 0:
+            break
+else:
+    raise AssertionError('net_memory_info(): missing closing brace')
+formatter = net[start:end + 1]
 mock = r'''
 #include <assert.h>
 #include <stddef.h>

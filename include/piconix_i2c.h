@@ -1,17 +1,16 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* I2C ioctlの要求形式と定数をカーネル・ユーザ間で共有する． */
+
 #ifndef PICONIX_I2C_H
 #define PICONIX_I2C_H
 #include <stdint.h>
-/* ioctl(fd, OS_I2C_TRANSFER, (int)(uintptr_t)&request).
- * Atomic write-then-read transaction with repeated START when both lengths
- * are nonzero.  Buffers are in user RAM; no raw kernel pointers are exposed.
- */
+/* ioctlで行うI2C転送．writeとreadが両方非ゼロならrepeated STARTで連結する．バッファはユーザRAMに置き，カーネルポインタを公開しない． */
 #define OS_I2C_TRANSFER 0x520
 #define PICONIX_I2C_MAX_TRANSFER 32
 #define PICONIX_I2C_TIMEOUT_US 10000
-/* A zero-length transfer probes the address. */
+/* 転送長0はアドレス応答の確認に使う． */
 typedef struct {
-    uint8_t address; /* 7-bit address, 0x08..0x77 */
+    uint8_t address; /* 7ビットアドレス．許可範囲は0x08〜0x77． */
     uint8_t write_len;
     uint8_t read_len;
     uint8_t reserved;

@@ -1,12 +1,12 @@
-/* 0..9 counter on 8x8 FB; buttons shift glyph; GP18 beeps on each tick. */
+/* 教育用のハードウェア動作確認コマンド． */
+/* 8×8表示の0〜9カウンタ．ボタンで文字を移動し，GP18で周期的に音を出す． */
 #include <stdint.h>
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "../../include/piconix.h"
 
-/* Digits 0..9 from the supplied 8x8 LED patterns.
- * Row bits follow the framebuffer horizontal wiring order. */
+/* 表示フォントは8×8 LEDの配線順に行ビットを並べた数字0〜9である． */
 static const uint8_t font[10][7] = {
     {0x00, 0x06, 0x09, 0x09, 0x09, 0x09, 0x06},
     {0x00, 0x02, 0x06, 0x02, 0x02, 0x02, 0x07},
@@ -20,6 +20,7 @@ static const uint8_t font[10][7] = {
     {0x00, 0x06, 0x09, 0x07, 0x01, 0x02, 0x04}
 };
 
+/* 数字フォントを8×8表示用の行データへ変換し，フレームバッファへ送る． */
 static int display(int fd, int digit, int shift) {
     uint8_t image[8] = {0};
     for (int y = 0; y < 7; ++y)
@@ -27,7 +28,7 @@ static int display(int fd, int digit, int shift) {
     return write(fd, image, sizeof(image)) == (int)sizeof(image) ? 0 : -1;
 }
 
-/* Returns 1 exactly once per stable press (active-low, 30 ms debounce). */
+/* Lowで押下を検出し，30 msデバウンス後の安定した押下を一回だけ返す． */
 static int pressed(int fd, int *stable, int *candidate, int *samples) {
     char value;
     if (read(fd, &value, 1) != 1) return -1;
@@ -45,12 +46,14 @@ static int pressed(int fd, int *stable, int *candidate, int *samples) {
     return 0;
 }
 
+/* PWMデバイスへ数値文字列を送り，書込みの成否を返す． */
 static int pwm_value(int fd, const char *value) {
     int n = 0;
     while (value[n]) ++n;
     return write(fd, value, (size_t)n) == n ? 0 : -1;
 }
 
+/* ボタンでLED表示位置を動かし，PWMブザーも鳴らす統合動作テストを行う． */
 int main(int argc, char **argv) {
     (void)argv;
     if(argc!=1) {puts("usage: kitesys");return 1;}
@@ -63,7 +66,7 @@ int main(int argc, char **argv) {
     if (pwm_value(buzzer, "0\n") < 0 ||
         pwm_value(freq, "2000\n") < 0) return 1;
 
-    /* Configure both switches as inputs with internal pull-ups. */
+    /* 両方のボタンを内部プルアップ付き入力に設定する． */
     if (ioctl(left, OS_GPIO_INPUT, 0) < 0 || ioctl(left, OS_GPIO_PULL_UP, 0) < 0 ||
         ioctl(right, OS_GPIO_INPUT, 0) < 0 || ioctl(right, OS_GPIO_PULL_UP, 0) < 0 ||
         ioctl(fb, OS_FB_ENABLE, 0) < 0) return 1;
@@ -81,8 +84,8 @@ int main(int argc, char **argv) {
         int b = pressed(right, &stable[1], &candidate[1], &samples[1]);
         if (a < 0 || b < 0) return 1;
         int old_shift = shift;
-        if (a == 1 && shift > 0) --shift; /* GP16: shift toward the opposite side */
-        if (b == 1 && shift < 3) ++shift; /* GP17: shift toward the opposite side */
+        if (a == 1 && shift > 0) --shift; /* GP16で表示を反対側へ移動する． */
+        if (b == 1 && shift < 3) ++shift; /* GP17で表示を反対側へ移動する． */
         if (shift != old_shift && display(fb, digit, shift) < 0) return 1;
 
         msleep(10);

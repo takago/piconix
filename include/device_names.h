@@ -1,4 +1,5 @@
-/* Shared fixed device IDs and canonical paths: kernel VFS and trace viewer. */
+/* VFSの固定デバイス名とIDの対応を一元化する． */
+/* 固定デバイスのIDと標準パスをVFSとtrace表示で共有する． */
 #ifndef PICONIX_DEVICE_NAMES_H
 #define PICONIX_DEVICE_NAMES_H
 enum {
@@ -15,7 +16,7 @@ enum {
     DEV_NET_PACKET = 144,
     DEV_NET_ICMP = 145,
 };
-/* X(path, id): fixed entries, excluding build-specific guards. */
+/* X(path, id)はビルド条件に依存しない固定エントリを展開する． */
 #define PICONIX_FIXED_DEVICES(X) \
     X("/dev/console", DEV_CONSOLE) \
     X("/dev/gpio/fb", DEV_FB) \

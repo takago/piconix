@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* cat: display a file or standard input, optionally numbering lines. */
+/* ファイルまたは標準入力を表示する． */
+
+/* ファイルまたは標準入力を表示し，行番号付けにも対応するcat． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 
+/* 標準出力への書込みを繰り返し，部分書込みと一時的な待機を処理する． */
 static int output(const char *buf, int n) {
     int done=0;
     while(done<n) {
@@ -16,7 +19,7 @@ static int output(const char *buf, int n) {
     return 0;
 }
 
-/* Remember the start of a line across 32-byte reads, including blank lines. */
+/* 32バイト単位のreadをまたいでも，空行を含む行頭位置を保持する． */
 static int numbered_output(const char *buf, int n, unsigned *line, int *at_start) {
     for(int i=0;i<n;) {
         if(*at_start) {
@@ -34,11 +37,13 @@ static int numbered_output(const char *buf, int n, unsigned *line, int *at_start
     return 0;
 }
 
+/* 読み取ったデータ片を表示する．-n指定時は複数のreadをまたぐ行番号状態を維持する． */
 static int display(const char *buf, int n, int numbered,
                    unsigned *line, int *at_start) {
     return numbered ? numbered_output(buf,n,line,at_start) : output(buf,n);
 }
 
+/* 指定ファイルまたは標準入力の内容を順番に表示する． */
 int main(int argc, char *argv[]) {
     int numbered=argc>1 && !strcmp(argv[1],"-n");
     if(argc>2+numbered) {
@@ -61,7 +66,7 @@ int main(int argc, char *argv[]) {
     int n=0, rc=0, at_start=1;
     unsigned line=1;
     if(uart) {
-        /* UART streams have no EOF: stop after 200 ms of inactivity. */
+        /* UART入力にはEOFがないので，入力が200 ms途絶えたら終了する． */
         unsigned idle=0;
         while(idle<200) {
             n=read(fd,buf,sizeof buf);

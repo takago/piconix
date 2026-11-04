@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* PicoNIX streaming block copy. count and skip/seek are in blocks. */
+/* ファイルやデバイスの内容をブロック単位で転送する． */
+
+/* PicoNIXのブロック単位ストリームコピー．countとskip/seekの単位はブロックである． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 #include <stdint.h>
 static unsigned char buf[256];
+/* コマンド引数の10進数または0x付き16進数を解析する．範囲超過・不正文字は拒否する． */
 static int number(const char *p,uint32_t *out){
  uint32_t x=0,base=10; if(p[0]=='0'&&(p[1]=='x'||p[1]=='X')){base=16;p+=2;}
  if(!*p)return -1;
@@ -13,7 +16,11 @@ static int number(const char *p,uint32_t *out){
   if(d>=base||x>(0xffffffffu-d)/base)return -1;x=x*base+d;}
  *out=x;return 0;
 }
+
+/* ddで利用可能な入出力指定と転送オプションを表示する． */
 static void usage(void){puts("usage: dd [if=FILE] [of=FILE] [bs=1..256] [count=N] [skip=N] [seek=N]");puts("  if=-: stdin; of=-: stdout (also the defaults)");puts("  /dev/mem uses absolute address as byte offset; values can be hex (0x...)");}
+
+/* 指定した入力FDから出力FDへデータをブロック単位でコピーする． */
 int main(int argc,char **argv){
  const char *in=0,*out=0;uint32_t bs=128,count=0,skip=0,seek=0;int limited=0;
  for(int i=1;i<argc;i++){
@@ -37,7 +44,7 @@ int main(int argc,char **argv){
   if(lseek(fi,(long)offs,SEEK_SET)<0){puts("dd: input not seekable");goto fail;}}
  if(seek){if(seek>0xffffffffu/bs){puts("dd: output offset overflow");goto fail;}offs=seek*bs;
   if(lseek(fo,(long)offs,SEEK_SET)<0){puts("dd: output not seekable");goto fail;}}
- /* Explicit count is required when reading /dev/mem to prevent open-ended scans. */
+ /* /dev/memの無制限な読出しを避けるため，明示的なcountを要求する． */
  if(in&&!strcmp(in,"/dev/mem")&&!limited){puts("dd: count= required for /dev/mem input");goto fail;}
  uint32_t blocks=0;
  while(!limited||blocks<count){int r=read(fi,buf,bs);if(r<0){puts("dd: read failed");goto fail;}if(!r)break;

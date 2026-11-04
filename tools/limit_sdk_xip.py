@@ -9,6 +9,7 @@ import re
 import sys
 
 
+# XIP実行用リンク設定に必要なSDKリンカスクリプトの変更を行う．
 def transform(source):
     ram = re.compile(r'(?m)^(?P<pre>\s*RAM\s*\(\s*rwx\s*\)\s*:\s*ORIGIN\s*=\s*0x20000000\s*,\s*LENGTH\s*=\s*)(?:256\s*[kK]|0x40000|262144)(?P<post>\s*)$')
     if len(list(ram.finditer(source))) != 1:
@@ -16,7 +17,7 @@ def transform(source):
     if not re.search(r'(?m)^\s*(?:INCLUDE\s+["\']?pico_flash_region\.ld|FLASH\s*\()', source):
         raise ValueError('SDK script lacks FLASH region')
     source = ram.sub(lambda m: m['pre'] + '56k' + m['post'], source, count=1)
-    # Fail closed if the SDK changes the standard XIP layout.
+    # SDK側のXIPレイアウトが変わったら，誤った置換をせず失敗させる．
     text = re.search(r'(?s)\n\s*\.text\s*:\s*\{.*?\}\s*>\s*FLASH', source)
     rodata = re.search(r'(?s)\n\s*\.rodata\s*:\s*\{.*?\}\s*>\s*FLASH', source)
     if not text or not rodata:
@@ -25,8 +26,8 @@ def transform(source):
         raise ValueError('SDK default linker script must place .data in RAM')
     if '(.piconix_app_image' in source:
         raise ValueError('application image section already present')
-    # Place the embedded images after the SDK flash code/rodata but before RAM
-    # initializers. Preserve flash vectors and the boot2 offsets exactly.
+    # 埋込みイメージはFlash上のコード／読み取り専用データの後に置く．
+    # RAM初期値より前に配置し，boot2とベクタのオフセットは維持する．
     match = re.search(r'(?m)^[ \t]*\.data\s*:', source)
     if not match:
         raise ValueError('missing .data section')
@@ -43,10 +44,10 @@ def transform(source):
     } > FLASH
 
 '''
-    # Note: this section must precede .data's FLASH load image.
+    # このセクションは.dataのFlashロードイメージより前に置く必要がある．
     return '/* PicoNIX XIP: flash code/const, 56-KiB kernel RAM. */\n' + source[:match.start()] + app + source[match.start():]
 
-
+# 対象リンカスクリプトを変換し，Flash実行のメモリ配置を整える．
 def main():
     if len(sys.argv) != 3:
         sys.exit('usage: limit_sdk_xip.py sdk_memmap_default.ld output.ld')

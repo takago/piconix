@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* GPIO値・方向・プルアップ／プルダウンをデバイスファイルから操作する． */
+
 #include "../include/piconix.h"
 #include "devices.h"
 #include "pins.h"
 #include "pico/stdlib.h"
 #include <string.h>
+/* ボード上のLEDとスイッチを含むGPIOの初期設定を行う． */
 void gpio_driver_init(void) {
-    /* Default board I/O: GP25 LED, GP16/17 active-low buttons. */
+    /* 標準ボード入出力：GP25のLEDとLow有効のGP16/17ボタン． */
     gpio_init(25);
     gpio_put(25, 0);
     gpio_set_dir(25, GPIO_OUT);
@@ -16,6 +19,8 @@ void gpio_driver_init(void) {
     gpio_set_dir(17, GPIO_IN);
     gpio_pull_up(17);
 }
+
+/* GPIO値・方向等をデバイスファイル経由で読み書きする．表示機能と競合するピンは拒否する． */
 int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
     if(pin<16 && fb_active()) return OS_EBUSY;
     if(n==0) return 0;
@@ -58,6 +63,7 @@ int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
     return 1;
 }
 
+/* GPIOの入力・出力モード等を変更する．使用予約ピンや表示中のピンを保護する． */
 int gpio_driver_ioctl(unsigned pin, int cmd) {
     if(pin<16 && fb_active()) return OS_EBUSY;
     if(!pin_gpio(pin)) return OS_EINVAL;

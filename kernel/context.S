@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Cortex-M0+の例外入口．SVCは積まれたレジスタをカーネルへ渡し，
+ * PendSVはr4〜r11とPSPを保存・復元してタスクを切り替える． */
+
 .syntax unified
 .cpu cortex-m0plus
 .thumb
+/* PendSV例外でユーザタスクのレジスタとPSPを退避し，スケジューラが選んだタスクを復元する． */
 .global isr_pendsv
 .type isr_pendsv,%function
 .thumb_func
@@ -43,6 +47,7 @@ isr_pendsv:
     bx r1
 .size isr_pendsv, .-isr_pendsv
 
+/* SVC例外で現在のスタックフレームを求め，Cのシステムコールディスパッチャへ渡す． */
 .global isr_svcall
 .type isr_svcall,%function
 .thumb_func

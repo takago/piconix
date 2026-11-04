@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Interactive editor for the PicoNIX 8x8 LED framebuffer. */
+/* 8×8 LEDフレームバッファの簡易編集コマンド． */
+
+/* PicoNIXの8×8 LEDフレームバッファを対話的に編集する． */
 #include <stdint.h>
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 
+/* 編集中の8×8 LED画面とカーソルを端末へ描画する． */
 static void draw(const uint8_t p[8],int pos) {
     printf("\033[HFrame buffer editor 8x8  (arrows move, Space toggles, c clears, q quits)\033[K\r\n");
     for(int y=0;y<8;y++) {
@@ -19,6 +22,8 @@ static void draw(const uint8_t p[8],int pos) {
     }
     printf("\033[K\r\nContents persist after exit.\033[K");
 }
+
+/* 端末から8×8の点灯パターンを編集し，フレームバッファへ反映する． */
 int main(int argc, char **argv) {
     (void)argv;
     if(argc!=1) {puts("usage: fbed");return 1;}

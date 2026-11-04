@@ -15,8 +15,9 @@ RESERVE_START = 0x2003C000
 RAM_END = 0x20040000
 
 
+# ELFのセクション位置とサイズを読み取り，Wi-Fi構成のRAM配置検査へ渡す．
 def parse_sections(output):
-    # readelf -SW: [Nr] Name Type Address Off Size ES Flg Lk Inf Al
+    # readelf -SWのセクション一覧：番号，名前，種類，アドレス，サイズなど．
     pattern = re.compile(r'^\s*\[\s*\d+\]\s+(\S+)\s+\S+\s+([0-9a-fA-F]+)\s+[0-9a-fA-F]+\s+([0-9a-fA-F]+)\s+\S+\s+(\S+)')
     for line in output.splitlines():
         match = pattern.match(line)
@@ -25,7 +26,7 @@ def parse_sections(output):
             if 'A' in flags and 'W' in flags and int(size, 16):
                 yield name, int(address, 16), int(size, 16)
 
-
+# Wi-Fiの予約領域やカーネル境界が重なっていないか確認する．
 def audit(sections):
     errors = []
     kernel_bytes = 0
@@ -40,7 +41,7 @@ def audit(sections):
             errors.append(f'{name}: section crosses main SRAM boundary')
     return errors, kernel_bytes
 
-
+# Wi-Fi向けELFのメモリ配置検査を起動し，問題を報告する．
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('elf')

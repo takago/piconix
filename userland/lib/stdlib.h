@@ -1,6 +1,7 @@
+/* ユーザプログラム用の最小stdlib宣言． */
 #ifndef PICONIX_STDLIB_H
 #define PICONIX_STDLIB_H
-/* All user-space runtime symbols are linked within the same PIC image. */
+/* ユーザランタイムの全シンボルは各PICイメージ内にリンクする． */
 #ifndef PICONIX_HOST_TEST
 #pragma GCC visibility push(hidden)
 #endif

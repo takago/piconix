@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Wi-Fi初期化，ポーリング，診断表示の内部インターフェース． */
+
 #pragma once
 void net_init(void);
 void net_poll(void);
-/* A fixed record interface: no raw socket syscall or dynamic allocation. */
+/* 固定形式のパケット観測インターフェース．rawソケットシステムコールや動的確保は行わない． */
 #include "../include/piconix_net_capture.h"
 uint32_t net_packet_serial(void);
 int net_packet_read(uint32_t *serial, piconix_packet_t *record);
@@ -14,22 +16,22 @@ struct netif;
 void net_capture_attach(struct netif *iface);
 void net_capture_init(void);
 void net_capture_poll(void);
-/* True while the idle task is running lwIP callbacks and raw operations. */
+/* アイドルタスクがlwIPコールバックやraw APIを処理中かを示す． */
 int net_poll_in_progress(void);
 
-/* TCP transport for TTY2; the kernel owns the remote shell lifecycle. */
+/* TTY2のTCP通信入口．リモートシェルの生存期間はカーネルが管理する． */
 int net_terminal_connected(void);
-/* Changes on every accepted connection and disconnect. */
+/* 接続の確立／切断ごとに変化するセッション番号． */
 unsigned net_terminal_epoch(void);
 int net_terminal_read(void *dst, unsigned size);
 int net_terminal_write(const void *src, unsigned size);
 
-/* Format the current Wi-Fi interface state for /proc/net/wifi. */
+/* /proc/net/wifi用に現在の無線状態を整形する． */
 int net_wifi_info(char *out, unsigned size);
-/* /proc/net/memory: lwIP heap/pbuf counters and idle stack watermark. */
+/* /proc/net/memory用のlwIP統計とアイドルスタック高水位． */
 int net_memory_info(char *out, unsigned size);
-/* Read-only diagnostic snapshots.  Type 0: AP associations, 1: ARP. */
+/* 読出し専用の診断スナップショット．種別0はAP接続，1はARPを表す． */
 int net_diag_info(char *out, unsigned size, int type);
 
-/* Queue an STA reassociation from a syscall; applied in net_poll(). */
+/* SVCからSTA再接続要求を予約し，実際の処理はnet_pollで行う． */
 int net_wifi_request_restart(void);

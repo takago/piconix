@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* GPIO状態照会のビット表現を共有する． */
+
 #ifndef PICONIX_GPIO_STATUS_H
 #define PICONIX_GPIO_STATUS_H
-/* ioctl(/dev/gpio/N, OS_GPIO_STATUS_BASE + pin, 0) returns a packed
- * live hardware status for GP0..28; no state is duplicated. */
+/* ioctl(/dev/gpio/N, OS_GPIO_STATUS_BASE + pin, 0)はGP0〜28の実ハードウェア状態をまとめて返す．複製した状態表は持たない． */
 #define OS_GPIO_STATUS_BASE 0x400
 #define GPIO_STATUS_FREE 0
 #define GPIO_STATUS_IN 1

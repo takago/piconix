@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Tiny Python-like subset for PicoNIX: file execution and simple REPL. */
+/* PicoNIX用の小さなPython風処理系．
+ * 24 KiBのタスク領域で動くため，値領域・構文・入出力に明示的な上限を設ける． */
+
+/* PicoNIXの小さなPython風処理系．ファイル実行と簡易REPLに対応する． */
 #include <stdint.h>
 #include <limits.h>
 #include <stddef.h>
@@ -9,12 +12,19 @@
 #include "stdio.h"
 #include "piconix_i2c.h"
 #include "piconix.h"
+/* 標準出力へ指定長を書き切る．一時的な部分書込みでも残りを送る． */
 static void outn(const char *s,unsigned n) {
     while(n) { int r=write(1, s, n); if(r<0) return;
         if(!r) { msleep(1); continue; } s+=r;n-=(unsigned)r; }
 }
+
+/* NUL終端文字列を標準出力へ書き込む． */
 static void outs(const char *s){outn(s,(unsigned)strlen(s));}
+
+/* 二つの識別子やキーワードを文字列として比較する． */
 static int same(const char *a,const char *b){return strcmp(a,b)==0;}
+
+/* 文字が英数字または下線なら真を返す． */
 static int idchar(char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_';}
 #define SOURCE_MAX 2048
 static char source[SOURCE_MAX+1];
@@ -27,13 +37,20 @@ static int nvars,error, evaluating=1;
 static unsigned error_line;
 #define SEQ_MAX 64
 #define POOL_WORDS 256
-/* A word-aligned, compacting pool shared by arrays and strings. */
+/* 文字列と配列で共有する，ワード境界で詰め直し可能な固定長プール． */
 static int32_t pool[POOL_WORDS];
 static uint16_t pool_used;
 static struct { uint8_t used, immutable, len; uint16_t pos, words; } seq[16];
+/* 固定長プール内の指定配列が格納される先頭ポインタを得る． */
 static int32_t *items(int k){return pool+seq[k].pos;}
+
+/* 固定長プール内の指定文字列が格納される先頭ポインタを得る． */
 static char *string_at(int k){return (char *)(pool+seq[k].pos);}
+
+/* 変数名に対応する既存の固定スロット番号を探す．なければ-1． */
 static int seqslot(const char *name){for(int i=0;i<nvars;i++)if(strcmp(vars[i].name,name)==0)return i;return -1;}
+
+/* 変数名のスロットを検索・確保する．最大16個を超える場合はエラー． */
 static int slot_for(const char *name){
     int k=seqslot(name);
     if(k>=0)return k;
@@ -42,15 +59,16 @@ static int slot_for(const char *name){
     while(name[j]&&j<15){vars[k].name[j]=name[j];j++;}vars[k].name[j]=0;
     return k;
 }
-/* Only move objects after checking capacity; on failure keep old values. */
+
+/* 配列・文字列を固定長プール内で置き換える．領域が足りなければ既存値を壊さず失敗する． */
 static int replace_data(int k,const void *data,unsigned words){
     unsigned available=pool_used-seq[k].words;
     if(available+words>POOL_WORDS){error=1;return 0;}
-    /* The payload may alias the pool (e.g., b=a). Save before moving. */
+    /* 代入元が同じプールに存在する場合（例：b=a）は，移動前にデータを退避する． */
     int32_t scratch[SEQ_MAX];
     if(words){memcpy(scratch,data,words*4);}
     unsigned dst=0;
-    /* Walk physical order: variable index order may differ after reassignment. */
+    /* 変数番号順と物理格納順が異なり得るので，アドレス順で処理する． */
     for(unsigned pos=0;pos<pool_used;){
         int owner=-1;
         for(int j=0;j<nvars;j++)if(seq[j].words&&seq[j].pos==pos){owner=j;break;}
@@ -68,6 +86,8 @@ static int replace_data(int k,const void *data,unsigned words){
     pool_used=(uint16_t)(dst+words);
     return 1;
 }
+
+/* 固定長プールに配列・タプル相当の要素列を格納し，変数へ関連付ける． */
 static int seqnew(const char *name,int immutable,const int32_t *values,int len){
     if(len<0||len>SEQ_MAX){error=1;return 0;}
     int k=slot_for(name);if(k<0)return 0;
@@ -75,16 +95,20 @@ static int seqnew(const char *name,int immutable,const int32_t *values,int len){
     is_string[k]=0;seq[k].used=1;seq[k].immutable=immutable;seq[k].len=(uint8_t)len;
     return 1;
 }
+
+/* 最大64文字の文字列を固定長プールに格納する．容量不足はエラー． */
 static void setstring(const char *name,const char *value){
     unsigned n=(unsigned)strlen(value);
     if(n>STR_MAX){error=1;return;}
     int k=slot_for(name);if(k<0)return;
-    /* Pad the last word, so the pool copy never reads beyond value. */
+    /* 最後のワードを埋め，コピーで値の終端外を読まないようにする． */
     int32_t scratch[(STR_MAX+4)/4]={0};
     memcpy(scratch,value,n+1);
     if(!replace_data(k,scratch,(n+4)/4))return;
     is_string[k]=1;seq[k].used=0;seq[k].len=(uint8_t)n;
 }
+
+/* プール内のオブジェクトを詰め直す．変数の並び順と物理配置順が異なる点に注意する． */
 static int transfer(int addr,const int32_t *values,int n,int r,int32_t *output){
     if(addr<8||addr>0x77||n<0||n>32||r<0||r>32){error=1;return 0;}
     piconix_i2c_transfer_t req={0};req.address=(uint8_t)addr;
@@ -99,25 +123,35 @@ static int transfer(int addr,const int32_t *values,int n,int r,int32_t *output){
 static uint32_t last_peer_ip;
 static unsigned last_peer_port;
 static const char *cursor;
+/* 解析カーソルを空白・タブの後まで進める． */
 static void ws(void){while(*cursor==' '||*cursor=='\t')cursor++;}
+
+/* 空白を飛ばした位置で指定1文字を消費する．一致しなければ消費しない． */
 static int eat(char c){ws();if(*cursor==c){cursor++;return 1;}return 0;}
+
+/* キーワードを単語境界も含めて照合し，成功時だけカーソルを進める． */
 static int word(const char *s){ws();const char *p=cursor;while(*s&&*p==*s){s++;p++;}if(*s||idchar(*p))return 0;cursor=p;return 1;}
+
+/* 名前で整数変数を検索する．文字列・配列との型不一致はエラーにする． */
 static int32_t getvar(const char *name){for(int i=0;i<nvars;i++)if(same(vars[i].name,name))return (seq[i].used||is_string[i])?(error=1,0):vars[i].val;error=1;return 0;}
+
+/* 整数変数へ代入し，旧配列等があればプール領域を解放する． */
 static void setvar(const char *name,int32_t val){for(int i=0;i<nvars;i++)if(same(vars[i].name,name)){vars[i].val=val;replace_data(i,0,0);seq[i].used=0;is_string[i]=0;seq[i].len=0;return;}
     if(nvars==16){error=1;return;}unsigned i=0;while(name[i]&&i<15){vars[nvars].name[i]=name[i];i++;}vars[nvars].name[i]=0;vars[nvars].val=val;seq[nvars].used=0;is_string[nvars]=0;seq[nvars].len=0;seq[nvars].words=0;nvars++;}
-/* Keep the interpreter's divide-by-zero and INT32_MIN/-1 behavior explicit. */
+
+/* 符号付き32ビットの整数除算を行い，ゼロ除算と最小値の境界を明示的に扱う． */
 static int32_t divide(int32_t a,int32_t b,int mod) {
     if(!evaluating)return 0;
     if(!b) { error=1; return 0; }
-    /* The mathematical quotient 2147483648 does not fit in int32_t.
-       Preserve the previous interpreter's 32-bit wraparound result. */
+    /* 数学的な商2147483648はint32_tに収まらないため，従来の32ビット折返し結果を維持する． */
     if(a==INT32_MIN && b==-1) return mod ? 0 : INT32_MIN;
     return mod ? a%b : a/b;
 }
 static int32_t expr(void);
-/* File descriptors are PicoNIX integers, not Python file objects. */
+/* FDはPicoNIXの整数であり，Pythonのファイルオブジェクトではない． */
 static void decimal_string(int32_t v,char *dst);
 static unsigned parsed_string_len;
+/* 文字列リテラルを読み，エスケープと領域上限を検査する． */
 static int parse_string(char *dst,unsigned cap){
     ws();char q=*cursor;if(q!='"'&&q!='\''){error=1;return 0;}
     cursor++;unsigned n=0;
@@ -145,12 +179,13 @@ static int parse_string(char *dst,unsigned cap){
     }
     if(!eat(q)){error=1;return 0;}dst[n]=0;parsed_string_len=n;return 1;
 }
-/* Socket payloads may be strings, byte arrays, or str(integer). */
+
+/* ソケットの送信データは文字列・バイト列・str(整数)から作れる． */
 static int payload(char *buf,unsigned cap){
     ws();
     if(*cursor=='"'||*cursor=='\''){
         if(!parse_string(buf,cap+1))return -1;
-        /* NUL embedded in a string is not a valid text payload here. */
+        /* 文字列の内部にNULを含む場合は，テキストとして送信できない． */
         return (int)parsed_string_len;
     }
     if(word("str")){
@@ -175,7 +210,8 @@ static int payload(char *buf,unsigned cap){
     }
     return seq[k].len;
 }
-/* IPv4 dotted-decimal conversion; matches the lwIP address layout in nc.c. */
+
+/* IPv4のドット区切り表記をncと共通のlwIPアドレス表現へ変換する． */
 static int parse_ip(const char *s,uint32_t *out){
     unsigned parts[4]={0},i=0,digits=0;
     for(;*s;s++){
@@ -191,7 +227,8 @@ static int parse_ip(const char *s,uint32_t *out){
     for(i=0;i<4;i++)p[i]=(uint8_t)parts[i];
     return 1;
 }
-/* Shared endpoint parser for connect() and sendto(). */
+
+/* 通信APIに使うIPv4アドレスとポートを解析する． */
 static int socket_address(struct sockaddr_in *addr){
     char ip[20];
     if(!parse_string(ip,sizeof ip))return 0;
@@ -206,9 +243,14 @@ static int socket_address(struct sockaddr_in *addr){
     addr->sin_port=htons((uint16_t)port);
     return !error;
 }
+
+/* 通信先のポート番号が扱える範囲か検査する． */
 static int valid_port(int32_t port){return port>0&&port<=65535;}
+
+/* 引数で受け取ったFD番号を検証・変換する． */
 static int parse_fd(void){int fd=expr();if(fd<0)error=1;return fd;}
-/* Build a line from byte-stream UART reads as well as console reads. */
+
+/* UART/USBのバイト列から長さ制限のある一行を組み立てる． */
 static int read_line(char *buf,unsigned cap){
     static int skip_lf;
     unsigned n=0;
@@ -224,7 +266,8 @@ static int read_line(char *buf,unsigned cap){
     buf[n]=0;
     return (int)n;
 }
-/* input() always returns a bounded string, including an empty one. */
+
+/* input()の文字列を固定領域へ取得する． */
 static int input_text(char *dst){
     if(!eat('(')){error=1;return 0;}
     ws();
@@ -244,6 +287,8 @@ static int input_text(char *dst){
     if(n<0){error=1;return 0;}
     return 1;
 }
+
+/* 十進文字列を符号付き32ビット整数へ変換する．空文字・余分な文字・範囲外値は0を返し，成功時のみ*outへ格納する． */
 static int parse_decimal(const char *s,int32_t *out){
     while(*s==' '||*s=='\t')s++;
     int neg=0;if(*s=='+'||*s=='-')neg=(*s++=='-');
@@ -257,13 +302,16 @@ static int parse_decimal(const char *s,int32_t *out){
     if(!digits||*s)return 0;
     *out=neg?(int32_t)(0u-v):(int32_t)v;return 1;
 }
+
+/* 32ビット整数を表示用の10進文字列へ変換する． */
 static void decimal_string(int32_t v,char *dst){
     char reversed[12];unsigned n=0;uint32_t a=v<0?0u-(uint32_t)v:(uint32_t)v;
     do{reversed[n++]=(char)('0'+a%10u);a/=10u;}while(a);
     if(v<0)reversed[n++]='-';
     unsigned j=0;while(n)dst[j++]=reversed[--n];dst[j]=0;
 }
-/* int() accepts an integer expression, a string variable or input(). */
+
+/* int()で整数式，文字列変数，input()の結果を整数化する． */
 static int32_t integer_conversion(void){
     if(!eat('(')){error=1;return 0;}
     ws();char value[STR_MAX+1];int string_arg=0;
@@ -287,6 +335,7 @@ static int32_t integer_conversion(void){
     int32_t v=expr();if(!eat(')'))error=1;return v;
 }
 static int32_t expr(void);
+/* 整数式の最小単位を解析する．括弧，変数，文字列などの型と範囲を確認する． */
 static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=1;return x;}
     if(eat('-'))return (int32_t)(0u-(uint32_t)atom());
     if(eat('+'))return atom();
@@ -313,7 +362,7 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     name[n]=0;if(!n){error=1;return 0;}
     if(same(name,"True"))return 1;
     if(same(name,"False"))return 0;
-    /* Shared framebuffer ioctl commands (same ABI as fbctl). */
+    /* fbctlと同じフレームバッファioctl ABIを共有する． */
     if(same(name,"FB_ENABLE"))return OS_FB_ENABLE;
     if(same(name,"FB_DISABLE"))return OS_FB_DISABLE;
     if(same(name,"FB_STATUS"))return OS_FB_STATUS;
@@ -321,14 +370,14 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     if(same(name,"SEEK_CUR"))return SEEK_CUR;
     if(same(name,"SEEK_END"))return SEEK_END;
     if(same(name,"int"))return integer_conversion();
-    /* Bare input() is a string and cannot be used as an integer expression. */
+    /* input()単独の戻り値は文字列なので，そのまま整数式の値にはならない． */
     if(same(name,"input")){error=1;return 0;}
     if(same(name,"len")&&eat('(')){
         char target[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)target[z++]=*cursor++;
         target[z]=0;int k=seqslot(target);if(!eat(')')||k<0||(!seq[k].used&&!is_string[k])){error=1;return 0;}
         return is_string[k]?(int32_t)strlen(string_at(k)):seq[k].len;
     }
-    /* Small, integer-FD socket API. Returns raw OS status for polling. */
+    /* 整数FDを使う簡易ソケットAPI．ポーリング用にOSの戻り値をそのまま渡す． */
     if(same(name,"socket")&&eat('(')){
         int32_t type=expr();if(!eat(')'))error=1;
         if(type!=SOCK_STREAM&&type!=SOCK_DGRAM)error=1;
@@ -405,13 +454,18 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         return items(k)[index];}
     return evaluating?getvar(name):0;
 }
+
+/* 乗除算の優先順位を処理する． */
 static int32_t product(void){int32_t a=atom();for(;;){if(eat('*'))a=(int32_t)((uint32_t)a*(uint32_t)atom());
-    else if(eat('/')){ /* / and // both perform integer division in this subset. */
+    else if(eat('/')){ /* この限定版では/と//のどちらも整数除算を行う． */
         eat('/');a=divide(a,atom(),0);
     }else if(eat('%'))a=divide(a,atom(),1);else break;}return a;}
+
+/* 加減算を含む式を評価し，次の構文解析位置を更新する． */
 static int32_t sum(void){int32_t a=product();for(;;){if(eat('+'))a=(int32_t)((uint32_t)a+(uint32_t)product());
     else if(eat('-'))a=(int32_t)((uint32_t)a-(uint32_t)product());else break;}return a;}
-/* Recursive precedence levels: |, ^, &, shifts, then arithmetic. */
+
+/* 再帰下降で演算子の優先順位を扱う．論理演算・ビット演算・シフト・四則演算を段階別に解析する． */
 static int32_t bits(int level){
     int32_t a=level==3?sum():bits(level+1);
     for(;;){
@@ -434,6 +488,8 @@ static int32_t bits(int level){
     }
     return a;
 }
+
+/* 比較演算を解析する． */
 static int32_t comparison(void){int32_t a=bits(0);ws();int op=0;
     if(cursor[0]=='='&&cursor[1]=='='){op=1;cursor+=2;}
     else if(cursor[0]=='!'&&cursor[1]=='='){op=2;cursor+=2;}
@@ -450,25 +506,32 @@ static int32_t comparison(void){int32_t a=bits(0);ws();int op=0;
     }
     return a;
 }
-/* Python precedence: comparison > not > and > or.
-   Parse skipped operands without evaluating their side effects. */
+
+/* 比較演算よりnot，さらにand，orの順に優先順位が下がる．短絡評価で読み飛ばす式は副作用を起こさず構文だけ解析する． */
 static int32_t logical_not(void){if(word("not"))return !logical_not();return comparison();}
+
+/* 論理AND演算を含む式を解析・評価する． */
 static int32_t logical_and(void){int32_t v=logical_not();
     while(word("and")){int saved=evaluating;evaluating=saved&&(v!=0);
         int32_t b=logical_not();evaluating=saved;
-        if(saved&&v!=0)v=b; /* Python returns an operand, not a forced bool. */
+        if(saved&&v!=0)v=b; /* この処理系でもand/orの結果は単なる真偽値でなくオペランドになる． */
     }return v;
 }
+
+/* 演算子の優先順位に従って式を評価する入口． */
 static int32_t expr(void){int32_t v=logical_and();
     while(word("or")){int saved=evaluating;evaluating=saved&&(v==0);
         int32_t b=logical_and();evaluating=saved;
         if(saved&&v==0)v=b;
     }return v;
 }
+
+/* 数値リテラルを解析し，整数値を返す． */
 static void number(int32_t v){char b[12];unsigned n=0,x=v<0?0u-(uint32_t)v:(uint32_t)v;
     do{uint32_t r=x%10u;x/=10u;b[n++]=(char)('0'+r);}while(x&&n<11);
     if(v<0)b[n++]='-';while(n){char c=b[--n];outn(&c,1);}}
-/* Print a single value without allocating an unbounded temporary object. */
+
+/* 値を出力する．無制限長の中間文字列を確保せずに表示する． */
 static void print_value(void){
     ws();
     if(*cursor=='"'||*cursor=='\''){
@@ -507,6 +570,7 @@ static void print_value(void){
     cursor=start;number(expr());
 }
 static int repl_mode;
+/* 一文の構文と処理を実行する．ファイル，GPIO，通信等の小さな組込み機能へ分岐する． */
 static void statement(unsigned line){cursor=source+offsets[line];ws();
     if(word("msleep")&&eat('(')){
         int32_t ms=expr();if(!eat(')'))error=1;
@@ -585,7 +649,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         ws();if(*cursor&&*cursor!='#')error=1;
         if(!error)setstring(name,value);return;
     }
-    /* String-to-string assignment, without converting integers to strings. */
+    /* 文字列同士の代入であり，整数を自動で文字列化しない． */
     {const char *save=cursor;char from[16];unsigned j=0;
         while(idchar(*cursor)&&j<15)from[j++]=*cursor++;
         from[j]=0;int k=j?seqslot(from):-1;ws();
@@ -640,9 +704,12 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
     }
     int32_t v=expr();ws();if(*cursor&&*cursor!='#')error=1;if(!error)setvar(name,v);
 }
+
+/* インデントに従って現在の複合文の終端行を探す． */
 static unsigned block_end(unsigned start){unsigned i=start+1;while(i<count&&levels[i]>levels[start])i++;return i;}
-/* A block returns loop control to its nearest enclosing loop. */
+/* ブロックからのループ制御は直近の外側ループへ伝える． */
 enum {FLOW_NORMAL, FLOW_BREAK, FLOW_CONTINUE};
+/* インデントで表される文ブロックを実行し，ループ制御を呼出し元へ伝える． */
 static int execute(unsigned first,unsigned last,unsigned depth,unsigned in_loop){
     if(depth>8){error=1;return FLOW_NORMAL;}
     for(unsigned i=first;i<last&&!error;){error_line=i+1;cursor=source+offsets[i];ws();
@@ -716,8 +783,8 @@ static int execute(unsigned first,unsigned last,unsigned depth,unsigned in_loop)
     }
     return FLOW_NORMAL;
 }
-/* Join physical lines within list/bytes parentheses, preserving indentation of
-   the first line. This is deliberately bounded by the existing source buffer. */
+
+/* リストやbytes等の未閉鎖の括弧に含まれる複数行を，インデントを維持して結合する．既存ソースバッファの上限内に収める． */
 static unsigned join_continuations(unsigned n){
     unsigned out=0;int nesting=0;char quote=0;
     for(unsigned i=0;i<n;i++){
@@ -733,6 +800,8 @@ static unsigned join_continuations(unsigned n){
     }
     source[out]=0;return out;
 }
+
+/* 与えられたソースの先頭から文を順に実行する． */
 static void run_source(unsigned n){
     n=join_continuations(n);
     count=0;error=0;error_line=0;
@@ -754,7 +823,8 @@ static void run_source(unsigned n){
     if(!error)execute(0,count,0,0);
     if(error){outs("python: syntax/runtime error at statement ");number((int32_t)error_line);outs("\r\n");}
 }
-/* Track unfinished bracketed expressions across REPL input lines. */
+
+/* REPL入力に未閉鎖の括弧が残っているか調べる． */
 static int pending_brackets(const char *s,unsigned n){
     int depth=0;char quote=0;
     for(unsigned i=0;i<n;i++){
@@ -766,6 +836,8 @@ static int pending_brackets(const char *s,unsigned n){
     }
     return depth;
 }
+
+/* REPL入力を読み，継続行を処理して一文ずつ実行する． */
 static void repl(void){
     outs("PicoNIX Tiny Python (Python subset)\r\n");
     outs("Type exit() to quit.\r\n");
@@ -795,7 +867,7 @@ static void repl(void){
                 if(m && line[m-1]==':'){block=1;continue;}
                 break;
             }
-            /* A completed expression (not an indented suite) runs immediately. */
+            /* インデントブロックでない式は完成した時点で即座に実行する． */
             unsigned i=0;while(i<n && (source[i]==' '||source[i]=='\t'))i++;
             int suite=0;
             while(i<n && source[i]!='\n' && source[i]!='\r')i++;
@@ -805,6 +877,8 @@ static void repl(void){
         if(n){source[n]=0;run_source(n);}
     }
 }
+
+/* ファイル実行と対話実行を引数に応じて切り替える． */
 int main(int argc, char *argv[]){
     if(argc>2) {outs("usage: python [file]\r\n");_exit(1);}
     if(argc<2 || !argv[1]){repl();goto done;}

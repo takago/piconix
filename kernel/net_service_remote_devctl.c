@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* UDP 2000番で受け付けるリモートデバイス操作を担当する．
+ * 受信処理と実際のデバイス操作の実行箇所を分ける． */
+
 #include "net.h"
 #include "net_services.h"
 #include "devices.h"
@@ -6,8 +9,7 @@
 #include "piconix.h"
 #include <stdio.h>
 #include <string.h>
-/* Restricted UDP device operations.  No process fd or user RAM is involved.
- * The allowlist is intentional: never expose the general VFS over UDP. */
+/* UDPで届いたデバイス操作要求を検査し，対応するGPIO等の操作へ変換する． */
 static int net_device_request(const unsigned char *req, unsigned n, unsigned char *out, unsigned cap) {
     if(n<6 || cap<16) return -1;
     unsigned writing=0, enable=0, disable=0, prefix=0;
@@ -24,7 +26,7 @@ static int net_device_request(const unsigned char *req, unsigned n, unsigned cha
     unsigned payload=end;
     if(writing) {
         if(payload>=n) return -1;
-        /* One separator before payload: newline permits binary framebuffer data. */
+        /* ペイロードの前に区切り文字を一つ置く．改行を使うとバイナリのフレームバッファデータも扱える． */
         ++payload;
     } else if(end!=n && !(end+1==n && req[end]=='\n')) return -1;
     if(!strcmp(path,"/dev/gpio/fb")) {
@@ -33,10 +35,7 @@ static int net_device_request(const unsigned char *req, unsigned n, unsigned cha
         if(cap<8) return -1;
         return fb_rw(out,8,0)==8 ? 8 : -1;
     }
-    /* Only board-safe GPIOs are exposed over unauthenticated UDP.
-     * GP23..25 are reserved by Pico W hardware; PWM, ADC and UART
-     * pins are excluded by pin_gpio().  The framebuffer driver
-     * rejects GP0..15 while matrix scanning is active. */
+    /* 認証のないUDPからアクセスできるGPIOはボード上で安全な範囲に限る．GP23〜25はPico W用，PWM・ADC・UARTのピンはpin_gpioが除外し，表示動作中のGP0〜15はFBドライバが拒否する． */
     if(!strncmp(path,"/dev/gpio/",10)) {
         const char *digits=path+10;
         unsigned pin=0;
@@ -100,12 +99,13 @@ static int net_device_request(const unsigned char *req, unsigned n, unsigned cha
 #include <stdint.h>
 #include <string.h>
 static struct udp_pcb *device_pcb;
-/* Requests are processed outside lwIP receive callbacks. */
+/* デバイス操作要求はlwIP受信コールバックの外で実行する． */
 static unsigned char device_req[128];
 static unsigned device_req_len;
 static ip_addr_t device_peer;
 static u16_t device_peer_port;
 static unsigned char device_pending;
+/* ネットワークコールバックで要求を受け取る．実処理は後のポーリングへ渡す． */
 static void device_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                         const ip_addr_t *addr, u16_t port) {
     (void)arg; (void)pcb;
@@ -117,6 +117,8 @@ static void device_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     }
     pbuf_free(p);
 }
+
+/* UDP 2000番のデバイス制御受信口を初期化し，コールバックを設定する． */
 static int device_start(void) {
     device_pcb=udp_new_ip_type(IPADDR_TYPE_V4);
     if(!device_pcb) return 0;
@@ -126,6 +128,8 @@ static int device_start(void) {
     udp_recv(device_pcb,device_recv,NULL);
     return 1;
 }
+
+/* 保留したデバイス要求をアイドル文脈で処理する． */
 static void device_process_pending(void) {
     if(!device_pending || !device_pcb) return;
     unsigned char data[128];
@@ -141,10 +145,15 @@ static void device_process_pending(void) {
     device_pending=0;
 }
 
-
+/* デバイス制御サービスを初期化する．非Wi-Fi版では未対応を返す． */
 int net_service_remote_devctl_init(void) { return device_start(); }
+
+/* 受信済みのデバイス制御要求を処理する．受信コールバック内では重い操作をしない． */
 void net_service_remote_devctl_poll(void) { device_process_pending(); }
 #else
+/* デバイス制御サービスを初期化する．非Wi-Fi版では未対応を返す． */
 int net_service_remote_devctl_init(void) { return 0; }
+
+/* 受信済みのデバイス制御要求を処理する．受信コールバック内では重い操作をしない． */
 void net_service_remote_devctl_poll(void) {}
 #endif

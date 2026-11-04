@@ -1,12 +1,13 @@
+/* 小さな標準入出力ライブラリの型・関数宣言． */
 #ifndef PICONIX_STDIO_H
 #define PICONIX_STDIO_H
 #include <stddef.h>
 #include <stdarg.h>
-/* All user-space runtime symbols are linked within the same PIC image. */
+/* ユーザランタイムの全シンボルは各PICイメージ内にリンクする． */
 #ifndef PICONIX_HOST_TEST
 #pragma GCC visibility push(hidden)
 #endif
-/* One 64-byte buffer per stream, used for input OR output. */
+/* ストリームごとに64バイトのバッファを一つ持ち，入出力のどちらかに使う． */
 typedef struct {
     int fd;
     unsigned char buf[64];
@@ -22,7 +23,7 @@ extern FILE __piconix_stdin, __piconix_stdout, __piconix_stderr;
 #define _IOFBF 0
 #define _IOLBF 1
 #define _IONBF 2
-/* Uses the built-in 64-byte buffer; external buffers are unsupported. */
+/* 内部の64バイトバッファを使用し，外部バッファは受け付けない． */
 int setvbuf(FILE *stream, char *buf, int mode, size_t size);
 FILE *fopen(const char *path, const char *mode);
 int fclose(FILE *stream);

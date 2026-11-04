@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Hex/ASCII dump: hexdump [file [offset [count]]]. */
+/* ファイルやメモリの内容を16進数とASCIIで表示する． */
+
+/* ファイル・オフセット・個数を指定して16進数／ASCII表示する． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -7,6 +9,7 @@
 #include "string.h"
 #include <stdint.h>
 
+/* オフセット表示などに用いる数値引数を解析する． */
 static int number(const char *s, unsigned *value)
 {
     char *end;
@@ -17,6 +20,7 @@ static int number(const char *s, unsigned *value)
     return 0;
 }
 
+/* 入力ファイルを16進数と文字の対応が分かる形式で表示する． */
 int main(int argc, char *argv[])
 {
     if(argc>4) { puts("usage: hexdump [file [offset [count]]]"); return 1; }
@@ -40,7 +44,7 @@ int main(int argc, char *argv[])
         if(fd) close(fd);
         return 1;
     }
-    /* /dev/mem needs an explicit size to avoid dumping all memory. */
+    /* /dev/memでは全メモリを読み出さないよう，明示的なサイズを要求する． */
     if(count && strcmp(parts[0],"/dev/mem")==0 && !limited) {
         puts("hexdump: /dev/mem requires offset and count");
         close(fd);

@@ -1,4 +1,6 @@
-/* User-space PicoNIX kernel trace reader. */
+/* カーネルの固定長トレースレコードを読み，
+ * システムコールの入口・出口やタスク切替を表示する． */
+/* ユーザ空間でカーネルトレースを読み取るコマンド． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -7,6 +9,7 @@
 #include "../../include/device_names.h"
 #include "../../include/piconix_syscall.h"
 
+/* トレース中のシステムコール番号を表示名へ変換する． */
 static const char *syscall_name(unsigned n) {
     switch(n) {
         case 0: return "?";
@@ -16,13 +19,13 @@ static const char *syscall_name(unsigned n) {
         default: return "unknown";
     }
 }
-/* /bin lists registered applications in program-ID order.  Resolve names
- * once at display time; the ID itself was recorded before the task exited. */
-#define PROGRAM_COUNT 65  /* match kernel PROGRAM_CAPACITY (IDs 0..64) */
+/* /binの列挙はプログラムID順である．終了したタスクでも記録済みIDを名前に変換できるよう，表示時に一度解決する． */
+#define PROGRAM_COUNT 65  /* カーネルと同じプログラムID容量（0〜64）にする． */
 #define NAMES_CAP 768
 static char names[NAMES_CAP];
 static const char *program_names[PROGRAM_COUNT];
 
+/* 登録プログラムのIDと名前をVFSから読み，記録表示に使う． */
 static void load_program_names(void) {
     for(int i=0;i<PROGRAM_COUNT;i++) program_names[i]="?";
     program_names[0]="idle";
@@ -43,25 +46,31 @@ static void load_program_names(void) {
     close(fd);
 }
 
+/* プログラムIDから登録名を取得する．不明なIDなら?を返す． */
 static const char *program_name(unsigned id) {
     return id<PROGRAM_COUNT ? program_names[id] : "?";
 }
 
-/* Keep a small history of successfully opened descriptors. */
+/* openに成功したFDの小さな履歴を保持する． */
 #define FD_NAMES 24
 static struct { unsigned pid; unsigned fd; char name[17]; } fd_names[FD_NAMES];
 static unsigned fd_next;
+/* 追跡対象プロセスのFDに付けた表示名を探す． */
 static const char *find_fd(unsigned pid, unsigned fd) {
     for(unsigned i=0;i<FD_NAMES;i++)
         if(fd_names[i].name[0] && fd_names[i].pid==pid && fd_names[i].fd==fd)
             return fd_names[i].name;
     return NULL;
 }
+
+/* 終了・closeされたFDの表示名キャッシュを削除する． */
 static void forget_fd(unsigned pid, unsigned fd) {
     for(unsigned i=0;i<FD_NAMES;i++)
         if(fd_names[i].name[0] && fd_names[i].pid==pid && fd_names[i].fd==fd)
             fd_names[i].name[0]=0;
 }
+
+/* openしたFDと表示パスの組を小さな履歴に保存する． */
 static void save_fd(unsigned pid, unsigned fd, const uint8_t *name) {
     forget_fd(pid,fd);
     unsigned i=fd_next++;
@@ -70,15 +79,19 @@ static void save_fd(unsigned pid, unsigned fd, const uint8_t *name) {
     for(unsigned j=0;j<16;j++) fd_names[i].name[j]=(char)name[j];
     fd_names[i].name[16]=0;
 }
-/* Data is a binary preview, not a NUL-terminated C string. */
-/* Fixed columns: keep the trace display small and predictable. */
+
+/* 列幅を固定してトレース表示を小さく予測しやすく保つ． */
 static void col(const char *s, unsigned width) {
     unsigned i=0;
     while(i<width && s[i]) {putchar(s[i]); i++;}
     while(i++<width) putchar(' ');
     putchar(' ');
 }
+
+/* 記録内の数値フィールドを表示用に書式化する． */
 static void numeric(char *s, int n) {sprintf(s,"%d",n);}
+
+/* トレース時刻を短い固定桁の表示へ変換する． */
 static void format_short_time(char *out, uint32_t ms) {
     char digits[16];
     sprintf(digits,"%u",(unsigned)ms);
@@ -94,12 +107,15 @@ static void format_short_time(char *out, uint32_t ms) {
     }
     out[pos]=0;
 }
+
+/* 文字列バッファ末尾に表示項目を追加し，上限を越えないようにする． */
 static void append(char *out, const char *s) {
     unsigned n=(unsigned)strlen(out);
     while(*s && n<sizeof(((trace_event_t *)0)->data)*4u-1u) out[n++]=*s++;
     out[n]=0;
 }
-/* Resolve IDs from the same fixed-device declarations as the kernel VFS. */
+
+/* デバイスIDの名称はカーネルVFSと共通の定義から求める． */
 static const char *device_path(int id) {
 #define DEVICE_CASE(path, dev) if(id==dev) return path;
     PICONIX_FIXED_DEVICES(DEVICE_CASE)
@@ -107,6 +123,8 @@ static const char *device_path(int id) {
 #undef DEVICE_CASE
     return NULL;
 }
+
+/* システムコールのFD／対象を人間が読みやすい短い文字列へ整形する． */
 static void format_target(char *out, unsigned pid, unsigned fd, int8_t id) {
     const char *name=find_fd(pid,fd);
     sprintf(out,"%u",fd);
@@ -114,6 +132,8 @@ static void format_target(char *out, unsigned pid, unsigned fd, int8_t id) {
     else if(id>=0 && device_path(id)) {append(out,":");append(out,device_path(id));}
     else if(id>=0) {char part[16];sprintf(part,":id=%d",(int)id);append(out,part);}
 }
+
+/* read／writeの先頭データを印字可能な範囲で表示する． */
 static void print_preview(const uint8_t *data, unsigned len, int shortened) {
     unsigned written=0;
     putchar('"'); written++;
@@ -129,6 +149,8 @@ static void print_preview(const uint8_t *data, unsigned len, int shortened) {
     putchar('"');
     if(shortened || i<len) printf("...");
 }
+
+/* トレース表示の列名と区切り線を出力する． */
 static void header(void) {
     puts("Time   PID Command TTY     Event    Call     Target           Ret Data");
     puts("--------------------------------------------------------------------------");
@@ -136,17 +158,22 @@ static void header(void) {
 static unsigned close_pid, close_fd;
 static struct { unsigned pid, call; char target[64]; } pending[8];
 static unsigned pending_next;
+/* 入口イベントに対応する未完了システムコールを探す． */
 static const char *pending_find(unsigned pid, unsigned call) {
     for(unsigned i=0;i<8;i++)
         if(pending[i].pid==pid && pending[i].call==call)
             return pending[i].target;
     return NULL;
 }
+
+/* 入口イベントを保存し，後続の終了イベントと対応付ける． */
 static void pending_save(unsigned pid, unsigned call, const char *target) {
     unsigned i=pending_next++ & 7u;
     pending[i].pid=pid; pending[i].call=call;
     strcpy(pending[i].target,target);
 }
+
+/* 対象PIDやFD履歴等のトレース表示状態を初期化する． */
 static void reset_view_state(void) {
     memset(fd_names,0,sizeof fd_names);
     memset(pending,0,sizeof pending);
@@ -155,6 +182,8 @@ static void reset_view_state(void) {
     close_pid=0;
     close_fd=0;
 }
+
+/* リングから取得した1イベントを表示する．入口・終了やタスク切替の違いを明示する． */
 static void print_event(const trace_event_t *e) {
     char time[20],pid[16],target[64]="",ret[16]="";
     unsigned shown_pid=(e->kind&TRACE_KIND_MASK)==TRACE_SWITCH ? e->value : e->pid;
@@ -200,7 +229,7 @@ static void print_event(const trace_event_t *e) {
     col(enter?"ENTER":"EXIT",8);col(syscall_name(call),8);
     col(target,16);col(ret,3);
     if(!enter && call==SYS_OPEN && (int)e->detail>=0) {
-        /* The open path is already available from the binary event. */
+        /* openのパス文字列はイベント記録から取得できる． */
     } else if(!enter && (call==SYS_READ || call==SYS_WRITE) && (int)e->detail>0 && e->file_id!=99) {
         unsigned length=(unsigned)e->detail;
         if(length>16) length=16;
@@ -210,21 +239,23 @@ static void print_event(const trace_event_t *e) {
     if(!enter && call==SYS_CLOSE && (int)e->detail==0 && close_pid==e->pid)
         forget_fd(close_pid,close_fd);
 }
-/* Trace reads use a per-FD event cursor.  Advancing it to the current
- * end avoids mixing previously recorded events into a new run. */
+
+/* トレースデバイスから固定長レコードを読み，表示へ順次流す． */
 static int trace_drain(int fd) {
     trace_event_t e;
     int n;
     while((n=read(fd,&e,sizeof e))==(int)sizeof e) {}
     return n;
 }
+
+/* 指定コマンドをトレースし，待機と表示処理を行う． */
 static int trace_run(int fd, int argc, char *argv[]) {
     if(argc<3 || argc>10) {
         puts("usage: trace run command [args...]");return 1;
     }
     load_program_names();
     reset_view_state();
-    /* Match the shell's ./image execution in the current directory. */
+    /* 現在ディレクトリ内の./image実行はシェルと同じ形式で解釈する． */
     char image_path[128];
     const char *name=argv[2];
     const char *image=name;
@@ -250,7 +281,7 @@ static int trace_run(int fd, int argc, char *argv[]) {
     if(!enabled && ioctl(fd,TRACE_ON,0)<0) {
         puts("trace: cannot enable tracing");return 1;
     }
-    /* Keep existing recording intact when already enabled. */
+    /* 既に記録中なら取得済みデータを維持する． */
     if(trace_drain(fd)<0) {
         puts("trace: cannot seek to latest event");
         if(!enabled) ioctl(fd,TRACE_OFF,0);
@@ -262,7 +293,7 @@ static int trace_run(int fd, int argc, char *argv[]) {
         if(!enabled) ioctl(fd,TRACE_OFF,0);
         return 1;
     }
-    /* Allow programs such as Python to read from their terminal. */
+    /* Pythonなどの入力待ちプログラムが通常のTTYを利用できるようにする． */
     set_foreground(pid);
     int status=0;
     int waited=waitpid(pid,&status,0);
@@ -284,6 +315,8 @@ static int trace_run(int fd, int argc, char *argv[]) {
     if(waited<0) puts("trace: waitpid failed");
     return n<0 || waited<0 ? 1 : 0;
 }
+
+/* トレース表示・起動操作をコマンド引数に基づいて選ぶ． */
 int main(int argc, char *argv[]) {
     if(argc<2) {
         puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]");return 1;
@@ -325,7 +358,7 @@ int main(int argc, char *argv[]) {
         close(fd);return 0;
     }
     if(show && ioctl(fd,TRACE_OFF,0)<0) {puts("trace: ioctl failed");close(fd);return 1;}
-    /* follow starts at invocation, not at the oldest retained event. */
+    /* followモードでは保持中の最古イベントでなく，起動時点から表示する． */
     if(follow && trace_drain(fd)<0) {puts("trace: cannot seek to latest event");close(fd);return 1;}
     load_program_names();
     reset_view_state();
@@ -339,7 +372,7 @@ int main(int argc, char *argv[]) {
         }
         n=read(fd,&event,sizeof event);
         if(n==(int)sizeof event) {
-            /* Switch events identify the destination task in value. */
+            /* タスク切替イベントはvalueに切替先PIDを持つ． */
             unsigned event_pid=(event.kind&TRACE_KIND_MASK)==TRACE_SWITCH ? event.value : event.pid;
             if(filter_pid<0 || event_pid==(unsigned)filter_pid) {
                 print_event(&event);count++;

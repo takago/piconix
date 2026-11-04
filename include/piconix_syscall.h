@@ -1,4 +1,6 @@
-/* Shared PicoNIX syscall numbers and display names. */
+/* カーネルとユーザ空間で共有するシステムコール番号表．
+ * 番号はSVC ABIで使うため，変更する場合は両側を同時に確認する． */
+/* カーネル・ユーザ間で共有するシステムコール番号と表示名． */
 #ifndef PICONIX_SYSCALL_H
 #define PICONIX_SYSCALL_H
 

@@ -1,13 +1,17 @@
-/* UDP datagram echo server. */
+/* UDPデータグラムを返信するエコーサーバの例． */
+/* UDPエコーサーバ． */
 #include "unistd.h"
 #include "stdio.h"
 #include <stdint.h>
+/* UDP待受ポート番号を解析する． */
 static int port(const char *s) {
     unsigned n=0;
     if(!*s)return -1;
     while(*s) {if(*s<'0'||*s>'9')return -1;n=n*10u+(*s++-'0');if(n>65535)return -1;}
     return n?(int)n:-1;
 }
+
+/* UDP受信データを送信元へ送り返すエコーサーバを動かす． */
 int main(int argc,char **argv) {
     int p=argc==1?7:argc==2?port(argv[1]):-1;
     if(p<0){puts("usage: udp_echod [PORT]");return 1;}
@@ -21,7 +25,7 @@ int main(int argc,char **argv) {
         int n=recvfrom(fd,buf,sizeof(buf),0,(struct sockaddr *)&peer,&len);
         if(n==OS_EAGAIN){msleep(2);continue;}
         if(n<0)break;
-        /* One received datagram is returned as one datagram. */
+        /* 受信した一データグラムを一データグラムとして返信する． */
         while(sendto(fd,buf,(size_t)n,0,(struct sockaddr *)&peer,len)==OS_EAGAIN)msleep(2);
     }
     close(fd);return 0;

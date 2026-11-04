@@ -11,9 +11,11 @@ import sys
 SLOT_BASE = 0x2000e000
 SLOT_BYTES = 6 * 0x6000
 
+# 外部コマンドを実行し，標準出力を文字列で取得する．
 def run(*argv):
     return subprocess.check_output(argv, text=True, stderr=subprocess.STDOUT)
 
+# nm出力をシンボル名とアドレスの辞書に変換する．
 def parse_nm(output):
     symbols = {}
     for line in output.splitlines():
@@ -33,9 +35,10 @@ def parse_symbol_sizes(output):
             sizes[fields[3]] = int(fields[1], 16)
     return sizes
 
+# objdumpのセクション一覧から名前・サイズ・VMA・LMAを解析する．
 def parse_sections(output):
     result = {}
-    # GNU objdump -h: 0 .boot2 00000100 10000000 10000000 ...
+    # objdump -hの出力例：0 .boot2 00000100 10000000 10000000 ...
     for line in output.splitlines():
         match = re.match(r'^\s*\d+\s+(\S+)\s+([0-9a-fA-F]+)\s+([0-9a-fA-F]+)\s+([0-9a-fA-F]+)', line)
         if match:
@@ -43,6 +46,7 @@ def parse_sections(output):
             result[name] = tuple(int(x, 16) for x in (size, vma, lma))
     return result
 
+# 実際にリンクしたELFのベクタ・Flash・RAM・ユーザスロット配置を検査する．
 def audit(symbols, sections, slots=6):
     slot_bytes = slots * 0x6000
     problems = []
@@ -51,9 +55,8 @@ def audit(symbols, sections, slots=6):
     boot = sections.get('.boot2')
     require(boot is not None and boot[0] == 256 and boot[1] == 0x10000000,
             'Pico SDK .boot2 must occupy 256 bytes at 0x10000000')
-    # The SDK copy-to-RAM linker script merges input .vectors into .flashtext.
-    # Validate the symbol and its 48-entry footprint in a flash-backed section,
-    # rather than assuming the input section survives as an output section.
+    # SDKのRAM実行用スクリプトは入力.vectorsを.flashtextへ統合する．
+    # 出力セクション名ではなくベクタのシンボルと48エントリの実領域を検査する．
     vector_address = symbols.get('__vectors', symbols.get('__VECTOR_TABLE'))
     if '__vectors' in symbols and '__VECTOR_TABLE' in symbols:
         require(symbols['__vectors'] == symbols['__VECTOR_TABLE'],
@@ -79,15 +82,15 @@ def audit(symbols, sections, slots=6):
         if address is not None:
             require(not (SLOT_BASE <= address < SLOT_BASE + slot_bytes),
                     f'{name} overlaps task memory')
-    # Reject other allocatable SRAM sections intersecting task slots.
-    # Ignore .bss.task_slots itself (it reserves the whole slot range).
+    # タスク領域と重なるSRAMセクションを拒否する．
+    # ただしスロット全体の予約用.bss.task_slotsは重複として扱わない．
     for name, (size, vma, _) in sections.items():
         if not size or name == '.bss.task_slots': continue
         if name.startswith('.debug') or name.startswith('.comment'): continue
         if max(vma, SLOT_BASE) < min(vma + size, SLOT_BASE + slot_bytes):
             require(False, f'{name} overlaps reserved task slots: 0x{vma:08x}+0x{size:x}')
-    # Every embedded user image must remain in XIP FLASH.  A RAM VMA here
-    # silently consumes kernel SRAM and grows with the application count.
+    # 埋込みユーザイメージはXIP Flashへ置く．RAM上へ配置すると
+    # アプリ数に比例してカーネルSRAMを圧迫するため拒否する．
     for app in ('pins', 'fbctl', 'kitesys', 'shell', 'blink', 'omikuji', 'python',
                 'hello', 'hexdump', 'trace', 'ps', 'cat', 'watch', 'pwd',
                 'ls', 'rm', 'echo', 'kill', 'tty'):
@@ -104,8 +107,8 @@ def audit(symbols, sections, slots=6):
                 and image_end <= app_section[1] + app_section[0]
                 and app_section[2] == app_section[1],
                 f'embedded {app} image is not in flash-backed .piconix_app_images')
-    # Every allocated kernel SRAM section must fit within 56 KiB; no accidental
-    # use of task banks by SDK sections, and no stack spill into the slots.
+    # カーネルの割当て済みSRAMは56 KiB内に限定する．
+    # SDKのセクションやスタックがタスクスロットを侵食していないか検査する．
     for name, (size, vma, lma) in sections.items():
         if not size or name.startswith(('.debug', '.comment')):
             continue
@@ -151,6 +154,7 @@ def memory_report(sections, symbol_sizes, slots=6, wifi_idle=False):
     print('NOTE: headroom is linker-address headroom, not free heap or free task memory.')
     print('==================================\n')
 
+# ELF解析ツールを呼び出し，メモリ配置違反があれば失敗扱いにする．
 def main():
     p = argparse.ArgumentParser()
     p.add_argument('elf')

@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* 各ピンの用途を一元化し，使用できないGPIO/ADC/PWMを判定する． */
+
 #ifndef PICONIX_PINS_H
 #define PICONIX_PINS_H
-/* Edit pin modes here; GPIO, PWM and ADC listings follow these settings. */
+/* ピンの用途を変更するときはここを編集する．GPIO・PWM・ADCの一覧もこの設定に従う． */
 #define PIN_GPIO 0
 #define PIN_ADC  1
 #define PIN_PWM  2
@@ -39,18 +41,18 @@
 
 #define PWM_DEFAULT_FREQ 1000u
 #define PWM_DEFAULT_DUTY 0u
-/* USB CDC is the sole main console; GP0/1 remain GPIO. */
+/* USB CDCが主コンソールであり，GP0/1はGPIOとして利用できる． */
 #if GP0_MODE != PIN_GPIO || GP1_MODE != PIN_GPIO
 #error "LED framebuffer requires GP0/1 to be PIN_GPIO"
 #endif
-/* UART1 uses GP20/21. */
+/* UART1はGP20/21を使用する． */
 #if GP20_MODE != PIN_UART || GP21_MODE != PIN_UART
 #error "UART1 requires GP20/21 to be PIN_UART"
 #endif
 #if (GP0_MODE != PIN_GPIO && GP0_MODE != PIN_UART) || (GP1_MODE != PIN_GPIO && GP1_MODE != PIN_UART)
 #error "GP0/1 support GPIO or UART only"
 #endif
-/* RP2040: ADC on GP26..28, PWM slice 1 A/B on GP18/19. */
+/* RP2040のADCはGP26〜28，PWMスライス1のA/BはGP18/19を利用する． */
 #if (GP18_MODE != PIN_GPIO && GP18_MODE != PIN_PWM) || (GP19_MODE != PIN_GPIO && GP19_MODE != PIN_PWM)
 #error "GP18/19 support GPIO or PWM only"
 #endif
@@ -116,14 +118,23 @@
 #endif
 
 #define PIN_MODE(n) pin_mode(n)
+/* ボードごとの固定ピン設定表から，GPIO／ADC／PWM等の利用モードを返す． */
 static inline int pin_mode(unsigned pin) {
     static const unsigned char modes[29] = {
 GP0_MODE, GP1_MODE, GP2_MODE, GP3_MODE, GP4_MODE, GP5_MODE, GP6_MODE, GP7_MODE, GP8_MODE, GP9_MODE, GP10_MODE, GP11_MODE, GP12_MODE, GP13_MODE, GP14_MODE, GP15_MODE, GP16_MODE, GP17_MODE, GP18_MODE, GP19_MODE, GP20_MODE, GP21_MODE, GP22_MODE, GP23_MODE, GP24_MODE, GP25_MODE, GP26_MODE, GP27_MODE, GP28_MODE
     };
     return pin<29 ? modes[pin] : -1;
 }
+
+/* 指定ピンが汎用GPIOとして利用可能なら真を返す． */
 static inline int pin_gpio(unsigned pin) { return pin_mode(pin)==PIN_GPIO; }
+
+/* 指定チャネルに対応するGPIOがADC用なら真を返す． */
 static inline int pin_adc(unsigned ch) { return ch<3 && pin_mode(26u+ch)==PIN_ADC; }
+
+/* GP18／GP19がPWM用に割り当てられているか確認する． */
 static inline int pin_pwm(unsigned pin) { return (pin==18 || pin==19) && pin_mode(pin)==PIN_PWM; }
+
+/* PWMに割り当てたピンが1本以上あるか返す． */
 static inline int pin_any_pwm(void) { return pin_pwm(18) || pin_pwm(19); }
 #endif

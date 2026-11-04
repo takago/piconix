@@ -3,7 +3,8 @@
 from pathlib import Path
 k=(Path(__file__).resolve().parents[2]/'kernel/kernel.c').read_text()
 start=k.index('static void fd_release(')
-end=k.index('/* Copy an open descriptor',start)
+# コメント翻訳の影響を受けないよう，次の関数定義までを検査する．
+end=k.index('static void fd_inherit(',start)
 release=k[start:end]
 assert 'pipe_ref(dev,-1);' in release
 assert 'fd_set(t,fd,-1,0,0,0);' in release

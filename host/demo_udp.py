@@ -13,6 +13,7 @@ FB = "/dev/gpio/fb"
 ADC = "/dev/adc/0"
 
 
+# UDPデバイス制御サービスへ要求を送信し，結果を表示する実演処理．
 def run(host: str, port: int, interval: float, timeout: float) -> None:
     def send(command: str, path: str, payload: bytes = b"") -> bytes:
         msg = (command + " " + path).encode("ascii")
@@ -20,7 +21,7 @@ def run(host: str, port: int, interval: float, timeout: float) -> None:
             msg += b"\n" + payload
         return request(host, port, msg, timeout)
 
-    # Moving single LED, one row per byte, with a bit shifting across columns.
+    # 1行を1バイトとし，点灯位置を左右へ移してLEDを走査する．
     send("ENABLE", FB)
     try:
         step = 0
@@ -38,7 +39,7 @@ def run(host: str, port: int, interval: float, timeout: float) -> None:
         except (OSError, RuntimeError) as exc:
             print(f"Warning: could not disable framebuffer: {exc}")
 
-
+# UDP 2000番のGPIO等の遠隔操作を試すコマンド引数を処理する．
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--host", default="192.168.4.1")

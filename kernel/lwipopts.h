@@ -1,52 +1,46 @@
-/* Minimal lwIP options for PicoNIX AP bring-up. */
+/* lwIPのメモリ・プロトコル設定．Pico WのSRAM容量を前提に固定値を選ぶ． */
+/* PicoNIXのAP/STAで使う最小限のlwIP設定． */
 #pragma once
 #define NO_SYS 1
 #define LWIP_SOCKET 0
-/* Observe IPv4 RX without consuming or modifying lwIP packets. */
+/* lwIPのパケットを変更・消費せずにIPv4受信を観測する． */
 #include "net_capture_hook.h"
 #define LWIP_HOOK_IP4_INPUT(p,n) piconix_packet_input((p),(n))
 #define LWIP_RAW 1
-/* Allow immediate listener rebind after previous TCP connections close. */
+/* 以前の接続終了後にもTCP待受ポートを直ちに再利用できるようにする． */
 #define SO_REUSE 1
 #define LWIP_NETCONN 0
 #define LWIP_TCP 1
 #define LWIP_UDP 1
-/* Local TCP/UDP traffic uses lwIP's built-in 127.0.0.1 interface.
- * NO_SYS requires explicit queue polling; never re-enter tcp_input(). */
+/* ローカルTCP/UDP通信ではlwIP標準の127.0.0.1を使う．NO_SYSではキューを明示的に処理し，tcp_inputの再帰呼出しを避ける． */
 #define LWIP_NETIF_LOOPBACK 1
 #define LWIP_HAVE_LOOPIF 1
 #define LWIP_LOOPBACK_MAX_PBUFS 8
 #define LWIP_NETIF_LOOPBACK_MULTITHREADING 0
-/* STA needs the lwIP DHCP client; AP uses PicoNIX's own DHCP server. */
+/* STAはlwIPのDHCPクライアントを使い，APはPicoNIX独自のDHCPサーバを使う． */
 #if defined(PICONIX_WIFI_STA) && PICONIX_WIFI_STA
 #define LWIP_DHCP 1
 #else
 #define LWIP_DHCP 0
 #endif
-/* Permit DHCP clients to send IPv4 packets from 0.0.0.0 before leasing. */
+/* リース取得前のDHCPクライアントが0.0.0.0を送信元にしたIPv4を送れるようにする． */
 #define LWIP_IP_ACCEPT_UDP_PORT(port) ((port) == PP_NTOHS(67))
 #define LWIP_DNS 0
 #define MEM_ALIGNMENT 4
-/* Pico W network bank (16 KiB):
- * 0x2003c000..0x2003e7ff  lwIP heap (10 KiB, plus allocator metadata)
- * 0x2003e800..0x2003efff  unallocated boundary gap (~2 KiB)
- * 0x2003f000..0x2003ffff  idle/network task stack (4 KiB)
- * pbuf pools, TCP PCB pools and CYW43 globals remain in kernel SRAM.
- * The ELF/layout audits must validate this contract. */
+/* Pico Wのネットワーク予約領域16 KiBはlwIPヒープ10 KiB，境界領域約2 KiB，アイドル／通信スタック4 KiBに分割する．pbuf・TCP PCB・CYW43の静的領域はカーネルRAM側に残り，境界領域には管理情報も含む． */
 #define MEM_SIZE (10 * 1024)
 #define LWIP_RAM_HEAP_POINTER ((void *)0x2003C000u)
 #define PBUF_POOL_SIZE 8
-/* Lightweight counters for heap and pool utilization/failures. */
+/* lwIPヒープとプールの使用量・確保失敗を軽量に集計する． */
 #define LWIP_STATS 1
 #define MEM_STATS 1
 #define MEMP_STATS 1
 #define PBUF_POOL_BUFSIZE 512
 #define MEMP_NUM_TCP_PCB 5
-#define MEMP_NUM_TCP_PCB_LISTEN 5 /* Telnet + user TCP; HTTP will require another */
-#define MEMP_NUM_UDP_PCB 4 /* DHCP + device service + user UDP + mDNS */
+#define MEMP_NUM_TCP_PCB_LISTEN 5 /* TelnetとユーザTCPで使用する待受枠を確保する．HTTP等も同じ枠を共有する． */
+#define MEMP_NUM_UDP_PCB 4 /* DHCP・デバイス制御・ユーザUDP・mDNSで使う枠． */
 #define LWIP_MDNS_RESPONDER 1
-/* mDNS probing/announcements need timeout entries beyond lwIP core timers.
- * Keep four extra entries for transient mDNS timers in both STA and AP. */
+/* mDNSの探索・通知ではlwIP基本タイマー以外の枠が必要になるため，STA/APとも一時タイマーを4枠余分に確保する． */
 #define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 4)
 #define LWIP_IGMP 1
 #define LWIP_NUM_NETIF_CLIENT_DATA 1

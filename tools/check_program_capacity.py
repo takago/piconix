@@ -11,7 +11,7 @@ cap_match = re.search(r"^\s*#define\s+PROGRAM_CAPACITY\s+(\d+)\b", kernel, re.M)
 if not cap_match:
     sys.exit("ERROR: PROGRAM_CAPACITY not found in kernel/kernel.c")
 capacity = int(cap_match.group(1))
-# Match only numeric IDs; fail if registration changes to a form we cannot validate.
+# 登録IDは数値定数に限って検査する．解析できない記述形式は安全側で失敗させる．
 registrations = re.findall(r"\bregister_image\s*\(\s*([^,]+)\s*,", main)
 registrations = [arg.strip() for arg in registrations if arg.strip() != "int id"]
 if not registrations:

@@ -25,7 +25,7 @@ for elf_file in a.elf:
     except OSError:
         continue
     if result.returncode != 0:
-        # A missing or unparseable symbol table is not a reason to stop firmware generation.
+        # シンボル表がないアプリは収録を省略する．ファームウェア生成は継続する．
         continue
     for row in result.stdout.splitlines():
         match = re.fullmatch(r'([0-9a-fA-F]+)\s+([TtDdBbRr])\s+([A-Za-z_.$][A-Za-z_0-9.$]*)', row.strip())
@@ -37,7 +37,7 @@ for elf_file in a.elf:
         lines.append((app, address - 0x2000E000, kind, name))
 lines.sort(key=lambda x: (x[0], x[1], x[3]))
 raw = ''.join(f'{app}\t{offset:04x}\t{kind}\t{name}\n' for app, offset, kind, name in lines).encode('ascii')
-# Avoid replacing existing output when identical, preventing unnecessary relinks.
+# 出力が同一なら書き換えず，再リンクを避ける．
 output = Path(a.output)
 if not output.exists() or output.read_bytes() != raw:
     output.write_bytes(raw)

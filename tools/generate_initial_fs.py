@@ -7,6 +7,7 @@ CATEGORIES = ('etc', 'tmp')
 BOARDS = ('common', 'pico', 'picow')
 ALLOWED = {f'{category}_{board}' for category in CATEGORIES for board in BOARDS}
 
+# 初期RAMファイルの入力データからビルド用のイメージを生成する．
 def generate(base, board, output):
     if board not in ('pico', 'pico_w'):
         raise ValueError(f'unsupported board: {board}')

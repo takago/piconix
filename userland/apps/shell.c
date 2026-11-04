@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* PicoNIX shell: freestanding, slot-linked at 0x2000E000.
- * Small user libc; no SDK or kernel RAM data references.
- * Syscalls use SVC ABI: r0=number, r1..r3=arguments.
- */
+/* 小さな対話シェル．コマンド行の編集，履歴，リダイレクト，
+ * 最大3段のパイプ，前景・背景実行と起動時rcの実行を扱う． */
+
+/* PicoNIXのシェルは独立したPICイメージとして0x2000E000にリンクする．SDK・カーネルRAMへ直接依存せず，SVC ABIではr0が番号，r1〜r3が引数である． */
 #include <stdint.h>
 #include <stddef.h>
 
@@ -10,10 +10,13 @@
 #include "fcntl.h"
 #include "string.h"
 #include "stdio.h"
+/* 二つの文字列を完全一致で比較する． */
 static int eq(const char *a,const char *b) { return strcmp(a,b)==0; }
+
+/* 指定した接頭辞で文字列が始まるか判定する． */
 static int prefix(const char *a,const char *b) { return strncmp(a,b,strlen(b))==0; }
-/* A console write can be partial when the kernel TX queue fills.
- * Sleep to let the idle task drain it; never discard the remainder. */
+
+/* カーネルのTXキューが満杯なら書込みが途中で終わる．アイドルへ処理を譲り，未送信部分を破棄せず再試行する． */
 static void write_all(int fd, const char *p, size_t n) {
     while(n) {
         int rc=write(fd, p, n);
@@ -22,6 +25,8 @@ static void write_all(int fd, const char *p, size_t n) {
         p+=(unsigned)rc; n-=(unsigned)rc;
     }
 }
+
+/* 標準出力へNUL終端文字列を表示する． */
 static void put(const char *s) {
     char b[48];
     while(*s) {
@@ -30,7 +35,8 @@ static void put(const char *s) {
         write_all(1,b,n);
     }
 }
-/* Resolve '.', '..', repeated '/' and relative names with a small user libc. */
+
+/* 作業ディレクトリ基準でパスを解決する．`.`，`..`，連続スラッシュを整理する． */
 static int resolve(const char *cwd, const char *input, char out[128]) {
     char combined[256];
     unsigned n=0;
@@ -60,26 +66,30 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
     }
     return 0;
 }
-/* Whitespace is syntax around redirection paths, not part of names. */
+
+/* リダイレクト先の名前に空白を含めず，周囲の空白を構文として扱う． */
 static char *trim(char *s) {
     while(*s==' ' || *s=='\t') s++;
     char *end=s+strlen(s);
     while(end>s && (end[-1]==' ' || end[-1]=='\t')) *--end=0;
     return s;
 }
-/* Restore a temporarily redirected standard descriptor and release its copy. */
+
+/* 一時的に変更した標準FDを復元し，退避用FDを閉じる． */
 static void restore_fd(int target, int saved) {
     if(saved>=0) {
         dup2(saved,target);
         close(saved);
     }
 }
+
+/* シェルで一時変更した標準入出力FDを元の設定へ戻す． */
 static void restore_stdio(int saved_in, int saved_out) {
     restore_fd(0,saved_in);
     restore_fd(1,saved_out);
 }
-/* Redirection applies to builtins and spawned processes alike.  Return the
- * temporary descriptor so that the caller can restore the standard stream. */
+
+/* ファイルまたはデバイスへ標準FDを付け替える．戻すために元のFDを退避し，組込みコマンドにも同じ処理を使う． */
 static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
     char *first=0;
     for(char *q=s;*q;q++) if(*q=='<' || *q=='>') {
@@ -87,7 +97,7 @@ static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
         if(*q=='>' && q[1]=='>') q++;
     }
     if(!first) return 0;
-    /* A file name must be one unquoted word.  Two redirects are allowed. */
+    /* リダイレクト先は引用符なしの一語とし，二箇所まで認める． */
     char *q=first;
     int seen=0;
     while(*q) {
@@ -106,7 +116,7 @@ static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
         int valid=resolve(cwd,name,path);
         *q=terminator;
         if(valid<0) return -1;
-        /* Device nodes are not regular files: creation/truncation is invalid. */
+        /* デバイスノードは通常ファイルではないため，作成・切り詰めを要求しない． */
         int flag=output?(1|(prefix(path,"/dev/")?0:O_CREAT|(append?O_APPEND:O_TRUNC))):0;
         int target=output?1:0, saved=-1;
         if(seen & (1<<target)) return -1;
@@ -126,6 +136,8 @@ static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
     *first=0;
     return 0;
 }
+
+/* 登録済み外部コマンドをIDで起動する．子へ引数と標準入出力FDを継承させる． */
 static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,const char **bg_name) {
     char *args[8];int argc=0;
     char *q=cmd;
@@ -152,7 +164,7 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     int id=program_id(name);
     if(id<0) return 0;
     args[0]=(char *)name;
-    /* Pass arguments unchanged; commands and the VFS interpret their paths. */
+    /* 引数は変えずに渡し，各コマンドまたはVFSがそのパスを解釈する． */
     unsigned total=0;
     for(int i=0;i<argc;i++) total+=(unsigned)strlen(args[i])+1;
     if(total>128) {put("arguments too long (max 128 bytes)\r\n");return 1;}
@@ -163,14 +175,15 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
         int status=0;
         waitpid(pid,&status,0);
         set_foreground(0);
-        /* Full-screen programs may be killed before restoring the screen. */
+        /* 全画面アプリは終了処理前にkillされ得るため，画面復旧が必要となる． */
         if(eq(name,"mb") || eq(name,"gpio") || eq(name,"pong") ||
            eq(name,"fbed") || eq(name,"edit") || eq(name,"mem") || eq(name,"fd"))
             put("\033[?1049l");
     }
     return 1;
 }
-/* Pipeline stages inherit only descriptors 0..2 from the shell. */
+
+/* パイプの一段を起動し，標準FDの0〜2だけを継承して入出力と前景状態を設定する． */
 static int pipeline_spawn(char *cmd, const char *cwd) {
     char *args[8]; int argc=0;
     for(char *q=cmd;*q;) {
@@ -192,14 +205,14 @@ static int pipeline_spawn(char *cmd, const char *cwd) {
     int id=program_id(name);
     if(id<0) return -1;
     args[0]=(char *)name;
-    /* Pipeline stages receive the same argv as ordinary commands. */
+    /* パイプの各段へ通常コマンドと同様の引数を渡す． */
     unsigned total=0;
     for(int i=0;i<argc;i++) total+=(unsigned)strlen(args[i])+1;
     if(total>128) return -1;
     return spawn(id,argc,(const char *const *)args);
 }
-/* At most three commands, connected by the two kernel pipe buffers.
- * All children are started before waiting, so full buffers can drain. */
+
+/* 最大3段のパイプを組み立てる．全段を起動してから待機し，未使用端を閉じてEOFを伝える． */
 static void run_pipeline(char *stage[3], int count, const char *cwd) {
     int saved_in=-1, saved_out=-1, previous_read=-1;
     int pid[3]={-1,-1,-1}, failed=0;
@@ -207,8 +220,7 @@ static void run_pipeline(char *stage[3], int count, const char *cwd) {
     if(saved_in<0) {failed=1;goto cleanup;}
     saved_out=dup(1);
     if(saved_out<0) {failed=1;goto cleanup;}
-    /* Allocate the next pipe as each stage starts. Close unused ends
-     * promptly so the reader sees EOF when the last writer exits. */
+    /* 段の起動に合わせて次のパイプを作り，不要な端点は直ちにcloseして最後の書き手の消滅をEOFとして伝える． */
     for(int i=0;i<count;i++) {
         int next[2]={-1,-1};
         if(i<count-1 && pipe(next)<0) {failed=1;break;}
@@ -225,7 +237,7 @@ static void run_pipeline(char *stage[3], int count, const char *cwd) {
             if(next[0]>=0) close(next[0]);
             failed=1;break;
         }
-        /* Register each pipeline member for terminal Ctrl+C. */
+        /* 前景パイプの各PIDを登録し，Ctrl+Cで一括終了できるようにする． */
         set_foreground(pid[i]);
         if(previous_read>=0) close(previous_read);
         previous_read=next[0];
@@ -238,6 +250,8 @@ cleanup:
     for(int i=0;i<count;i++) if(pid[i]>0) waitpid(pid[i],&status,0);
     set_foreground(0);
 }
+
+/* 入力行を解釈し，組込みコマンド／外部コマンドへ振り分ける． */
 static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const char **bg_name) {
     while(*s==' ') s++;
     if(!*s) return;
@@ -268,12 +282,13 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
     } else if(!run_external(s,cwd,requested_bg,bg_pid,bg_name))
         put("unknown command (help)\r\n");
 }
-/* Compact per-shell history; no heap allocation or kernel changes. */
+/* シェルごとの小さな履歴を固定長で管理する．ヒープもカーネル変更も不要である． */
 #define HISTORY_SIZE 8
 #define SHELL_PROMPT "piconix# "
 static char history[HISTORY_SIZE][128];
 static unsigned history_count, history_next;
 
+/* 固定長のコマンド履歴へ追加する．ヒープは使わず，古い項目を順に入れ替える． */
 static void history_add(const char *line) {
     if(!*line) return;
     if(history_count && eq(history[(history_next+HISTORY_SIZE-1)%HISTORY_SIZE],line)) return;
@@ -281,7 +296,8 @@ static void history_add(const char *line) {
     history_next=(history_next+1)%HISTORY_SIZE;
     if(history_count<HISTORY_SIZE) history_count++;
 }
-/* Move left from the current position by n columns. */
+
+/* 現在位置からn桁だけ左へ移動する． */
 static void shell_move_left(unsigned n) {
     if(!n) return;
     char digits[4];unsigned used=0;
@@ -290,16 +306,21 @@ static void shell_move_left(unsigned n) {
     while(used) write_all(1,&digits[--used],1);
     put("D");
 }
-/* Terminal tab stops are every four columns, including the prompt. */
+
+/* プロンプトも含め，端末のTAB位置は4桁刻みとする． */
 static unsigned shell_columns(const char *line,unsigned len) {
     unsigned col=sizeof(SHELL_PROMPT)-1;
     for(unsigned i=0;i<len;i++)col+=line[i]=='\t'?4-(col&3u):1;
     return col;
 }
+
+/* シェル入力にタブが含まれるか調べ，補完処理の分岐に使う． */
 static int shell_has_tab(const char *line,unsigned len) {
     for(unsigned i=0;i<len;i++)if(line[i]=='\t')return 1;
     return 0;
 }
+
+/* 補完候補や展開後の入力行を端末に表示する． */
 static void shell_print_expanded(const char *line,unsigned len) {
     unsigned col=sizeof(SHELL_PROMPT)-1;
     for(unsigned i=0;i<len;i++) {
@@ -310,21 +331,23 @@ static void shell_print_expanded(const char *line,unsigned len) {
         }else {write_all(1,line+i,1);col++;}
     }
 }
-/* Redraw a line with four-column tab expansion. */
+
+/* TABを4桁位置へ展開して一行を再描画する． */
 static void shell_redraw(const char *line, unsigned len, unsigned cursor) {
     put("\r" SHELL_PROMPT);
     shell_print_expanded(line,len);
     put("\033[K");
     shell_move_left(shell_columns(line,len)-shell_columns(line,cursor));
 }
-/* Update from the edited column, leaving the prompt and prefix alone. */
+
+/* 入力行の変更部分だけ再描画し，プロンプトと前半はそのままにする． */
 static void shell_redraw_tail(const char *line, unsigned len, unsigned cursor) {
     write_all(1,line+cursor,len-cursor);
     put("\033[K");
     shell_move_left(len-cursor);
 }
-/* Complete a plain filename or /bin command at the end of a line.
- * No quoting, globbing or candidate list: keep shell RAM use small. */
+
+/* 行末のファイル名または/binコマンドを補完する．引用・ワイルドカード等は対象にせずRAM使用を抑える． */
 static int shell_complete(char line[128], unsigned *len, unsigned *cursor,
                           const char cwd[128]) {
     if(*cursor!=*len) return 0;
@@ -380,8 +403,8 @@ static int shell_complete(char line[128], unsigned *len, unsigned *cursor,
     *cursor=*len;
     return matches;
 }
-/* Print matches beneath the edited input, then repaint the prompt.
- * Rescan the directory instead of storing a candidate array in 24 KiB RAM. */
+
+/* 候補を画面に表示して入力行を再描画する．候補一覧を保存せずディレクトリを再走査する． */
 static void shell_list_matches(const char line[128], unsigned len,
                                const char cwd[128]) {
     unsigned start=len;
@@ -417,8 +440,8 @@ static void shell_list_matches(const char line[128], unsigned len,
     if(nmatch>48)put("... (more matches)");
     put("\r\n");
 }
-/* Read one line in raw/no-echo mode; restore the TTY before commands run.
- * If this TTY cannot be controlled, keep the original canonical fallback. */
+
+/* 一行入力中だけTTYをraw／エコーなしへ切り替え，編集後に元へ戻す．端末の占有に失敗した場合は行入力へ戻る． */
 static int shell_readline(char line[128], const char cwd[128]) {
     int canon=ioctl(0,OS_TTY_GET_CANON,0);
     int echo=ioctl(0,OS_TTY_GET_ECHO,0);
@@ -439,7 +462,7 @@ static int shell_readline(char line[128], const char cwd[128]) {
     char draft[128]={0};
     line[0]=0;
     unsigned len=0,cursor=0;
-    unsigned selected=history_count; /* history_count means draft */
+    unsigned selected=history_count; /* history_countは現在編集中の下書き位置を示す． */
     int escape=0, tab_pending=0;
     for(;;) {
         char c;
@@ -467,23 +490,23 @@ static int shell_readline(char line[128], const char cwd[128]) {
             shell_redraw(line,len,cursor);
             continue;
         }
-        if(c==1) { /* Ctrl+A: beginning of line. */
+        if(c==1) { /* Ctrl+A：行頭へ移動する． */
             cursor=0;
             shell_redraw(line,len,cursor);
             continue;
         }
-        if(c==5) { /* Ctrl+E: end of line. */
+        if(c==5) { /* Ctrl+E：行末へ移動する． */
             cursor=len;
             shell_redraw(line,len,cursor);
             continue;
         }
-        if(c==11) { /* Ctrl+K: kill from cursor to end. */
+        if(c==11) { /* Ctrl+K：カーソルから行末まで削除する． */
             len=cursor;
             line[len]=0;
             shell_redraw(line,len,cursor);
             continue;
         }
-        if(c==23) { /* Ctrl+W: erase previous whitespace-delimited word. */
+        if(c==23) { /* Ctrl+W：直前の空白区切りの単語を削除する． */
             unsigned end=cursor;
             while(cursor && (line[cursor-1]==' ' || line[cursor-1]=='\t')) cursor--;
             while(cursor && line[cursor-1]!=' ' && line[cursor-1]!='\t') cursor--;
@@ -508,7 +531,7 @@ static int shell_readline(char line[128], const char cwd[128]) {
             continue;
         }
         tab_pending=0;
-        if(c==12) { /* Ctrl+L: clear screen, preserve the edited line and cursor. */
+        if(c==12) { /* Ctrl+L：画面を消去し，編集中の文字列とカーソルを復元する． */
             put("\033[2J\033[H");
             shell_redraw(line,len,cursor);
             continue;
@@ -540,14 +563,15 @@ static int shell_readline(char line[128], const char cwd[128]) {
             if(shell_has_tab(line,len)) shell_redraw(line,len,cursor);
             else if(at_end) write_all(1,&c,1);
             else {
-                /* Cursor is still at the insertion point on the terminal. */
+                /* 端末上のカーソルは引き続き挿入位置にある． */
                 shell_redraw_tail(line,len,cursor-1);
                 put("\033[C");
             }
         }
     }
 }
-/* Initial boot shell (PID 1) only: use the same command parser as interactive input. */
+
+/* 最初の起動シェルで設定ファイルの各行を通常のコマンド解析器へ渡す．長すぎる行は実行しない． */
 static void run_boot_rc(char *cwd) {
     int fd=open("/etc/rc",O_RDONLY);
     if(fd<0) return;
@@ -555,7 +579,7 @@ static void run_boot_rc(char *cwd) {
     while(read(fd,&c,1)==1) {
         if(c=='\r') continue;
         if(c!='\n' && len<sizeof(line)-1) {line[len++]=c;continue;}
-        if(c!='\n') { /* Reject oversized lines instead of executing truncated commands. */
+        if(c!='\n') { /* 長すぎるrc行を途中まで実行しないよう拒否する． */
             while(read(fd,&c,1)==1 && c!='\n') {}
             len=0;continue;
         }
@@ -570,6 +594,8 @@ static void run_boot_rc(char *cwd) {
     }
     close(fd);
 }
+
+/* 端末の用意と起動時処理を終えた後，入力・解析・実行・子の回収を繰り返す． */
 int main(int argc, char *argv[]) {
     (void)argv;
     if(argc!=1) {put("usage: sh\r\n");return 1;}
@@ -580,7 +606,7 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
     strcpy(cwd,"/tmp");
-    /* USB CDC may enumerate after the shell task starts.  Do not discard the banner. */
+    /* シェル起動後にUSB CDCが接続されることがあるため，起動バナーを捨てない． */
     while(!console_ready()) msleep(10);
     char id_line[] = "FlashID: 00000000\r\n";
     static const char hex[] = "0123456789abcdef";
@@ -596,10 +622,10 @@ int main(int argc, char *argv[]) {
     put("\033[0m\033[?25h" SHELL_PROMPT);
     for(;;) {
         shell_readline(line,cwd);
-        /* Reap completed background children (no status display yet). */
+        /* 完了した背景子プロセスを回収する．終了状態の表示はまだ行わない． */
         int bg_status;
         while(waitpid(-1, &bg_status, 1)>0) {}
-        /* Parse '&' once for every command, before redirection. */
+        /* リダイレクトを解析する前に，コマンド末尾の&を一度だけ解釈する． */
         char *cmd=trim(line);
         int requested_bg=0;
         size_t len=strlen(cmd);
@@ -634,7 +660,7 @@ int main(int argc, char *argv[]) {
         if(redir_ok==0) command(trim(cmd),cwd,requested_bg,&bg_pid,&bg_name);
         restore_stdio(saved_in,saved_out);
         if(redir_ok<0) put("redirect: invalid path or cannot open file\r\n");
-        /* Background notification must go to the console, not the file. */
+        /* 背景起動の通知はリダイレクト先でなく端末へ出す． */
         if(bg_pid>0) {
             put("["); printf("%d", bg_pid);
             put("] "); put(bg_name?bg_name:"program"); put(" started\r\n");

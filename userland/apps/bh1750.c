@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* BH1750 continuous high-resolution illuminance monitor for PicoNIX. */
+/* I2C照度センサBH1750の読み取り例． */
+
+/* I2C照度センサBH1750の連続高分解能測定例． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -12,6 +14,7 @@
 #define BH1750_POWER_DOWN 0x00
 #define BH1750_CONT_H_RES 0x10
 
+/* /dev/i2c/1を使い，BH1750へ指定バイトを書いて測定値を受け取る． */
 static int transfer(int fd, uint8_t addr, int command, uint8_t *data)
 {
     piconix_i2c_transfer_t t = {0};
@@ -31,9 +34,10 @@ static int transfer(int fd, uint8_t addr, int command, uint8_t *data)
     return 0;
 }
 
+/* BH1750照度センサをI2Cで操作し，取得した照度値を表示する． */
 int main(int argc, char **argv)
 {
-    int samples = 0; /* 0 = continuous */
+    int samples = 0; /* 0は連続測定を指定する． */
     if (argc > 2) {
         puts("usage: bh1750 [count] (0 = continuous)");
         return 1;
@@ -70,7 +74,7 @@ int main(int argc, char **argv)
             break;
         }
         unsigned raw = ((unsigned)data[0] << 8) | data[1];
-        /* BH1750: lux = raw / 1.2. Display 3 decimal places. */
+        /* 照度luxは生値÷1.2で求め，小数点以下3桁まで表示する． */
         unsigned milli_lux = raw * 2500u / 3u;
         printf("%u.%03u lx\n", milli_lux / 1000u, milli_lux % 1000u);
     }

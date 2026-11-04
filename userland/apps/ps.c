@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* ps: task listing provided by the kernel's /proc/tasks. */
+/* /proc/tasksからプロセス情報を取得する． */
+
+/* psはカーネルの/proc/tasksからタスク一覧を取得する． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 
+/* /proc/tasksからPIDと状態などを取得し，プロセス一覧を表示する． */
 int main(int argc, char *argv[]) {
     (void)argv;
     if(argc!=1) {puts("usage: ps");return 1;}

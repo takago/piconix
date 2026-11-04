@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* lwIPのUDP/TCPエンドポイントとユーザFDとの橋渡しを行う．
+ * パケットと接続状態は固定長領域に保持し，lwIPコールバックで動的確保しない． */
+
 #include "net_socket.h"
 #ifndef PICONIX_WIFI
 #define PICONIX_WIFI 0
@@ -8,13 +11,14 @@
 #include "lwip/pbuf.h"
 #include "lwip/ip4_addr.h"
 #include <string.h>
-/* Single datagram slot: bounded RAM, no allocation in receive callback. */
+/* UDP受信は一つの固定バッファへ保存する．受信コールバックで動的確保しない． */
 static struct udp_pcb *udp_socket;
 static unsigned char rx_data[NET_SOCKET_UDP_MAX];
 static unsigned rx_length;
 static uint32_t rx_peer_ip;
 static uint16_t rx_peer_port;
 static unsigned rx_ready;
+/* UDP受信データを固定の一件バッファへ保存する．コールバックでヒープを確保せず，空きがなければ保持中データを守る． */
 static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                          const ip_addr_t *addr, u16_t port) {
     (void)arg; (void)pcb;
@@ -27,6 +31,8 @@ static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     }
     pbuf_free(p);
 }
+
+/* UDP待受ポートをlwIPへ登録する．不正ポート・既存状態などの失敗時は負値を返す． */
 int net_socket_udp_bind(uint16_t port) {
     if (udp_socket || !port) return -1;
     struct udp_pcb *pcb = udp_new_ip_type(IPADDR_TYPE_V4);
@@ -40,12 +46,14 @@ int net_socket_udp_bind(uint16_t port) {
     udp_recv(pcb, udp_received, NULL);
     return 0;
 }
+
+/* 保持中の一つのデータグラムを取り出す．データがなければ再試行可能な状態を返す． */
 int net_socket_udp_recv(void *buf, unsigned capacity, uint32_t *peer_ip, uint16_t *peer_port) {
     if (!buf) return -1;
-    /* A UDP client has no PCB until its first send; this is not an error. */
+    /* UDPクライアントは最初の送信までPCBがなくても正常である． */
     if (!udp_socket) return -3;
-    if (!rx_ready) return -3; /* No datagram; zero-length datagrams are valid. */
-    if (capacity < rx_length) return -2; /* Retain datagram for retry. */
+    if (!rx_ready) return -3; /* データグラムがない状態と，長さ0の正当なデータグラムを区別する． */
+    if (capacity < rx_length) return -2; /* データグラムを保留して次回の受信で取り出せるようにする． */
     memcpy(buf, rx_data, rx_length);
     if (peer_ip) *peer_ip = rx_peer_ip;
     if (peer_port) *peer_port = rx_peer_port;
@@ -53,9 +61,11 @@ int net_socket_udp_recv(void *buf, unsigned capacity, uint32_t *peer_ip, uint16_
     rx_ready = 0;
     return (int)n;
 }
+
+/* 宛先IPv4とポートを指定してUDPデータグラムを送る．必要なら最初の送信時にPCBを用意する． */
 int net_socket_udp_send(const void *buf, unsigned length, uint32_t peer_ip, uint16_t peer_port) {
     if ((!buf && length) || length > NET_SOCKET_UDP_MAX || !peer_port) return -1;
-    /* Client mode: allocate and bind an ephemeral local port on first send. */
+    /* UDPクライアントは最初の送信時に一時ローカルポートを確保する． */
     if (!udp_socket) {
         struct udp_pcb *pcb = udp_new_ip_type(IPADDR_TYPE_V4);
         if (!pcb) return -1;
@@ -76,14 +86,15 @@ int net_socket_udp_send(const void *buf, unsigned length, uint32_t peer_ip, uint
     pbuf_free(p);
     return err == ERR_OK ? (int)length : -1;
 }
+
+/* UDPソケットを解放し，受信状態をリセットする．非Wi-Fi版では何もしない． */
 void net_socket_udp_close(void) {
     if (udp_socket) { udp_remove(udp_socket); udp_socket = NULL; }
     rx_ready = 0;
 }
-/* Experimental TCP transport backend for the PicoNIX socket syscalls. */
+/* PicoNIXのTCPシステムコールを支えるlwIP側の実装． */
 #include "lwip/tcp.h"
-/* A single refused pbuf can contain an entire advertised receive window.
- * Keep enough room to accept it when the application has drained the slot. */
+/* 拒否したpbuf一個で受信窓が満杯になる場合もある．アプリが読出した後に全体を受け取れるよう，適切な領域を確保する． */
 #define NET_SOCKET_TCP_RX_MAX TCP_WND
 typedef struct {
     struct tcp_pcb *listener, *client;
@@ -93,9 +104,12 @@ typedef struct {
     unsigned char write_shutdown;
 } tcp_slot_t;
 static tcp_slot_t slots[NET_SOCKET_TCP_SLOTS];
+/* IDが有効な範囲にある場合だけ固定TCPスロットのポインタを返す． */
 static tcp_slot_t *slot_at(int id) {
     return id>=0 && id<NET_SOCKET_TCP_SLOTS ? &slots[id] : NULL;
 }
+
+/* 固定TCP管理スロットを確保する．空きがなければ-1を返す． */
 int net_socket_tcp_alloc(void) {
     for(int i=0;i<NET_SOCKET_TCP_SLOTS;i++)
         if(!slots[i].allocated) {
@@ -105,6 +119,8 @@ int net_socket_tcp_alloc(void) {
         }
     return -1;
 }
+
+/* 非同期TCP接続の完了を受け，接続状態とエラーを更新する． */
 static err_t socket_tcp_connected_cb(void *arg, struct tcp_pcb *pcb, err_t err) {
     (void)pcb;
     tcp_slot_t *s=(tcp_slot_t *)arg;
@@ -113,22 +129,25 @@ static err_t socket_tcp_connected_cb(void *arg, struct tcp_pcb *pcb, err_t err) 
     s->fault = 1;
     return err;
 }
+
+/* lwIPがTCP PCBを破棄したときに管理スロットの参照を解除する． */
 static void socket_tcp_err(void *arg, err_t err) {
     (void)err;
     tcp_slot_t *s=(tcp_slot_t *)arg;
-    s->client = NULL; /* lwIP already freed the PCB. */
+    s->client = NULL; /* lwIPが既にPCBを破棄した後である． */
     s->pending_accept = 0;
     s->fault = 1;
     s->connecting = s->established = 0;
     s->write_shutdown = 0;
 }
+
+/* TCP受信コールバック．受信窓に空きがないときはERR_MEMとし，ユーザが読み終える前に受信済み扱いしない． */
 static err_t socket_tcp_recv(void *arg, struct tcp_pcb *pcb,
                              struct pbuf *p, err_t err) {
     tcp_slot_t *s=(tcp_slot_t *)arg;
     if (err != ERR_OK) return err;
     if (!p) { s->peer_closed = 1; return ERR_OK; }
-    /* ERR_MEM leaves ownership with lwIP; it retries when the receive
-     * window opens. Never acknowledge bytes before the application reads. */
+    /* ERR_MEMではpbufの所有権をlwIPに残し，受信窓が空くまで再試行してもらう．ユーザが読む前に受信確認を進めない． */
     if (p->tot_len > NET_SOCKET_TCP_RX_MAX - s->rx_len) return ERR_MEM;
     pbuf_copy_partial(p, s->rx + s->rx_len, p->tot_len, 0);
     s->rx_len += p->tot_len;
@@ -136,6 +155,8 @@ static err_t socket_tcp_recv(void *arg, struct tcp_pcb *pcb,
     (void)pcb;
     return ERR_OK;
 }
+
+/* 受け付けたTCP接続を管理スロットに登録し，accept側へ新しい接続の到着を通知する． */
 static err_t socket_tcp_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
     tcp_slot_t *s=(tcp_slot_t *)arg;
     if (err != ERR_OK || s->client) return ERR_VAL;
@@ -149,12 +170,14 @@ static err_t socket_tcp_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
     tcp_err(pcb, socket_tcp_err);
     return ERR_OK;
 }
+
+/* 指定スロットでTCP待受を始める．最大接続数は固定のlwIP資源に制限される． */
 int net_socket_tcp_listen(int id, uint16_t port) {
     tcp_slot_t *s=slot_at(id);
     if(!s || !s->allocated || s->listener || s->client || !port) return -1;
     struct tcp_pcb *pcb=tcp_new_ip_type(IPADDR_TYPE_V4);
     if(!pcb) return -1;
-    /* Allow an immediate server restart after accepted connections close. */
+    /* 既存接続を閉じた後，サーバをすぐ再起動できるようにする． */
     ip_set_option(pcb, SOF_REUSEADDR);
     if(tcp_bind(pcb,IP_ANY_TYPE,port)!=ERR_OK) { tcp_close(pcb); return -1; }
     struct tcp_pcb *listener=tcp_listen_with_backlog(pcb,1);
@@ -164,6 +187,8 @@ int net_socket_tcp_listen(int id, uint16_t port) {
     tcp_accept(listener,socket_tcp_accept);
     return 0;
 }
+
+/* TCP接続を非同期に開始する．結果は接続状態の問い合わせで確認する． */
 int net_socket_tcp_connect(int id,uint32_t ip,uint16_t port) {
     tcp_slot_t *s=slot_at(id);
     if(!s || !s->allocated || s->listener || s->client || !port) return -1;
@@ -185,13 +210,19 @@ int net_socket_tcp_connect(int id,uint32_t ip,uint16_t port) {
     }
     return 0;
 }
+
+/* 待受スロットに受け取り可能な接続があるか確認する． */
 int net_socket_tcp_accept_ready(int id) {
     tcp_slot_t *s=slot_at(id);
     if(!s || !s->listener || !s->pending_accept || !s->client) return 0;
     s->pending_accept=0;
     return 1;
 }
+
+/* 指定TCPスロットが待受状態なら真を返す． */
 int net_socket_tcp_listening(int id) { tcp_slot_t *s=slot_at(id); return s && s->listener; }
+
+/* TCP待受PCBを閉じる．送受信中の接続とは別に後始末する． */
 void net_socket_tcp_close_listener(int id) {
     tcp_slot_t *s=slot_at(id);
     if(!s || !s->listener) return;
@@ -200,21 +231,23 @@ void net_socket_tcp_close_listener(int id) {
     tcp_arg(pcb,NULL); tcp_accept(pcb,NULL);
     if(tcp_close(pcb)!=ERR_OK) tcp_abort(pcb);
 }
-/* Retry deferred close only from the TCP timer callback.  In particular,
- * do not call tcp_close() from the sent/ACK callback: the latter runs while
- * lwIP is still processing the acknowledged send queue. */
+
+/* 保留したtcp_closeはTCPタイマーコールバックからだけ再試行する．ACK処理中にcloseするとlwIPの送信キュー処理と競合するためである． */
 static err_t socket_tcp_closing_poll(void *arg,struct tcp_pcb *pcb) {
     (void)arg;
-    (void)tcp_close(pcb); /* ERR_MEM: retry at the next poll. */
+    (void)tcp_close(pcb); /* ERR_MEMなら次のポーリングで再試行する． */
     return ERR_OK;
 }
+
+/* 終了処理中に到着した受信バッファを破棄して受信窓を進める． */
 static err_t socket_tcp_closing_recv(void *arg,struct tcp_pcb *pcb,struct pbuf *p,err_t err) {
     (void)arg; (void)err;
-    /* The application slot has been detached, so consume any late data.
-     * Once a pbuf is freed, lwIP must receive ERR_OK, never ERR_MEM. */
+    /* アプリから切り離した接続に遅延到着したデータは消費する．pbuf解放後はERR_MEMでなくERR_OKを返す． */
     if(p) { tcp_recved(pcb,p->tot_len); pbuf_free(p); }
     return ERR_OK;
 }
+
+/* アプリから切り離したTCP接続を閉じる．lwIP送信残がある場合はタイマーでcloseを再試行する． */
 void net_socket_tcp_close_client(int id) {
     tcp_slot_t *s=slot_at(id);
     if(!s) return;
@@ -224,7 +257,7 @@ void net_socket_tcp_close_client(int id) {
         tcp_arg(pcb,NULL); tcp_err(pcb,NULL);
         tcp_recv(pcb,socket_tcp_closing_recv);
         if(tcp_close(pcb)!=ERR_OK) {
-            /* Keep ACK processing internal to lwIP; retry close on a timer. */
+            /* ACKの処理はlwIPに任せ，closeはタイマーで再試行する． */
             tcp_sent(pcb,NULL);
             tcp_poll(pcb,socket_tcp_closing_poll,2);
         }
@@ -232,7 +265,11 @@ void net_socket_tcp_close_client(int id) {
     s->rx_len=0;
     s->pending_accept=s->peer_closed=s->fault=s->connecting=s->established=s->write_shutdown=0;
 }
+
+/* 指定TCPスロットの接続が確立済みか返す． */
 int net_socket_tcp_connected(int id) { tcp_slot_t *s=slot_at(id); return s && s->client && s->established; }
+
+/* TCP接続の状態を返す．無効なスロットや通信異常ならエラー． */
 int net_socket_tcp_status(int id) {
     tcp_slot_t *s=slot_at(id);
     if(!s) return -1;
@@ -240,6 +277,8 @@ int net_socket_tcp_status(int id) {
     if(s->peer_closed && !s->rx_len) return -2;
     return s->established ? 1 : 0;
 }
+
+/* 固定受信キューから最大capacityバイトをコピーする．消費した分だけlwIPに受信窓の解放を通知する． */
 int net_socket_tcp_read(int id,void *dst,unsigned capacity) {
     tcp_slot_t *s=slot_at(id);
     if(!s || !dst || !capacity) return -1;
@@ -253,6 +292,8 @@ int net_socket_tcp_read(int id,void *dst,unsigned capacity) {
     }
     return s->peer_closed || s->fault ? -2 : 0;
 }
+
+/* 送信バッファとMSSに収まる範囲だけをlwIPへ渡す．部分成功バイト数を返し，上位側で残りを再送する． */
 int net_socket_tcp_write(int id,const void *src,unsigned length) {
     tcp_slot_t *s=slot_at(id);
     if(!s || !s->client || !s->established || s->peer_closed || s->fault ||
@@ -263,13 +304,14 @@ int net_socket_tcp_write(int id,const void *src,unsigned length) {
     if(n>TCP_MSS) n=TCP_MSS;
     if(!n) return 0;
     err_t err=tcp_write(s->client,src,(u16_t)n,TCP_WRITE_FLAG_COPY);
-    if(err==ERR_MEM) return 0; /* Queue is full: retry after an ACK. */
-    if(err!=ERR_OK) return -1; /* A non-memory error is not backpressure. */
-    /* A failed tcp_output() does not undo the successful enqueue. The
-     * caller must not retransmit those bytes into lwIP's send queue. */
+    if(err==ERR_MEM) return 0; /* 送信キュー満杯なら次のACK後に再試行する． */
+    if(err!=ERR_OK) return -1; /* メモリ不足以外のエラーは単なる流量制限とは扱わない． */
+    /* tcp_outputに失敗してもtcp_writeで受け付けたバイトはキューに残る．呼出側が同じバイトを再送すると重複するため，成功長を返す． */
     (void)tcp_output(s->client);
     return (int)n;
 }
+
+/* TCPの送信方向だけを終了し，受信方向は維持する． */
 int net_socket_tcp_shutdown_write(int id) {
     tcp_slot_t *s=slot_at(id);
     if(!s || !s->client || !s->established || s->fault || s->write_shutdown) return -1;
@@ -277,12 +319,16 @@ int net_socket_tcp_shutdown_write(int id) {
     s->write_shutdown=1;
     return 0;
 }
+
+/* 指定TCPスロットのクライアントと待受を閉じ，管理スロットを解放する． */
 void net_socket_tcp_close(int id) {
     net_socket_tcp_close_client(id);
     net_socket_tcp_close_listener(id);
     tcp_slot_t *s=slot_at(id);
     if(s) s->allocated=0;
 }
+
+/* UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． */
 uint16_t net_socket_local_port(int kind,int id) {
     if(kind==0) return udp_socket ? udp_socket->local_port : 0;
     tcp_slot_t *s=slot_at(id);
@@ -293,27 +339,61 @@ uint16_t net_socket_local_port(int kind,int id) {
 }
 
 #else
-/* Pico builds without Wi-Fi: no lwIP objects are available. */
+/* UDP待受ポートをlwIPへ登録する．不正ポート・既存状態などの失敗時は負値を返す． */
 int net_socket_udp_bind(uint16_t port) { (void)port; return -1; }
+
+/* 保持中の一つのデータグラムを取り出す．データがなければ再試行可能な状態を返す． */
 int net_socket_udp_recv(void *b, unsigned n, uint32_t *a, uint16_t *p) {
     (void)b; (void)n; (void)a; (void)p; return -1;
 }
+
+/* 宛先IPv4とポートを指定してUDPデータグラムを送る．必要なら最初の送信時にPCBを用意する． */
 int net_socket_udp_send(const void *b, unsigned n, uint32_t a, uint16_t p) {
     (void)b; (void)n; (void)a; (void)p; return -1;
 }
+
+/* UDPソケットを解放し，受信状態をリセットする．非Wi-Fi版では何もしない． */
 void net_socket_udp_close(void) {}
+
+/* 固定TCP管理スロットを確保する．空きがなければ-1を返す． */
 int net_socket_tcp_alloc(void) { return -1; }
+
+/* 指定スロットでTCP待受を始める．最大接続数は固定のlwIP資源に制限される． */
 int net_socket_tcp_listen(int id,uint16_t port) { (void)id; (void)port; return -1; }
+
+/* 待受スロットに受け取り可能な接続があるか確認する． */
 int net_socket_tcp_accept_ready(int id) { (void)id; return 0; }
+
+/* 指定TCPスロットが待受状態なら真を返す． */
 int net_socket_tcp_listening(int id) { (void)id; return 0; }
+
+/* TCP待受PCBを閉じる．送受信中の接続とは別に後始末する． */
 void net_socket_tcp_close_listener(int id) { (void)id; }
+
+/* アプリから切り離したTCP接続を閉じる．lwIP送信残がある場合はタイマーでcloseを再試行する． */
 void net_socket_tcp_close_client(int id) { (void)id; }
+
+/* 指定TCPスロットの接続が確立済みか返す． */
 int net_socket_tcp_connected(int id) { (void)id; return 0; }
+
+/* TCP接続の状態を返す．無効なスロットや通信異常ならエラー． */
 int net_socket_tcp_status(int id) { (void)id; return -1; }
+
+/* TCP接続を非同期に開始する．結果は接続状態の問い合わせで確認する． */
 int net_socket_tcp_connect(int id,uint32_t ip,uint16_t port) { (void)id; (void)ip; (void)port; return -1; }
+
+/* 固定受信キューから最大capacityバイトをコピーする．消費した分だけlwIPに受信窓の解放を通知する． */
 int net_socket_tcp_read(int id,void *dst,unsigned n) { (void)id; (void)dst; (void)n; return -1; }
+
+/* 送信バッファとMSSに収まる範囲だけをlwIPへ渡す．部分成功バイト数を返し，上位側で残りを再送する． */
 int net_socket_tcp_write(int id,const void *src,unsigned n) { (void)id; (void)src; (void)n; return -1; }
+
+/* TCPの送信方向だけを終了し，受信方向は維持する． */
 int net_socket_tcp_shutdown_write(int id) { (void)id; return -1; }
+
+/* 指定TCPスロットのクライアントと待受を閉じ，管理スロットを解放する． */
 void net_socket_tcp_close(int id) { (void)id; }
+
+/* UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． */
 uint16_t net_socket_local_port(int kind,int id) { (void)kind; (void)id; return 0; }
 #endif

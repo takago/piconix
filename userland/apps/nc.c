@@ -1,17 +1,20 @@
-/* PicoNIX minimal netcat: IPv4 only, one socket per protocol. */
+/* TCP/UDPでデータを送受信する小さなネットワークコマンド． */
+/* IPv4専用の簡易netcat．プロトコルごとに一つのソケットを扱う． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 #include <stdint.h>
 
+/* ポート番号の文字列を検査し，16ビットの値へ変換する． */
 static int port(const char *s) {
     unsigned n=0;
     if(!*s)return -1;
     while(*s) {if(*s<'0'||*s>'9')return -1;n=n*10u+(unsigned)(*s++-'0');if(n>65535)return -1;}
     return n? (int)n:-1;
 }
-/* lwIP ip4_addr_t.addr is a network-order value in host uint32 storage. */
+
+/* lwIPのip4_addr_t.addrはuint32にネットワーク順の値として格納される． */
 static int ipv4(const char *s,uint32_t *out) {
     unsigned a[4]={0},i=0,d=0;
     for(;*s;s++) {
@@ -24,15 +27,21 @@ static int ipv4(const char *s,uint32_t *out) {
     for(i=0;i<4;i++)p[i]=(unsigned char)a[i];
     return 0;
 }
+
+/* TCP等の送信可能な範囲へ全データを書き込む．部分送信を考慮する． */
 static int send_all(int fd,const void *buf,unsigned n) {
     const unsigned char *p=buf;
     while(n) {int r=send(fd,p,n,0);if(r==OS_EAGAIN||r==0){msleep(1);continue;}if(r<0)return -1;p+=r;n-=(unsigned)r;}
     return 0;
 }
+
+/* ncのTCP／UDP接続・待受の使用形式を表示する． */
 static void usage(void) {
     puts("usage: nc [-u] [-N] -l PORT | nc [-u] [-N] IPv4 PORT");
     puts("Ctrl+C / shell interrupt to exit; IPv4 numeric addresses only");
 }
+
+/* TCP・UDPソケットを開き，ネットワークと標準入出力の間でデータを転送する． */
 int main(int argc,char **argv) {
     unsigned char data[512];
     int udp=0,exit_on_eof=0,listening=0,i=1,fd=-1,peer=-1,number;
@@ -60,7 +69,7 @@ int main(int argc,char **argv) {
             local.sin_port=htons((uint16_t)number);
             if(bind(fd,(const struct sockaddr *)&local,sizeof(local))<0){puts("nc: bind failed");goto fail;}
         }
-        /* stdin is nonblocking so incoming datagrams remain responsive. */
+        /* 標準入力をノンブロッキングにし，受信データグラムにすぐ反応できるようにする． */
         fcntl(0,F_SETFL,O_NONBLOCK);
         for(;;) {
             struct sockaddr_in sender={0};

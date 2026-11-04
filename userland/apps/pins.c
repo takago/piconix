@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Live RP2040 pin assignment snapshot, formatted as a Pico header diagram. */
+/* 利用可能なGPIOと周辺機能の割当状態を表示する． */
+
+/* RP2040の現行ピン割当てをPico基板図風に表示する． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -16,6 +18,7 @@ typedef struct { unsigned mode,level,pull,duty,freq; } pins_record_t;
 #define PINS_GPIO_OUT GPIO_STATUS_OUT
 #define PINS_FREE GPIO_STATUS_FREE
 
+/* GPIOの割当状態から使用用途の表示文字列を求める． */
 static void describe(char *dst, unsigned size, int pin, const pins_record_t *r) {
     switch(r->mode) {
     case PINS_FB: snprintf(dst,size,"fb"); break;
@@ -30,15 +33,19 @@ static void describe(char *dst, unsigned size, int pin, const pins_record_t *r) 
     default: snprintf(dst,size,"other"); break;
     }
 }
+
+/* GPIO番号と現在の使用モードを組み合わせ，基板図に表示するピン名を作る． */
 static void pinlabel(char *dst,unsigned size,int pin,const pins_record_t *records) {
     char mode[36]; describe(mode,sizeof mode,pin,&records[pin]);
     snprintf(dst,size,"GP%d %s",pin,mode);
 }
+
+/* ボードのGPIO割当と予約状態を一覧表示する． */
 int main(int argc,char **argv) {
     (void)argv;
     if(argc!=1) { puts("Usage: pins"); return 1; }
     pins_record_t records[PINS_COUNT]={0};
-    /* Existing GPIO device provides live mux/direction/level/pull status. */
+    /* GPIOデバイスを使ってピン機能・方向・レベル・プル状態を取得する． */
     int fd=open("/dev/gpio/0",O_RDONLY);
     if(fd<0) { puts("pins: cannot open /dev/gpio/0"); return 1; }
     for(int pin=0;pin<PINS_COUNT;pin++) {
@@ -49,7 +56,7 @@ int main(int argc,char **argv) {
         records[pin].pull=((unsigned)status>>GPIO_STATUS_PULL_SHIFT)&3u;
     }
     close(fd);
-    /* Read PWM configuration through its existing device files. */
+    /* PWM設定は既存のデバイスファイルから取得する． */
     unsigned freq=0;
     fd=open("/dev/pwm/1/freq",O_RDONLY);
     if(fd>=0) {
@@ -68,7 +75,7 @@ int main(int argc,char **argv) {
     }
     static const int left[20]={0,1,-1,2,3,4,5,-1,6,7,8,9,-1,10,11,12,13,-1,14,15};
     static const int right[20]={-1,-1,-1,-1,-1,-1,28,-1,27,26,-1,22,-1,21,20,19,18,-1,17,16};
-    /* Avoid arrays of string pointers: their absolute addresses break RAM-app PIC. */
+    /* 文字列ポインタの配列はPIC内で絶対アドレスを生成するため避ける． */
 
     puts("Raspberry Pi Pico / PicoNIX pins (live snapshot)");
     puts("                          +------- USB -------+");
@@ -78,7 +85,7 @@ int main(int argc,char **argv) {
         else snprintf(l,sizeof l,"%s","GND");
         if(right[i]>=0) pinlabel(r,sizeof r,right[i],records);
         else {
-            /* Keep string literals at the call site for RAM-app PIC. */
+            /* PICを保つため文字列リテラルは呼出し位置で使う． */
             switch(i) {
             case 0: snprintf(r,sizeof r,"VBUS"); break;
             case 1: snprintf(r,sizeof r,"VSYS"); break;
@@ -95,7 +102,7 @@ int main(int argc,char **argv) {
         printf("%s",l);
         unsigned len=0; while(l[len]) len++;
         while(len++<23) putchar(' ');
-        /* PicoNIX printf does not support width modifiers such as %2d. */
+        /* PicoNIXのprintfは%2dのような幅指定には対応しない． */
         if(i+1<10) putchar(' ');
         printf("%d |                 | %d  %s\r\n",i+1,40-i,r);
     }

@@ -1,9 +1,11 @@
-/* PicoNIX interface summary. This is not Linux iproute2. */
+/* ネットワークアドレス等の診断情報を表示する． */
+/* ネットワークインターフェース概要を表示する．Linuxのiproute2とは異なる． */
 #include "stdio.h"
 #include "string.h"
 #include "fcntl.h"
 #include "unistd.h"
 
+/* /proc/net/wifiの行から指定キーの値を取り出し，固定長領域に格納する． */
 static void field(char *out, unsigned cap, const char *text, const char *key) {
     unsigned k=(unsigned)strlen(key);
     const char *p=text;
@@ -18,6 +20,8 @@ static void field(char *out, unsigned cap, const char *text, const char *key) {
     }
     out[0]=0;
 }
+
+/* ループバックとWi-Fiインターフェースのアドレス情報を読み取り専用で表示する． */
 int main(int argc, char **argv) {
     if (argc>2 || (argc==2 && strcmp(argv[1],"addr") && strcmp(argv[1],"-h"))) {
         puts("usage: ip [addr]"); return 1;

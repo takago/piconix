@@ -1,3 +1,5 @@
+/* RAM内の24 KiB固定スロットへ配置するユーザイメージ用リンカスクリプト．
+ * 実行コードの先頭をapp_entryにし，末尾4 KiBをスタックとして保護する． */
 /* GNU ld / lld compatible standalone RP2040 task image. */
 ENTRY(app_entry)
 SLOT_ORIGIN = @APP_ORIGIN@;

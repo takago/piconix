@@ -1,4 +1,5 @@
-/* Small two-pass Thumb-1 assembler for PicoNIX (educational subset). */
+/* Thumb-1の限定的な命令を組み立てる教育用2パスアセンブラ． */
+/* 教育用のThumb-1命令の一部に対応する2パスアセンブラ． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -10,7 +11,7 @@
 #define MAX_OUT (2048-8)
 #define MAX_LABELS 32
 static char src[MAX_SRC+1];
-/* Keep the two-pass work buffer out of the 4 KiB task stack. */
+/* 2パス目の作業領域を4 KiBのタスクスタックではなく静的領域に置く． */
 static char text[MAX_SRC+1];
 static uint8_t code[MAX_OUT];
 static struct { char name[24]; unsigned offset; } labels[MAX_LABELS];
@@ -18,8 +19,13 @@ static int nlabels;
 static unsigned pos;
 static int err;
 
+/* 入力文字列の先頭にある空白・タブを読み飛ばし，次の文字位置を返す． */
 static char *space(char *s) { while(*s==' '||*s=='\t') ++s; return s; }
+
+/* 行末側の空白・タブ・復帰文字を削除し，字句解析を簡単にする． */
 static void end(char *s) { char *p=s+strlen(s); while(p>s && (p[-1]==' '||p[-1]=='\t'||p[-1]=='\r')) *--p=0; }
+
+/* 10進・16進の即値を解析する．任意の#と負号を受け入れ，成功時に値を書き込む． */
 static int number(char *s,int *v) {
     s=space(s); if(*s=='#') s++;
     int sign=1,base=10,result=0,digits=0;
@@ -30,10 +36,14 @@ static int number(char *s,int *v) {
     if(!digits||*space(s)) return 0;
     *v=sign*result;return 1;
 }
+
+/* レジスタ表記r0〜r7を検証し，番号または-1を返す． */
 static int reg(char *s) {
     s=space(s); if(*s!='r'||s[1]<'0'||s[1]>'7'||*space(s+2))return -1;
     return s[1]-'0';
 }
+
+/* push／popのレジスタ集合をビットマスクへ変換する．重複指定は拒否する． */
 static int registers(char *s,int pop) {
     s=space(s);if(*s++!='{')return -1;
     int mask=0;
@@ -50,6 +60,8 @@ static int registers(char *s,int pop) {
         s++;
     }
 }
+
+/* [rN, 即値]形式のメモリオペランドから基底レジスタとオフセットを求める． */
 static int memory_operand(char *s,int *base,int *offset) {
     s=space(s);if(*s++!='[')return 0;
     char *e=strchr(s,']');if(!e||*space(e+1))return 0;
@@ -58,9 +70,17 @@ static int memory_operand(char *s,int *base,int *offset) {
     else *offset=0;
     *base=reg(s);return *base>=0;
 }
+
+/* 1パス目で登録したラベル名を探し，コード内の相対位置を返す． */
 static int label(char *s) {for(int i=0;i<nlabels;i++)if(!strcmp(labels[i].name,s))return (int)labels[i].offset;return -1;}
+
+/* Thumb命令を16ビット単位で出力する．第1パスではサイズだけ数える． */
 static void emit16(unsigned v,int pass) {if(pos+2>MAX_OUT){err=1;return;} if(pass){code[pos]=(uint8_t)v;code[pos+1]=(uint8_t)(v>>8);} pos+=2;}
+
+/* 1バイトをコードへ追加する．第1パスでは位置だけ進め，出力上限を検査する． */
 static void byte(unsigned v,int pass) {if(pos>=MAX_OUT){err=1;return;} if(pass)code[pos]=(uint8_t)v;pos++;}
+
+/* ソースを1パスずつ解析する．最初にラベル位置を確定し，次に機械語と分岐先を生成する． */
 static int compile(int pass) {
     pos=0;err=0;strcpy(text,src);
     char *line=text;
@@ -155,7 +175,11 @@ static int compile(int pass) {
     }
     return err?-1:(int)pos;
 }
+
+/* FDへ全バイトを書き終えるまでwriteを繰り返す．短い書込みを考慮する． */
 static int write_all(int fd,const uint8_t *data,int count){while(count>0){int n=write(fd,data,(size_t)count);if(n<=0)return -1;data+=n;count-=n;}return 0;}
+
+/* Thumb-1アセンブリのファイルを読み，2パスで変換して実行用イメージを出力する． */
 int main(int argc,char **argv) {
     if(argc!=2){puts("usage: as /tmp/source.s");return 1;}
     int fd=open(argv[1],O_RDONLY);if(fd<0){puts("as: cannot open source");return 1;}

@@ -1,11 +1,22 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* ディレクトリの内容を列挙する． */
+
 #include "unistd.h"
 #include "stdio.h"
 #include "string.h"
+/* 二つのファイル名・オプション文字列が等しいか判定する． */
 static int eq(const char *a,const char *b) {return strcmp(a,b)==0;}
+
+/* 標準出力への全バイトの書込みを行う．部分書込みを処理する． */
 static void write_all(int fd,const char *p,size_t n) {while(n) {int k=write(fd,p,n);if(k<0)return;if(!k){msleep(1);continue;}p+=k;n-=k;}}
+
+/* 表示文字列を標準出力へ出力する． */
 static void put(const char *s) {write_all(1,s,strlen(s));}
+
+/* 数値を表示用の文字列へ変換する． */
 static void number(int v) {char b[16];snprintf(b,sizeof b,"%d",v);put(b);}
+
+/* 相対パスを現在ディレクトリからのパスへ変換する． */
 static int resolve(const char *cwd, const char *input, char out[128]) {
     char combined[256];
     unsigned n=0;
@@ -36,7 +47,7 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
     return 0;
 }
 static int detailed, show_all;
-/* IDs: device nodes use device IDs, /bin uses program IDs, RAM files use slots. */
+/* デバイスはデバイスID，/binはプログラムID，RAMファイルはスロットIDを表示する． */
 static void entry(const char *directory,const char *name,int directory_entry,unsigned id) {
     if(detailed) {
         const char *type=directory_entry?"d":
@@ -60,6 +71,8 @@ static void entry(const char *directory,const char *name,int directory_entry,uns
     }
     put(name);put("\r\n");
 }
+
+/* 指定ディレクトリまたはファイルの情報を読み取って一覧表示する． */
 static void ls(const char *path) {
  if(detailed)put("TYPE ID   SIZE NAME\r\n");
  int fd=open(path,0);if(fd<0){put("ls: cannot open directory\r\n");return;}
@@ -75,6 +88,8 @@ static void ls(const char *path) {
      entry(path,"help",0,65535);entry(path,"logout",0,65535);entry(path,"exit",0,65535);
      entry(path,"cd",0,65535);entry(path,"getty",0,65535);}
 }
+
+/* 指定パスの一覧を表示し，オプションに従って表示形式を切り替える． */
 int main(int argc,char *argv[]) {
     char cwd[128], path[128];
     const char *arg=".";

@@ -1,4 +1,5 @@
-/* PicoNIX binary trace ABI: fixed 32-byte records. */
+/* カーネルが記録し，ユーザのtraceが読み出すイベント形式． */
+/* 固定32バイトのバイナリトレースABI． */
 #ifndef PICONIX_TRACE_H
 #define PICONIX_TRACE_H
 #include <stdint.h>
@@ -16,10 +17,10 @@ typedef struct {
     uint32_t tick;
     uint32_t value;
     uint32_t detail;
-    uint8_t kind;  /* low 6 bits: event; high 2 bits: TTY index */
+    uint8_t kind;  /* 下位6ビットにイベント，上位2ビットにTTY番号を格納する． */
     uint8_t pid;
-    uint8_t program_id;  /* full program ID */
-    int8_t file_id;      /* -1: no file / unknown */
-    uint8_t data[16];    /* raw preview; not necessarily NUL-terminated */
+    uint8_t program_id;  /* プログラムIDは省略せず記録する． */
+    int8_t file_id;      /* -1は対象FDなし，または不明を表す． */
+    uint8_t data[16];    /* 生データの先頭を記録する．NUL終端は保証されない． */
 } trace_event_t;
 #endif

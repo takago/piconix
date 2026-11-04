@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Compact IPv4 observation and single-request ICMP Echo, Pico W only. */
+/* ネットワークパケットの固定長観測履歴とICMP Echoの送受信を扱う．
+ * 観測用データはメモリ上限を明確にするためリング状に保持する． */
+
+/* Pico W向けの小さなIPv4観測機能と単発ICMP Echo処理． */
 #include "net.h"
 #ifndef PICONIX_WIFI
 #define PICONIX_WIFI 0
@@ -16,7 +19,7 @@
 #define PACKET_COUNT 16
 static piconix_packet_t packets[PACKET_COUNT];
 static uint32_t packet_serial;
-/* Avoid recording packets before a reader opens the capture device. */
+/* パケット観測デバイスが開かれる前は履歴を記録しない． */
 static unsigned packet_readers;
 static struct {
     struct netif *netif;
@@ -27,8 +30,10 @@ static piconix_echo_t echo_request, echo_reply;
 static uint64_t echo_started;
 static unsigned echo_pending, echo_waiting, echo_ready;
 
+/* パケット上のビッグエンディアン16ビット値を取り出す． */
 static uint16_t be16(const uint8_t *p) { return (uint16_t)((p[0]<<8)|p[1]); }
-/* The pbuf may be chained, so never access packet bytes past payload. */
+
+/* ネットワークパケットの要約を固定長履歴へ記録する．全パケットをRAMへ保管しない． */
 static void observe(struct pbuf *p, uint8_t direction) {
     if (!packet_readers || p->tot_len < 20) return;
     uint8_t h[60];
@@ -38,7 +43,7 @@ static void observe(struct pbuf *p, uint8_t direction) {
     unsigned total=be16(h+2);
     if(total<ihl || total>p->tot_len) return;
     unsigned proto=h[9], offset=ihl, transport=0;
-    /* Noninitial fragments have no transport header at this offset. */
+    /* 先頭以外のフラグメントにはこの位置にトランスポートヘッダがない． */
     unsigned first_fragment=(be16(h+6)&0x1fffu)==0;
     piconix_packet_t rec={0};
     memcpy(rec.src,h+12,4); memcpy(rec.dst,h+16,4);
@@ -54,7 +59,7 @@ static void observe(struct pbuf *p, uint8_t direction) {
         if(transport<(proto==6?20u:8u) || total<ihl+transport) transport=0;
     } else if(first_fragment && proto==1 && total>=ihl+8) {
         transport=8;
-        if(pbuf_copy_partial(p,th,2,(u16_t)ihl)==2) rec.flags=th[0]; /* ICMP type */
+        if(pbuf_copy_partial(p,th,2,(u16_t)ihl)==2) rec.flags=th[0]; /* ICMPのタイプ番号 */
     }
     offset+=transport;
     if(transport && total>=offset) {
@@ -65,11 +70,15 @@ static void observe(struct pbuf *p, uint8_t direction) {
     packets[packet_serial%PACKET_COUNT]=rec;
     packet_serial++;
 }
+
+/* IPv4入力パケットを観測し，通常のlwIP受信処理は継続させる． */
 int piconix_packet_input(struct pbuf *p, struct netif *n) {
     (void)n;
     observe(p,0);
-    return 0; /* allow normal lwIP processing */
+    return 0; /* 通常のlwIP受信処理も継続する． */
 }
+
+/* lwIPの送信フックでパケットを記録し，元の送信関数を呼ぶ． */
 static err_t observed_output(struct netif *iface, struct pbuf *p, const ip4_addr_t *ip) {
     for(unsigned i=0;i<3;i++) if(outputs[i].netif==iface) {
         observe(p,1);
@@ -77,6 +86,8 @@ static err_t observed_output(struct netif *iface, struct pbuf *p, const ip4_addr
     }
     return ERR_IF;
 }
+
+/* 観測フックをネットワークIFへ接続する． */
 void net_capture_attach(struct netif *iface) {
     if(!iface || !iface->output || iface->output==observed_output) return;
     for(unsigned i=0;i<3;i++) if(!outputs[i].netif) {
@@ -86,8 +97,14 @@ void net_capture_attach(struct netif *iface) {
         return;
     }
 }
+
+/* パケット観測リングへ記録した通算番号を返す．非Wi-Fi版では0を返す． */
 uint32_t net_packet_serial(void) { return packet_serial; }
+
+/* 観測デバイスの読取利用数を加減する．利用者がいない間は記録を省く． */
 void net_packet_reader(int delta) { packet_readers=(unsigned)((int)packet_readers+delta); }
+
+/* パケット記録を指定位置から読み出し，連続した観測に使う． */
 int net_packet_read(uint32_t *serial, piconix_packet_t *out) {
     uint32_t oldest=packet_serial>PACKET_COUNT ? packet_serial-PACKET_COUNT : 0;
     if((int32_t)(*serial-oldest)<0) *serial=oldest;
@@ -95,6 +112,8 @@ int net_packet_read(uint32_t *serial, piconix_packet_t *out) {
     *out=packets[(*serial)++%PACKET_COUNT];
     return sizeof(*out);
 }
+
+/* ICMP Echo応答を検査し，待機している要求と対応する場合に結果を保存する． */
 static u8_t echo_received(void *arg, struct raw_pcb *pcb, struct pbuf *p,
                            const ip_addr_t *addr) {
     (void)arg; (void)pcb;
@@ -111,25 +130,35 @@ static u8_t echo_received(void *arg, struct raw_pcb *pcb, struct pbuf *p,
     echo_reply.milliseconds=(uint32_t)((time_us_64()-echo_started)/1000u);
     echo_ready=1;
     echo_waiting=0;
-    return 0; /* raw callback does not own the packet */
+    return 0; /* rawコールバック側ではパケットの所有権を持たない． */
 }
+
+/* ICMP Echo応答を受け取るraw PCBを初期化する．非Wi-Fi版では何もしない． */
 void net_capture_init(void) {
     echo_pcb=raw_new(IP_PROTO_ICMP);
     if(echo_pcb) raw_recv(echo_pcb,echo_received,0);
 }
+
+/* ICMP Echo要求をネットワーク側へ送る． */
 int net_echo_write(const piconix_echo_t *request) {
     if(!echo_pcb || echo_pending || echo_waiting || echo_ready) return -1;
     echo_request=*request;
     echo_pending=1;
     return sizeof(*request);
 }
+
+/* 受信済みEcho応答を取り出す． */
 int net_echo_read(piconix_echo_t *reply) {
     if(!echo_ready) return 0;
     *reply=echo_reply;
     echo_ready=0;
     return sizeof(*reply);
 }
+
+/* 未完了のEcho要求・応答状態を消去する．非Wi-Fi版では何もしない． */
 void net_echo_close(void) { echo_pending=echo_waiting=echo_ready=0; }
+
+/* Echo待機のタイムアウトを確認し，応答状態を更新する．非Wi-Fi版では何もしない． */
 void net_capture_poll(void) {
     if(echo_waiting && time_us_64()-echo_started>=1000000u) {
         echo_waiting=0;
@@ -139,7 +168,7 @@ void net_capture_poll(void) {
     }
     if(!echo_pending || !echo_pcb) return;
     echo_pending=0;
-    uint8_t data[24]={8,0,0,0}; /* ICMP Echo Request, 16-byte sample */
+    uint8_t data[24]={8,0,0,0}; /* ICMP Echo Requestと16バイトの観測データ． */
     data[4]=(uint8_t)(echo_request.id>>8); data[5]=(uint8_t)echo_request.id;
     data[6]=(uint8_t)(echo_request.sequence>>8); data[7]=(uint8_t)echo_request.sequence;
     for(unsigned i=8;i<sizeof(data);i++) data[i]=(uint8_t)i;
@@ -160,13 +189,30 @@ void net_capture_poll(void) {
     pbuf_free(p);
 }
 #else
+/* ICMP Echo応答を受け取るraw PCBを初期化する．非Wi-Fi版では何もしない． */
 void net_capture_init(void) {}
+
+/* Echo待機のタイムアウトを確認し，応答状態を更新する．非Wi-Fi版では何もしない． */
 void net_capture_poll(void) {}
+
+/* 観測フックをネットワークIFへ接続する． */
 void net_capture_attach(void *iface) { (void)iface; }
+
+/* パケット観測リングへ記録した通算番号を返す．非Wi-Fi版では0を返す． */
 uint32_t net_packet_serial(void) { return 0; }
+
+/* 観測デバイスの読取利用数を加減する．利用者がいない間は記録を省く． */
 void net_packet_reader(int delta) { (void)delta; }
+
+/* パケット記録を指定位置から読み出し，連続した観測に使う． */
 int net_packet_read(uint32_t *serial,piconix_packet_t *out) { (void)serial;(void)out;return -1; }
+
+/* ICMP Echo要求をネットワーク側へ送る． */
 int net_echo_write(const piconix_echo_t *request) { (void)request;return -1; }
+
+/* 受信済みEcho応答を取り出す． */
 int net_echo_read(piconix_echo_t *reply) { (void)reply;return -1; }
+
+/* 未完了のEcho要求・応答状態を消去する．非Wi-Fi版では何もしない． */
 void net_echo_close(void) {}
 #endif

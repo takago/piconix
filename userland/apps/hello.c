@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Minimal external PicoNIX application. */
+/* 外部ユーザプログラムの最小例． */
+
+/* 外部PicoNIXプログラムの最小例． */
 #include "stdio.h"
 
+/* PicoNIXの動作確認用メッセージを表示する． */
 int main(int argc, char *argv[])
 {
     if(argc>2) {puts("usage: hello [name]");return 1;}

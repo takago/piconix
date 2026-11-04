@@ -12,8 +12,9 @@ cmake = (root / 'CMakeLists.txt').read_text()
 assert 'int path_arg=' not in shell
 assert 'args[path_arg]=path;' not in shell
 assert 'args[argc++]="31"' not in shell
-assert 'Pass arguments unchanged' in shell
-assert 'Pipeline stages receive the same argv' in shell
+# コメントの言語に依存せず，通常起動とパイプ起動の両方でargvを渡すことを検査する．
+assert 'spawn_foreground(id,argc,(const char *const *)args)' in shell
+assert 'return spawn(id,argc,(const char *const *)args);' in shell
 assert 'static int resolve(' in shell  # still needed for redirection and cd
 assert 'absolute_path(' in (root / 'kernel/kernel.c').read_text()
 

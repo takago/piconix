@@ -1,4 +1,5 @@
-/* Framebuffer control utility. */
+/* フレームバッファの状態を確認・変更する． */
+/* フレームバッファ操作コマンド． */
 #include <stdint.h>
 #include "unistd.h"
 #include "fcntl.h"
@@ -7,9 +8,13 @@
 #include "../../include/piconix.h"
 
 static const uint8_t heart[8]={0x66,0xff,0xff,0xff,0x7e,0x3c,0x18,0};
+/* 二つのコマンド文字列が等しいか判定する． */
 static int same(const char *a,const char *b){return strcmp(a,b)==0;}
+
+/* 8バイトのフレームバッファパターンをFDへ書き込む． */
 static int pattern(int fd,const uint8_t b[8]){return write(fd,b,8)==8?0:-1;}
-/* Display the same kernel-generated report as cat /proc/fb. */
+
+/* cat /proc/fbと同じカーネル生成レポートを表示する． */
 static int status(void){
     int fd=open("/proc/fb",O_RDONLY);
     if(fd<0){puts("fbctl: cannot open /proc/fb");return -1;}
@@ -29,6 +34,8 @@ static int status(void){
     close(fd);
     return rc;
 }
+
+/* LED表示の有効化・消灯・テスト操作の使用方法を表示する． */
 static void usage(void){
     puts("Usage: fbctl <command>");
     puts("");
@@ -39,6 +46,8 @@ static void usage(void){
     puts("  status  Display /proc/fb");
     puts("  test    Blink heart three times");
 }
+
+/* /dev/gpio/fbを介して8×8 LED表示の状態確認や操作を行う． */
 int main(int argc,char **argv){
     if(argc==1){usage();return 0;}
     if(argc==2 && (same(argv[1],"help") || same(argv[1],"-h") || same(argv[1],"--help"))){usage();return 0;}
@@ -60,7 +69,7 @@ int main(int argc,char **argv){
     }else if(same(argv[1],"test")){
         rc=ioctl(fd,OS_FB_ENABLE,0);
         if(rc>=0)rc=pattern(fd,heart);
-        /* Blink three times; leave the heart displayed. */
+        /* 3回点滅させ，最後はハート表示を残す． */
         uint8_t empty[8]={0};
         for(int i=0;rc>=0 && i<3;i++) {
             msleep(500);

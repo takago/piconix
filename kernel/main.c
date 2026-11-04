@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* 起動時にFlash上のPICイメージを登録し，アイドルタスクと最初のシェルを起動する．
+ * アプリケーションの実行用RAMは登録時ではなくspawn時に割り当てる． */
+
 #include "piconix.h"
 #include "pico/stdlib.h"
 #include "hardware/sync.h"
@@ -6,6 +9,7 @@
 #include <stddef.h>
 #include "net.h"
 
+/* ユーザタスクが動かない間も，通信とUSB端末を継続処理する．Pico WのlwIPはこの文脈で定期的にポーリングする． */
 static void idle_task(void) {
     for (;;) {
         net_poll();
@@ -66,6 +70,7 @@ extern const unsigned char piconix_tcp_echod_image_start[], piconix_tcp_echod_im
 extern const unsigned char piconix_udp_echod_image_start[], piconix_udp_echod_image_end[];
 #define RAM_APP_ORIGIN 0x2000E000u
 
+/* Flash内のバイナリ範囲をプログラムIDに紐づける．entryは全アプリ共通のスロット先頭アドレスを使い，spawn時に実体をコピーする． */
 static void register_image(int id, const char *name,
                            const unsigned char *start, const unsigned char *end) {
     size_t size=(size_t)(end-start);
@@ -73,6 +78,8 @@ static void register_image(int id, const char *name,
     if(os_register_ram_image(id,start,size,size,0)<0)
         panic("PicoNIX: RAM image registration failed");
 }
+
+/* OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． */
 int main(void) {
     os_init();
     register_image(44,"fd",piconix_fd_image_start,piconix_fd_image_end);
@@ -126,6 +133,6 @@ int main(void) {
     net_init();
     os_init_idle(idle_task);
     if(os_start_program(2)<0) panic("PicoNIX: shell start failed");
-    // Do not start Blink here: verify the `blink` shell command path.
+    // blinkは起動時に自動実行せず，シェルコマンドから起動する．
     os_start();
 }

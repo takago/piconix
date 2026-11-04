@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* カーネル内部のデバイスドライバ入口を宣言する． */
+
 #ifndef PICONIX_DEVICES_H
 #define PICONIX_DEVICES_H
 #include <stddef.h>

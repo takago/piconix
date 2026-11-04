@@ -165,6 +165,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 |---|---|
 | [C application development](docs/en/development/apps/c/PROGRAMMING.md) | [Cアプリ開発](docs/ja/development/apps/c/PROGRAMMING.md) |
 | [Kernel development](docs/en/development/kernel/KERNEL-DEVELOPMENT.md) | [カーネル拡張ガイド](docs/ja/development/kernel/KERNEL-DEVELOPMENT.md) |
+| [Function index (Japanese)](docs/FUNCTIONS.md) | [関数一覧（自動生成）](docs/FUNCTIONS.md) |
 | [Assembly programming](docs/en/development/apps/asm/ASM.md) | [アセンブリプログラミング](docs/ja/development/apps/asm/ASM.md) |
 | [C library and APIs](docs/en/development/apps/c/LIBC.md) | [CライブラリとAPI](docs/ja/development/apps/c/LIBC.md) |
 | [System call reference](docs/en/reference/SYSCALLS.md) | [システムコール一覧](docs/ja/reference/SYSCALLS.md) |

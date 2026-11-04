@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Pico WのWi-Fi接続，AP側DHCP，STA側再接続とmDNS，ネットワーク診断を扱う．
+ * CYW43/lwIPの処理は原則アイドルタスク側のポーリングへ集約する． */
+
 #include "net.h"
 #include "net_services.h"
 #include "piconix.h"
@@ -21,15 +24,15 @@
 #include <string.h>
 #include <stdint.h>
 
-/* One DHCP lease and one TCP connection.
- * Stage 18: bounded queues for the independent network TTY. */
+/* 固定資源を使い，AP側のDHCPリースと独立したネットワークTTYを管理する． */
 static int wifi_ready;
 static char wifi_ssid[33];
-/* Driver transactions are restricted to net_poll(), never /proc reads. */
+/* ドライバ操作はnet_pollに集約し，/procのreadからは呼び出さない． */
 static uint8_t wifi_mac[6];
 static int wifi_mac_valid;
 static uint64_t wifi_mac_next_us;
 #define WIFI_MAC_RETRY_US 5000000ull
+/* CYW43から取得したMACアドレスをキャッシュする．失敗時は次回のアイドルポーリングで再試行し，/proc読出し中にドライバを呼ばない． */
 static void wifi_cache_mac(uint64_t now) {
     if (wifi_mac_valid || (int64_t)(now - wifi_mac_next_us) < 0) return;
     int itf = PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP;
@@ -38,6 +41,8 @@ static void wifi_cache_mac(uint64_t now) {
     else
         wifi_mac_next_us = now + WIFI_MAC_RETRY_US;
 }
+
+/* 以前取得したMACアドレスを表示文字列にする．未取得ならN/Aを返す． */
 static void wifi_mac_text(char *out, unsigned size) {
     if (!wifi_mac_valid) {
         snprintf(out, size, "N/A");
@@ -55,38 +60,37 @@ static int ap_sta_count;
 static uint64_t ap_stas_next_us;
 static int ap_dhcp_active;
 #endif
-/* CYW43/lwIP is polled from the idle task, not the timer ISR.
- * The 250 us minimum interval applies to STA and AP. In preliminary
- * Pico W testing, 1 ms felt less responsive over Telnet; 500 us improved
- * responsiveness, and 250 us is the current experimental default.
- * This is a minimum interval, not a guaranteed periodic deadline. */
+/* CYW43/lwIPはタイマー割込みではなくアイドルタスクからポーリングする．STA/AP共通で最短間隔は250 µsとする．これは目標下限であり，正確な周期を保証しない． */
 #define NET_POLL_INTERVAL_US 250ull
-/* Keep lwIP raw-API operations serial across the idle and task contexts. */
-/* lwIP creates lo0 during cyw43_arch_init()/lwip_init().
- * Keep its packet delivery in the existing serialized idle poll context. */
+/* アイドル側とタスク側からlwIP raw APIへ同時進入しないようにする． */
+/* lwIP初期化で作られるlo0を，既存の直列化されたアイドルポーリングから処理する． */
 static struct netif *loop_iface;
 static volatile unsigned net_poll_active;
+/* lwIPのポーリング処理中か返す．並行するraw API操作を避ける判定に使う． */
 int net_poll_in_progress(void) { return net_poll_active != 0; }
 static uint64_t net_poll_last_us;
 static uint32_t net_poll_count;
 static uint32_t net_poll_max_gap_us;
 #if PICONIX_WIFI_STA
-/* Preserve diagnostics even if USB CDC was not attached during boot. */
+/* 起動時にUSB CDCが未接続でも診断情報を残す． */
 static int sta_error;
 static int sta_pm_error = -1;
 static volatile int sta_manual_restart;
 static int sta_link;
 static int sta_tcpip_link;
 static int sta_dhcp_bound;
-/* RSSI is a cached STA-only diagnostic, sampled at most every 5 seconds. */
+/* STAのRSSIは最大5秒に一度取得し，診断時にはキャッシュを使う． */
 #define STA_RSSI_INTERVAL_US 5000000ull
 static uint64_t sta_rssi_next_us;
 static int32_t sta_rssi_dbm;
 static int sta_rssi_valid;
+/* STAのRSSIキャッシュを無効化し，次回の取得を許可する． */
 static void sta_rssi_clear(void) {
     sta_rssi_valid = 0;
     sta_rssi_next_us = 0;
 }
+
+/* STA接続時のRSSIを低頻度に取得し，診断表示にはキャッシュを使う． */
 static void sta_rssi_poll(uint64_t now) {
     if ((int64_t)(now - sta_rssi_next_us) < 0) return;
     int32_t value = 0;
@@ -99,8 +103,8 @@ static void sta_rssi_poll(uint64_t now) {
     }
     sta_rssi_next_us = now + STA_RSSI_INTERVAL_US;
 }
-/* RSSI-based signal-strength estimate, not measured link quality.
- * -100 dBm maps to 0%, -50 dBm or stronger maps to 100%. */
+
+/* RSSIを使った電波強度の推定値であり，通信品質の実測値ではない．-100 dBmを0%，-50 dBm以上を100%に対応させる． */
 static void sta_rssi_text(char *out, unsigned size) {
     if (!sta_rssi_valid) {
         snprintf(out, size, "N/A");
@@ -112,12 +116,13 @@ static void sta_rssi_text(char *out, unsigned size) {
     snprintf(out, size, "%ld dBm (%d%%)", (long)sta_rssi_dbm, quality);
 }
 
-/* Stable per-device .local hostname; service is only active after DHCP. */
-static char sta_mdns_name[18]; /* piconix- + 8 hex digits + NUL */
+/* 機器ごとに変わらない.local名を使用し，DHCP完了後だけ提供する． */
+static char sta_mdns_name[18]; /* piconix-と8桁の16進数と終端NUL． */
 static int sta_mdns_registered;
 static int sta_mdns_error;
 static uint32_t sta_mdns_ip;
 static int sta_mdns_link_was_down;
+/* STA側のmDNS登録を取り消し，再接続時の重複登録を避ける． */
 static void sta_mdns_remove(void) {
     if (sta_mdns_registered) {
         mdns_resp_remove_netif(&cyw43_state.netif[CYW43_ITF_STA]);
@@ -125,6 +130,8 @@ static void sta_mdns_remove(void) {
     }
     sta_mdns_ip = 0;
 }
+
+/* IPアドレス確立後のmDNS提供状態を管理する．接続前に名前を広告しない． */
 static void sta_mdns_ready(struct netif *iface) {
     uint32_t ip = ip4_addr_get_u32(netif_ip4_addr(iface));
     if (!sta_mdns_registered) {
@@ -141,7 +148,7 @@ static void sta_mdns_ready(struct netif *iface) {
     }
 }
 
-/* Experimental STA-only GARP; run from the existing lwIP poll context. */
+/* STAでのみ試すGARP．lwIPポーリングの文脈から送る． */
 #define STA_GARP_INTERVAL_US 60000000ull
 static uint64_t sta_garp_next_us;
 static uint32_t sta_garp_ok;
@@ -158,6 +165,7 @@ static char sta_last_reset = '-';
 #define STA_RETRY_DELAY_US (5000000ull)
 #define STA_LINK_LOSS_GRACE_US (5000000ull)
 
+/* CYW43のリンク状態コードを診断表示用の文字列に変換する．未知の値はUNKNOWN． */
 static const char *sta_link_name(int status) {
     switch (status) {
         case CYW43_LINK_UP: return "UP";
@@ -171,7 +179,7 @@ static const char *sta_link_name(int status) {
     }
 }
 
-/* Only the idle/network poll context may touch the CYW43 association. */
+/* STA接続の状態と関連する情報を初期化して再接続可能にする． */
 static void sta_reset_association(char reason) {
     sta_last_reset = reason;
     sta_rssi_clear();
@@ -183,6 +191,7 @@ static void sta_reset_association(char reason) {
     sta_mdns_remove();
 }
 
+/* STA接続を非同期に開始する．起動処理やシステムコール内で接続完了を待たない． */
 static void sta_begin_connect(void) {
     sta_rssi_clear();
     ++sta_attempts;
@@ -197,8 +206,7 @@ static void sta_begin_connect(void) {
 
 static void sta_start_services(void);
 
-/* Run only from idle/net_poll, after cyw43_arch_poll().  Never wait for
- * association or DHCP in the boot path or while servicing a syscall. */
+/* STAのリンク・DHCP取得と再接続の状態遷移を進める．呼出し元はアイドルタスクのnet_pollである． */
 static void sta_poll(void) {
     uint64_t now = time_us_64();
     if (sta_manual_restart) {
@@ -210,8 +218,7 @@ static void sta_poll(void) {
     }
     struct netif *iface = &cyw43_state.netif[CYW43_ITF_STA];
     if (!sta_attempts) {
-        /* Configure STA power management from the idle/network thread,
-         * after the first CYW43 poll and before joining the network. */
+        /* STAの省電力設定は最初のCYW43ポーリング後，接続開始前にアイドル側で行う． */
         sta_pm_error = cyw43_wifi_pm(&cyw43_state, CYW43_NONE_PM);
         if (sta_pm_error != 0)
             puts("PicoNIX: STA power management setup failed");
@@ -221,8 +228,7 @@ static void sta_poll(void) {
     sta_link = cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA);
     sta_tcpip_link = cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA);
     sta_dhcp_bound = dhcp_supplied_address(iface) ? 1 : 0;
-    /* The Wi-Fi status may remain JOIN after DHCP completes.  Use the
-     * TCP/IP status and confirmed DHCP lease for STA readiness. */
+    /* DHCP完了後もWi-Fiの状態がJOINを示すことがあるため，STAの準備完了はIP状態と有効なDHCPリースで判定する． */
     if (sta_tcpip_link == CYW43_LINK_UP && sta_dhcp_bound) {
         sta_connecting = 0;
         sta_connected = 1;
@@ -232,8 +238,7 @@ static void sta_poll(void) {
         if (!ip4_addr_isany_val(*netif_ip4_addr(iface))) {
             sta_start_services();
             sta_mdns_ready(iface);
-            /* First announcement one interval after address acquisition.
-             * No Wi-Fi driver calls from a syscall or timer interrupt. */
+            /* IP取得から一定時間後に最初のアドレス通知を行う．システムコール・タイマー割込みから無線ドライバを呼ばない． */
             if (!sta_garp_next_us)
                 sta_garp_next_us = now + STA_GARP_INTERVAL_US;
             if ((int64_t)(now - sta_garp_next_us) >= 0) {
@@ -246,13 +251,13 @@ static void sta_poll(void) {
         return;
     }
 
-    sta_rssi_valid = 0; /* Never expose stale RSSI during link loss. */
+    sta_rssi_valid = 0; /* 接続喪失時には古いRSSIを表示しない． */
     sta_rssi_next_us = 0;
-    sta_garp_next_us = 0; /* Re-arm only after DHCP/link readiness. */
+    sta_garp_next_us = 0; /* DHCPとリンクが復旧してから次の通知を準備する． */
     if (sta_mdns_registered) sta_mdns_link_was_down = 1;
     if (!sta_dhcp_bound) sta_mdns_remove();
     if (sta_connected) {
-        /* Ignore short-lived link-status changes during reassociation. */
+        /* 再接続中の一時的なリンク状態変化を無視する． */
         if (!sta_link_lost_us) sta_link_lost_us = now;
         if ((int64_t)(now - sta_link_lost_us) <
                 (int64_t)STA_LINK_LOSS_GRACE_US) return;
@@ -275,6 +280,7 @@ static void sta_poll(void) {
         sta_begin_connect();
 }
 
+/* STAのリンク確立後にネットワークサービスとmDNS等を起動する． */
 static void sta_start_services(void) {
     if (sta_services_ready) return;
     sta_services_ready = 1;
@@ -290,16 +296,15 @@ static int ap_mdns_registered;
 static int ap_mdns_error;
 static struct udp_pcb *dhcp_pcb;
 #define DHCP_OPTIONS_OFFSET 240u
-/* Reply options are fixed; avoid a padded 300-byte stack buffer. */
+/* DHCP応答のオプションは固定なので，大きな300バイトのスタック配列を避ける． */
 static const unsigned char dhcp_reply_options[] = {
     53,1,0, 54,4,192,168,4,1,
     51,4,0,0,14,16, 1,4,255,255,255,0,
     28,4,192,168,4,255, 255
 };
-/* BOOTP/DHCP replies must be at least 300 bytes for broad client compatibility. */
+/* 一般的なクライアントとの互換性のため，BOOTP/DHCP応答は300バイト以上にする． */
 #define DHCP_REPLY_LEN 300u
-/* Stage a single DHCP reply during receive processing.  Transmit only
- * after cyw43_arch_poll() returns, as with the TCP terminal TX queue. */
+/* DHCP受信時は一件だけ返信を保留し，cyw43_arch_pollから戻った後に送信する．TCP端末の送信と同じ方針である． */
 static unsigned char dhcp_pending_reply[DHCP_REPLY_LEN];
 static unsigned char dhcp_pending_mac[6];
 static unsigned char dhcp_pending_type;
@@ -313,16 +318,14 @@ static int offer_valid;
 static uint64_t offer_deadline_us;
 #define DHCP_OFFER_TIMEOUT_US (15ull * 1000000ull)
 
-/* A failed/incomplete DHCP handshake must not lock out the next PC. */
+/* 未完了のDHCP交渉が次の端末の接続を永久に妨げないようにする． */
 static void dhcp_expire_offer(void) {
     if (offer_valid && !lease_valid &&
         (int64_t)(time_us_64() - offer_deadline_us) >= 0)
         offer_valid = 0;
 }
 
-/* DHCP packets are BOOTP messages; reply only to a valid Ethernet client.
- * A single client MAC owns the lease until reboot (no expiration state).
- * A renewal from that same client is accepted. */
+/* AP側のDHCP/BOOTP要求を検査する．再起動までのリースはMACアドレス1件に限定し，応答は受信コールバック内で送らず保留する． */
 static void dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                       const ip_addr_t *addr, u16_t port) {
     (void)arg; (void)pcb; (void)addr;
@@ -335,13 +338,13 @@ static void dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     unsigned int pos;
     if (!p) return;
     dhcp_expire_offer();
-    if (dhcp_pending) goto done; /* Preserve the first staged reply. */
+    if (dhcp_pending) goto done; /* 保留中の最初の返信を上書きしない． */
     if (port != 68 || p->tot_len < DHCP_OPTIONS_OFFSET ||
         pbuf_copy_partial(p, request, sizeof(request), 0) != sizeof(request) ||
         request[0] != 1 || request[1] != 1 || request[2] != 6 ||
         memcmp(request + 236, dhcp_cookie, 4) != 0) goto done;
     if (lease_valid && memcmp(lease_mac, request + 28, 6) != 0) goto done;
-    /* Do not let a second DISCOVER steal a pending single-client offer. */
+    /* 次のDISCOVERにより先着端末の保留中オファーを奪わせない． */
     if (!lease_valid && offer_valid &&
         memcmp(offer_mac, request + 28, 6) != 0) goto done;
     pos = DHCP_OPTIONS_OFFSET;
@@ -356,7 +359,7 @@ static void dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
         ++pos;
         if (len > p->tot_len - pos) break;
         if (code == 53 && len == 1) {
-            /* Ignore ambiguous packets with multiple message-type options. */
+            /* メッセージ種別が複数含まれる曖昧なパケットを拒否する． */
             if (message_type) goto done;
             pbuf_copy_partial(p, &message_type, 1, (u16_t)pos);
         }
@@ -371,8 +374,7 @@ static void dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
         pos += len;
     }
     if (message_type != 1 && message_type != 3) goto done;
-    /* Only commit a lease after REQUEST/ACK, not after DISCOVER/OFFER.
-     * Before commitment, only the client offered the address may REQUEST. */
+    /* DISCOVER/OFFERでは割当てを確定しない．REQUEST/ACKを経たときだけリースとし，確定前はオファー相手からのREQUESTだけ認める． */
     if (message_type == 3 && !lease_valid &&
         (!offer_valid || memcmp(offer_mac, request + 28, 6) != 0)) goto done;
     if (has_requested_ip &&
@@ -381,22 +383,22 @@ static void dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     if (has_server_id &&
         memcmp(server_id, (const unsigned char[]){192,168,4,1}, 4) != 0)
         goto done;
-    /* Renewals without option 50 must refer to the leased address. */
+    /* オプション50を含まない更新要求でも，使用中リースのIPを指している必要がある． */
     if (message_type == 3 && !has_requested_ip &&
         memcmp(request + 12, (const unsigned char[]){192,168,4,2}, 4) != 0)
         goto done;
     memset(reply, 0, sizeof(reply));
     reply[0] = 2; reply[1] = 1; reply[2] = 6;
-    memcpy(reply + 4, request + 4, 4); /* xid */
-    memcpy(reply + 10, request + 10, 2); /* flags */
-    memcpy(reply + 28, request + 28, 16); /* chaddr */
+    memcpy(reply + 4, request + 4, 4); /* トランザクション識別子（xid） */
+    memcpy(reply + 10, request + 10, 2); /* BOOTPフラグ */
+    memcpy(reply + 28, request + 28, 16); /* クライアントのハードウェアアドレス（chaddr） */
     reply[16] = 192; reply[17] = 168; reply[18] = 4; reply[19] = 2;
     reply[20] = 192; reply[21] = 168; reply[22] = 4; reply[23] = 1;
     memcpy(reply + 236, dhcp_cookie, 4);
     memcpy(reply + DHCP_OPTIONS_OFFSET, dhcp_reply_options,
            sizeof(dhcp_reply_options));
     reply[DHCP_OPTIONS_OFFSET + 2] = message_type == 1 ? 2 : 5;
-    /* Do not transmit from the lwIP receive callback. */
+    /* lwIP受信コールバックからは送信しない． */
     memcpy(dhcp_pending_reply, reply, sizeof(reply));
     memcpy(dhcp_pending_mac, request + 28, 6);
     dhcp_pending_type = message_type;
@@ -406,6 +408,7 @@ done:
     pbuf_free(p);
 }
 
+/* APモードのDHCPサービスを開始し，固定長の情報でアドレスを配布する． */
 static int ap_dhcp_server_start(void) {
     ip_addr_t any;
     IP_ADDR4(&any, 0, 0, 0, 0);
@@ -416,15 +419,16 @@ static int ap_dhcp_server_start(void) {
         dhcp_pcb = NULL;
         return 0;
     }
-    /* DHCP OFFER/ACK are sent to the IPv4 broadcast address. */
+    /* DHCPのOFFER/ACKはIPv4ブロードキャストへ送信する． */
     ip_set_option(dhcp_pcb, SOF_BROADCAST);
     udp_recv(dhcp_pcb, dhcp_recv, NULL);
     return 1;
 }
 
 
-#endif /* AP DHCP server */
+#endif /* AP向けDHCPサーバ */
 extern uint32_t piconix_flash_id(void);
+/* Wi-Fi/LwIPを初期化する．STAの接続作業は起動時に待たず，後続のnet_pollへ委ねる． */
 void net_init(void) {
     if (cyw43_arch_init() != 0) {
         puts("PicoNIX: CYW43 initialization failed");
@@ -446,11 +450,10 @@ void net_init(void) {
     for (unsigned i=0;i<8;i++) sta_mdns_name[8+i] = hex[(fid >> (28-4*i)) & 15u];
     sta_mdns_name[16] = 0;
     mdns_resp_init();
-    /* STA-only power management configuration is deferred to the first
-     * idle/net_poll call, keeping driver work off the boot stack. */
-    /* Nonblocking: continue servicing Wi-Fi and the shell while joining. */
+    /* STAの省電力設定はアイドルの初回net_pollまで遅らせ，起動時のスタックでドライバ操作しない． */
+    /* 非同期接続中もWi-Fiとシェルの処理を継続する． */
     wifi_ready = 1;
-    /* Start association from the idle loop, not during boot. */
+    /* 起動時ではなくアイドルループで接続を開始する． */
     return;
 #else
     static const char hex[] = "0123456789ABCDEF";
@@ -478,10 +481,10 @@ void net_init(void) {
     puts(dhcp_ready ? "PicoNIX: DHCP server active (192.168.4.2)"
                     : "PicoNIX: DHCP server initialization failed");
     puts(telnet_ready ? "PicoNIX: Telnet terminal port 23" : "PicoNIX: Telnet listener failed");
-#endif /* PICONIX_WIFI_STA: AP-only initialization */
+#endif /* PICONIX_WIFI_STAの設定に応じたAP側初期化 */
 }
 #if !PICONIX_WIFI_STA
-/* Called outside cyw43_arch_poll(), never from an lwIP callback. */
+/* cyw43_arch_pollとlwIPコールバックの外側から呼ぶ． */
 static void dhcp_send_pending(void) {
     if (!dhcp_pending || !dhcp_pcb) return;
     struct pbuf *out = pbuf_alloc(PBUF_TRANSPORT, DHCP_REPLY_LEN, PBUF_RAM);
@@ -512,11 +515,11 @@ static void dhcp_send_pending(void) {
     dhcp_pending = 0;
 }
 
-#endif /* AP DHCP server */
+#endif /* AP側DHCPサーバ */
+/* アイドルタスクから無線・TCP/IP・保留送信・ループバックを順次処理する．同じlwIP文脈への再入を避ける． */
 void net_poll(void) {
     if (!wifi_ready) return;
-    /* Measure the longest gap between network service opportunities.  This
-     * includes times when user tasks preempt the idle polling task. */
+    /* ネットワークを処理できなかった最長間隔を測る．ユーザタスクがアイドル処理を先延ばしにした時間も含む． */
     uint64_t now = time_us_64();
     if (net_poll_last_us &&
             now - net_poll_last_us < NET_POLL_INTERVAL_US) return;
@@ -531,15 +534,14 @@ void net_poll(void) {
     cyw43_arch_poll();
     net_capture_poll();
     wifi_cache_mac(now);
-    /* Drain 127.0.0.1 packets without calling lwIP input recursively.
-     * A response queued by a callback is handled on the next idle poll. */
+    /* 127.0.0.1宛てパケットを再帰的なlwIP入力呼出しをせず処理する．返信がコールバック内で発生した場合は次回のアイドルポーリングで渡す． */
     if (loop_iface) netif_poll(loop_iface);
-    /* Also drain traffic addressed to this Wi-Fi interface itself. */
+    /* 端末自身のWi-Fiインターフェース宛てパケットも処理する． */
     netif_poll(&cyw43_state.netif[PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP]);
 #if PICONIX_WIFI_STA
     sta_poll();
 #endif
-    /* Never transmit DHCP replies from a lwIP receive callback. */
+    /* DHCP受信コールバックから直接送信しない． */
 #if !PICONIX_WIFI_STA
     dhcp_send_pending();
 #endif
@@ -557,14 +559,17 @@ void net_poll(void) {
     net_poll_active = 0;
 }
 #else
+/* Wi-Fi/LwIPを初期化する．STAの接続作業は起動時に待たず，後続のnet_pollへ委ねる． */
 void net_init(void) {}
+
+/* アイドルタスクから無線・TCP/IP・保留送信・ループバックを順次処理する．同じlwIP文脈への再入を避ける． */
 void net_poll(void) {}
-/* The scheduler calls this on regular Pico builds too. */
+
+/* 通常Picoビルドでもスケジューラから呼ばれる． */
 int net_poll_in_progress(void) { return 0; }
 #endif
 
-/* Read-only network memory snapshot.  lwIP stats are accumulated since
- * startup; they are not the total CYW43 or kernel SRAM consumption. */
+/* lwIPヒープやプールの診断情報をテキスト化する．値はネットワーク関連領域の観測値であり総RAM使用量ではない． */
 int net_memory_info(char *out, unsigned size) {
     if (!size) return 0;
 #if PICONIX_WIFI
@@ -588,21 +593,21 @@ int net_memory_info(char *out, unsigned size) {
     return (unsigned)len >= size ? (int)(size - 1u) : len;
 }
 
-/* Read-only /proc/net/wifi snapshot. */
+/* /proc/net/wifiの読出し専用スナップショット． */
 #if PICONIX_WIFI
+/* /proc/net/wifi用の状態をテキストへ整形する．システムコール中にCYW43へ同期問い合わせしない． */
 int net_wifi_info(char *out, unsigned size) {
     if (!size) return 0;
     if (!wifi_ready) return snprintf(out,size,"MODE: %s\nSTATUS: DOWN\nERROR: CYW43 initialization failed\n", PICONIX_WIFI_STA ? "STA" : "AP");
     struct netif *iface = &cyw43_state.netif[PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP];
-    /* /proc reads run inside a syscall.  Never issue synchronous CYW43
-     * commands here: the driver may require polling to make progress. */
+    /* /procのreadはSVC内で行うため，同期的なCYW43問い合わせはしない．ドライバの進行にはポーリングが必要な場合がある． */
     char mac[18];
     wifi_mac_text(mac, sizeof(mac));
 #if PICONIX_WIFI_STA
     char rssi[32];
     sta_rssi_text(rssi, sizeof(rssi));
 #else
-    const char *rssi = "N/A (AP mode)"; /* No upstream AP signal to measure. */
+    const char *rssi = "N/A (AP mode)"; /* APモードには上流APからの電波強度を測る対象がない． */
 #endif
     char ip[20], mask[20], gw[20];
     ip4addr_ntoa_r(netif_ip4_addr(iface), ip, sizeof(ip));
@@ -642,6 +647,7 @@ int net_wifi_info(char *out, unsigned size) {
 #endif
 }
 #else
+/* /proc/net/wifi用の状態をテキストへ整形する．システムコール中にCYW43へ同期問い合わせしない． */
 int net_wifi_info(char *out, unsigned size) {
     static const char msg[] = "MODE: N/A\n";
     unsigned n = sizeof(msg)-1;
@@ -652,6 +658,7 @@ int net_wifi_info(char *out, unsigned size) {
 }
 #endif
 
+/* 再起動要求のフラグを立てる．実際のドライバ再接続はアイドル側へ委ねる． */
 int net_wifi_request_restart(void) {
 #if PICONIX_WIFI && PICONIX_WIFI_STA
     if (!wifi_ready) return -1;
@@ -662,7 +669,7 @@ int net_wifi_request_restart(void) {
 #endif
 }
 
-/* No CYW43 transactions from syscalls: AP clients are cached by net_poll(). */
+/* AP/ARPの診断データを取得する．接続状態はポーリング側で更新したキャッシュを利用する． */
 int net_diag_info(char *out, unsigned size, int type) {
     if (!size) return 0;
 #if PICONIX_WIFI

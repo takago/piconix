@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Standalone PIC Blink image using the shared user-space syscall API. */
+/* GPIOの点滅を使う小さなプログラム例． */
+
+/* 共通ユーザシステムコールAPIを使う独立したPICの点滅プログラム． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
-#include "../../include/piconix.h"  /* OS_GPIO_OUTPUT */
+#include "../../include/piconix.h"  /* GPIOを出力に設定する． */
 
 int main(int argc, char *argv[]) {
     (void)argv;

@@ -1,3 +1,4 @@
+/* カーネル側のタスク制御・デバイス操作APIと共通の制約を定義する． */
 #ifndef PICONIX_H
 #define PICONIX_H
 #include <stdint.h>
@@ -10,7 +11,7 @@
 #define OS_O_WRONLY 1
 #define OS_O_RDWR 2
 #define OS_O_NONBLOCK 4
-/* PicoNIX console ioctl commands (minimal, not POSIX termios). */
+/* PicoNIX独自の簡易コンソールioctl．POSIXのtermiosとは異なる． */
 #define OS_TTY_GET_CANON 0x200
 #define OS_TTY_SET_CANON 0x201
 #define OS_TTY_GET_ECHO 0x202
@@ -40,7 +41,7 @@
 #define OS_ENOSYS (-38)
 #define OS_ESRCH (-3)
 #define OS_EMFILE (-24)
-/* IPv4 address is in lwIP network-order representation (uint32_t). */
+/* IPv4アドレスはlwIPと同じネットワークバイト順のuint32_t表現を用いる． */
 typedef struct {
     const void *data;
     uint32_t length;
@@ -57,32 +58,32 @@ typedef void (*os_entry_t)(void);
 #define OS_EINTR (-4)
 #define OS_EIO (-5)
 #define OS_ENOENT (-2)
-/* Experimental IPv4 socket interface: TCP server only, UDP backend separate. */
+/* IPv4ソケットAPI．TCPのサーバ・クライアントとUDPを限定的に扱う． */
 #define OS_AF_INET 2
 #define OS_SOCK_STREAM 1
 #define OS_SOCK_DGRAM 2
 int os_socket(int domain,int type,int protocol);
 int os_tcp_listen(int fd,uint16_t port);
-/* Nonblocking: returns accepted FD or OS_EAGAIN. */
+/* ノンブロッキングで，接続FDまたはOS_EAGAINを返す． */
 int os_tcp_accept(int fd);
-/* Experimental TCP client endpoint. IPv4 uses the same representation as UDP peer_ip. */
+/* TCP接続先のIPv4表現はUDPのpeer_ipと共通である． */
 typedef struct { uint32_t peer_ip; uint16_t peer_port; } piconix_tcp_endpoint_t;
 int os_tcp_connect(int fd,const piconix_tcp_endpoint_t *endpoint);
 int os_tcp_status(int fd);
 void os_init(void);
-// Poll SDK USB stdio input from the idle task; UART builds are a no-op.
+// SDKのUSB標準入出力をアイドル側でポーリングする．
 void os_console_poll(void);
 void os_init_idle(os_entry_t entry);
-/* Approximate idle/CYW43 stack high-water mark for network diagnostics. */
+/* 診断用にアイドル／CYW43スタックの使用高水位を概算する． */
 unsigned os_idle_stack_used_bytes(void);
 unsigned os_idle_stack_capacity_bytes(void);
 int os_spawn(os_entry_t entry);
 int os_spawn_named(os_entry_t entry, const char *name);
 int os_spawn_program(int program_id);
-int os_start_program(int program_id); // boot-time launch before scheduler starts
+int os_start_program(int program_id); // スケジューラ開始前に起動するための関数．
 void os_register_program(int program_id, os_entry_t entry, const char *name);
-// Experimental: copy a slot-linked image from flash into the assigned RAM slot.
-// Does NOT itself change the linked entry point or enable RAM execution.
+// Flashのスロット向けイメージを登録し，実行時に割当て済みRAMへコピーする．
+// この登録だけでは入口アドレスの変更やRAM実行の有効化はしない．
 int os_register_ram_image(int program_id, const void *image, size_t size,
                           size_t zero_start, size_t zero_size);
 void os_start(void) __attribute__((noreturn));

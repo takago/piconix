@@ -1,8 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* TTYの行入力，エコー，改行変換を設定する． */
+
 #include "unistd.h"
 #include "stdio.h"
 #include "string.h"
+/* TTYのカノニカル・エコー等の設定をioctlで変更する． */
 static int set(int cmd,int v) { return ioctl(0,cmd,v); }
+
+/* TTY設定を照会・切替する．端末モードと非ブロック指定の関係も確認できる． */
 int main(int argc,char **argv) {
     if(argc==1) {
         int canon=ioctl(0,OS_TTY_GET_CANON,0),echo=ioctl(0,OS_TTY_GET_ECHO,0),onlcr=ioctl(0,OS_TTY_GET_ONLCR,0);

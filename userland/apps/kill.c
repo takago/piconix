@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* 指定したプロセスに終了要求を出す． */
+
 #include "unistd.h"
 #include "stdio.h"
 #include "stdlib.h"
+/* 指定PIDに終了要求を送り，結果を表示する． */
 int main(int argc,char *argv[]) {
     if(argc!=2) {puts("usage: kill PID");return 1;}
     char *end;long pid=strtol(argv[1],&end,10);

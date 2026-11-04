@@ -1,4 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Telnetの接続と端末入出力キューを管理する．
+ * ネットワーク受信コールバックとTTYを分離し，接続し直した端末の状態を混ぜない． */
+
 #include "net.h"
 #include "net_services.h"
 #ifndef PICONIX_WIFI
@@ -10,34 +13,41 @@
 #include "lwip/ip4_addr.h"
 #include <stdint.h>
 #include <string.h>
-static struct tcp_pcb *telnet_listener; /* Telnet :23 */
+static struct tcp_pcb *telnet_listener; /* TelnetはTCP 23番ポートを使用する． */
 static unsigned char client_telnet;
 static unsigned char telnet_state, telnet_command, telnet_cr;
 static unsigned char telnet_hello_pos;
-static const unsigned char telnet_hello[] = {255,251,1, 255,251,3, 255,253,3}; /* WILL ECHO, WILL SGA, DO SGA */
+static const unsigned char telnet_hello[] = {255,251,1, 255,251,3, 255,253,3}; /* Telnet交渉でWILL ECHO・WILL SGA・DO SGAを通知する． */
 static struct tcp_pcb *client;
-/* Distinguish sessions even if a disconnect/reconnect occurs between idle polls. */
+/* 切断と再接続が二回のアイドルポーリングの間に起きても，世代番号で別セッションとして区別する． */
 static unsigned terminal_epoch;
-/* Small fixed-size queues; no heap allocation for terminal bytes.
- * Only net_poll / lwIP callbacks access these queues in this stage. */
-/* The RX queue must fit a full negotiated TCP segment (TCP_MSS=536).
- * A 256-byte queue can never accept a 536-byte pbuf, causing a permanent
- * zero-window stall because lwIP retries that same pbuf unchanged. */
+/* 端末バイトは固定長キューで扱い，ヒープを使用しない．キューを操作するのはnet_pollとlwIPのコールバックである． */
+/* RXキューには交渉済みMSS（536バイト）のTCPセグメント全体が入る必要がある．256バイトしかないとlwIPが同じpbufを再送し続け，受信窓が進まなくなる． */
 #define NET_TTY_QUEUE_SIZE 2048u
 static unsigned char net_rx[NET_TTY_QUEUE_SIZE], net_tx[NET_TTY_QUEUE_SIZE];
 static unsigned net_rx_head, net_rx_tail, net_tx_head, net_tx_tail;
+/* Telnetのリングキュー内に存在するバイト数を計算する． */
 static unsigned queue_count(unsigned head, unsigned tail) {
     return (head - tail) & (NET_TTY_QUEUE_SIZE - 1u);
 }
+
+/* キュー末尾を1つ空けたうえで書き込めるバイト数を返す． */
 static unsigned queue_space(unsigned head, unsigned tail) {
     return NET_TTY_QUEUE_SIZE - 1u - queue_count(head, tail);
 }
+
+/* Telnetの送受信キューを空にし，新規接続へ備える． */
 static void net_queues_reset(void) {
     net_rx_head = net_rx_tail = net_tx_head = net_tx_tail = 0;
 }
+
+/* Telnetクライアントの接続有無を返す．非Wi-Fi版は常に未接続． */
 int net_terminal_connected(void) { return client != NULL; }
+
+/* 端末接続の世代番号を返す．切断・再接続の検知に用いる． */
 unsigned net_terminal_epoch(void) { return terminal_epoch; }
-/* Returns -1 when disconnected, 0 when empty, otherwise bytes read. */
+
+/* 受信キューから指定した最大バイト数を取り出す．切断時は-1，データ待ちなら0，成功時は読出しバイト数を返す． */
 int net_terminal_read(void *dst, unsigned size) {
     if (!client) return -1;
     unsigned char *out = dst;
@@ -48,10 +58,11 @@ int net_terminal_read(void *dst, unsigned size) {
     }
     return (int)n;
 }
-/* Returns -1 when disconnected; otherwise number of queued bytes. */
+
+/* TTY送信バイトを固定長キューに積み，積めた量を返す．切断時は-1．CRLFの途中だけを採用しない． */
 int net_terminal_write(const void *src, unsigned size) {
     if (!client) return -1;
-    /* A TTY write must never queue only the CR of a CRLF pair. */
+    /* TTYからのCRLFをCRだけでキューに入れてはならない． */
     unsigned needed = size;
     if (client_telnet) {
         const unsigned char *b = src;
@@ -71,6 +82,8 @@ int net_terminal_write(const void *src, unsigned size) {
     }
     return (int)n;
 }
+
+/* ポーリング文脈からネットワークへ送信キューを流す．TCPの送信バッファ容量を超えないようにする． */
 static void net_terminal_flush(void) {
     if (!client) return;
     if (client_telnet && telnet_hello_pos < sizeof(telnet_hello)) {
@@ -88,8 +101,7 @@ static void net_terminal_flush(void) {
     unsigned contiguous = NET_TTY_QUEUE_SIZE - net_tx_tail;
     if (available > contiguous) available = contiguous;
     if (available > tcp_sndbuf(client)) available = tcp_sndbuf(client);
-    /* Keep each enqueue within a single MSS.  tcp_sndbuf() alone does not
-     * account for the limited number of lwIP TCP segment descriptors. */
+    /* 一度の送信追加はMSS以内に収める．tcp_sndbufだけではlwIPのTCPセグメント管理数の上限を考慮できない． */
     if (available > TCP_MSS) available = TCP_MSS;
     if (available && tcp_write(client, net_tx + net_tx_tail,
                                (u16_t)available, TCP_WRITE_FLAG_COPY) == ERR_OK) {
@@ -98,26 +110,26 @@ static void net_terminal_flush(void) {
     }
 }
 
+/* lwIPが通知したTCP異常を受け，破棄済みPCBへの参照を外す． */
 static void client_error(void *arg, err_t err) {
     (void)arg;
     (void)err;
-    client = NULL; /* lwIP already destroyed the PCB. */
+    client = NULL; /* lwIPがPCBを既に破棄している． */
     ++terminal_epoch;
     net_queues_reset();
 }
 
-/* Telnet negotiation is handled here; no lwIP output inside callbacks.
- * Ignore unsupported options, and normalize Telnet CR NUL / CR LF. */
+/* Telnetの制御列と通常入力を分ける．未対応オプションは無視し，CR NULとCR LFを正規化する．lwIP送信はこの関数内で行わない． */
 static void net_receive_byte(unsigned char c) {
     if (client_telnet) {
         if (telnet_state == 1) {
             telnet_state = 0;
-            if (c == 255) { /* escaped IAC data */ }
+            if (c == 255) { /* IACがエスケープされたデータバイトである． */ }
             else if (c >= 251 && c <= 254) { telnet_command = c; telnet_state = 2; return; }
             else if (c == 250) { telnet_state = 3; return; }
             else return;
         } else if (telnet_state == 2) {
-            /* ECHO/SGA were proposed on connection; ignore peer replies. */
+            /* 接続時に提案済みのECHO/SGAに対する相手の応答は読み飛ばす． */
             (void)telnet_command;
             telnet_state = 0;
             return;
@@ -138,6 +150,7 @@ static void net_receive_byte(unsigned char c) {
     net_rx_head = (net_rx_head + 1u) & (NET_TTY_QUEUE_SIZE - 1u);
 }
 
+/* TCPコールバックで受信を固定キューへ入れる．全体を受け取れないときはlwIPの受信窓を進めず再試行させる． */
 static err_t client_recv(void *arg, struct tcp_pcb *pcb,
                          struct pbuf *p, err_t err) {
     (void)arg;
@@ -148,25 +161,22 @@ static err_t client_recv(void *arg, struct tcp_pcb *pcb,
         client = NULL;
         ++terminal_epoch;
         net_queues_reset();
-        /* tcp_close may fail while unsent data remains. The PCB must not
-         * survive with callbacks removed and the session forgotten. */
+        /* 未送信データがあるとtcp_closeは失敗し得る．コールバックだけ解除してPCBを忘れる状態を作らない． */
         if (tcp_close(pcb) != ERR_OK) {
-            /* An aborted PCB must never be used by lwIP after this callback. */
+            /* 中止済みPCBをコールバック後にlwIPが参照しないようにする． */
             tcp_abort(pcb);
             return ERR_ABRT;
         }
         return ERR_OK;
     }
     if (err != ERR_OK) {
-        /* The pbuf is consumed here: only ERR_OK may accompany pbuf_free(). */
+        /* ここでpbufを解放した場合はERR_OKを返す． */
         pbuf_free(p);
         return ERR_OK;
     }
-    /* Do not acknowledge bytes that cannot fit the RX ring.
-     * lwIP retains its TCP receive window until these bytes can be accepted.
-     * For now reject an oversized segment instead of silently losing data. */
+    /* RXリングに入らないバイトの受信確認を進めない．バッファが空くまで受信窓を保持し，過大セグメントを黙って破棄しない． */
     if (p->tot_len > queue_space(net_rx_head, net_rx_tail)) {
-        return ERR_MEM; /* lwIP retries the same pbuf later. */
+        return ERR_MEM; /* 同じpbufは後でlwIPが再試行する． */
     }
     for (struct pbuf *q = p; q; q = q->next) {
         const unsigned char *data = q->payload;
@@ -179,10 +189,9 @@ static err_t client_recv(void *arg, struct tcp_pcb *pcb,
     return ERR_OK;
 }
 
+/* 単一のTelnetクライアントを受け入れ，TTY用の新しいセッション番号を与える． */
 static err_t client_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
-    /* AP mode permits only its designated terminal client.  STA mode
-     * accepts clients from the LAN, where their addresses are assigned
-     * by the external access point rather than PicoNIX. */
+    /* APは指定した端末だけを許可する．STAでは外部APがアドレスを割り当てたLAN上の端末を受け付ける． */
 #if !PICONIX_WIFI_STA
     ip4_addr_t allowed;
     IP4_ADDR(&allowed, 192, 168, 4, 2);
@@ -207,7 +216,7 @@ static err_t client_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
     return ERR_OK;
 }
 
-
+/* TCP 23番のリスナを用意する． */
 int net_service_telnet_init(void) {
     telnet_listener = tcp_new_ip_type(IPADDR_TYPE_V4);
     if (telnet_listener) {
@@ -225,12 +234,25 @@ int net_service_telnet_init(void) {
     }
     return telnet_listener != NULL;
 }
+
+/* 保留されたTelnet送信と切断処理をアイドル側で進める． */
 void net_service_telnet_poll(void) { net_terminal_flush(); }
 #else
+/* TCP 23番のリスナを用意する． */
 int net_service_telnet_init(void) { return 0; }
+
+/* 保留されたTelnet送信と切断処理をアイドル側で進める． */
 void net_service_telnet_poll(void) {}
+
+/* Telnetクライアントの接続有無を返す．非Wi-Fi版は常に未接続． */
 int net_terminal_connected(void) { return 0; }
+
+/* 端末接続の世代番号を返す．切断・再接続の検知に用いる． */
 unsigned net_terminal_epoch(void) { return 0; }
+
+/* 受信キューから指定した最大バイト数を取り出す．切断時は-1，データ待ちなら0，成功時は読出しバイト数を返す． */
 int net_terminal_read(void *dst, unsigned size) { (void)dst; (void)size; return -1; }
+
+/* TTY送信バイトを固定長キューに積み，積めた量を返す．切断時は-1．CRLFの途中だけを採用しない． */
 int net_terminal_write(const void *src, unsigned size) { (void)src; (void)size; return -1; }
 #endif

@@ -1,8 +1,10 @@
-/* PicoNIX network diagnostics: formatting in user space. */
+/* ネットワーク接続の診断情報を表示する． */
+/* ネットワーク診断値をユーザ空間で整形して表示する． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
+/* ネットワーク診断用の/procファイルを開き，内容を出力する． */
 static int show(const char *path) {
     int fd=open(path,O_RDONLY);
     if(fd<0) {puts("net: cannot open network information");return 1;}
@@ -21,6 +23,8 @@ static int show(const char *path) {
     close(fd);
     return rc;
 }
+
+/* Wi-Fi・ARP等のネットワーク状態と診断情報を表示する． */
 int main(int argc,char **argv) {
     if(argc==1)return show("/proc/net/wifi");
     if(argc==2) {

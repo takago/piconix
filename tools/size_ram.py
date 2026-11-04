@@ -29,10 +29,11 @@ RAM_LAYOUT = (
 )
 
 
+# バイト数をKiB単位の桁揃え表示文字列にする．
 def fmt(n):
     return f'{n / 1024:8.2f}'
 
-
+# 外部ツールを実行して出力を取得し，失敗時は例外を発生させる．
 def command_output(exe, *args):
     p = subprocess.run([exe, *map(str, args)], text=True,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -40,16 +41,17 @@ def command_output(exe, *args):
         raise RuntimeError(f'{exe}: {p.stderr.strip()}')
     return p.stdout
 
-
+# ARM用ツールを優先して探し，見つからなければホスト側コマンドを探す．
 def tool(prefix):
     return shutil.which('arm-none-eabi-' + prefix) or shutil.which(prefix)
 
 
-# readelf -W -S, including section names, sizes and VMAs.
+# readelf -W -Sからセクション名，サイズ，実行時アドレス（VMA）を取得する．
 SEC_RE = re.compile(r'^\s*\[\s*\d+\]\s+(\S+)\s+\S+\s+([0-9a-fA-F]+)\s+[0-9a-fA-F]+\s+([0-9a-fA-F]+)\s+\S+\s+([WAXMSILOGTE]*)\b')
 SYM_RE = re.compile(r'^\s*\d+:\s*([0-9a-fA-F]+)\s+\d+\s+\S+\s+\S+\s+\S+\s+\S+\s+(\S+)')
 
 
+# readelfからELFセクションとシンボル位置を読み取る．
 def elf_info(elf, readelf):
     sections = []
     for line in command_output(readelf, '-W', '-S', elf).splitlines():
@@ -65,7 +67,7 @@ def elf_info(elf, readelf):
             syms[m.group(2)] = int(m.group(1), 16)
     return sections, syms
 
-
+# 各ユーザイメージのELFを解析し，データ・スタック・空き容量を集計する．
 def app_rows(build, readelf):
     rows, warnings = [], []
     for elf in sorted(build.glob('ram_*/*.elf')):
@@ -90,7 +92,6 @@ def app_rows(build, readelf):
     rows.sort(key=lambda r: (-r[5], r[0]))
     return rows, warnings
 
-
 def component(source):
     """Classify *input* object paths; this is not a symbol-level classifier."""
     s = source.replace('\\', '/').lower()
@@ -113,7 +114,7 @@ def component(source):
     return 'Other'
 
 
-# GNU ld map input sections, which may be split across two lines.
+# GNU ldのmapでは入力セクションの記載が2行に分かれる場合もある．
 OUTPUT_RE = re.compile(r'^(\.[\w.$+-]+)\s+0x([0-9a-fA-F]+)\s+0x([0-9a-fA-F]+)\b')
 INPUT_RE = re.compile(r'^\s+(\.[\w.$+-]+|COMMON)\s+0x([0-9a-fA-F]+)\s+0x([0-9a-fA-F]+)\s+(.+?)\s*$')
 CONT_RE = re.compile(r'^\s+0x([0-9a-fA-F]+)\s+0x([0-9a-fA-F]+)\s+(.+?)\s*$')
@@ -121,9 +122,9 @@ OBJECT_RE = re.compile(r'(?:[^\s]+\.a\([^)]*\.o\)|[^\s]+\.(?:o|obj))(?:\([^)]*\)
 APP_SYM_RE = re.compile(r'^piconix_(.+)_image_(start|end)$')
 
 
+# 二つのアドレス区間が重複するか調べる．
 def overlap(start, end, lo, hi):
     return max(0, min(end, hi) - max(start, lo))
-
 
 def interval_union(intervals):
     """Count only distinct addressed bytes, avoiding overlap/double counting."""
@@ -141,7 +142,7 @@ def interval_union(intervals):
         length += previous[1] - previous[0]
     return length
 
-
+# アドレス位置からFlash・SRAM等のメモリ種類を返す．
 def memory_kind(addr):
     if FLASH_START <= addr < FLASH_END:
         return 'Flash'
@@ -149,11 +150,10 @@ def memory_kind(addr):
         return 'SRAM'
     return None
 
-
+# ELFのセクションから実際の割当済みアドレス範囲を集める．
 def allocated_ranges(sections):
     return [(a, a + size, memory_kind(a)) for name, a, size in sections
             if size > 0 and memory_kind(a) is not None]
-
 
 def embedded_ranges(syms, sections):
     """Get real embedded PIC byte intervals from the firmware ELF symbol pairs.
@@ -174,13 +174,12 @@ def embedded_ranges(syms, sections):
         end = endpoints_pair.get('end')
         if start is None or end is None or end <= start:
             continue
-        # Intersect with allocated ELF Flash regions and avoid double counting.
+        # ELF上で実際に割り当てられたFlash領域と交差させ，二重計上を避ける．
         for lo, hi in flash_ranges:
             a, b = max(start, lo), min(end, hi)
             if a < b:
                 images.append((a, b, 'Flash', 'Embedded apps'))
     return images
-
 
 def map_report(path, sections, embedded=()):
     """Attribute only bytes that fall inside an ELF allocated output section.
@@ -224,10 +223,10 @@ def map_report(path, sections, embedded=()):
             a, b = max(lo, start), min(hi, end)
             if b > a:
                 ranges.append((a, b, kind, component(src)))
-    # Symbol intervals have priority over path-based map ownership; this
-    # prevents an embedded image also counting as PicoNIX or unattributed.
+    # シンボルの区間はmap上のファイル名による分類より優先する．
+    # 埋込みイメージをカーネル側へ誤計上しないためである．
     ranges.extend(embedded)
-    # Assign an individual address at most once, even if the map has aliases.
+    # mapに別名があっても，同じアドレスの割当ては一度だけ計上する．
     counters = defaultdict(int)
     for kind in ('Flash', 'SRAM'):
         events = []
@@ -247,7 +246,6 @@ def map_report(path, sections, embedded=()):
             last = x
     return counters
 
-
 def sram_region_totals(sections):
     """Return unique allocated ELF SRAM bytes, partitioned by fixed regions."""
     ranges = [(a, a + sz) for _, a, sz in sections
@@ -257,7 +255,7 @@ def sram_region_totals(sections):
         inside = [(max(a, start), min(b, end)) for a, b in ranges
                   if min(b, end) > max(a, start)]
         totals.append((name, interval_union(inside)))
-    # Anything in the RP2040 scratch SRAM or outside documented reserved regions.
+    # RP2040のscratch SRAMや定義した予約領域外の割当ても検出する．
     covered = [(start, end) for _, start, end in RAM_LAYOUT]
     cuts = sorted({x for pair in covered for x in pair} |
                   {SRAM_START, SRAM_END})
@@ -268,7 +266,7 @@ def sram_region_totals(sections):
                                        for a, b in ranges if min(b, hi) > max(a, lo)])
     return totals, outside
 
-
+# PicoNIXの固定RAM領域の開始・終了と容量を表示する．
 def print_fixed_layout(sections):
     print('\n=== Fixed SRAM map (KiB, RP2040) ===')
     print(f"{'Region':23} {'Start':>11} {'End excl.':>11} {'Reserved':>9} {'ELF bytes':>10}")
@@ -288,9 +286,9 @@ def print_fixed_layout(sections):
         print('  WARNING: SRAM regions do not reconcile; check ELF addresses/layout.')
     print('  RP2040 also has 8 KiB scratch SRAM (0x20040000..0x20041fff).')
 
-
+# ELFのシンボル表からカーネルスタック領域の境界を調べる．
 def kernel_stack_bounds(syms):
-    # Only claim a stack reservation when the linker defines both boundaries.
+    # リンカがスタックの両端を定義している場合に限って予約量を報告する．
     candidates = [('__StackLimit', '__StackTop'), ('__stack_bottom', '__stack_top'),
                   ('__StackBottom', '__StackTop')]
     for bottom, top in candidates:
@@ -299,7 +297,7 @@ def kernel_stack_bounds(syms):
             return lo, hi
     return None
 
-
+# カーネルのセクション別RAM使用量と上限を表示する．
 def print_kernel(build, readelf, map_path):
     elf = build / 'piconix.elf'
     if not elf.exists():
@@ -348,9 +346,8 @@ def print_kernel(build, readelf, map_path):
         return
     images = embedded_ranges(syms, sections)
     buckets = map_report(map_path, sections, images)
-    # Attribute PicoNIX-only bytes by intersecting the same linker-map inputs
-    # with the actual allocated .data/.bss ELF sections.  Do not mix firmware
-    # totals with the kernel component, which shares the 56 KiB SRAM region.
+    # PicoNIX固有のRAM使用量は，mapの入力範囲とELFの.data/.bssの交差から求める．
+    # ファームウェア合計と56 KiB領域を共有するカーネル分を重複加算しない．
     data_sections = [sec for sec in sections if sec[0].startswith('.data')]
     bss_sections = [sec for sec in sections if sec[0].startswith('.bss')]
     by_data = map_report(map_path, data_sections)
@@ -392,7 +389,7 @@ def print_kernel(build, readelf, map_path):
     print('  Live lwIP heap/pbuf/PCB metrics: cat /proc/net/memory')
     print_fixed_layout(sections)
 
-
+# ビルド成果物のRAM割当てとユーザプログラムの使用量を集計表示する．
 def main():
     parser = argparse.ArgumentParser(description='PicoNIX kernel and task memory (KiB)')
     parser.add_argument('--build', type=Path, default=Path('build-pico_w'),

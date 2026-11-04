@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Minimal streaming grep: fixed memory, literal substring, no regex. */
+/* 正規表現を使わず，文字列の部分一致で行を抽出する． */
+
+/* 固定メモリで逐次処理する部分文字列grep．正規表現は扱わない． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "string.h"
 #include "stdio.h"
 
+/* 見つかった行を標準出力へ転送する． */
 static int emit(const char *p, unsigned n) {
     while(n) {
         int k=write(1,p,n);
@@ -13,6 +16,8 @@ static int emit(const char *p, unsigned n) {
     }
     return 0;
 }
+
+/* 指定した検索語が対象の行に含まれるかを調べる． */
 static int match(const char *line, unsigned n, const char *pat, unsigned m) {
     if(m>n) return 0;
     for(unsigned i=0;i<=n-m;i++) {
@@ -22,6 +27,8 @@ static int match(const char *line, unsigned n, const char *pat, unsigned m) {
     }
     return 0;
 }
+
+/* 標準入力やファイルから条件に一致する行を抽出する． */
 int main(int argc,char **argv) {
     if(argc<2 || argc>3) { puts("usage: grep PATTERN [FILE]"); return 2; }
     const char *pat=argv[1];
@@ -42,7 +49,7 @@ int main(int argc,char **argv) {
                 }
                 used=0;overflow=0;
             } else if(used<sizeof line) line[used++]=c;
-            else overflow=1; /* Skip overlong lines rather than print partial matches. */
+            else overflow=1; /* 行が長すぎるときは途中までの一致を表示せず，行全体を読み飛ばす． */
         }
     }
     if(n<0) error=1;

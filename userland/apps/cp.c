@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copy one RAM file, without changing the kernel or using a second file buffer. */
+/* ファイル内容をコピーする． */
+
+/* カーネルやバッファ数を増やさずにRAMファイルを一つコピーする． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 
-/* Normalize relative paths to avoid truncating a file onto itself. */
+/* 自分自身をtruncateしないよう，コピー元とコピー先の相対パスを正規化する． */
 static int path(const char *src,char out[128]) {
     char input[256],cwd[128];
     unsigned n=0,o=1;
@@ -31,13 +33,14 @@ static int path(const char *src,char out[128]) {
         if(o+len>=128)return -1;
         memcpy(out+o,input+start,len);o+=len;out[o]=0;
     }
-    /* Only flat RAM files under /tmp and /etc can be copied. */
+    /* コピー可能なのは/tmpと/etcの直下のRAMファイルである． */
     const char *name=0;
     if(!strncmp(out,"/tmp/",5)) name=out+5;
     else if(!strncmp(out,"/etc/",5)) name=out+5;
     return (name && *name && !strchr(name,'/'))?0:-1;
 }
 
+/* 指定したファイルの内容を別ファイルへ複写する．VFS経由で読み書きする． */
 int main(int argc,char **argv) {
     char src[128],dst[128],buf[64];
     if(argc!=3) {puts("usage: cp SRC DST");return 1;}

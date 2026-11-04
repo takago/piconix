@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Pong: local CPU game or two-terminal game. */
+/* 端末描画とノンブロッキング入力の教材となるゲーム． */
+
+/* ローカルCPU対戦または二端末対戦のPong． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -10,6 +12,7 @@
 #define H 16
 #define PADDLE 4
 
+/* 端末FDへの表示データを可能な限り書き切る．部分書込み・一時的な0バイト書込みに対応する． */
 static void sendall(int fd,const char *s,int n) {
     if(fd<0)return;
     int pos=0,tries=0;
@@ -20,22 +23,28 @@ static void sendall(int fd,const char *s,int n) {
         pos+=r;tries=0;
     }
 }
+
+/* 同じ案内文字列を両方の端末FDへ送る．単一端末モードでは無効FDを飛ばす． */
 static void message(int a,int b,const char *s) {
     int n=(int)strlen(s);
     sendall(a,s,n);sendall(b,s,n);
 }
+
+/* ゲーム盤の指定行に障害物・ラケット・ボールを描画する． */
 static void row(int fd,int y,int top,int left,const char *s) {
     char out[W+24];
     int n=snprintf(out,sizeof out,"\033[%d;%dH%s",top+y,left,s);
     if(n>0 && n<(int)sizeof out)sendall(fd,out,n);
 }
+
+/* ゲーム画面全体を端末へ描画する． */
 static void render(int a,int b,int left,int right,int bx,int by,int score0,int score1,int reset,char old[H][W+1],int top,int left_col) {
     char grid[H][W+1];
     for(int y=0;y<H;y++) {
         for(int x=0;x<W;x++)grid[y][x]=' ';
         grid[y][W]=0;
     }
-    /* Headers are viewer-specific; only the playing field is mirrored. */
+    /* 見出しは端末ごとに表示し，ゲーム領域だけを共有する． */
     char title[W+1],score[W+1];
     snprintf(title,sizeof title,"PicoNIX PONG   UP/DOWN: MOVE   Q: QUIT");
     if(reset) { row(a,0,top,left_col,title); row(b,0,top,left_col,title); }
@@ -54,7 +63,7 @@ static void render(int a,int b,int left,int right,int bx,int by,int score0,int s
     for(int i=0;i<PADDLE;i++) {
         grid[4+left+i][W-3]='#';grid[4+right+i][2]='#';
     }
-    /* The canonical field is viewed from console's right-hand side. */
+    /* 基準となる画面はコンソールの右側からの視点である． */
     grid[by][W-1-bx]='O';
     for(int y=3;y<H;y++)if(reset || memcmp(old[y],grid[y],W)) {
         char mirror[W+1];
@@ -66,8 +75,7 @@ static void render(int a,int b,int left,int right,int bx,int by,int score0,int s
     }
 }
 
-/* Each terminal has its own ANSI arrow-key decoder. An ESC sequence may
- * arrive split across reads or even across frames. */
+/* 端末ごとにANSI矢印キーを解析する．ESC列は一回のreadや複数フレームに分かれて届く場合がある． */
 static int pong_key(int c,int *escape) {
     if(*escape==1) {
         *escape=(c=='[' || c=='O') ? 2 : 0;
@@ -76,7 +84,7 @@ static int pong_key(int c,int *escape) {
     if(*escape==2) {
         *escape=0;
         if(c=='A')return -1;  /* Up */
-        if(c=='B')return 1;   /* Down */
+        if(c=='B')return 1;   /* 下向き移動 */
         return 0;
     }
     if(c==27) {*escape=1;return 0;}
@@ -86,6 +94,7 @@ static int pong_key(int c,int *escape) {
     return 0;
 }
 
+/* 端末上でポンゲームを実行し，入力と描画を周期的に処理する． */
 int main(int argc,char **argv) {
     int two=argc==2 && !strcmp(argv[1],"-2");
     if(argc>2 || (argc==2 && !two)) {
@@ -123,7 +132,7 @@ int main(int argc,char **argv) {
     int top=terminal.rows>H?(terminal.rows-H)/2+1:1;
     int left_col=terminal.cols>W?(terminal.cols-W)/2+1:1;
     int left=3,right=3,bx=W/2,by=8,dx=1,dy=1,score0=0,score1=0,live=1;
-    char old[H][W+1]; /* Local RAM, no writable PIC globals. */
+    char old[H][W+1]; /* 状態はローカルRAMで保持し，PICで書込み可能なグローバル変数を使わない． */
     int initial=1,ticks=0;
     int escapes[2]={0,0};
     while(live) {
@@ -141,7 +150,7 @@ int main(int argc,char **argv) {
             if(r<0){live=0;break;}
         }
         if(!live)break;
-        /* A deliberately limited opponent: one step every three frames. */
+        /* CPUは3フレームごとに一歩だけ移動する簡易対戦相手である． */
         if(!two && ++ticks%3==0) {
             int *cpu=side==0 ? &right : &left;
             int center=4+*cpu+PADDLE/2;

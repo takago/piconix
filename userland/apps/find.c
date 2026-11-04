@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* VFSを階層的に探索する． */
+
 #include "walk.h"
 #include "stdlib.h"
 static const char *pattern=0;
+/* ファイル名を*と?の簡易ワイルドカードに照合する． */
 static int match(const char *s,const char *p){
  while(*p){
   if(*p=='*'){p++;if(!*p)return 1;do{if(match(s,p))return 1;}while(*s++);return 0;}
@@ -12,17 +15,22 @@ static int match(const char *s,const char *p){
 }
 typedef struct {char path[WALK_PATH];int depth;} State;
 static void descend(const char *,int);
+/* 列挙したエントリを表示し，ディレクトリなら深さ制限内で再帰探索する． */
 static void visit(const char *name,int isdir,void *ctx){
  State *s=ctx;char path[WALK_PATH];
  if(walk_join(s->path,name,path)<0)return;
  if(!pattern||match(name,pattern))puts(path);
  if(isdir)descend(path,s->depth+1);
 }
+
+/* 指定ディレクトリを巡回する．WALK_DEPTHを超える再帰は避ける． */
 static void descend(const char *path,int depth){
  if(depth>=WALK_DEPTH)return;
  State s;strncpy(s.path,path,sizeof s.path-1);s.path[sizeof s.path-1]=0;s.depth=depth;
  walk_entries(path,visit,&s);
 }
+
+/* 開始位置からVFSをたどり，条件に合うパスを表示する． */
 int main(int argc,char **argv){
  const char *root=".";int i=1;
  if(i<argc&&strcmp(argv[i],"-name"))root=argv[i++];

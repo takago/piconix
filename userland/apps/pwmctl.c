@@ -1,10 +1,12 @@
-/* PWM control utility for the existing /dev/pwm devices. */
+/* PWM設定を読み出し・変更する． */
+/* 既存の/dev/pwmデバイスを操作する． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 #include "stdlib.h"
 
+/* PWM周波数・デューティ比の操作方法を表示する． */
 static void usage(void) {
     puts("Usage: pwmctl [status | freq HZ | a DUTY | b DUTY | off]");
     puts("  status     Show PWM frequency and duty cycles");
@@ -13,7 +15,11 @@ static void usage(void) {
     puts("  b DUTY    Set GP19 duty cycle (0..100%, 0.1% steps)");
     puts("  off        Set both duty cycles to 0%");
 }
+
+/* サブコマンド文字列の一致を確認する． */
 static int eq(const char *a,const char *b) { return strcmp(a,b)==0; }
+
+/* PWMデバイスファイルを読み，終端改行を除いた文字列を返す． */
 static int read_value(const char *path,char *value,size_t size) {
     int fd=open(path,O_RDONLY);
     if(fd<0)return -1;
@@ -23,6 +29,8 @@ static int read_value(const char *path,char *value,size_t size) {
     if(value[n-1]=='\n')value[n-1]=0;
     return 0;
 }
+
+/* PWMデバイスファイルに数値文字列を書き込み，成功時に0を返す． */
 static int set_value(const char *path,const char *value) {
     int fd=open(path,O_WRONLY);
     if(fd<0)return -1;
@@ -31,6 +39,8 @@ static int set_value(const char *path,const char *value) {
     close(fd);
     return written==n?0:-1;
 }
+
+/* 周波数またはデューティ比を桁数・範囲・小数形式で検証する． */
 static int valid_value(const char *s,unsigned limit,int duty) {
     unsigned x=0;int digits=0;
     while(*s>='0' && *s<='9') {
@@ -47,6 +57,8 @@ static int valid_value(const char *s,unsigned limit,int duty) {
     }
     return *s==0;
 }
+
+/* PWMの周波数と各チャネルのデューティ比をデバイスから読み表示する． */
 static int status(void) {
     char freq[24],a[24],b[24];
     if(read_value("/dev/pwm/1/freq",freq,sizeof freq)<0)return -1;
@@ -57,6 +69,8 @@ static int status(void) {
     else puts("Channel B (GP19): unavailable");
     return 0;
 }
+
+/* /dev/pwm/1で周波数・デューティ比の照会と変更を行う． */
 int main(int argc,char **argv) {
     if(argc==1 || (argc==2 && (eq(argv[1],"help") || eq(argv[1],"-h") || eq(argv[1],"--help")))) {
         usage();return 0;

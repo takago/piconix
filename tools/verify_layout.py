@@ -12,6 +12,7 @@ MAIN_END = 0x20040000
 SLOT_SIZE = 0x6000
 
 
+# ELFのシンボル名と位置を抽出する．
 def symbols(elf, nm):
     output = subprocess.check_output([nm, '-n', elf], text=True)
     result = {}
@@ -24,7 +25,7 @@ def symbols(elf, nm):
                 pass
     return result
 
-
+# リンカが出力したイメージ配置を検査し，違反があれば停止する．
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('elf')
@@ -70,8 +71,8 @@ def main():
         print('SHM: 0x20032000..0x200327ff (2 KiB)')
         print('RAM files: 0x20032800..0x20037fff (11 x 2 KiB)')
         print('Trace ring: 0x20038000..0x2003bfff (16 KiB)')
-        # The lwIP heap is an absolute address, not an ELF symbol. Verify the
-        # intended reservation and heap definition together, before trusting it.
+        # lwIPヒープはELFシンボルでなく絶対アドレス指定である．
+        # 予約領域の位置とヒープ定義を組み合わせて検証する．
         from pathlib import Path
         import re
         opts = (Path(__file__).resolve().parent.parent / 'kernel' / 'lwipopts.h').read_text()
@@ -81,8 +82,8 @@ def main():
             sys.exit('ERROR: cannot verify Wi-Fi lwIP heap size and location')
         heap_size = int(heap.group(1)) * 1024
         heap_start = int(ptr.group(1), 16)
-        # lwIP needs at least one aligned heap header beyond MEM_SIZE.
-        # Keep a full 2-KiB gap before the dedicated idle stack.
+        # lwIPはMEM_SIZEのほかにアラインされたヒープヘッダを必要とする．
+        # 専用アイドルスタックとの間には2 KiBの余裕を確保する．
         idle_start = 0x2003F000
         if heap_start != reserve_start or heap_start + heap_size > idle_start - 2048:
             sys.exit('ERROR: lwIP heap/idle stack boundary gap is too small')

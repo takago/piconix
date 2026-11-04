@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Live read-only memory viewer, with optional Flash-resident symbol names. */
+/* 物理メモリとタスクスロットを閲覧する学習用モニタ．
+ * カーネル／ユーザのシンボル情報を読み，アドレス表示と対応付ける． */
+
+/* 実メモリを読み出すモニタ．Flashに埋め込まれたシンボル名も必要に応じて表示する． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -7,15 +10,14 @@
 #include "string.h"
 #include <stdint.h>
 #include "../lib/screen.h"
-/* A bounded screen-sized window keeps the application within its 24-KiB slot.
- * Six rows are reserved for headers and controls; a larger terminal uses at
- * most 36 data rows, matching the bounded watch viewer. */
+/* 24 KiBのタスク枠内に収まるよう，表示データは画面程度に制限する．6行は見出し・操作へ割り当て，広い端末でも最大36データ行にする． */
 #define MAX_ROWS 36
 #define BYTES_PER_ROW 16
 #define MAX_COUNT (MAX_ROWS*BYTES_PER_ROW)
 static unsigned view_rows = 16;
 static unsigned view_count = 16*BYTES_PER_ROW;
 static unsigned goto_row = 21;
+/* カーネル・タスク・共有RAM・ファイル・トレース・ネットワーク領域を表示用に区分する． */
 static void mem_layout(int rows) {
  if(rows<8) rows=24;
  view_rows=(unsigned)(rows-6);
@@ -29,9 +31,16 @@ static char labels[MAX_ROWS][SYMBOL_NAME_MAX];
 static char symbol_app[96];
 static int symbols_available;
 static char slot_names[6][20];
+/* 読み出し対象アドレスが公開されたSRAMまたはXIP Flash範囲にあるか確認する． */
 static int valid(unsigned a){return (a>=0x20000000u&&a<=0x2003ffffu)||(a>=0x10000000u&&a<=0x101fffffu);}
+
+/* 指定桁数の16進数を標準出力へ表示する． */
 static void hex(unsigned v,int digits){const char *h="0123456789ABCDEF";for(int i=(digits-1)*4;i>=0;i-=4)putchar(h[(v>>i)&15]);}
+
+/* /dev/memにseekして表示対象領域を取得する．範囲外・短い読出しは失敗とする． */
 static int fetch(int fd,unsigned address){if(!valid(address)||!valid(address+view_count-1))return -1;if(lseek(fd,(long)address,SEEK_SET)<0)return -1;return read(fd,current,view_count)==(int)view_count?0:-1;}
+
+/* 物理アドレスをカーネル，タスク，RAMファイル等の表示領域名に対応付ける． */
 static const char *region(unsigned addr){
  if(addr>=0x10000000u&&addr<=0x101fffffu)return "XIP FLASH";
  if(addr<0x2000e000u)return "KERNEL SRAM";
@@ -42,9 +51,8 @@ static const char *region(unsigned addr){
  if(addr<=0x2003ffffu)return "NETWORK SRAM";
  return "UNKNOWN";
 }
-/* Catalog records: application<TAB>hex_offset<TAB>type<TAB>name<LF>.
-   Each application is linked at 0x2000E000; offsets are slot-relative.
-   Read through /proc/sym, never dereference an ELF symbol table. */
+
+/* シンボル表の形式は「アプリ名 TAB 相対16進アドレス TAB 種別 TAB 名前 LF」である．各イメージは0x2000E000基準でリンクされ，オフセットを実スロット位置へ加える．/proc/symから読み，ELFを直接解析しない． */
 static int symbol_record(char *line,char **app,unsigned *offset,char *kind,char **name){
  char *a=strchr(line,'\t');if(!a)return 0;*a++=0;
  char *b=strchr(a,'\t');if(!b)return 0;*b++=0;
@@ -57,8 +65,8 @@ static int symbol_record(char *line,char **app,unsigned *offset,char *kind,char 
  }else if((unsigned)v>=0x6000u)return 0;
  *app=line;*offset=(unsigned)v;*kind=*b;*name=c;return 1;
 }
-/* Process a catalog as a stream, with fixed-size memory and no malloc.
-   Lines larger than the buffer are skipped (including their remainder). */
+
+/* シンボル表からアドレスと名前を読み，現在の表示位置と関連付ける． */
 static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigned slot_hint){
  char path[128];
  if(selected) {
@@ -99,13 +107,12 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
        }
       }
       else if(slot_hint>=0x2000e000u&&slot_hint<0x20032000u){
-       /* A task may occupy one of six 24-KiB slots. */
+       /* タスクは6個の24 KiBスロットのいずれかで動作する． */
        unsigned slot_base=0x2000e000u+((slot_hint-0x2000e000u)/0x6000u)*0x6000u;
        unsigned actual=slot_base+offset;
        if(actual>=base&&actual<base+view_count){
         unsigned row=(actual-base)/BYTES_PER_ROW;
-        /* Keep all symbols on the same 16-byte row, in catalog order.
-           Reserve space for an ellipsis if the combined names are too long. */
+        /* 同じ16バイト行のシンボルをカタログ順でまとめる．長すぎるときは省略記号用の領域を残す． */
         unsigned pos=(unsigned)strlen(labels[row]);
         unsigned len=(unsigned)strlen(name);
         unsigned sep=pos?2u:0u;
@@ -129,9 +136,8 @@ static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigne
  close(fd);
  return read_error?-1:found;
 }
-/* /proc/tasks is the authority for the current program in each RAM slot.
-   Parse a line as whitespace-separated fields; a failed lookup simply means
-   no labels, never an unsafe guess about a slot occupant. */
+
+/* /proc/tasksを現在の各RAMスロットの情報源とする．空白区切りで解析し，取得に失敗してもスロット内容を推測しない． */
 static int task_program(unsigned addr,char *name,unsigned capacity){
  if(addr<0x2000e000u||addr>=0x20032000u)return 0;
  unsigned slot=(addr-0x2000e000u)/0x6000u+1;
@@ -174,7 +180,8 @@ static int task_program(unsigned addr,char *name,unsigned capacity){
  }
  close(fd);return found;
 }
-/* Read the slot occupancy once per refresh from the authoritative proc file. */
+
+/* /procから生存タスクのスロット情報を取得して表示へ反映する． */
 static int refresh_slots(void){
  char next[6][20]={{0}};
  int fd=open("/proc/tasks",O_RDONLY);
@@ -218,11 +225,11 @@ static int refresh_slots(void){
  memcpy(slot_names,next,sizeof next);
  return changed;
 }
-/* Refresh labels from the currently occupied slot, never a caller-supplied
-   application name. Also detect when an app leaves or replaces a slot. */
+
+/* 利用中スロットのプログラム名から表示ラベルを更新する．終了・置換も検出し，呼出側が任意の名前を与えられないようにする． */
 static void append_app(char *list,unsigned cap,const char *name){
  if(!*name)return;
- /* Names must not be appended twice even when adjacent regions repeat. */
+ /* 隣接領域に同じ名前があっても二重に連結しない． */
  const char *p=list;
  while(*p){
   const char *e=strchr(p,',');unsigned len=e?(unsigned)(e-p):(unsigned)strlen(p);
@@ -235,7 +242,8 @@ static void append_app(char *list,unsigned cap,const char *name){
  if(used){list[used++]=',';list[used++]=' ';}
  memcpy(list+used,name,len+1);
 }
-/* Label a live /tmp data buffer without assuming the kernel layout. */
+
+/* 現在存在するRAMファイルの場所と名前を表示へ反映する． */
 static void refresh_ram_labels(unsigned addr) {
  int fd=open("/proc/ramfiles",O_RDONLY);
  if(fd<0)return;
@@ -258,9 +266,11 @@ static void refresh_ram_labels(unsigned addr) {
  }
  close(fd);
 }
+
+/* メモリアドレスと各領域の名称を再計算する． */
 static int refresh_labels(unsigned addr){
  char old_app[sizeof symbol_app];
- /* Hash the previous labels without allocating a 4+ KiB stack buffer. */
+ /* 4 KiBを超える一時スタック配列を作らず，前回のラベルをハッシュ化する． */
  unsigned old_hash=2166136261u;
  for(unsigned r=0;r<view_rows;r++){
   const unsigned char *p=(const unsigned char *)labels[r];
@@ -271,7 +281,7 @@ static int refresh_labels(unsigned addr){
  int old_available=symbols_available;
  memset(labels,0,sizeof labels);
  symbol_app[0]=0;symbols_available=0;
- /* The visible window can straddle a task-slot boundary. */
+ /* 表示窓はタスクスロットの境界をまたぐ場合がある． */
  for(unsigned off=0;off<view_count;off+=BYTES_PER_ROW){
   unsigned a=addr+off;
   char app[32]={0};
@@ -279,7 +289,7 @@ static int refresh_labels(unsigned addr){
    strncpy(app,"kernel",sizeof app-1);
   }else task_program(a,app,sizeof app);
   if(!app[0])continue;
-  /* Scan only once per distinct application in the current window. */
+  /* 同じ表示窓にある同一アプリのシンボルを重複走査しない． */
   int already=0;
   const char *list=symbol_app;
   while(*list){
@@ -303,8 +313,10 @@ static int refresh_labels(unsigned addr){
  return old_hash!=new_hash || strcmp(old_app,symbol_app)!=0 ||
         old_available!=symbols_available;
 }
+
+/* アドレス範囲と内容，タスク・シンボルを端末の大きさに合わせて描画する． */
 static void draw(unsigned addr,int pause,int have,int changed){
- /* Disable autowrap only while painting; restore it before input. */
+ /* 描画中だけ自動折返しを無効にし，入力前に復元する． */
  printf("\033[?7l");
  screen_move(1,1);
  printf("\033[7mPicoNIX mem   %s   %s\033[K\033[0m",region(addr),pause?"PAUSED":"LIVE");
@@ -338,12 +350,18 @@ static void draw(unsigned addr,int pause,int have,int changed){
  for(int i=0;i<6;i++)printf(" %d:%s",i+1,slot_names[i][0]?slot_names[i]:"free");
  printf("\033[K\033[?7h");
 }
+
+/* 対話操作で入力されたアドレスや数値を解析する． */
 static int parse(const char *s,unsigned *out){char *end;long n=strtol(s,&end,0);if(!*s||*end||n<0||!valid((unsigned)n))return -1;*out=(unsigned)n&~15u;return 0;}
+
+/* 表示するメモリ先頭アドレスを指定量だけ移動する． */
 static int shifted(unsigned addr,int delta,unsigned *next){
  unsigned n=addr+(unsigned)delta;
  if(!valid(n)||!valid(n+view_count-1))return 0;
  *next=n;return 1;
 }
+
+/* /proc/symの対象から選択可能なカーネル／アプリのシンボル表を列挙する． */
 static int list_symbol_sources(void){
  puts("  kernel");
  int fd=open("/bin",O_RDONLY);
@@ -355,6 +373,8 @@ static int list_symbol_sources(void){
  close(fd);
  return n<0?-1:count;
 }
+
+/* アドレス移動と表示切替を行う対話型メモリ閲覧を開始する． */
 int main(int argc,char **argv){
  unsigned addr=0x20000000u;
  if(argc>=2&&!strcmp(argv[1],"-s")){

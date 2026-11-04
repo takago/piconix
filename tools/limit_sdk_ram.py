@@ -9,18 +9,19 @@ import re
 import sys
 
 
+# Pico SDKのリンカスクリプトを変換し，カーネルRAM範囲を制限する．
 def transform(source):
     pat = re.compile(r"(?m)^(?P<pre>[ \t]*RAM[ \t]*\([ \t]*rwx[ \t]*\)[ \t]*:[ \t]*ORIGIN[ \t]*=[ \t]*0x20000000[ \t]*,[ \t]*LENGTH[ \t]*=[ \t]*)(?P<size>256[ \t]*[kK]|0x40000|262144)(?P<post>[ \t]*)$")
     if len(list(pat.finditer(source))) != 1:
         raise ValueError('expected exactly one 256-KiB RP2040 RAM declaration')
-    # Pico SDK 2.1.1 declares FLASH via INCLUDE "pico_flash_region.ld".
-    # Accept either that SDK include or an explicit FLASH memory declaration.
+    # Pico SDK 2.1.1はINCLUDEでFlash領域を宣言する．
+    # 既定のINCLUDE形式と明示的なMEMORY定義の両方を受け付ける．
     if not (re.search(r'(?m)^\s*INCLUDE\s+["\']?pico_flash_region\.ld', source)
             or re.search(r'(?m)^\s*FLASH\s*\(', source)):
         raise ValueError('missing FLASH region or pico_flash_region.ld include')
     source = pat.sub(lambda m: m['pre'] + '56k' + m['post'], source, count=1)
-    # Insert before RAM-resident .text. The FLASH output section advances the
-    # FLASH load region so subsequent AT> FLASH sections do not overlap it.
+    # RAM実行用.textより前にFlash領域を配置し，
+    # 後続のAT> FLASHセクションがロード領域と重ならないようにする．
     text_pat = re.compile(r'(?m)^(?P<indent>[ \t]*)\.text[ \t]*:')
     matches = list(text_pat.finditer(source))
     if len(matches) != 1:
@@ -42,7 +43,7 @@ def transform(source):
     return ('/* PicoNIX: 56-KiB RAM kernel; user binaries resident in FLASH. */\n'
             + source[:m.start()] + section + source[m.start():])
 
-
+# SDK用リンカスクリプトを読み，変換結果を書き出す．
 def main():
     if len(sys.argv) != 3:
         sys.exit('usage: limit_sdk_ram.py sdk_memmap_copy_to_ram.ld output.ld')

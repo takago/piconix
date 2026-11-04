@@ -30,7 +30,6 @@ LIBGCC = (subprocess.check_output([GCC, '-mcpu=cortex-m0plus', '-mthumb', '-prin
 def run(*args):
     subprocess.run([str(x) for x in args], check=True, cwd=ROOT, env={**os.environ, 'LC_ALL': 'C', 'LANG': 'C'})
 
-
 def test_app(tmp, name, base):
     # Match the production CMake RAM-app build (-Oz for every application).
     opt = '-Oz'
@@ -80,7 +79,6 @@ def test_app(tmp, name, base):
     run(sys.executable, ROOT / 'tools' / 'check_slot_image.py', alt_elf, alt_bin, hex(base+24576), '--readelf', READELF)
     run(sys.executable, ROOT / 'tools' / 'check_pic.py', elf, binary, alt_elf, alt_bin, '--readelf', READELF)
     print(f'PASS: {name} PIC image ({binary.stat().st_size} bytes)')
-
 
 def main():
     missing = [name for name, path in [('clang', CLANG), ('ld.lld', LLD),

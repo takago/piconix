@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Live GPIO status editor.  The kernel remains the authority on ownership. */
+/* GPIO状態を表示し，利用できるピンを操作する． */
+
+/* GPIOの現在状態を編集する．利用可否の判定はカーネルの状態に従う． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -10,12 +12,21 @@
 #define COLS 4
 #define PIN_COUNT 29
 
+/* 画面に表示するGPIO番号の範囲を確認し，未公開ピンを除外する． */
 static int available(int pin) { return pin>=0 && pin<PIN_COUNT && pin!=24; }
+
+/* 行と列から，表形式表示に対応するGPIO番号を計算する． */
 static int at(int row,int col) { return (3-col)*8+7-row; }
+
+/* GPIO状態がFREE・IN・OUTのいずれかで，操作を許可できるか判定する． */
 static int editable(int m) {
     return m==GPIO_STATUS_FREE || m==GPIO_STATUS_IN || m==GPIO_STATUS_OUT;
 }
+
+/* カーネルのGPIO状態取得ioctlを呼び，指定ピンの状態値を得る． */
 static int query(int fd,int pin) { return ioctl(fd,OS_GPIO_STATUS_BASE+pin,0); }
+
+/* 予約済みGPIO状態コードから使用機能の表示名を返す． */
 static const char *owner(int m) {
     switch(m) {
     case GPIO_STATUS_FB:return "FB";
@@ -27,6 +38,8 @@ static const char *owner(int m) {
     default:return "RESERVED";
     }
 }
+
+/* 対象GPIOのデバイスを開いてioctlを実行し，FDを閉じる． */
 static int pin_ioctl(int pin,int cmd) {
     char path[24];
     snprintf(path,sizeof path,"/dev/gpio/%d",pin);
@@ -36,6 +49,8 @@ static int pin_ioctl(int pin,int cmd) {
     close(fd);
     return rc;
 }
+
+/* GPIOデバイスに0／1を書き込んで出力レベルを設定する． */
 static int set_level(int pin,int high) {
     char path[24];
     snprintf(path,sizeof path,"/dev/gpio/%d",pin);
@@ -46,6 +61,8 @@ static int set_level(int pin,int high) {
     close(fd);
     return rc==1?0:-1;
 }
+
+/* 1ピン分の所有者・方向・レベルを表示し，選択ピンを反転表示する． */
 static void cell(int fd,int pin,int selected) {
     char label[18];
     if(!available(pin))snprintf(label,sizeof label,"---");
@@ -63,6 +80,8 @@ static void cell(int fd,int pin,int selected) {
     printf("%-18s",label);
     if(pin==selected)printf("\033[0m");
 }
+
+/* GPIOを格子状に描画し，利用可否と現在の選択を示す． */
 static void draw(int fd,int selected) {
     printf("\033[HGPIO editor (live status)\033[K\r\n\r\n");
     for(int row=0;row<ROWS;row++) {
@@ -82,7 +101,8 @@ static void draw(int fd,int selected) {
     printf("\033[K\r\nArrows: select   i: input   o: output   h/l: high/low   SP: toggle\033[K\r\n");
     printf("u: pull up   d: pull down   n: no pull   q: quit\033[K");
 }
-/* Follow the visual grid, skipping unavailable positions, never changing owners. */
+
+/* 表示グリッド順に移動し，利用不可ピンを飛ばし，既存の所有関係を変更しない． */
 static int navigate(int pin,char key) {
     int row=7-(pin&7),col=3-(pin/8);
     int dr=key=='A'?-1:key=='B'?1:0;
@@ -94,6 +114,8 @@ static int navigate(int pin,char key) {
         if(available(candidate))return candidate;
     }
 }
+
+/* GPIO状態を端末で対話的に表示・変更する．予約中のピンは操作しない． */
 int main(int argc, char **argv) {
     (void)argv;
     if(argc!=1) {puts("usage: gpio");return 1;}
@@ -141,7 +163,7 @@ int main(int argc, char **argv) {
             if(rc>=0)redraw=1;
         }
         if(!running)break;
-        /* Poll state, including dynamic FB ownership; no separate reservation table. */
+        /* FBが動的に利用中かを含め，状態は逐次取得する．独立した予約表を持たない． */
         for(int p=0;p<PIN_COUNT;p++) {
             if(!available(p))continue;
             int s=query(status_fd,p);

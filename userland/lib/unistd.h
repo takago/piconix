@@ -1,15 +1,16 @@
-/* PicoNIX user-space syscall interfaces (small POSIX-like subset). */
+/* ユーザプログラムから利用するファイル・プロセス・通信APIの宣言． */
+/* PicoNIXのユーザ空間向けシステムコール宣言．POSIXの一部と似た小さな機能集合である． */
 #ifndef PICONIX_UNISTD_H
 #define PICONIX_UNISTD_H
 #include <stddef.h>
 #include "../../include/piconix.h"
 #include "../../include/piconix_dirent.h"
-/* All user-space runtime symbols are linked within the same PIC image. */
+/* ユーザランタイムの全シンボルは各PICイメージ内にリンクする． */
 #ifndef PICONIX_HOST_TEST
 #pragma GCC visibility push(hidden)
 #endif
 #define FB_ENABLE  0x100
-/* PicoNIX console ioctl commands (minimal, not POSIX termios). */
+/* コンソールioctlはPicoNIX独自の簡易APIで，POSIX termiosとは異なる． */
 #define OS_TTY_GET_CANON 0x200
 #define OS_TTY_SET_CANON 0x201
 #define OS_TTY_GET_ECHO 0x202
@@ -24,12 +25,7 @@
 int read(int fd, void *buf, size_t count);
 int write(int fd, const void *buf, size_t count);
 int close(int fd);
-/* Small BSD-style IPv4 socket subset. Network byte order for ports/addresses.
- * Returns negative OS_* error codes directly (PicoNIX has no errno).
- * accept() and recvfrom() return OS_EAGAIN when no data/connection is ready.
- * connect() starts asynchronously; use tcp_status() to poll completion.
- * bind(TCP) starts listening immediately; listen() is a compatibility no-op.
- */
+/* BSD風IPv4ソケット機能の一部を提供する．ポート・アドレスはネットワークバイト順で，errnoはなく負のOS_*を直接返す．acceptとrecvfromは未準備時にOS_EAGAIN，connectは非同期でtcp_statusにより確認する． */
 #define AF_INET 2
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2
@@ -45,6 +41,7 @@ struct sockaddr_in {
     struct in_addr sin_addr;
     unsigned char sin_zero[8];
 };
+/* 16ビット整数のバイト順を入れ替える．ネットワークのビッグエンディアン表現に使う． */
 static inline uint16_t htons(uint16_t v) { return (uint16_t)((v << 8) | (v >> 8)); }
 #define ntohs htons
 int socket(int domain, int type, int protocol);
@@ -52,33 +49,33 @@ int bind(int fd, const struct sockaddr *addr, socklen_t len);
 int listen(int fd, int backlog);
 int accept(int fd, struct sockaddr *addr, socklen_t *len);
 int connect(int fd, const struct sockaddr *addr, socklen_t len);
-/* Connected TCP sockets: flags must be zero. */
+/* 接続済みTCPソケットのflagsは0のみ許可する． */
 int send(int fd, const void *buf, size_t len, int flags);
 int recv(int fd, void *buf, size_t len, int flags);
 int sendto(int fd, const void *buf, size_t len, int flags,
            const struct sockaddr *to, socklen_t tolen);
 int recvfrom(int fd, void *buf, size_t len, int flags,
              struct sockaddr *from, socklen_t *fromlen);
-/* PicoNIX-specific nonblocking TCP connect status: 0=pending, 1=ready. */
+/* PicoNIX固有の非同期TCP接続状態．0は未完了，1は準備完了を示す． */
 int tcp_status(int fd);
-/* TCP send-side half-close, equivalent to shutdown(fd, SHUT_WR). */
+/* TCP送信方向だけの半閉鎖．shutdown(fd, SHUT_WR)に相当する． */
 #define SHUT_WR 1
 int shutdown(int fd, int how);
-/* Legacy low-level interfaces retained for existing applications. */
+/* 既存アプリのために下位レベルのAPIも残す． */
 int bind_udp(int fd, unsigned port);
 int sendto_udp(int fd, const piconix_udp_packet_t *packet);
 int recvfrom_udp(int fd, piconix_udp_packet_t *packet);
 int tcp_listen(int fd, unsigned port);
 int tcp_accept(int fd);
 int tcp_connect(int fd, const piconix_tcp_endpoint_t *endpoint);
-/* Seek from start, current offset, or end (/tmp, /dev/shm, /proc/sym/kernel). */
+/* seekの基準は先頭・現在位置・終端（/tmp・/dev/shm・/proc/sym/kernel）を使う． */
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
 long lseek(int fd, long offset, int whence);
 int open(const char *path, int flags);
 int unlink(const char *path);
-/* 1: entry returned, 0: end of directory, negative: error. */
+/* 戻り値1は一件取得，0はディレクトリ終端，負値はエラーである． */
 int getdents(int fd, piconix_dirent_t *entry, size_t size);
 int pipe(int fds[2]);
 int dup(int oldfd);
@@ -88,13 +85,13 @@ unsigned flash_id(void);
 int chdir(const char *path);
 char *getcwd(char *buf, size_t size);
 int kill(int pid);
-int msleep(unsigned milliseconds); /* PicoNIX: delay in milliseconds. */
+int msleep(unsigned milliseconds); /* ミリ秒単位の遅延． */
 int yield(void);
 #define WNOHANG 1
 int waitpid(int pid, int *status, int options);
 int ioctl(int fd, int command, int value);
-/* PicoNIX-specific process and terminal operations. */
-int program_id(const char *name); /* Registered /bin ID, or negative error. */
+/* PicoNIX固有のプロセス・TTY操作． */
+int program_id(const char *name); /* 登録済み/binのプログラムID，または負のエラーを返す． */
 int spawn(int program, int argc, const char *const argv[]);
 int spawn_foreground(int program, int argc, const char *const argv[]);
 int tty_spawn(int tty, int program);

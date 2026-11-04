@@ -28,8 +28,9 @@ normalizer = extract("static int absolute_path(")
 assert "dev=vfs_gpio_id(p+10);" in source, "open() must share GPIO parser"
 assert "if(id<0 && dir==VDIR_GPIO) id=vfs_gpio_id(name);" in source
 assert "dev>=DEV_GPIO_VALUE_BASE && dev<=DEV_GPIO_VALUE_END" in source
-assert "return OS_EBADF;" in source[source.index("/* I2C uses ioctl()"):
-                                          source.index("static int device_ioctl")]
+# VFSの読み書き分岐をコメントに頼らず関数名で区切る．
+assert "return OS_EBADF;" in source[source.index("static int vfs_rw("):
+                                          source.index("static int device_ioctl_tty(")]
 
 code = r'''
 #define _GNU_SOURCE

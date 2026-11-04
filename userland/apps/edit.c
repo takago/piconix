@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Tiny full-screen /tmp editor: 2048-byte cap, adaptive terminal layout. */
+/* RAMファイルの編集を行う簡易全画面エディタ． */
+
+/* /tmp向けの全画面エディタ．上限は2 KiBで，端末サイズに合わせて描画する． */
 #define EDITOR_NAME "edit"
 #define EDITOR_GUTTER 4
 #define EDITOR_TITLE "PicoNIX edit  "
 #define EDITOR_HINT "^S Save  ^Q Quit (^Q again: Discard)  Arrows  TAB=4"
 #include "editor_common.h"
 
+/* 共通エディタ処理を使って編集対象を開き，キー入力で編集して保存する． */
 int main(int argc,char **argv){
  if(argc!=2){puts("usage: edit file");return 1;}
  char path[128];
@@ -21,7 +24,7 @@ int main(int argc,char **argv){
    else if(c=='3'){esc=3;continue;}
   }else if(esc==3){esc=0;if(c=='~'){int oldlen=len;int newline=pos<len&&data[pos]=='\n';del();if(len!=oldlen)mode=newline?0:1;}}
   else if(c==27){esc=1;continue;}
-  else if(c==3){quit=1;continue;} /* Ctrl+C: leave without saving; restore TTY below. */
+  else if(c==3){quit=1;continue;} /* Ctrl+Cで保存せず終了し，TTY設定を後で復旧する． */
   else if(c==17){if(!changed||confirm_discard)quit=1;else {confirm_discard=1;notice="Unsaved: Ctrl+Q again to discard, Ctrl+S to save";}}
   else if(c==19){notice=save(path)==0?"Saved":"Save failed";mode=1;}
   else if(c==127||c==8){int newline=pos>0&&data[pos-1]=='\n';int oldlen=len;erase();if(len!=oldlen)mode=newline?0:1;}

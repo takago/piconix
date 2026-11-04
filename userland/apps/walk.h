@@ -1,4 +1,5 @@
-/* PicoNIX read-only virtual directory traversal. No new syscalls. */
+/* find/treeで使う，固定長のディレクトリ探索補助処理． */
+/* 既存のシステムコールだけでVFSのディレクトリを読出し専用に巡回する． */
 #ifndef PICONIX_WALK_H
 #define PICONIX_WALK_H
 #include "unistd.h"
@@ -7,9 +8,12 @@
 
 #define WALK_PATH 128
 #define WALK_DEPTH 8
-/* callback receives an entry name without trailing slash */
+/* コールバックへ渡すエントリ名には末尾スラッシュを付けない． */
 typedef void (*walk_visit)(const char *, int, void *);
+/* 二つのパス構成要素を一致比較する． */
 static int walk_eq(const char *a,const char *b){return strcmp(a,b)==0;}
+
+/* 作業ディレクトリと相対パスを解決し，.と..を含む経路を正規化する． */
 static int walk_normalize(const char *input,char out[WALK_PATH]) {
  char cwd[WALK_PATH],src[256];unsigned used=0,len=1;
  if(!getcwd(cwd,sizeof cwd))return -1;
@@ -35,11 +39,15 @@ static int walk_normalize(const char *input,char out[WALK_PATH]) {
  }
  return 0;
 }
+
+/* 指定したパスがgetdentsで列挙できるディレクトリか判定する． */
 static int walk_dir(const char *p){
  int fd=open(p,0);if(fd<0)return 0;
  piconix_dirent_t entry;int rc=getdents(fd,&entry,sizeof entry);
  close(fd);return rc>=0;
 }
+
+/* ディレクトリを列挙してコールバックへ名前と種別を渡す． */
 static int walk_entries(const char *p,walk_visit visit,void *arg){
  int fd=open(p,0);if(fd<0)return -1;
  piconix_dirent_t entry;int rc;
@@ -49,6 +57,8 @@ static int walk_entries(const char *p,walk_visit visit,void *arg){
  }
  close(fd);return rc<0?-1:0;
 }
+
+/* 親ディレクトリと子の名前を結合する．固定長上限を超えたら失敗する． */
 static int walk_join(const char *parent,const char *name,char out[WALK_PATH]){
  unsigned a=(unsigned)strlen(parent),b=(unsigned)strlen(name);
  if(a+b+(a>1?1:0)>=WALK_PATH)return -1;

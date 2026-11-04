@@ -1,14 +1,21 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Observe IPv4 headers and the first 16 bytes without storing payloads. */
+/* 観測用デバイスからパケット記録を読み出して表示する． */
+
+/* ペイロード全体は保存せず，IPv4ヘッダと先頭16バイトを観測する． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 #include "../../include/piconix_net_capture.h"
+/* IPv4アドレス4バイトをドット区切りで表示する． */
 static void ip(const uint8_t *p) { printf("%u.%u.%u.%u",p[0],p[1],p[2],p[3]); }
+
+/* IPv4プロトコル番号をTCP／UDP／ICMP等の表示名に対応付ける． */
 static const char *protocol(unsigned n) {
     return n==6 ? "TCP" : n==17 ? "UDP" : n==1 ? "ICMP" : "IP";
 }
+
+/* 保存されたパケット要約を読める形式で出力する．-x時は先頭データも表示する． */
 static void show(const piconix_packet_t *p,int hex) {
     printf("%s %s ",p->direction ? "TX" : "RX",protocol(p->protocol));
     ip(p->src);
@@ -35,6 +42,8 @@ static void show(const piconix_packet_t *p,int hex) {
         puts("|");
     }
 }
+
+/* /dev/net/packetから受信・送信パケットの要約を読み，指定件数まで表示する． */
 int main(int argc,char **argv) {
     int hex=0,limit=0;
     for(int i=1;i<argc;i++) {

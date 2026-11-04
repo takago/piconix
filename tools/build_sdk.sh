@@ -12,7 +12,7 @@ python3 tools/test_scripts/test_spawn_args.py
 python3 tools/test_scripts/test_wifi_elf_audit.py
 python3 tools/test_scripts/test_wifi_dhcp.py
 python3 tools/test_scripts/test_wifi_terminal.py
-# Optional escape hatch for builds where flashing is not wanted.
+# 書込みを行わずビルドだけしたい場合のオプション．
 flash=1
 cmake_args=()
 for arg in "$@"; do
@@ -20,7 +20,7 @@ for arg in "$@"; do
     else cmake_args+=("$arg")
     fi
 done
-# Separate board configurations: never reuse a Pico CMake cache for Pico W.
+# PicoとPico WのCMakeキャッシュを混用しないため，ビルド領域を分離する．
 board=pico
 for arg in "${cmake_args[@]}"; do
     case "$arg" in -DPICO_BOARD=*) board="${arg#-DPICO_BOARD=}";; esac
@@ -28,9 +28,9 @@ done
 build_dir="build-${board}"
 cmake -S . -B "$build_dir" -DPICO_BOARD="$board" -DCMAKE_BUILD_TYPE=MinSizeRel "${cmake_args[@]}"
 cmake --build "$build_dir" -j "$(nproc)"
-# Resolve kernel ELF symbols after link. The embedded section has constant size,
-# so the second link does not move code or data. Verify against the final ELF.
-# The SDK toolchain may be selected with PICO_TOOLCHAIN_PATH instead of PATH.
+# 最初のリンク後にカーネルのシンボル表を埋め込み，再リンクする．
+# 埋込み領域の長さを固定し，コードとデータのアドレスを動かさない．
+# 最終ELFでも検査する．ツールチェーンはPICO_TOOLCHAIN_PATHでも指定できる．
 NM=arm-none-eabi-nm
 if [[ -n "${PICO_TOOLCHAIN_PATH:-}" && -x "$PICO_TOOLCHAIN_PATH/bin/arm-none-eabi-nm" ]]; then
     NM="$PICO_TOOLCHAIN_PATH/bin/arm-none-eabi-nm"
@@ -42,12 +42,11 @@ python3 tools/make_kernel_symbols.py --nm "$NM" --elf "$build_dir/piconix.elf" \
   --output "$build_dir/piconix_kernel_symbols.bin" --verify-only
 
 
-# Report memory usage after the final link and before flashing.
-# Also report for --no-flash builds.
+# 最終リンク後にメモリ使用量を表示する．書込みなしのビルドでも実行する．
 echo "=== PicoNIX memory report ($build_dir) ==="
 python3 tools/size_ram.py --build "$build_dir"
 
-# Flash only an already mounted Pico in BOOTSEL mode.
+# BOOTSELでマウントされたPicoに限ってUF2を書き込む．
 if (( flash )); then
     uf2="$build_dir/piconix.uf2"
     if [[ ! -f "$uf2" ]]; then

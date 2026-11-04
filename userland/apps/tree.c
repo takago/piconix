@@ -1,15 +1,20 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* VFSのディレクトリ階層を表示する． */
+
 #include "walk.h"
 #include "stdlib.h"
 static int max_depth=8;
 static void visit(const char *name,int isdir,void *ctx);
 typedef struct {char path[WALK_PATH];int depth;unsigned mask;} State;
+/* 指定パスを階層的に探索し，深さ上限を守って子をたどる． */
 static void traverse(const char *path,int depth,unsigned mask){
  if(depth>=max_depth)return;
  State s;strncpy(s.path,path,sizeof s.path-1);s.path[sizeof s.path-1]=0;
  s.depth=depth;s.mask=mask;
  walk_entries(path,visit,&s);
 }
+
+/* ディレクトリエントリを木構造の字下げ付きで表示する． */
 static void visit(const char *name,int isdir,void *ctx){
  State *s=ctx;char path[WALK_PATH];
  if(walk_join(s->path,name,path)<0)return;
@@ -17,6 +22,8 @@ static void visit(const char *name,int isdir,void *ctx){
  printf("|-- %s%s\n",name,isdir?"/":"");
  if(isdir)traverse(path,s->depth+1,s->mask);
 }
+
+/* VFSディレクトリを再帰的にたどり，階層をツリー表示する． */
 int main(int argc,char **argv){
  const char *root=".";int got=0;
  for(int i=1;i<argc;i++){

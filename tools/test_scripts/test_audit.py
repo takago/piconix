@@ -10,8 +10,6 @@ APPS = ('pins', 'fbctl', 'kitesys', 'shell', 'blink', 'omikuji', 'python', 'hell
 def all_images(address):
     return {key: value for app in APPS for key, value in ((f'piconix_{app}_image_start', address), (f'piconix_{app}_image_end', address + 144))}
 
-
-
 def check(image, section, expected_ok):
     symbols = {'task_ram': 0x2000e000, 'tasks': 0x20001000,
                'idle_stack': 0x20002000, '__vectors': 0x10000100,

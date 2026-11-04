@@ -11,11 +11,12 @@ import tempfile
 
 root = Path(__file__).resolve().parents[2]
 net = (root / "kernel/net.c").read_text()
-start_marker = "extern uint32_t piconix_flash_id(void);\nvoid net_init(void) {"
-end_marker = "\n#if !PICONIX_WIFI_STA\n/* Called outside cyw43_arch_poll(), never from an lwIP callback. */"
-assert net.count(start_marker) == 1
-assert net.count(end_marker) == 1
-fragment = net[net.index(start_marker):net.index(end_marker)]
+start_marker = "void net_init(void) {"
+# モジュール内の英語コメントではなく，初期化関数の後の条件分岐で区切る．
+assert net.count(start_marker) >= 2
+start = net.index(start_marker, net.index("extern uint32_t piconix_flash_id(void);"))
+end = net.index("\n#if !PICONIX_WIFI_STA\n", start)
+fragment = net[start:end]
 
 stub = r'''
 #include <stdint.h>
@@ -34,6 +35,7 @@ struct { struct netif netif[2]; } cyw43_state;
 static int wifi_ready;
 static char wifi_ssid[33];
 static struct netif *loop_iface;
+extern uint32_t piconix_flash_id(void);
 struct netif *netif_find(const char *);
 void net_capture_init(void);
 void net_capture_attach(struct netif *);

@@ -1,7 +1,8 @@
+/* ユーザプログラム用の文字列・メモリ操作宣言． */
 #ifndef PICONIX_STRING_H
 #define PICONIX_STRING_H
 #include <stddef.h>
-/* All user-space runtime symbols are linked within the same PIC image. */
+/* ユーザランタイムの全シンボルは各PICイメージ内にリンクする． */
 #ifndef PICONIX_HOST_TEST
 #pragma GCC visibility push(hidden)
 #endif

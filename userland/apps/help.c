@@ -1,8 +1,11 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Compact standalone help. Use direct comparisons/prints to retain PIC. */
+/* 標準コマンドの使用方法を表示する． */
+
+/* PICイメージを小さくするため，直接比較とprintで実装した単独ヘルプ． */
 #include "stdio.h"
 #include "string.h"
 
+/* 登録コマンドと利用方法の簡易案内を表示する． */
 int main(int argc, char **argv) {
     if(argc==1) {
         puts("PicoNIX commands (use: help NAME)");

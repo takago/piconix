@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Four ICMP Echo probes by default; no raw socket syscall required. */
+/* ICMP Echoで通信を検査する． */
+
+/* 標準で4回のICMP Echo要求を送る．rawソケットシステムコールは使わない． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 #include "../../include/piconix_net_capture.h"
+/* ドット区切りのIPv4アドレスを4バイトへ変換する．各成分は0〜255に制限する． */
 static int ipv4(const char *text,uint8_t out[4]) {
     for(unsigned i=0;i<4;i++) {
         unsigned v=0,digits=0;
@@ -17,6 +20,8 @@ static int ipv4(const char *text,uint8_t out[4]) {
     }
     return 0;
 }
+
+/* ICMPデバイスを使って指定IPv4宛てにEchoを送信し，応答とタイムアウトを表示する． */
 int main(int argc,char **argv) {
     int count=4, i=1;
     if(argc>2&&!strcmp(argv[1],"-c")) {
@@ -42,7 +47,7 @@ int main(int argc,char **argv) {
             puts("ping: send failed");break;
         }
         int answered=0;
-        /* Kernel's poll loop runs while this task sleeps. */
+        /* このタスクのsleep中にもカーネルのネットワークポーリングは動作する． */
         for(int elapsed=0;elapsed<1250;elapsed+=10) {
             piconix_echo_t reply;
             int n=read(fd,&reply,sizeof(reply));

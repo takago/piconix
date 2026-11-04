@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Tiny full-screen /tmp editor: 2048-byte cap, adaptive terminal layout. */
+/* 小容量RAMファイル用の簡易全画面エディタ． */
+
+/* 上限2 KiBの簡易全画面RAMファイルエディタ．端末サイズに合わせて描画する． */
 #define EDITOR_NAME "vi"
 #define EDITOR_GUTTER 0
 #define EDITOR_TITLE "PicoNIX vi    "
 #define EDITOR_HINT "ESC Normal  i Insert  :w Save  :q Quit  h/j/k/l Move"
 #include "editor_common.h"
 
-/* Read the remainder of an ANSI cursor-key sequence without blocking Esc.
- * A lone Esc exits insert mode; ESC [ A/B/C/D moves in either mode.
- * Unrelated characters following Esc are returned to the main input loop. */
+/* ANSIカーソルキーの残りを読み出し，単独Escをブロックしない．Escは挿入モード終了，ESC [ A/B/C/Dは移動として扱う．無関係な文字は主入力ループへ戻す． */
 static int poll_key(char *out){
  int flags=fcntl(0,F_GETFL,0);
  if(flags<0)return 0;
@@ -21,6 +21,8 @@ static int poll_key(char *out){
  fcntl(0,F_SETFL,flags);
  return got;
 }
+
+/* エスケープシーケンスによるカーソル移動指示を処理する． */
 static void move_arrow(char c){
  int col=col_no(pos);
  if(c=='A'&&line_start(pos)>0)pos=position_col(line_start(line_start(pos)-1),col);
@@ -29,6 +31,7 @@ static void move_arrow(char c){
  else if(c=='C'&&pos<line_end(pos))pos++;
 }
 
+/* 共通の編集処理を用い，vi風キー操作でRAMファイルを編集する． */
 int main(int argc,char **argv){
  if(argc!=2){puts("usage: vi file");return 1;}
  char path[128];
@@ -46,7 +49,7 @@ int main(int argc,char **argv){
    if(poll_key(&next)){
     if(next=='['){
      char key;
-     /* Cursor keys are three-byte CSI sequences on supported terminals. */
+     /* 対応端末では矢印キーは3バイトのCSI列を送る． */
      if(poll_key(&key))move_arrow(key);
      draw(path,insert_mode?"INSERT":"NORMAL",2);
      continue;

@@ -1,4 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* ユーザ空間からI2C転送を確認する． */
+
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
@@ -6,15 +8,20 @@
 #include "string.h"
 #include "../../include/piconix_i2c.h"
 #include <stdint.h>
+/* I2Cアドレス・転送値の数値引数を解析する． */
 static int number(const char *s,int *v) {
     char *end; long n=strtol(s,&end,0);
     if(!*s || *end || n<0 || n>255) return -1;
     *v=(int)n; return 0;
 }
+
+/* I2C制御コマンドの指定形式を表示する． */
 static void usage(void) {
     puts("Usage: i2cctl scan | read ADDR COUNT | write ADDR BYTE... | xfer ADDR READ_COUNT [BYTE...]");
     puts("Addresses and bytes accept decimal or 0x-prefixed hex; max 32 bytes.");
 }
+
+/* /dev/i2c/1のioctlを使い，指定デバイスへ書込み・読出しを行う． */
 int main(int argc,char **argv) {
     if(argc<2) {usage();return 1;}
     int fd=open("/dev/i2c/1",O_RDWR);
@@ -25,7 +32,7 @@ int main(int argc,char **argv) {
         int found=0;
         for(int a=0x08;a<=0x77;a++) {
             t.address=(uint8_t)a;
-            t.read_len=1; /* A real one-byte read, not a zero-length transfer. */
+            t.read_len=1; /* 長さ0の確認ではなく，実際に1バイトを読み取る． */
             if(ioctl(fd,OS_I2C_TRANSFER,(int)(uintptr_t)&t)==0) {
                 printf("0x%02x ",a); found++;
             }

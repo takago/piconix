@@ -1,30 +1,31 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
+/* 固定数のネットワークソケットを操作するための内部インターフェース． */
+
 #pragma once
 #include <stdint.h>
-/* Internal UDP transport. Called from syscalls or the idle task; never IRQs.
- * lwIP polling and user socket syscalls must not run concurrently. */
+/* UDP内部通信API．システムコールまたはアイドル側から呼ぶが，割込み内では呼ばない．lwIPポーリングとユーザソケットSVCを同時実行させない． */
 #define NET_SOCKET_UDP_MAX 512u
 int net_socket_udp_bind(uint16_t port);
-/* Returns -3 if no datagram; 0 is a valid empty UDP datagram. */
+/* データグラムなしは-3を返し，長さ0は正当なUDPデータグラムと区別する． */
 int net_socket_udp_recv(void *buf, unsigned capacity, uint32_t *peer_ip, uint16_t *peer_port);
 int net_socket_udp_send(const void *buf, unsigned length, uint32_t peer_ip, uint16_t peer_port);
 void net_socket_udp_close(void);
 
-/* Fixed-size user TCP socket pool (shared by backend and FD ownership). */
+/* 固定数のユーザTCPソケット枠．バックエンドとFD所有情報で共有する． */
 #define NET_SOCKET_TCP_SLOTS 4
-/* TCP listener and client backend. */
+/* TCP待受およびクライアント用の内部API． */
 int net_socket_tcp_alloc(void);
 int net_socket_tcp_listen(int id, uint16_t port);
 int net_socket_tcp_connected(int id);
-/* peer_ip uses lwIP network-order IPv4 representation. */
+/* peer_ipはlwIPのネットワーク順IPv4表現を使う． */
 int net_socket_tcp_connect(int id, uint32_t peer_ip, uint16_t peer_port);
-/* 1=connected, 0=connecting/not connected, -1=error, -2=peer EOF. */
+/* 接続状態は1=接続済み，0=接続中／未接続，-1=エラー，-2=相手側EOF． */
 int net_socket_tcp_status(int id);
-/* Positive bytes, 0 = no data, -2 = EOF, -1 = invalid request. */
+/* 正値は受信バイト数，0はデータなし，-2はEOF，-1は不正な要求． */
 int net_socket_tcp_read(int id, void *dst, unsigned capacity);
-/* Positive bytes, 0 = send queue full, -1 = disconnected. */
+/* 正値は送信バイト数，0はキュー満杯，-1は切断中． */
 int net_socket_tcp_write(int id, const void *src, unsigned length);
-/* Half-close TCP send side, preserving receive side. */
+/* 送信方向のみを半閉鎖し，受信方向は維持する． */
 int net_socket_tcp_shutdown_write(int id);
 void net_socket_tcp_close(int id);
 int net_socket_tcp_accept_ready(int id);
@@ -32,5 +33,5 @@ int net_socket_tcp_listening(int id);
 void net_socket_tcp_close_listener(int id);
 void net_socket_tcp_close_client(int id);
 
-/* Local port for a live socket: UDP=0, TCP listener=1, TCP peer=2. */
+/* 使用中ソケットのローカルポート．種別0はUDP，1はTCP待受，2はTCP接続先． */
 uint16_t net_socket_local_port(int kind, int id);

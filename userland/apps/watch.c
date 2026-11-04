@@ -1,14 +1,14 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* watch: capture command output and repaint only lines that changed. */
+/* コマンドを定期実行し，表示の変化を観察する． */
+
+/* watchはコマンドの出力を記録し，変化した行だけ画面を書き換える． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
 
-/* Keep the two snapshots small enough for a 24-KiB user slot and leave
- * room for a terminal header and a truncation indicator on 24-row screens.
- * Terminal size is not reported by the PicoNIX TTY interface. */
+/* 24 KiBスロット内に収まるよう二つの画面スナップショットを小さくする．24行端末の見出しと省略表示分も確保する．TTYから端末サイズは取得できない． */
 #define WATCH_ROWS 20
 #define WATCH_COLS 78
 
@@ -19,9 +19,9 @@ typedef struct {
 } watch_frame_t;
 static watch_frame_t frames[2];
 
+/* 子プロセスの出力1バイトを画面スナップショットへ反映する．ANSI制御列は読み飛ばす． */
 static void capture_byte(watch_frame_t *f, unsigned char c) {
-    /* Ignore terminal control sequences from captured programs.  This is
-     * intended for line-oriented command output, not full-screen apps. */
+    /* 出力中の端末制御列は無視する．全画面プログラムではなく行指向コマンド用である． */
     if(f->esc) {
         if(f->esc==1 && c=='[') {f->esc=2;return;}
         if(f->esc==2 && c>=0x20 && c<0x40) return;
@@ -57,8 +57,7 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
         while(count--) capture_byte(f,' ');
         return;
     }
-    /* Keep UTF-8 bytes together when clipping a line.  The limit is in
-     * bytes (conservatively below 80 terminal columns), not code points. */
+    /* 長い行の切詰め時にUTF-8の途中で分断しない．上限は文字数でなくバイト数であり，80桁より小さく設定する． */
     if(c>=128) {
         if((c&0xc0)==0x80) {
             if(!f->utf8) return;
@@ -83,18 +82,18 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
     if(f->rows<=f->row) f->rows=f->row+1;
 }
 
+/* 対象コマンドの出力を再描画し，画面を更新する． */
 static void redraw(const watch_frame_t *old, const watch_frame_t *next, int first) {
     for(unsigned i=0;i<WATCH_ROWS;i++) {
         if(!first && !strcmp(old->line[i],next->line[i])) continue;
-        /* Overwrite first, then erase the unused tail: no blank frame. */
+        /* まず上書きし，未使用の末尾だけ消す．全消去によるちらつきを防ぐ． */
         printf("\033[?7l\033[%u;1H%s\033[K\033[?7h", i+3, next->line[i]);
     }
     if(first || old->truncated!=next->truncated)
         printf("\033[?7l\033[23;1H%s\033[K\033[?7h",next->truncated?"[watch: output truncated]":"");
 }
 
-/* The 256-byte kernel pipe must be drained while the child runs; calling
- * waitpid() first would deadlock once the child fills the pipe. */
+/* 256バイトのカーネルパイプは子が動いている間に排出する．先にwaitpidすると子が満杯のパイプで停止しデッドロックする． */
 static int capture_command(int id, int count, const char *const args[], watch_frame_t *f) {
     int pair[2]={-1,-1}, saved_out=-1, saved_err=-1;
     int child=-1, error=0;
@@ -122,6 +121,7 @@ restore:
     return error?-1:0;
 }
 
+/* 指定コマンドを一定間隔で再実行し，結果を端末へ表示する． */
 int main(int argc, char *argv[]) {
     unsigned interval=1;
     int first=1;

@@ -1,4 +1,5 @@
-/* PicoNIX open flags. These values are not host POSIX flag values. */
+/* open/fcntlのフラグを共通化する． */
+/* PicoNIX独自のopenフラグ．ホストPOSIXの数値とは一致しない． */
 #ifndef PICONIX_FCNTL_H
 #define PICONIX_FCNTL_H
 #define O_RDONLY 0

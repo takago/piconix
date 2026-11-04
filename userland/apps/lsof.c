@@ -1,16 +1,21 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* List open descriptors using the existing /proc task snapshots. */
+/* タスクが開いているFDを確認する． */
+
+/* 既存の/proc/task情報からオープン中のFDを列挙する． */
 #include "unistd.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
 
+/* /procの数値フィールドを読み，次の文字位置へ進める． */
 static int number(const char **p) { int v=0; while(**p>='0'&&**p<='9') {v=v*10+**p-'0';++*p;} return v; }
+
+/* /proc/task/PIDを解析して対象プロセスのFD一覧を表示する． */
 static int show_task(int pid) {
     char path[32];
     snprintf(path,sizeof path,"/proc/task/%d",pid);
     int fd=open(path,O_RDONLY);
-    if(fd<0) return 0; /* Task may have exited. */
+    if(fd<0) return 0; /* 列挙途中に対象タスクが終了している場合がある． */
     char name[32]="?";
     char data[1600]; unsigned used=0;
     int n;
@@ -43,6 +48,8 @@ static int show_task(int pid) {
     }
     return 0;
 }
+
+/* 指定PIDまたは全プロセスについて，開いているFDの内容を表示する． */
 int main(int argc,char **argv) {
     if(argc>2) {puts("usage: lsof [pid]");return 1;}
     puts("PID   COMMAND      FD  FLAGS NAME");

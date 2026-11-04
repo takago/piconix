@@ -6,7 +6,7 @@ elseif(DEFINED ENV{PICO_SDK_PATH})
 else()
   message(FATAL_ERROR "Set PICO_SDK_PATH to your pico-sdk checkout")
 endif()
-# Keep the RAM-resident kernel small by default. Explicit build types win.
+# RAM常駐カーネルを小さくする既定のビルド構成．明示指定があれば優先する．
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set(CMAKE_BUILD_TYPE MinSizeRel CACHE STRING "Build type" FORCE)
 endif()
@@ -14,7 +14,7 @@ project(piconix C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
-# Reject invalid RAM application IDs before building firmware.
+# ファームウェア生成前に，登録されたRAMアプリのIDが容量内にあるか検査する．
 execute_process(
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_program_capacity.py"
   RESULT_VARIABLE PICONIX_CAPACITY_CHECK_RESULT
@@ -26,7 +26,7 @@ if(NOT CMAKE_READELF)
   get_filename_component(TOOLCHAIN_BIN_DIR "${CMAKE_C_COMPILER}" DIRECTORY)
   set(CMAKE_READELF "${TOOLCHAIN_BIN_DIR}/arm-none-eabi-readelf")
 endif()
-# Generate boot RAM files from host files, with board-specific overlay.
+# ホストの初期ファイルから，基板ごとの差分を重ねた起動時RAMファイルを生成する．
 file(GLOB PICONIX_FS_INPUTS CONFIGURE_DEPENDS
      "${CMAKE_CURRENT_LIST_DIR}/userland/fs/*"
      "${CMAKE_CURRENT_LIST_DIR}/userland/fs/etc_*/*"
@@ -40,13 +40,13 @@ if(NOT PICONIX_FS_RESULT EQUAL 0)
   message(FATAL_ERROR "Cannot generate initial RAM files")
 endif()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PICONIX_FS_INPUTS})
-# Freestanding slot-linked images. All user program images are embedded in the firmware Flash.
+# 独立したユーザPICイメージを作り，全アプリをファームウェアのFlashに埋め込む．
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
 foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod)
-  # Compile each application once for the same canonical address.
-  # Every image must also link identically at the next 24-KiB slot address.
+  # すべてのアプリを共通の基準アドレスでコンパイルする．
+  # 続く24 KiBスロットにリンクしても結果が一致することを検査する．
   set(APP_ORIGIN 0x2000E000)
   set(APP_DIR "${CMAKE_CURRENT_BINARY_DIR}/ram_${APP}")
   file(MAKE_DIRECTORY "${APP_DIR}")
@@ -64,11 +64,11 @@ foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kite
   set(APP_BIN_ALT "${APP_DIR}/${APP}_alt.bin")
   set(APP_ELF "${APP_DIR}/${APP}.elf")
   set(APP_BIN "${APP_DIR}/${APP}.bin")
-  # RAM apps link libgcc for compiler-generated arithmetic helpers. Prevent GCC from emitting
-  # Thumb-1 switch helpers such as __gnu_thumb1_case_uqi.
+  # 算術演算用のlibgccはリンクするが，Thumb-1のswitch補助関数を
+  # コンパイラが別途生成しないようにする．
   set(APP_OPT -Oz)
   set(APP_EXTRA_CFLAGS -fno-jump-tables -fno-tree-switch-conversion)
-  # Source-level screen helpers are used by the terminal applications.
+  # 全画面アプリが共通の端末描画補助処理を利用する．
   set(APP_EDITOR_DEP "")
   if(APP STREQUAL "edit" OR APP STREQUAL "vi")
     set(APP_EDITOR_DEP "${CMAKE_CURRENT_LIST_DIR}/userland/apps/editor_common.h")
@@ -140,7 +140,7 @@ foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kite
   list(APPEND PICONIX_SYMBOL_ELFS "${APP_ELF}")
   list(APPEND PICONIX_SYMBOL_BINS "${APP_BIN}")
 endforeach()
-# Generate a Flash-resident symbol catalog from linked RAM app ELF files.
+# リンク済みユーザELFから，Flash常駐のシンボル表を生成する．
 set(PICONIX_SYMBOL_FILE "${CMAKE_CURRENT_BINARY_DIR}/piconix_symbols.txt")
 add_custom_command(OUTPUT "${PICONIX_SYMBOL_FILE}"
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/make_symbols.py"
@@ -154,11 +154,10 @@ set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_symbols.S"
   PROPERTIES OBJECT_DEPENDS "${PICONIX_SYMBOL_FILE}")
 list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_symbols.S")
 
-# Fixed-size Flash reservation for kernel symbols. A post-link pass fills it
-# without shifting kernel code/data addresses.
+# カーネルのシンボル表用にFlash内の固定長領域を予約し，
+# リンク後にその内容だけを埋める．コード／データの位置は動かさない．
 set(PICONIX_KERNEL_SYMBOL_FILE "${CMAKE_CURRENT_BINARY_DIR}/piconix_kernel_symbols.bin")
-# Keep the reservation consistent when upgrading an existing build directory.
-# A size change forces the first link to rebuild the embedded catalog.
+# 既存ビルド領域でも予約長を同期する．サイズが変われば最初のリンクをやり直す．
 set(PICONIX_KERNEL_SYMBOL_CAPACITY 65536)
 if(EXISTS "${PICONIX_KERNEL_SYMBOL_FILE}")
   file(SIZE "${PICONIX_KERNEL_SYMBOL_FILE}" PICONIX_KERNEL_SYMBOL_CURRENT_SIZE)
@@ -175,10 +174,10 @@ set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S"
   PROPERTIES OBJECT_DEPENDS "${PICONIX_KERNEL_SYMBOL_FILE}")
 list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_kernel_symbols.S")
 
-# Kernel .text/.rodata execute from XIP flash on both Pico and Pico W.
-# Only .data/.bss/time-critical code/stacks use the first 56 KiB SRAM.
-# The default SDK startup initializes writable sections and RAM vectors.
-# SDK 2.3+ uses modular linker includes; older SDKs have a monolithic script.
+# PicoとPico Wの両方で.text/.rodataはXIP Flash上から実行する．
+# 最初の56 KiB SRAMには.data/.bssと時間制約の厳しい処理，スタックを置く．
+# 書込み可能領域とRAMベクタはSDKの起動処理が初期化する．
+# SDK 2.3以降は分割されたリンカ定義を使うため，旧形式と区別する．
 set(PICONIX_MODULAR_XIP_LD "${PICO_SDK_PATH}/src/rp2040/pico_platform/memmap_default.ld")
 set(PICONIX_MODULAR_POST_TEXT "${PICO_SDK_PATH}/src/rp2_common/pico_standard_link/script_include/section_extra_post_text.incl")
 set(PICONIX_SDK_XIP_LD "${PICO_SDK_PATH}/src/rp2_common/pico_crt0/rp2040/memmap_default.ld")
@@ -192,8 +191,8 @@ elseif(NOT EXISTS "${PICONIX_SDK_XIP_LD}")
   message(FATAL_ERROR "Unsupported Pico SDK RP2040 linker script layout")
 endif()
 if(PICONIX_USE_MODULAR_XIP)
-  # The SDK's own memory region remains authoritative. This limits only kernel
-  # writable allocations, preserving the six physical 24-KiB task slots.
+  # メモリ領域そのものはSDKの定義に従い，書込み可能なカーネル領域だけを制限する．
+  # 6個の24 KiBタスクスロットは従来どおり確保する．
   set(PICONIX_LD_OVERRIDES "${CMAKE_CURRENT_BINARY_DIR}/piconix_ld_overrides")
   file(MAKE_DIRECTORY "${PICONIX_LD_OVERRIDES}")
   configure_file("${CMAKE_CURRENT_LIST_DIR}/kernel/section_extra_post_text.incl"
@@ -221,8 +220,8 @@ if(PICONIX_USE_MODULAR_XIP)
 else()
   pico_set_linker_script(piconix "${PICONIX_CUSTOM_LD}")
 endif()
-# Wi-Fi follows the selected board. Both boards use the same six-slot layout.
-# Reject stale cache options instead of silently retaining an old Wi-Fi setting.
+# Wi-Fiの有無は基板に従い，両基板とも6スロットを使用する．
+# 以前のCMakeキャッシュに古いWi-Fi設定が残っていれば拒否する．
 if(DEFINED PICONIX_WIFI_LAYOUT)
   message(FATAL_ERROR "PICONIX_WIFI_LAYOUT has been removed. Delete the build directory or unset the cached option (-U PICONIX_WIFI_LAYOUT); select -DPICO_BOARD=pico_w instead.")
 endif()
@@ -235,8 +234,8 @@ else()
   target_compile_definitions(piconix PRIVATE PICONIX_WIFI=0)
 endif()
 message(STATUS "PicoNIX Wi-Fi: ${PICONIX_WIFI_ENABLED} (PICO_BOARD=${PICO_BOARD})")
-# Validate writable sections against fixed task and network regions on Pico W.
-# AP is the default; STA credentials are provided only for a STA build.
+# Pico Wでは書込み可能セクションと固定タスク／ネットワーク領域の重複を検査する．
+# 通常はAPモードとし，STA用の接続情報はSTAビルド時だけ与える．
 set(PICONIX_WIFI_MODE "AP" CACHE STRING "Wi-Fi mode: AP or STA")
 set_property(CACHE PICONIX_WIFI_MODE PROPERTY STRINGS AP STA)
 if(NOT PICONIX_WIFI_MODE STREQUAL "AP" AND NOT PICONIX_WIFI_MODE STREQUAL "STA")
@@ -248,7 +247,7 @@ if(PICONIX_WIFI_ENABLED AND PICONIX_WIFI_MODE STREQUAL "STA")
   if(PICONIX_WIFI_SSID STREQUAL "" OR PICONIX_WIFI_PASSWORD STREQUAL "")
     message(FATAL_ERROR "STA mode requires PICONIX_WIFI_SSID and PICONIX_WIFI_PASSWORD")
   endif()
-  # Quote strings for C preprocessing; credentials are embedded in the UF2.
+  # Cのマクロ文字列としてクォートする．接続情報はUF2にも埋め込まれる．
   target_compile_definitions(piconix PRIVATE PICONIX_WIFI_STA=1
     PICONIX_STA_SSID=\"${PICONIX_WIFI_SSID}\"
     PICONIX_STA_PASSWORD=\"${PICONIX_WIFI_PASSWORD}\")
@@ -269,8 +268,8 @@ pico_enable_stdio_usb(piconix 1)
 pico_enable_stdio_uart(piconix 0)
 pico_add_extra_outputs(piconix)
 
-# Post-link inspection of six fixed 24-KiB task slots.
-# Enable explicitly while transitioning from SDK's default XIP linker script.
+# リンク後に6個の24 KiBタスクスロットを検査する．
+# SDK既定のXIPリンカ設定から移行するときは明示的に有効化する．
 option(PICONIX_VERIFY_LAYOUT "Check task RAM placement in linked ELF" ON)
 set(PICONIX_LAYOUT_ARGS "")
 if(PICONIX_WIFI_ENABLED)
@@ -283,10 +282,9 @@ if(PICONIX_VERIFY_LAYOUT)
     VERBATIM)
 endif()
 
-# Stage 16: inspect the *real* Pico SDK ELF, rather than only the
-# freestanding layout probe. SDK boot2 and vectors are produced by the SDK.
-# This is deliberately strict: a default SDK memory layout may fail, which
-# indicates that a dedicated firmware linker script is still required.
+# SDKによる実際のELFを検査し，ユーザイメージ単体の配置検査だけに頼らない．
+# boot2やベクタはSDKが生成する．既定配置が安全でなければエラーとし，
+# ファームウェア専用のリンカ定義が必要であることを知らせる．
 option(PICONIX_AUDIT_FIRMWARE "Audit SDK boot2/vectors and fixed RAM slots" ON)
 if(PICONIX_AUDIT_FIRMWARE)
   add_custom_command(TARGET piconix POST_BUILD
@@ -296,8 +294,8 @@ if(PICONIX_AUDIT_FIRMWARE)
     VERBATIM)
 endif()
 
-# Stage 20: explicit host-only RAM image regression target.
-# Does not depend on Pico SDK runtime or RP2040 hardware. Requires LLVM tools.
+# ホスト上でRAMイメージの再現性を調べる検査ターゲット．
+# RP2040実機やPico SDKの実行時処理は使わないが，LLVMツールが必要．
 add_custom_target(piconix_ram_image_selftest
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/test_scripts/test_ram_pipeline.py"
   WORKING_DIRECTORY "${CMAKE_CURRENT_LIST_DIR}"
