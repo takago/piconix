@@ -2,6 +2,14 @@
 
 Read user C code, then boot, scheduling, SVC, VFS, and drivers, before a small extension. Networking is optional.
 
+## Learning story
+
+Do not start by modifying the kernel. Read a small C application in C1, boot and task management in C2, SVC/FD/VFS in C3, and drivers in C4. C5 is optional Pico W networking. C6 plans and verifies a minimal extension, including test evidence and documentation.
+
+**Supporting source guide:** The [kernel reading guide](../../development/kernel/KERNEL-READING-GUIDE.md) provides a **source-reading order**. The textbook provides concepts and exercises; the [function index](../../../FUNCTIONS.md) helps locate functions.
+
+**Exit check:** For one user-visible operation, locate the source path “application → library → SVC → kernel → target.”
+
 ## Chapters
 
 - [C1　Start with a user program](C1.md) — Begin with a small C application before changing kernel code

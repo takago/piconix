@@ -4,6 +4,12 @@ Follow the sequence **use → observe → read source → extend** from beginner
 
 **Need a particular operation or feature?** Use the [task index](../TASKS.md).
 
+## How to use this textbook
+
+Read each chapter in the sequence **context → terminology → experiment → explanation**. When you encounter an unfamiliar command, follow the nearby link to its usage guide, then return to the same textbook section.
+
+Beginner chapters emphasize what happens on screen. Intermediate chapters introduce tools such as `mem` and `trace` and explain **how to use them and interpret their outputs**. Advanced chapters relate those observations to the source code. Values that depend on the hardware or run are less important than what they mean.
+
 ## Three Parts
 
 - **[Part A — Beginner: Use UNIX](A/README.md)**

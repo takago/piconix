@@ -2,6 +2,14 @@
 
 Begin with the shell, then work with files, pipes, and processes. A regular Pico is sufficient.
 
+## Learning story
+
+Start by typing into the terminal. A1 separates the roles of the OS, shell, and programs. A2 contrasts saving to a file with streaming through a pipe. A3 distinguishes program images from running processes. A4 asks you to design and explain a small experiment.
+
+**Tools used:** `help`, `ls`, `pwd`, `echo`, `cat`, and `ps`. The chapters introduce each operation; the [usage guides](../../guides/README.md) provide further detail.
+
+**Exit check:** Demonstrate the difference between `>` and `|`, and explain `/bin` versus `/proc` and programs versus processes.
+
 ## Chapters
 
 - [A1　Entering PicoNIX and UNIX](A1.md) — Start the shell and distinguish commands from operating-system responsibilities

@@ -2,6 +2,14 @@
 
 Explain your observations through FDs, TTYs, memory, syscalls, and devices. Networking is optional and requires Pico W.
 
+## Learning story
+
+You will now observe the OS beneath the commands learned in Part A. B1 introduces FDs and the VFS; B2 covers TTYs; B3 examines memory; B4 records syscalls; and B5 examines devices. B6 is optional for Pico W networking.
+
+**New observation tools:** `mem` and `trace` are not ordinary file commands. Before B3, check the [mem guide](../../guides/MEM.md); before B4, check the [trace guide](../../guides/TRACE.md). The corresponding chapters also explain how to read their results.
+
+**Exit check:** Explain `echo hello | cat` using FDs, pipes, and syscalls, not only by describing what appears on the screen.
+
 ## Chapters
 
 - [B1　File descriptors and VFS](B1.md) — Understand how files, terminals, and pipes share an I/O interface
