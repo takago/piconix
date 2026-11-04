@@ -88,7 +88,7 @@ In the default `kernel/pins.h`, GP0–17 and GP22–25 are configured as GPIO, G
 | File size | **2048 bytes each** |
 | Names | Direct children only; filename up to **27 bytes** (ASCII; the stored path includes a four-byte `tmp/` or `etc/` prefix) |
 | Persistence | None; reset on reboot |
-| Initial files | Pico: `/etc/rc`, `/tmp/test.s`, `/tmp/test.py`, `/tmp/wave.py` (4 files). Pico W: those files plus `/etc/index.html`, `/etc/fbcheck.html` and `/etc/pwm.html` (7 files) |
+| Initial files | Pico: `/etc/rc`, `/tmp/test.s`, `/tmp/test.py`, `/tmp/bh1750_fbwave.py` (4 files). Pico W: those files plus `/etc/index.html`, `/etc/fbcheck.html` and `/etc/pwm.html` (7 files) |
 | Creation and deletion | Create with `O_CREAT`; delete with `unlink()`. Open files cannot be deleted |
 | Writing | Partial writes at the capacity boundary; `OS_ENOSPC` when no space remains |
 

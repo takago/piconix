@@ -18,7 +18,7 @@ userland/fs/
 └── tmp_common/
     ├── test.s
     ├── test.py
-    └── wave.py
+    └── bh1750_fbwave.py
 ```
 
 Directory names encode the destination (`etc` or `tmp`) and board selection (`common`, `pico`, or `picow`). `tmp_pico/` and `tmp_picow/` may be added when needed. `common` applies to both boards; a board-specific file overrides a common file with the same destination path. For example, `etc_picow/rc` becomes `/etc/rc` on Pico W.
@@ -31,7 +31,7 @@ Up to 11 initial files may be selected per build, each no larger than 2048 bytes
 
 After changing or adding files, rebuild and flash the firmware for the target board. Changes made to RAM files on the running device are volatile: reboot restores the Flash-embedded initial content.
 
-`/tmp/wave.py` demonstrates BH1750 light sensing (I²C address `0x23`) with the 8×8 LED matrix. A connected sensor is required.
+`/tmp/bh1750_fbwave.py` demonstrates BH1750 light sensing (I²C address `0x23`) with the 8×8 LED matrix. A connected sensor is required.
 
 ## /etc/rc and boot
 
