@@ -1,8 +1,6 @@
 # dd — バイナリコピーとRAM転送
 
-> **資料区分：操作ガイド（教科書本編ではありません）**．[対応する教科書の章](../learn/A/A2.md) ｜ [操作ガイド一覧](README.md)．
-
-[English](../../en/guides/DD.md) | [文書一覧](../../DOCS.ja.md) | [nc](../reference/network/NC.md) | [デバイス](../reference/devices/DEVICES.md)
+*操作ガイド*
 
 `dd`はファイル，デバイス，パイプの間でバイト列をコピーします．`if=`，`of=`，`bs=`，`count=`，`skip=`，`seek=`を扱います．`if=-`は標準入力，`of=-`は標準出力で，省略時もそれぞれ同じFDを使います．`bs`は1～256バイト，`skip`と`seek`は`bs`単位のブロック数です．値は10進数または`0x`付き16進数を使用できます．
 
@@ -79,3 +77,6 @@ head -c 256 data.bin | nc -N 192.168.4.1 9000
 
 転送量と受信の終了条件を確認してください．`/dev/shm`は全タスクで共有されるため，他のプログラムが利用中なら内容を上書きしないでください．ユーザスロットへの直接書き込みは学習用の通常操作として推奨しません．現行の`/dev/mem`は任意のRAMへの無制限書き込みを提供するものではありません．Pico W以外の通常のPicoではWi-Fi経由の`nc`転送は利用できません．
 
+---
+
+**関連リンク：** [対応する教科書の章](../learn/A/A2.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/DD.md) ｜ [文書一覧](../../DOCS.ja.md) ｜ [nc](../reference/network/NC.md) ｜ [デバイス](../reference/devices/DEVICES.md)

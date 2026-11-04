@@ -1,8 +1,6 @@
 # I²C1 and i2cctl — User Guide
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
-
-[日本語](../../../ja/reference/devices/I2C.md) | [Devices](DEVICES.md) | [Python](../../development/apps/python/PYTHON.md)
+*Technical reference*
 
 PicoNIX uses the RP2040 I²C1 controller as a 100 kHz master. GP26 is SDA and GP27 is SCL. ADC0 and ADC1 are unavailable; ADC2 on GP28 and the internal temperature sensor remain available. I²C0 is not exposed.
 
@@ -65,3 +63,7 @@ int main(void) {
 - NACK and timeout conditions cause transfer failure; check the command exit status.
 - Only 7-bit master transfers are supported; there is no 10-bit addressing, slave mode, or dedicated SMBus protocol.
 - Python provides [I²C helpers](../../development/apps/python/PYTHON.md). BH1750 reads, writes, and illuminance measurements have been tested on hardware.
+
+---
+
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/devices/I2C.md) | [Devices](DEVICES.md)

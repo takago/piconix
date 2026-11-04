@@ -1,8 +1,6 @@
 # Pipes and standard I/O
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md).
-
-[Overview](README.md) | [日本語](../../ja/guides/PIPE.md)
+*Usage guide*
 
 The PicoNIX shell supports `|` to connect one command's standard output to the next command's standard input. `grep` selects lines containing a literal string.
 
@@ -47,3 +45,6 @@ Ctrl+C interrupts registered foreground pipeline tasks (up to three stages) dire
 
 **Implementation references:** `run_pipeline()` and command parsing in `userland/apps/shell.c`; `PIPE_COUNT`, `PIPE_BYTES`, `pipe_transfer()`, and pipe syscalls in `kernel/kernel.c`.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md) | [日本語](../../ja/guides/PIPE.md)

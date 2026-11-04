@@ -1,7 +1,5 @@
 # Network Development Guides
 
-**Document type: DEVELOPMENT GUIDE INDEX (Pico W kernel-side networking)** | [Development guides](../README.md) | [Technical reference](../../reference/network/README.md) | [日本語](../../../ja/development/network/README.md)
-
 Start here to **read or modify the kernel-side networking implementation**. For sequential learning, use [Textbook C5](../../learn/C/C5.md); for current connection behavior and command specifications, use the [network reference](../../reference/network/README.md).
 
 ## Find the right guide
@@ -17,3 +15,7 @@ Start here to **read or modify the kernel-side networking implementation**. For 
 **Ownership rule:** `development/network/` describes **kernel implementation and modification**. `development/apps/c/NETWORK-PROGRAMMING.md` describes **the API exposed to user-space programs and application examples**. Current behavior and limits are specified in `reference/network/` and the [syscall reference](../../reference/SYSCALLS.md).
 
 Ordinary Pico boards have no Wi-Fi. Kernel networking work and hardware labs are optional Pico W topics.
+
+---
+
+**Related links:** [Development guides](../README.md) | [日本語](../../../ja/development/network/README.md)

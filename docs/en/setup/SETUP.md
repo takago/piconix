@@ -1,9 +1,5 @@
 # Setup
 
-> **Document type: SETUP GUIDE.** This is preparation, not a textbook chapter. Continue with [Chapter A1](../learn/A/A1.md).
-
-[日本語](../../ja/setup/SETUP.md) | [Overview](../guides/README.md)
-
 These instructions target Ubuntu/Debian-based Linux. Prepare a Raspberry Pi Pico or Pico W (RP2040) and a data-capable USB cable.
 
 ## Hardware preparation
@@ -136,8 +132,11 @@ For a separate UART1 shell, run `getty /dev/ttyS1 sh &`. See [UART and terminals
 
 For Pico W builds, Wi-Fi settings, Telnet/socat access and disconnect instructions, see [Pico W Wi-Fi, Telnet and raw TCP](../reference/network/NETWORK.md).
 
-PWM duty cycle files `/dev/pwm/1/a` and `/dev/pwm/1/b` accept values such as `7.5` in 0.1% increments and return one decimal place. `/dev/pwm/1/freq` remains integer Hz.
 
 ## Next steps
 
 After connecting, follow the numbered lessons beginning with [textbook A1](../learn/A/A1.md) to explore files, pipes, and tasks. Keep commands for the Linux build PC separate from commands typed at `piconix#`.
+
+---
+
+**Related links:** [日本語](../../ja/setup/SETUP.md) | [Usage guides](../guides/README.md)

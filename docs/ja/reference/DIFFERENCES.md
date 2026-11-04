@@ -1,8 +1,6 @@
 # PicoNIXとLinuxの違い
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
-
-[English](../../en/reference/DIFFERENCES.md) | [仕様書](SPECIFICATION.md) | [文書案内](../../DOCS.ja.md)
+*技術リファレンス*
 
 PicoNIXは，**UNIXの基本原理を学ぶための小規模な教育用OS**です．Linuxの小型版でも，POSIXに完全準拠したOSでもありません．プロセス，ファイルディスクリプタ，デバイスファイル，パイプ，端末，システムコールなどの基本概念を残し，そのほかの仕組みは意図的に省略・簡略化しています．以下は現行ソースコードに基づく説明です．
 
@@ -100,3 +98,7 @@ echo hello | cat -n
 ## 7．仕様の根拠
 
 本書は`include/piconix.h`，`include/device_names.h`，`kernel/kernel.c`，`kernel/net_socket.h`，`userland/apps/shell.c`と既存の[仕様書](SPECIFICATION.md)を照合して作成しました．実装を変更したときは日英両版と関連する仕様書も更新してください．本書の点検と，実機ビルド・動作試験は別です．
+
+---
+
+**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [English](../../en/reference/DIFFERENCES.md) ｜ [文書案内](../../DOCS.ja.md)

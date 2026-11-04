@@ -1,8 +1,6 @@
 # PicoNIX C library and application APIs
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
-
-[日本語](../../../../ja/development/apps/c/LIBC.md) | [C application development](PROGRAMMING.md) | [System calls](../../../reference/SYSCALLS.md)
+*Development guide*
 
 PicoNIX provides a **small, purpose-built C library** for its user-space programs. It is **not** a complete ISO C library or POSIX libc. Applications use the headers and runtime under `userland/`; do not assume that arbitrary host-library functions are available. The implementation consists principally of `userland/lib/libc.c` (string, conversion, and formatted I/O functions), `userland/lib/syscalls.c` (system-call wrappers), and `userland/lib/crt0.c` (startup and termination).
 
@@ -155,11 +153,16 @@ The application is built as a Flash-resident PIC image and copied into a RAM slo
 - `userland/lib/crt0.c`: application entry and exit support
 - `include/piconix.h`, `include/piconix_dirent.h`: OS definitions and shared structures
 
-### Directory-entry device IDs
+## Directory-entry device IDs
 
 In long listing mode (`ls -l /dev`), device nodes display their kernel-assigned IDs with a type and ID; this also works in subdirectories such as `/dev/gpio`. `piconix_dirent_t` returned by `getdents()` now includes a `uint16_t device_id` field, with `0xffff` indicating no ID. This changes the directory-entry ABI, so rebuild the kernel and user applications together.
 
 The `device_id` field returned by `getdents()` identifies the directory entry: device ID for `/dev` and `/proc`, program ID for `/bin`, and zero-based RAM-file slot for `/tmp` and `/etc`. Directories or entries without an ID use `0xffff`. `ls -l` prints a `TYPE ID SIZE NAME` header, where `p` means program, `f` RAM file, `c` device, and `d` directory. RAM-file slot IDs are not persistent across deletion and recreation.
 
+## Starting interactive child programs
+
 Interactive child programs can use `spawn_foreground(program, argc, argv)` or `spawn_tmp_foreground(path)` when the child needs TTY access immediately. These functions make the spawn and foreground ownership change atomic; after `waitpid()` the parent calls `set_foreground(0)` to reclaim the terminal. Use plain `spawn()` for background jobs.
 
+---
+
+**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md) | [日本語](../../../../ja/development/apps/c/LIBC.md)

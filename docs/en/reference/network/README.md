@@ -1,7 +1,5 @@
 # Networking — Technical Reference
 
-**Document type: REFERENCE INDEX** | [Reference index](../README.md) | [Devices](../devices/README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/README.md)
-
 This directory documents Pico W Wi-Fi, TCP/UDP networking and network services. Networking chapters are optional when using a standard Pico without Wi-Fi.
 
 ## Connection and diagnostics
@@ -20,3 +18,7 @@ This directory documents Pico W Wi-Fi, TCP/UDP networking and network services. 
 **Development guides:** [User-space C networking](../../development/apps/c/NETWORK-PROGRAMMING.md) | [Kernel network implementation and extension](../../development/network/NETWORK-DEVELOPMENT.md).
 
 **Guided learning:** [B6 Networking](../../learn/B/B6.md) → [C5 Network implementation](../../learn/C/C5.md).
+
+---
+
+**Related links:** [Reference index](../README.md) | [Devices](../devices/README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/README.md)

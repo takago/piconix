@@ -1,8 +1,6 @@
 # PicoNIX カーネルリーディングガイド
 
-> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md)．
-
-[文書案内](../../../DOCS.ja.md) | [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md) | [関数一覧](../../../FUNCTIONS.md) | [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)
+*開発ガイド*
 
 このガイドは，PicoNIXの**現行ソースを読んでOSの動作原理を理解する**ための道順です．機能の追加手順は[カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)を参照してください．ソースをファイルの先頭から順番に読む必要はありません．**起動 → タスクの準備 → スケジューリング → 例外 → システムコール → ファイル → TTY・パイプ → デバイス → ネットワーク**の順で，関心のある処理を追います．
 
@@ -146,3 +144,6 @@ Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイ�
 - [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md)：自分で呼び出しを追加する
 - [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)：機能を変更する実習
 
+---
+
+**関連リンク：** [開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md) ｜ [文書案内](../../../DOCS.ja.md) ｜ [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)

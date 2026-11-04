@@ -1,7 +1,5 @@
 # Part C — Advanced: Read and extend UNIX
 
-**Document type: TEXTBOOK CONTENTS** | [Course contents](../README.md) | [日本語](../../../ja/learn/C/README.md)
-
 Read user C code, then boot, scheduling, SVC, VFS, and drivers, before a small extension. Networking is optional.
 
 ## Chapters
@@ -22,3 +20,7 @@ You should understand Part B observations and basic C functions and pointers. En
 ---
 
 [Back to course contents](../README.md) | [Reference directory](../../../DOCS.md)
+
+---
+
+**Related links:** [日本語](../../../ja/learn/C/README.md)

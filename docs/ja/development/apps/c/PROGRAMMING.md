@@ -1,6 +1,6 @@
 # PicoNIXのCアプリケーション開発
 
-> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md)．
+*開発ガイド*
 
 ## 読み始める前に
 
@@ -262,3 +262,6 @@ restore:
 - [全体構造](../../../reference/ARCHITECTURE.md)・[内部構造](../../../reference/INTERNAL.md)：PICロード，スケジューラ，カーネル実装
 - [ネットワークプログラミング](NETWORK-PROGRAMMING.md)：Pico W上のTCP/UDPアプリ開発
 
+---
+
+**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md)

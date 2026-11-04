@@ -1,6 +1,6 @@
 # Wi-Fiモードと状態表示
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md)．
+*技術リファレンス*
 
 Pico WではAPモードが既定です．`PicoNIX-XXXXXXXX`というアクセスポイントを提供し，1台の端末にDHCPでアドレスを割り当てます．既存のTelnet（TCP 23），遠隔デバイス制御（UDP 2000），ユーザプロセス向けソケット機能はそのまま使用します．
 
@@ -100,3 +100,7 @@ Linuxの無線LANでGARPの遅延・集中到着を観測した際，同じア�
 
 
 AP・STAどちらでも`cat /proc/net/memory`で追加のメモリ診断を確認できます．
+
+---
+
+**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/network/WIFI-MODES.md)

@@ -1,8 +1,6 @@
 # Wiring and Electrical Precautions
 
-> **Document type: TECHNICAL REFERENCE.** Physical connections and safety checks. [Hardware index](README.md) | [40-pin diagram](PINS.md) | [Device interface](../devices/DEVICES.md).
-
-[日本語](../../../ja/reference/hardware/WIRING.md)
+*Technical reference*
 
 **Before powering up:** RP2040 GPIO uses 3.3 V logic. Do not apply 5 V logic or RS-232 voltage directly to GPIO. Unplug USB power before changing connections, use common ground, and provide suitable current limiting and driver circuitry. This document describes logical wiring; it is not a fully rated circuit schematic.
 
@@ -148,3 +146,7 @@ i2cctl scan
 ```
 
 Use the `fbctl` commands only with a suitable LED driver circuit, and `i2cctl scan` only for devices that can safely be probed. **`cat /proc/fb` shows stored framebuffer state, not proof of correct physical wiring.**
+
+---
+
+**Related links:** [Hardware index](README.md) | [40-pin diagram](PINS.md) | [日本語](../../../ja/reference/hardware/WIRING.md)

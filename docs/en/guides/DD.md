@@ -1,8 +1,6 @@
 # dd — binary copying and RAM transfer
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md).
-
-[日本語](../../ja/guides/DD.md) | [Documentation](../../DOCS.md) | [nc](../reference/network/NC.md) | [Devices](../reference/devices/DEVICES.md)
+*Usage guide*
 
 `dd` transfers binary data between files, devices, and pipelines. Options: `if=`, `of=`, `bs=`, `count=`, `skip=`, and `seek=`. `if=-` means stdin and `of=-` means stdout; either FD is also selected if the option is omitted. `bs` is 1–256 bytes; `skip` and `seek` count blocks of size `bs`. Numeric arguments accept decimal and `0x` hexadecimal notation.
 
@@ -74,3 +72,6 @@ head -c 256 data.bin | nc -N 192.168.4.1 9000
 
 Check transfer length and EOF handling. `/dev/shm` is shared by all tasks: do not overwrite data used by another program. Direct writes to task slots are not recommended as a normal learning exercise. `/dev/mem` does not allow unrestricted writes to all RAM. Wi-Fi transfers require Pico W.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md) | [日本語](../../ja/guides/DD.md) | [Documentation](../../DOCS.md) | [nc](../reference/network/NC.md) | [Devices](../reference/devices/DEVICES.md)

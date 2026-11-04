@@ -1,14 +1,10 @@
 # Find documentation by goal — PicoNIX
 
-**Document type: TASK INDEX (not a textbook chapter)** | [Textbook contents](learn/README.md) | [Technical reference](reference/README.md) | [Documentation directory](../DOCS.md) | [日本語](../ja/TASKS.md)
+Find documentation for **what you want to do**. Each task links to starting explanations, practical instructions, and detailed specifications. Open only the pages you need.
 
-Use this index to find documentation by **what you want to do**. Use your browser Find command (Ctrl+F or equivalent) to search for a keyword such as “pipes”, “GPIO”, or “syscall”. Multiple links in each row are alternatives for different levels of detail, **not a required reading sequence**.
+**How to search:** Browse the categories below or use your browser's Find command (Ctrl+F or equivalent) for words such as “pipes”, “GPIO”, or “system calls”.
 
-- **Textbook A/B/C:** learn concepts in order. Only textbook sections carry numbers such as `A1.1`.
-- **How-to and lab:** try a command or observe behavior.
-- **Reference, develop, and read:** inspect implementation details or APIs.
-
-When coming here from a textbook chapter, use your browser Back action to resume that chapter. This task index has no textbook Previous/Next navigation. **Pico W networking is optional**; ordinary Pico hardware has no Wi-Fi. Check wiring and 3.3 V electrical precautions before attaching peripherals.
+**Note:** Pico W networking is unavailable on a standard Pico. Check the wiring instructions and 3.3 V precautions before connecting peripherals.
 
 ## Task index
 
@@ -104,3 +100,5 @@ When coming here from a textbook chapter, use your browser Back action to resume
 - **Look up exact specifications:** [Technical reference](reference/README.md)
 - **Find implementation guides:** [Development guides](development/README.md)
 - **Troubleshoot build or flashing:** [Setup and troubleshooting](setup/SETUP.md)
+
+[日本語](../ja/TASKS.md) | [Documentation directory](../DOCS.md)

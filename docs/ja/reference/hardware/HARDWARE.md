@@ -1,8 +1,6 @@
 # ハードウェア概要
 
-> **資料区分：技術リファレンス**．基板と外部回路の前提を説明します．[ハードウェア目次](README.md) ｜ [ピン割当](PINS.md) ｜ [配線](WIRING.md)．
-
-[English](../../../en/reference/hardware/HARDWARE.md) ｜ [文書一覧](../../../DOCS.ja.md) ｜ [セットアップ](../../setup/SETUP.md)
+*技術リファレンス*
 
 ## 使用する基板
 
@@ -31,3 +29,7 @@ PicoNIXはRP2040を搭載する**Raspberry Pi Pico / Pico W**を対象にして�
 5. まず最小構成で起動し，必要な周辺機器を一つずつ追加します．
 
 **注意：** LEDマトリクスの端子対応表は特定型番の接続例であり，その表だけで安全な駆動回路を構成できるわけではありません．
+
+---
+
+**関連リンク：** [ハードウェア目次](README.md) ｜ [English](../../../en/reference/hardware/HARDWARE.md) ｜ [文書一覧](../../../DOCS.ja.md) ｜ [セットアップ](../../setup/SETUP.md)

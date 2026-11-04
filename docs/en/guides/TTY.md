@@ -1,8 +1,6 @@
 # Terminal Settings and Interactive Input
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md).
-
-[日本語](../../ja/guides/TTY.md) | [Overview](README.md) | [UART1 and terminals](../reference/devices/UART.md) | [C programming](../development/apps/c/PROGRAMMING.md)
+*Usage guide*
 
 PicoNIX keeps **terminal input modes** separate from **file-descriptor (FD) blocking flags**. It does not implement the complete POSIX `termios` interface.
 
@@ -71,3 +69,6 @@ During shell line editing, Ctrl+L clears the terminal screen using ANSI sequence
 
 **Implementation references:** `tty_canonical`, `tty_echo`, `tty_onlcr`, `tty_saved_*`, `foreground_group`, and `OS_TTY_*` handling in `kernel/kernel.c`; line editing and pipelines in `userland/apps/shell.c`.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md) | [日本語](../../ja/guides/TTY.md) | [UART1 and terminals](../reference/devices/UART.md) | [C programming](../development/apps/c/PROGRAMMING.md)

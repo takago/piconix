@@ -1,8 +1,6 @@
 # リモートデバイス制御（UDP 2000番）
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md)．
-
-[English](../../../en/reference/network/REMOTE-DEVICE.md) | [ネットワーク](NETWORK.md) | [デバイス](../devices/DEVICES.md) | [GPIO遠隔制御](REMOTE_GPIO.md)
+*技術リファレンス*
 
 Pico Wは，**カーネル側のUDP 2000番ポート**で，一部のデバイス操作を提供します．これはユーザプログラム向けのTCP/UDPソケットAPIとは別のサービスです．**認証・暗号化・要求ID・自動再送はありません**．信頼できる隔離された実験ネットワークでのみ使用し，インターネットに公開しないでください．GPIO出力，PWM，LEDマトリクスを変更できるため，危険な駆動機器の停止をネットワーク接続だけに依存させないでください．
 
@@ -57,3 +55,7 @@ printf 'WRITE /dev/pwm/1/freq\n50' | nc -u -w 1 192.168.4.1 2000
 ```
 
 応答を確実に区別したい場合，特にバイナリ読み取りには`host/piconixctl.py`を利用してください．カーネル側の実装は`kernel/net_service_remote_devctl.c`にあり，タスクのFDや汎用ファイルアクセスを経由せず，既存のデバイスドライバを使用します．実機での電気的動作とWi-Fi接続は別途検証が必要です．
+
+---
+
+**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/network/REMOTE-DEVICE.md) ｜ [ネットワーク](NETWORK.md)

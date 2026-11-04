@@ -1,6 +1,6 @@
 # カーネル拡張ガイド
 
-> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md)．
+*開発ガイド*
 
 学習目的で最初から読む場合は[カーネル読解ガイド](KERNEL-READING-GUIDE.md)を利用してください．
 
@@ -166,3 +166,6 @@ int main(void) {
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md)：ユーザ空間Cアプリ追加
 - [TRACE.md](../../guides/TRACE.md)：SVCとタスク切替の観察
 
+---
+
+**関連リンク：** [開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md)

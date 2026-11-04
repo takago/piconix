@@ -1,6 +1,6 @@
 # PicoNIX Tiny Thumb Assembler
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
+*Development guide*
 
 ## Before you start
 
@@ -98,3 +98,6 @@ See the [assembly examples](../../../../../userland/examples/asm/en/README.md) f
 
 The immediate `0` in `svc #0` is **not** the system call number; the call number is passed in `r0`. See the [system call reference](../../../reference/SYSCALLS.md) for current numbers and arguments. This is a small educational Thumb-1 assembler, not a full GNU `as` implementation.
 
+---
+
+**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md) | [日本語](../../../../ja/development/apps/asm/ASM.md)

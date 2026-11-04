@@ -1,6 +1,6 @@
 # PicoNIX 簡易Thumbアセンブラ
 
-> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md)．
+*開発ガイド*
 
 ## 読み始める前に
 
@@ -97,3 +97,6 @@ as: 24 bytes (32 total) -> /tmp/a.out
 
 `svc #0` の即値 `0` はシステムコール番号ではありません．呼び出し番号は `r0` に設定します．現行の番号と引数は[システムコール一覧](../../../reference/SYSCALLS.md)を参照してください．`as` は限定されたThumb-1命令を扱う学習用アセンブラで，GNU `as` の構文全体には対応しません．
 
+---
+
+**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md) ｜ [English](../../../../en/development/apps/asm/ASM.md)

@@ -1,8 +1,10 @@
 # PicoNIX documentation directory
 
-[Project overview](../README.md) | [日本語](DOCS.ja.md) | [Development diary](DEVELOPMENT_DIARY.md)
+PicoNIX documentation is organized by **purpose: textbook, supplementary guides, technical reference, and development guides**. Numbered sections such as `A1.1` identify the textbook chapters.
 
-PicoNIX documentation is organized by **purpose: textbook, supplementary guides, technical reference, and development guides**. Each page identifies its document type near the top.
+## Start here: Setup
+
+**[Setup guide](en/setup/SETUP.md)**: Prepare the Linux build environment, flash Pico or Pico W, and connect through USB.
 
 ## 1. Learn UNIX in sequence (textbook)
 
@@ -36,11 +38,12 @@ Browse by area: [Devices and I/O](en/reference/devices/README.md) | [Hardware / 
 
 **[Development guide index](en/development/README.md)** covers C, Python, assembly, kernel reading, syscalls, drivers, and Pico W kernel networking. Follow [Part C](en/learn/C/README.md) for learning order.
 
-## Setup and history
+## Source index and development records
 
-- [Setup](en/setup/SETUP.md): build, flash, and connect from Linux.
 - [Function index (Japanese)](FUNCTIONS.md): locating source functions.
 - [Development diary](DEVELOPMENT_DIARY.md): design decisions.
 - [Historical notes](history/README.md): older material may no longer match current behavior.
 
-**To resume a course after looking something up, return to your last numbered A/B/C textbook page rather than following reference links.**
+---
+
+[Project overview](../README.md) | [日本語](DOCS.ja.md) | [Development diary](DEVELOPMENT_DIARY.md)

@@ -1,8 +1,6 @@
 # I²C1とi2cctl — 利用ガイド
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md)．
-
-[English](../../../en/reference/devices/I2C.md) | [デバイス](DEVICES.md) | [Python](../../development/apps/python/PYTHON.md)
+*技術リファレンス*
 
 PicoNIXはRP2040のI²C1を100 kHzのマスターモードで使用します．GP26がSDA，GP27がSCLです．ADC0とADC1は利用できず，GP28のADC2と内蔵温度センサは維持されます．I²C0は提供しません．
 
@@ -65,3 +63,7 @@ int main(void) {
 - NACKやタイムアウトは転送失敗として報告されます．`i2cctl`の終了状態を確認してください．
 - このインタフェースは7-bitアドレスのマスター転送用です．10-bitアドレス，スレーブモード，SMBus専用操作は提供しません．
 - Pythonからは[I²C関数](../../development/apps/python/PYTHON.md)を利用できます．BH1750の読み書きと照度測定は実機で確認済みです．
+
+---
+
+**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/devices/I2C.md) ｜ [デバイス](DEVICES.md)

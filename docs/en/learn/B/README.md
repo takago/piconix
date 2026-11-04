@@ -1,7 +1,5 @@
 # Part B — Intermediate: Observe UNIX
 
-**Document type: TEXTBOOK CONTENTS** | [Course contents](../README.md) | [日本語](../../../ja/learn/B/README.md)
-
 Explain your observations through FDs, TTYs, memory, syscalls, and devices. Networking is optional and requires Pico W.
 
 ## Chapters
@@ -22,3 +20,7 @@ Basic command-line skills from Part A are expected; review [A4](../A/A4.md). Con
 ---
 
 [Back to course contents](../README.md) | [Reference directory](../../../DOCS.md)
+
+---
+
+**Related links:** [日本語](../../../ja/learn/B/README.md)

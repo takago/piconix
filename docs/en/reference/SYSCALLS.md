@@ -1,6 +1,6 @@
 # System Calls and ABI Reference
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+*Technical reference*
 
 Syscall number definitions come from `PICONIX_SYSCALL_TABLE(X)` in `include/piconix_syscall.h`. The implementations are in `kernel/kernel.c` (`os_svc_dispatch()`), `userland/lib/syscalls.c`, and `userland/lib/unistd.h`. C programs normally use the wrappers; this is not the POSIX ABI.
 
@@ -89,3 +89,7 @@ The `device_id` field returned by `getdents()` identifies the directory entry: d
 
 
 The `spawn_foreground()` and `spawn_tmp_foreground()` C wrappers are not extra syscall numbers: they request an atomic foreground TTY handoff as part of `SYS_SPAWN` (argument count flag `0x100`) or `SYS_SPAWN_TMP` (second argument 1). Ordinary `spawn()` remains suitable for background tasks. This avoids the scheduling race between `spawn()` and a separate `set_foreground()` call.
+
+---
+
+**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/SYSCALLS.md)

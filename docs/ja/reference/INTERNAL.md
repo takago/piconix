@@ -1,8 +1,6 @@
 # PicoNIXの内部構造
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
-
-[文書案内](../../DOCS.ja.md) | [概要](../guides/README.md) | [English](../../en/reference/INTERNAL.md) | [Cアプリ開発](../development/apps/c/PROGRAMMING.md)
+*技術リファレンス*
 
 この文書では，**PicoNIXがどのように動くか**を，起動からシステムコール，入出力まで順に説明します．実際にアプリを作る手順は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，配線は[ハードウェア配線](hardware/WIRING.md)，`/dev`の操作は[デバイス仕様](devices/DEVICES.md)を参照してください．
 
@@ -142,3 +140,7 @@ trace show
 **次に読む文書：** 実際にコマンドを追加する場合は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，端末の仕組みは[端末設定と対話型入力](../guides/TTY.md)，ハードウェアへの接続は[配線ガイド](hardware/WIRING.md)を参照してください．
 
 Pico Wではネットワーク予約16 KiBにlwIPヒープ10 KiBとアイドルスタック4 KiBを配置します．[RAMレイアウト](MEMORY-LAYOUT.md)を参照してください．
+
+---
+
+**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [文書案内](../../DOCS.ja.md) ｜ [操作ガイド一覧](../guides/README.md) ｜ [English](../../en/reference/INTERNAL.md)

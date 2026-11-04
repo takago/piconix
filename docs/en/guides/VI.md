@@ -1,8 +1,6 @@
 # vi — minimal modal editor
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md).
-
-[日本語](../../ja/guides/VI.md) | [Documentation](../../DOCS.md) | [edit](EDIT.md)
+*Usage guide*
 
 `vi` is a small modal editor separate from `edit`. Run `vi /tmp/hello.txt` or `vi /etc/rc` to edit a RAM file directly under `/tmp` or `/etc`. Its buffer holds up to 2,048 bytes, matching the RAM-file limit. It is not a full vi implementation. If a file exceeds 2,048 bytes, the editor rejects it instead of silently truncating its contents.
 
@@ -31,3 +29,6 @@ The editing area starts at the left edge with no line-number gutter. Arrow keys 
 
 If there are unsaved changes, `:q` displays a warning instead of quitting. Use `:q!` only when you want to discard edits. Exiting with `Ctrl+C` does not save.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md) | [日本語](../../ja/guides/VI.md) | [Documentation](../../DOCS.md) | [edit](EDIT.md)

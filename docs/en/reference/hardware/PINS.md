@@ -1,8 +1,6 @@
 # Pin Assignments and Board Header
 
-> **Document type: TECHNICAL REFERENCE.** Pin ownership and board pinout. [Hardware index](README.md) | [Wiring](WIRING.md) | [Device usage](../devices/DEVICES.md).
-
-[日本語](../../../ja/reference/hardware/PINS.md)
+*Technical reference*
 
 **`kernel/pins.h` is the source of truth** for configured pin modes. This page has been checked against the supplied `GPn_MODE` definitions. The `pins` command also displays configured assignments. Consult Pico/Pico W board documentation for physical pin numbering.
 
@@ -72,3 +70,7 @@ GP26/27 are fixed to I²C1; changing them to `PIN_GPIO` or `PIN_ADC` is rejected
 ## Connection examples
 
 See [WIRING.md](WIRING.md) for physical LED module connections, pushbuttons, PWM, UART, I²C, and ADC.
+
+---
+
+**Related links:** [Hardware index](README.md) | [Device usage](../devices/DEVICES.md) | [日本語](../../../ja/reference/hardware/PINS.md)

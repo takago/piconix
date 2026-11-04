@@ -1,7 +1,5 @@
 # 開発ガイド一覧
 
-**資料区分：開発ガイド目次** ｜ [教科書](../learn/README.md) ｜ [English](../../en/development/README.md)
-
 これらは実装・改造のための**詳しい開発手順とAPI説明**です．Part Cの学習順序は[教科書](../learn/C/README.md)を基準とし，必要な箇所だけ開いてください．
 
 **目的から探す：** [やりたいこと → 関連資料](../TASKS.md)．
@@ -36,3 +34,7 @@
 - [Wi-Fi・lwIP・ソケット・カーネル常駐サービスの実装](network/NETWORK-DEVELOPMENT.md)
 
 **ソース索引：** [関数一覧（日本語）](../../FUNCTIONS.md)．番号や行位置はコード変更で変わり得ます．
+
+---
+
+**関連リンク：** [教科書](../learn/README.md) ｜ [English](../../en/development/README.md)

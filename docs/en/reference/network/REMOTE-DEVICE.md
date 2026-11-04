@@ -1,8 +1,6 @@
 # Remote device control (UDP port 2000)
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
-
-[日本語](../../../ja/reference/network/REMOTE-DEVICE.md) | [Networking](NETWORK.md) | [Devices](../devices/DEVICES.md) | [Remote GPIO details](REMOTE_GPIO.md)
+*Technical reference*
 
 Pico W runs a **kernel-side UDP service** on port **2000** for a small allowlist of device operations. It is different from the user-space TCP/UDP socket API. The service has **no authentication, encryption, request identifiers, or retransmission**. Use it only on an isolated, trusted experimental network; do not expose this port to the Internet. Requests can change GPIO outputs, PWM settings, and the LED matrix. Never rely on the network connection alone to stop hazardous actuators.
 
@@ -57,3 +55,7 @@ printf 'WRITE /dev/pwm/1/freq\n50' | nc -u -w 1 192.168.4.1 2000
 ```
 
 For robust parsing of replies (especially binary data), prefer `host/piconixctl.py`. The kernel implementation is in `kernel/net_service_remote_devctl.c`; requests use the existing device drivers, not task FDs or general file access. Physical effects and Wi-Fi availability must be verified on real hardware.
+
+---
+
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/REMOTE-DEVICE.md) | [Networking](NETWORK.md)

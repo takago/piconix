@@ -1,6 +1,6 @@
 # help command
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/A/A1.md) | [Guide index](README.md).
+*Usage guide*
 
 `help` is a standalone RAM application listing PicoNIX commands by category.
 
@@ -52,7 +52,7 @@ Some other important usage details: `ls -a` shows `.` and `..`; `ls -l` shows ty
 
 `ping [-c COUNT] IPv4` sends four Echo Requests by default; use a numeric address such as `192.168.4.2`. `tcpdump [-x] [-c COUNT]` shows IPv4 TCP/UDP/ICMP packet summaries; use `-x` to show the data length and up to 16 payload bytes (HEX and ASCII) on an indented second line. These commands require Pico W. See the [Textbook B6](../learn/B/B6.md).
 
-`ip addr` displays the loopback and Wi-Fi interfaces on Pico W. For `edit`, press Ctrl+Q twice to discard changes (or Ctrl+S to save); Ctrl+C also aborts without saving.
 
-Use `cp SRC DST` to copy a RAM file, for example `cp /etc/index.html /tmp/index.html`. Only RAM files under `/tmp` and `/etc` are supported.
+---
 
+**Related links:** [Related textbook chapter](../learn/A/A1.md) | [Guide index](README.md) | [日本語](../../ja/guides/HELP.md)

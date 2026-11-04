@@ -1,8 +1,6 @@
 # パイプと標準入出力
 
-> **資料区分：操作ガイド（教科書本編ではありません）**．[対応する教科書の章](../learn/A/A2.md) ｜ [操作ガイド一覧](README.md)．
-
-[概要](README.md) | [English](../../en/guides/PIPE.md)
+*操作ガイド*
 
 PicoNIXのシェルは，`|`を使ってコマンドの標準出力を次のコマンドの標準入力へ接続できます．`grep`は入力から指定した文字列を含む行を選択します．
 
@@ -49,3 +47,6 @@ cat test.s | grep movs | hexdump
 
 **実装の参照先：** `userland/apps/shell.c` の `run_pipeline()` とコマンド解析，`kernel/kernel.c` の `PIPE_COUNT`，`PIPE_BYTES`，`pipe_transfer()` およびパイプ関連システムコール．
 
+---
+
+**関連リンク：** [対応する教科書の章](../learn/A/A2.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/PIPE.md)

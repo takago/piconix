@@ -1,7 +1,5 @@
 # Part A — Beginner: Use UNIX
 
-**Document type: TEXTBOOK CONTENTS** | [Course contents](../README.md) | [日本語](../../../ja/learn/A/README.md)
-
 Begin with the shell, then work with files, pipes, and processes. A regular Pico is sufficient.
 
 ## Chapters
@@ -20,3 +18,7 @@ No prior OS knowledge is needed. Follow [Setup](../../setup/SETUP.md) for flashi
 ---
 
 [Back to course contents](../README.md) | [Reference directory](../../../DOCS.md)
+
+---
+
+**Related links:** [日本語](../../../ja/learn/A/README.md)

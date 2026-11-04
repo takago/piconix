@@ -1,8 +1,6 @@
 # ソケットAPIとネットワークアプリケーション
 
-> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md)．
-
-[English](../../../../en/development/apps/c/NETWORK-PROGRAMMING.md) | [ネットワーク接続](../../../reference/network/NETWORK.md)
+*開発ガイド*
 
 ## 構成
 
@@ -52,3 +50,6 @@ UDP 2000の例：`printf 'READ /dev/adc/temp\n' | nc -u -w 2 192.168.4.1 2000`�
 
 カーネルのネットワークサービスと，ソケットAPIを使う通常のユーザアプリケーションを区別しています．`trace`でシステムコールを，`lsof`でソケットのFDとポートを観察できます．開発の経緯を記録した`docs/en/NETWORK_STAGE*.md`などは履歴資料です．現在の仕様は本書を優先してください．
 
+---
+
+**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md) ｜ [English](../../../../en/development/apps/c/NETWORK-PROGRAMMING.md)

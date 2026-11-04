@@ -1,7 +1,5 @@
 # PicoNIX開発日誌
 
-[文書案内](DOCS.ja.md) | [概要](ja/guides/README.md) | [English](DEVELOPMENT_DIARY.md)
-
 ## はじめに
 
 > **作成方法について**：この開発日誌は，PicoNIXの開発者とChatGPTとの対話履歴をもとに，**ChatGPTが自動生成した記録**です．実装上の課題，設計判断，試行錯誤を振り返る目的で構成しています．対話記録に基づく再構成であり，日時，変更の順序，技術的な細部に不正確な記述が含まれる可能性があります．正確な変更内容はGitのコミット履歴とソースコードを参照してください．
@@ -331,3 +329,7 @@ v1.3.0に向けた機能拡張と文書再編が進んだことから，次は**
 この文書は対話履歴を主資料とする開発史です．開発者の実機確認結果と，ChatGPTがコード変更を提案・作成しただけの段階は区別して読む必要があります．Gitの全コミット日時，すべてのZIPの内容，実機ログの完全な時系列を照合した監査記録ではありません．開発中に提案されただけで採用されなかった機能や，一時的な実装は完成版の仕様と混同しないように記しました．必要に応じてコミットIDや関連する検証ログを追記してください．
 
 技術仕様や実際の操作方法は，[内部構造](ja/reference/INTERNAL.md)，[ネットワーク](ja/reference/network/NETWORK.md)，[TTY](ja/guides/TTY.md)，[パイプ](ja/guides/PIPE.md)，[トレース](ja/guides/TRACE.md)，[カーネル開発](ja/development/kernel/KERNEL-DEVELOPMENT.md)を参照してください．
+
+---
+
+**関連リンク：** [文書案内](DOCS.ja.md) | [プロジェクト概要](../README.md) | [English](DEVELOPMENT_DIARY.md)

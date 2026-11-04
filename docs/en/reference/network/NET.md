@@ -1,6 +1,6 @@
 # net: Network diagnostics
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
+*Technical reference*
 
 `net` is a user-space command to inspect Pico W network status.
 
@@ -13,3 +13,9 @@ net -r    # ARP cache (/proc/net/arp, IP and MAC)
 STA mode shows `DHCP: Client`; AP mode reports whether the DHCP server started. `net -a` is AP-only, while `net -r` works in AP and STA. ARP entries represent recently resolved peers, not a definitive list of connected stations. The PicoNIX AP DHCP server supports one lease only.
 
 The kernel polls the CYW43 association list about once per second in the network polling context rather than making driver calls in system calls. Both new proc nodes are read-only.
+
+`ip addr` also displays Pico W loopback and Wi-Fi interfaces.
+
+---
+
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/NET.md)

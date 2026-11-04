@@ -1,6 +1,6 @@
 # Initial RAM Files and /etc/rc
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+*Technical reference*
 
 Initial RAM files are ordinary files under `userland/fs/` on the build host. They are embedded in Flash during the build and copied into RAM files at boot; HTML and sample source code need not be embedded as C strings in the kernel.
 
@@ -53,3 +53,7 @@ echo "Welcome to PicoNIX!"
 ```
 
 See also [Filesystem](FILESYSTEM.md), [HTTP server](network/HTTPD.md), and [Networking](network/NETWORK.md).
+
+---
+
+**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/INITIAL-FILES.md)

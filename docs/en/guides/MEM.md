@@ -1,6 +1,6 @@
 # mem — read-only memory viewer
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/B/B3.md) | [Guide index](README.md).
+*Usage guide*
 
 `mem` inspects SRAM and XIP Flash; **it does not edit memory**.
 
@@ -32,3 +32,6 @@ Memory browsing continues if symbols are unavailable.
 
 **Note:** Live RAM can change during inspection. The display is not an atomic snapshot, and `mem` cannot write to memory.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/B/B3.md) | [Guide index](README.md) | [日本語](../../ja/guides/MEM.md)

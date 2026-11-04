@@ -1,6 +1,6 @@
 # Pong
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md).
+*Usage guide*
 
 PicoNIX Pong supports a single-terminal game against the CPU and a two-player game using `/dev/console` (USB CDC) and `/dev/ttyS1`. Either terminal can launch the game.
 
@@ -34,3 +34,6 @@ While running, Pong configures the TTYs it uses for noncanonical, echo-disabled,
 
 The game cannot detect whether a terminal emulator is physically connected. Each application uses a 24-KiB RAM slot, with the last 4 KiB reserved for its stack (leaving up to 20 KiB for the program image). Firmware builds and hardware behavior require separate verification.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md) | [日本語](../../ja/guides/PONG.md)

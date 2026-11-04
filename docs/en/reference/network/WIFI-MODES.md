@@ -1,6 +1,6 @@
 # Wi-Fi modes and status
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
+*Technical reference*
 
 Pico W builds default to **AP mode**. PicoNIX creates its own `PicoNIX-XXXXXXXX` Wi-Fi network and provides DHCP to one client. The existing Telnet (TCP 23), remote device control (UDP 2000), and user-process socket applications continue to use the same network stack.
 
@@ -103,3 +103,7 @@ In diagnostic testing, GARP packets arrived irregularly over one Linux Wi-Fi/AP 
 
 
 The additional `cat /proc/net/memory` snapshot is available in both AP and STA modes.
+
+---
+
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/WIFI-MODES.md)

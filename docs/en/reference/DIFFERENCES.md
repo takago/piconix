@@ -1,8 +1,6 @@
 # How PicoNIX differs from Linux
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
-
-[日本語](../../ja/reference/DIFFERENCES.md) | [Specification](SPECIFICATION.md) | [Documentation guide](../../DOCS.md)
+*Technical reference*
 
 PicoNIX is a **small educational UNIX-like operating system**, not a Linux distribution or a POSIX-compatible replacement. It retains useful UNIX ideas—processes, file descriptors, device files, pipes, terminals, and system calls—while deliberately omitting or simplifying other mechanisms. The differences below describe the current source tree, not promises of Linux compatibility.
 
@@ -100,3 +98,7 @@ Compare process capacity in `ps` with the six slots, inspect which paths are vir
 ## 7. Source of truth
 
 Limits and behavior were checked against `include/piconix.h`, `include/device_names.h`, `kernel/kernel.c`, `kernel/net_socket.h`, `userland/apps/shell.c`, and the existing [specification](SPECIFICATION.md). When these sources change, update both language versions and the corresponding reference pages. Hardware and full firmware build tests are separate from this documentation audit.
+
+---
+
+**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/DIFFERENCES.md) | [Documentation guide](../../DOCS.md)

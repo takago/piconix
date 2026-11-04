@@ -1,8 +1,6 @@
 # Hardware Overview
 
-> **Document type: TECHNICAL REFERENCE.** Board and circuit assumptions. [Hardware index](README.md) | [Pin assignments](PINS.md) | [Wiring](WIRING.md).
-
-[日本語](../../../ja/reference/hardware/HARDWARE.md) | [Documentation index](../../../DOCS.md) | [Setup](../../setup/SETUP.md)
+*Technical reference*
 
 ## Supported boards
 
@@ -31,3 +29,7 @@ Physical GPIO resources cannot be used by multiple features simultaneously. When
 5. Boot the minimal board first, then attach optional peripherals one by one.
 
 **Caution:** The LED matrix pin table illustrates one specific part; it does not constitute a complete safe driver circuit.
+
+---
+
+**Related links:** [Hardware index](README.md) | [日本語](../../../ja/reference/hardware/HARDWARE.md) | [Documentation index](../../../DOCS.md) | [Setup](../../setup/SETUP.md)

@@ -1,6 +1,6 @@
 # PicoNIX HTTP server (experimental)
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
+*Technical reference*
 
 `httpd` runs in user space on Pico W TCP port 80 and is launched by its startup script; it is not a kernel service.
 
@@ -63,3 +63,7 @@ The LED grid suppresses touch scrolling and text selection; gestures outside rem
 The browser serializes all servo and buzzer control requests because GP18 and GP19 share PWM slice 1. The servo requires 50 Hz; an outstanding buzzer request could otherwise restore an audio frequency after moving the servo slider. Check external servo power, ground sharing, and duty/frequency with `pwmctl status` if it still does not move.
 
 To edit the introduction page on Pico W, run `edit /etc/index.html` and save with Ctrl+S. This modifies the RAM copy only; reboot restores the original content.
+
+---
+
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/HTTPD.md)

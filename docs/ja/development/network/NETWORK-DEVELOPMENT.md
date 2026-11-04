@@ -1,6 +1,6 @@
 # Pico Wネットワーク実装・拡張ガイド
 
-> **資料区分：開発ガイド（教科書・API仕様ではありません）**．[ネットワーク開発目次](README.md) ｜ [教科書C5](../../learn/C/C5.md) ｜ [English](../../../en/development/network/NETWORK-DEVELOPMENT.md)
+*開発ガイド*
 
 この資料は，**カーネル側**のWi-Fi，lwIP，ソケット，常駐サービスをソースから追い，安全に変更するための道順です．Cアプリからの`socket()`などの呼出方法は[ユーザ向けソケットAPI](../apps/c/NETWORK-PROGRAMMING.md)，実際の接続方法・制限値は[ネットワークリファレンス](../../reference/network/README.md)に集約します．**ネットワークは[デバイスドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)の後**に学ぶ選択分野です．
 
@@ -88,3 +88,7 @@ AP接続，STA接続（使う場合），Telnet接続／切断，`httpd`や`nc`�
 - **学習順序・確認課題**： [教科書C5](../../learn/C/C5.md)
 
 実装と文書が食い違った場合は，現行ソースを確認し，関連する**日本語・英語の両方**のページを修正してください．
+
+---
+
+**関連リンク：** [ネットワーク開発目次](README.md) ｜ [English](../../../en/development/network/NETWORK-DEVELOPMENT.md)

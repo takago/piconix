@@ -1,8 +1,6 @@
 # 技術リファレンス — 目次
 
-**資料区分：リファレンス目次** ｜ [教科書](../learn/README.md) ｜ [文書案内](../../DOCS.ja.md) ｜ [English](../../en/reference/README.md)
-
-リファレンスは，**仕様を必要なときに調べる**ための資料です．A1.1などの学習番号や「次へ」ボタンは付けません．順に学ぶ場合は[教科書総目次](../learn/README.md)を開いてください．
+OSの仕様，API，機能の制限などを分野別に調べられます．順番にUNIXを学ぶ場合は[教科書総目次](../learn/README.md)を参照してください．
 
 **目的から探す：** [やりたいこと → 関連資料](../TASKS.md)．
 
@@ -14,7 +12,6 @@
 - [初期RAMファイルと /etc/rc](INITIAL-FILES.md)
 - [PicoNIXの内部構造](INTERNAL.md)
 - [`mem` のカーネルシンボル表示（現行実装）](KERNEL-SYMBOLS.md)
-- [メモリシンボル表示（案内）](MEM-SYMBOLS.md)
 - [RP2040 SRAMレイアウト（現行配置）](MEMORY-LAYOUT.md)
 - [PicoNIX 仕様書](SPECIFICATION.md)
 - [システムコール・ABIリファレンス](SYSCALLS.md)
@@ -45,3 +42,7 @@
 - [配線・電気的注意](hardware/WIRING.md)
 
 [教科書へ戻る](../learn/README.md) ｜ [補助教材一覧](../guides/README.md) ｜ [開発ガイド一覧](../development/README.md)
+
+---
+
+**関連リンク：** [文書案内](../../DOCS.ja.md) ｜ [English](../../en/reference/README.md)

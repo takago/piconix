@@ -1,8 +1,6 @@
 # Usage and Command Guides
 
-> **Document type: GUIDE INDEX** | [Textbook](../learn/README.md) | [日本語](../../ja/guides/README.md)
-
-Only pages with **distinct command procedures, detailed usage, or practical cautions** remain here. Sequential beginner lessons about commands, files, processes, TTYs, memory, monitoring, devices, and networking have been merged into the numbered [Part A/B/C textbook](../learn/README.md). These guides have no Previous/Next textbook navigation.
+Find command instructions, operational cautions, and practical examples here. For a sequential introduction to UNIX, follow the [Part A/B/C textbook](../learn/README.md).
 
 **Setup:** [Installation guide](../setup/SETUP.md).
 
@@ -29,3 +27,7 @@ Only pages with **distinct command procedures, detailed usage, or practical caut
 - [mem — memory viewer](MEM.md)
 
 [Textbook contents](../learn/README.md) | [Technical references](../reference/README.md)
+
+---
+
+**Related links:** [日本語](../../ja/guides/README.md)

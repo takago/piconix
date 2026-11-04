@@ -1,8 +1,6 @@
 # fd — file browser
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/A/A1.md) | [Guide index](README.md).
-
-[日本語](../../ja/guides/FD.md) | [Documentation](../../DOCS.md)
+*Usage guide*
 
 `fd [directory]` opens a small, FDclone-inspired full-screen browser. The default directory is `/tmp`. Up/Down selects an entry, Enter/Right opens a directory or file, and Enter on the `../` entry, or Backspace/Left, goes to the parent directory. Press `r` to refresh and `q` to exit.
 
@@ -16,3 +14,6 @@ The `../` entry now comes from the VFS `getdents()` interface rather than being 
 
 For `/proc/sym/kernel`, if the kernel supports `lseek()`, the viewer keeps a bounded index of file offsets every 16 lines and seeks to the nearest known position before reading. The index is reset when opening a file or pressing `r`. Other `/proc` files may change at any time, so they continue to use sequential scanning to avoid stale offsets. Older kernels without symbol-file seek support also fall back to sequential scanning. The index holds at most 128 offsets; distant lines past its coverage can still be read, but may require scanning.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/A/A1.md) | [Guide index](README.md) | [日本語](../../ja/guides/FD.md) | [Documentation](../../DOCS.md)

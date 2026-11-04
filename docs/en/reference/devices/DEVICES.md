@@ -1,8 +1,6 @@
 # PicoNIX Device Guide
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
-
-[日本語](../../../ja/reference/devices/DEVICES.md) | [Device index](README.md) | [Hardware and wiring](../hardware/README.md)
+*Technical reference*
 
 For the full directory and node inventory, access modes, and RAM file limits, see [Filesystem and device nodes](../FILESYSTEM.md).
 
@@ -79,9 +77,42 @@ The `kitesys` demo displays digits, uses buttons on GP16/17 to shift the image, 
 
 **Electrical safety:** The matrix requires current limiting and suitable driver circuitry. See [wiring and electrical safety](../hardware/WIRING.md).
 
+### Interactive Framebuffer Editor (`fbed`)
+
+`fbed` edits the 8×8, 64-bit (8-byte) framebuffer at `/dev/gpio/fb`. Each byte represents a row, with bit 7 at the left. It reads the current image and writes all eight bytes after each edit.
+
+```text
+piconix# fbed
+```
+
+| Key | Action |
+|---|---|
+| Up / Down / Left / Right | Move the selection |
+| Space | Toggle the selected LED |
+| `c` | Clear all pixels |
+| `q` | Quit |
+
+Each row's byte is displayed in hexadecimal. The editor enables framebuffer scanning when launched; the image and display remain active after exit. GP0–GP15 are reserved while framebuffer scanning is enabled. Run `fbctl off` to stop scanning and release those pins.
+
 ## GPIO
 
 `kernel/pins.h` selects each pin's role using `GPn_MODE`. See [pin assignments](../hardware/PINS.md) for board-level details. Run `ls /dev/gpio` to list GPIO pins. GPIO values, direction, and pull settings use the existing GPIO device interface. Pins assigned to ADC, PWM, or UART are hidden from the GPIO listing and rejected by GPIO operations.
+
+### Interactive GPIO editor (`gpio`)
+
+Run `gpio` in a USB CDC or UART1 ANSI terminal. It reports live pin state and refreshes about every 50 ms.
+
+#### Interactive `gpio` editor
+
+GPIO pins are displayed as an eight-row, four-column grid (31–24, 23–16, 15–8, 7–0). Unavailable positions display `---` and cannot be selected. Arrow keys follow the screen layout. Keys: `i` input, `o` output, `h` HIGH, `l` LOW, `SP` toggle output, `u` pull-up, `d` pull-down, `n` no pull, `q` quit. HIGH/LOW/toggle apply to outputs; pull operations apply to inputs.
+
+Labels such as `[FB]`, `[PWM]`, `[UART-TX]`, and `[UART-RX]` reflect live kernel-reported pin ownership. Such pins can be inspected but not edited. Releasing the framebuffer changes the displayed status automatically.
+
+GPIO defaults at boot: GP25 is output (LOW), GP16 and GP17 are inputs with pull-ups. They remain editable with `gpio`.
+
+**Terminal note:** Both `fbed` and `gpio` need ANSI terminal support and character-at-a-time input. In VS Code Serial Monitor, disable line-input mode.
+
+For the kernel UDP 2000 remote-device interface, see [Remote device control](../network/REMOTE-DEVICE.md).
 
 ## ADC and temperature
 
@@ -104,7 +135,7 @@ An ADC sample is captured at the first `read()` and returned as decimal text. Sh
 
 By default, GP18 and GP19 are PWM outputs sharing one RP2040 PWM slice: **frequency is common**, while duty cycles are independent. On boot the frequency is **1 kHz** and both duties are **0%**.
 
-PWM slice 1 channel A (`/dev/pwm/1/a`) maps to GPIO18 and channel B (`/dev/pwm/1/b`) to GPIO19. Both channels share one frequency.
+PWM slice 1 channel A (`/dev/pwm/1/a`) maps to GPIO18 and channel B (`/dev/pwm/1/b`) to GPIO19.
 
 ```sh
 cat /dev/pwm/1/freq
@@ -115,7 +146,7 @@ echo 50 > /dev/pwm/1/a
 echo 0 > /dev/pwm/1/a
 ```
 
-`/dev/pwm/1/freq` accepts 8–100000 Hz; `/dev/pwm/1/a` and `/dev/pwm/1/b` accept 0–100% duty as decimal text. Hardware dividers and counter limits may introduce frequency rounding. PWM device entries appear only for pins configured as PWM.
+`/dev/pwm/1/freq` accepts integer frequencies from 8 to 100000 Hz. `/dev/pwm/1/a` and `/dev/pwm/1/b` accept duty cycles from 0 to 100% with one decimal place (for example `7.5`), and display one decimal place when read. Hardware divider and counter limits can cause frequency rounding. PWM device entries appear only for pins configured as PWM.
 
 ## I²C1
 
@@ -133,35 +164,6 @@ The main console uses USB CDC only. UART0 console builds are not supported. UART
 - `/dev/trace` provides binary records; see [TRACE.md](../../guides/TRACE.md).
 - Drivers live in `kernel/gpio.c`, `kernel/adc.c`, and `kernel/pwm.c`; FD management stays in `kernel/kernel.c`.
 
-## Interactive Framebuffer Editor (`fbed`)
+---
 
-`fbed` edits the 8×8, 64-bit (8-byte) framebuffer at `/dev/gpio/fb`. Each byte represents a row, with bit 7 at the left. It reads the current image and writes all eight bytes after each edit.
-
-```text
-piconix# fbed
-```
-
-| Key | Action |
-|---|---|
-| Up / Down / Left / Right | Move the selection |
-| Space | Toggle the selected LED |
-| `c` | Clear all pixels |
-| `q` | Quit |
-
-Each row's byte is displayed in hexadecimal. The editor enables framebuffer scanning when launched; the image and display remain active after exit. GP0–GP15 are reserved while framebuffer scanning is enabled. Run `fbctl off` to stop scanning and release those pins.
-
-Both utilities require ANSI terminal support and character-at-a-time input. In VS Code Serial Monitor, disable the monitor's line-input mode.
-
-## Interactive GPIO editor (`gpio`)
-
-Run `gpio` in a USB CDC or UART1 ANSI terminal. It reports live pin state and refreshes about every 50 ms.
-
-### Interactive `gpio` editor
-
-GPIO pins are displayed as an eight-row, four-column grid (31–24, 23–16, 15–8, 7–0). Unavailable positions display `---` and cannot be selected. Arrow keys follow the screen layout. Keys: `i` input, `o` output, `h` HIGH, `l` LOW, `SP` toggle output, `u` pull-up, `d` pull-down, `n` no pull, `q` quit. HIGH/LOW/toggle apply to outputs; pull operations apply to inputs.
-
-Labels such as `[FB]`, `[PWM]`, `[UART-TX]`, and `[UART-RX]` reflect live kernel-reported pin ownership. Such pins can be inspected but not edited. Releasing the framebuffer changes the displayed status automatically.
-
-GPIO defaults at boot: GP25 is output (LOW), GP16 and GP17 are inputs with pull-ups. They remain editable with `gpio`.
-
-For the kernel UDP 2000 remote-device interface, see [Remote device control](../network/REMOTE-DEVICE.md).
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/devices/DEVICES.md) | [Device index](README.md) | [Hardware and wiring](../hardware/README.md)

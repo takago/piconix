@@ -1,8 +1,6 @@
 # PicoNIX Kernel Tracing
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/B/B4.md) | [Guide index](README.md).
-
-[日本語](../../ja/guides/TRACE.md) | [Overview](README.md) | [Internals](../reference/INTERNAL.md)
+*Usage guide*
 
 PicoNIX records task switches, system-call entry/exit, and periodic timer events through `/dev/trace`. Use the `trace` command to inspect these events.
 
@@ -83,3 +81,6 @@ SysTick runs every 1ms and the usual time slice is 10ms. A sleeping task can tri
 
 Fixed device IDs and paths are shared between the kernel VFS and `trace` through `include/device_names.h`. `trace` prints a canonical path when available, falling back to `id=N` for unknown or dynamic devices. The TTY column shows `console`, `ttyS1`, or `ttyN0`. `ls -l` shows IDs for device nodes, program entries, and RAM-file slots; use `/proc/task/<pid>` or `lsof` to inspect which descriptors are open. Existing binary trace logs from older firmware should not be mixed with this format because TTY metadata moved into the event-kind byte.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/B/B4.md) | [Guide index](README.md) | [日本語](../../ja/guides/TRACE.md) | [Internals](../reference/INTERNAL.md)

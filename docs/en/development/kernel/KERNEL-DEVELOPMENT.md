@@ -1,6 +1,6 @@
 # Kernel Development Guide
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md).
+*Development guide*
 
 To study the kernel before modifying it, see the [kernel reading guide](KERNEL-READING-GUIDE.md).
 
@@ -164,3 +164,6 @@ The goal is to learn **two ways of exposing existing kernel state**, not to add 
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md): User-space C development
 - [TRACE.md](../../guides/TRACE.md): Inspecting SVCs and task switches
 
+---
+
+**Related links:** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md)

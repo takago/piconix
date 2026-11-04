@@ -1,8 +1,6 @@
 # Socket API and network applications
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
-
-[日本語](../../../../ja/development/apps/c/NETWORK-PROGRAMMING.md) | [Network access](../../../reference/network/NETWORK.md)
+*Development guide*
 
 ## Architecture
 
@@ -52,3 +50,6 @@ Example: `printf 'READ /dev/adc/temp\n' | nc -u -w 2 192.168.4.1 2000`. These se
 
 Kernel network services are separate from user-space socket applications. `trace` can observe system calls and `lsof` can show socket FDs and local ports. Older `NETWORK_STAGE*.md` and experimental notes document development history; this guide describes the current interface.
 
+---
+
+**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md) | [日本語](../../../../ja/development/apps/c/NETWORK-PROGRAMMING.md)

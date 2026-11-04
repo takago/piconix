@@ -1,8 +1,6 @@
 # 端末設定と対話型入力
 
-> **資料区分：操作ガイド（教科書本編ではありません）**．[対応する教科書の章](../learn/B/B2.md) ｜ [操作ガイド一覧](README.md)．
-
-[English](../../en/guides/TTY.md) | [概要](README.md) | [UART1と端末](../reference/devices/UART.md) | [Cアプリ開発](../development/apps/c/PROGRAMMING.md)
+*操作ガイド*
 
 PicoNIXでは，端末の**入力モード**とファイルディスクリプタ（FD）の**ブロッキング設定**を別々に扱います．POSIX `termios` の完全実装ではありません．
 
@@ -71,3 +69,6 @@ TAB（`0x09`）はシェルの行編集とcanonical入力で受け付け，フ�
 
 **実装の参照先：** `kernel/kernel.c` の `tty_canonical`，`tty_echo`，`tty_onlcr`，`tty_saved_*`，`foreground_group` と `OS_TTY_*` の処理，`userland/apps/shell.c` の行編集とパイプ処理．
 
+---
+
+**関連リンク：** [対応する教科書の章](../learn/B/B2.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TTY.md) ｜ [UART1と端末](../reference/devices/UART.md) ｜ [Cアプリ開発](../development/apps/c/PROGRAMMING.md)

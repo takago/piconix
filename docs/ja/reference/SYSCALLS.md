@@ -1,6 +1,6 @@
 # システムコール・ABIリファレンス
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
+*技術リファレンス*
 
 システムコール番号の一次資料は`include/piconix_syscall.h`の`PICONIX_SYSCALL_TABLE(X)`です．実装とAPIの説明は `kernel/kernel.c` の `os_svc_dispatch()`，`userland/lib/syscalls.c`，`userland/lib/unistd.h` に基づきます．Cアプリケーションでは通常ラッパー関数を使用します．一般的なPOSIX ABIとは異なります．
 
@@ -89,3 +89,7 @@
 
 
 `spawn_foreground()`と`spawn_tmp_foreground()`は新しいシステムコール番号ではありません．`SYS_SPAWN`の引数個数に`0x100`を付加する方法，または`SYS_SPAWN_TMP`の第2引数を1にする方法で，起動とフォアグラウンドTTY制御権の移譲を不可分に行います．従来の`spawn()`はバックグラウンド起動に使えます．
+
+---
+
+**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [English](../../en/reference/SYSCALLS.md)

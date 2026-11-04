@@ -1,6 +1,6 @@
 # PicoNIX 仕様書
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
+*技術リファレンス*
 
 この文書は，PicoNIXの**現行実装の概要と固定上限**をまとめた開発者向け資料です．操作方法は[ドキュメント案内](../../DOCS.ja.md)を参照してください．本書はPOSIX準拠を宣言するものではありません．記述と動作が異なる場合は，対象リビジョンのソースコードを優先してください．
 
@@ -87,3 +87,7 @@ Pico Wでは`tcpdump`用の`/dev/net/packet`（16件のIPv4情報記録）と，
 ## 10．仕様の根拠と更新手順
 
 この仕様書の主な根拠は`include/piconix.h`，`kernel/kernel.c`，`kernel/net_socket.h`，`userland/lib/syscalls.c`，`userland/apps/shell.c`，`CMakeLists.txt`です．機能変更時は，(1)実装と定数を確認，(2)本書の上限・構成を更新，(3)個別ガイドと日英版を更新，(4)サンプルを検証，の順で整合性を保ってください．
+
+---
+
+**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [English](../../en/reference/SPECIFICATION.md)

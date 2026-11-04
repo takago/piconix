@@ -1,8 +1,6 @@
 # nc (netcat) and termination
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
-
-[Overview](../../guides/README.md) | [日本語](../../../ja/reference/network/NC.md) | [Pipes](../../guides/PIPE.md)
+*Technical reference*
 
 PicoNIX provides a small TCP/UDP `nc` for numeric IPv4 addresses. It does not implement DNS names or the complete option set of desktop netcat implementations.
 
@@ -38,3 +36,7 @@ PicoNIX `nc` does **not** support `-w` timeouts. Do not confuse its options with
 Start `nc -u -l 12345` on Linux, then run the `echo hello | nc -u -N ...` command above on PicoNIX, using `192.168.4.2` as the Linux PC address. Verify receipt and that the PicoNIX prompt returns. If the PC receives another address, substitute it. When connecting from Linux to PicoNIX, use `192.168.4.1`.
 
 For file and memory transfer examples, see the [dd guide](../../guides/DD.md).
+
+---
+
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [Usage guides](../../guides/README.md) | [日本語](../../../ja/reference/network/NC.md) | [Pipes](../../guides/PIPE.md)

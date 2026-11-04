@@ -1,6 +1,6 @@
 # edit — text editor
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md).
+*Usage guide*
 
 `edit` edits RAM-backed text files. It does not modify arbitrary memory addresses.
 
@@ -24,3 +24,6 @@ For a simple exercise, run `edit /tmp/hello.txt`, type and save a short line, th
 - On a save failure, the status line shows `Save failed`. Check file size and available space.
 - The editor temporarily changes terminal input and display settings; use an ANSI-compatible terminal.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md) | [日本語](../../ja/guides/EDIT.md)

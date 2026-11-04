@@ -1,6 +1,6 @@
 # Kernel symbols in `mem` (current implementation)
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+*Technical reference*
 
 `mem -s kernel` lists kernel functions and data symbols at absolute addresses. Interactive `mem` automatically selects symbols for the visible kernel and task-slot address ranges and displays labels such as `SYMBOL: kernel, sh`. Multiple symbols in a 16-byte row are separated by commas.
 
@@ -21,3 +21,7 @@ mem -s sh
 ```
 
 **Verification note:** Post-link checks are distinct from runtime validation on hardware. Run build checks before flashing and verify `mem -s kernel` on the device when needed.
+
+---
+
+**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/KERNEL-SYMBOLS.md)

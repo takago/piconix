@@ -1,8 +1,6 @@
 # PicoNIX internals
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
-
-[日本語](../../ja/reference/INTERNAL.md) | [Overview](../guides/README.md) | [C application development](../development/apps/c/PROGRAMMING.md)
+*Technical reference*
 
 This guide explains **how PicoNIX works**, from boot and task switching to system calls and I/O. For step-by-step application development, see [C application development](../development/apps/c/PROGRAMMING.md). For physical pin assignments and connections, see [pin assignments](hardware/PINS.md) and [wiring](hardware/WIRING.md); see [devices](devices/DEVICES.md) for `/dev` interfaces.
 
@@ -142,3 +140,7 @@ trace show
 **Next:** [C application development](../development/apps/c/PROGRAMMING.md) for adding a command, [devices](devices/DEVICES.md) for device interfaces, [wiring](hardware/WIRING.md) for physical connections, and [Terminal settings and interactive input](../guides/TTY.md) for TTY details.
 
 Pico W uses the 16-KiB network reserve for its 10-KiB lwIP heap and 4-KiB idle task stack; see [Memory layout](MEMORY-LAYOUT.md).
+
+---
+
+**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/INTERNAL.md) | [Usage guides](../guides/README.md)

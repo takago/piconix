@@ -1,6 +1,6 @@
 # PicoNIX Tiny Python — User Guide
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
+*Development guide*
 
 ## Before you start
 
@@ -242,3 +242,6 @@ printf 'temp' | nc -u -w 2 <Pico W IP address> 9000
 
 TCP and UDP have separate port spaces. `accept()` and `recvfrom()` are nonblocking. TCP `send()` may be partial or temporarily unavailable; the TCP sample makes a single short send without retries. UDP `"peer"` with port `0` addresses only the most recently received sender. Each Python `while` loop is limited to 10,000 iterations, so these examples are not permanent services. Use only on a trusted test LAN.
 
+---
+
+**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md)

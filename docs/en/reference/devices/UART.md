@@ -1,8 +1,6 @@
 # UART1 and terminal operation
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
-
-[日本語](../../../ja/reference/devices/UART.md) | [Overview](../../guides/README.md) | [Internals](../INTERNAL.md)
+*Technical reference*
 
 PicoNIX distinguishes between using `/dev/ttyS1` as a **raw serial device** and attaching it as an **interactive terminal** through `getty`. This keeps control bytes available for ordinary communication while allowing a second terminal to run a shell or Python.
 
@@ -74,3 +72,7 @@ cat /proc/tasks
 See also [Setup](../../setup/SETUP.md), [Internals](../INTERNAL.md), and [Python-like interpreter](../../development/apps/python/PYTHON.md).
 
 Foreground pipelines: Ctrl+C interrupts the registered foreground pipeline stages, not just one command. This is not POSIX signal delivery.
+
+---
+
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/devices/UART.md) | [Usage guides](../../guides/README.md)

@@ -1,8 +1,6 @@
 # nc（netcat）と通信の終了
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md)．
-
-[概要](../../guides/README.md) | [English](../../../en/reference/network/NC.md) | [パイプ](../../guides/PIPE.md)
+*技術リファレンス*
 
 PicoNIXの`nc`は数値IPv4アドレスを使う簡易TCP/UDPクライアント・待受プログラムです．DNS名，汎用的なnetcatのすべてのオプションには対応しません．
 
@@ -38,3 +36,7 @@ UDPにはTCPのFINに相当する接続終了通知がありません．相手�
 Linux側で`nc -u -l 12345`を起動し，PicoNIX側から上記の`echo hello | nc -u -N ...`を実行します．受信後，PicoNIXのプロンプトに戻ることを確認してください．PC側のIPが`192.168.4.2`であることを確認してください．割り当てが異なる場合は実際のアドレスに置き換えます．LinuxからPicoNIXへ接続する場合の宛先は`192.168.4.1`です．
 
 ファイル・メモリの転送例は[ddガイド](../../guides/DD.md)を参照してください．
+
+---
+
+**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [操作ガイド一覧](../../guides/README.md) ｜ [English](../../../en/reference/network/NC.md) ｜ [パイプ](../../guides/PIPE.md)

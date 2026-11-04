@@ -1,8 +1,6 @@
 # PicoNIX カーネルトレース
 
-> **資料区分：操作ガイド（教科書本編ではありません）**．[対応する教科書の章](../learn/B/B4.md) ｜ [操作ガイド一覧](README.md)．
-
-[English](../../en/guides/TRACE.md) | [概要](README.md) | [内部構造](../reference/INTERNAL.md)
+*操作ガイド*
 
 PicoNIXは，タスク切り替え，システムコールの開始・終了，周期的なタイマイベントを `/dev/trace` に記録できます．表示には `trace` コマンドを使います．
 
@@ -83,3 +81,6 @@ SysTickは1ms周期，通常のタイムスライスは10msです．sleepでの�
 
 固定デバイスのIDとパスは，`include/device_names.h`を通じてカーネルVFSと`trace`で共有します．`trace`は対応するパスを表示し，未知または動的なデバイスでは`id=N`にフォールバックします．TTY列は`console`，`ttyS1`，`ttyN0`を区別します．`ls -l`では，デバイスノードのID，プログラムID，RAMファイルのスロット番号を表示します．実際に開いているFDは`/proc/task/<pid>`や`lsof`で確認できます．TTY情報の格納位置を変更したため，旧ファームウェアのバイナリトレース記録と混在させないでください．
 
+---
+
+**関連リンク：** [対応する教科書の章](../learn/B/B4.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TRACE.md) ｜ [内部構造](../reference/INTERNAL.md)

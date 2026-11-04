@@ -1,6 +1,6 @@
 # Device Driver Development
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md).
+*Development guide*
 
 ## Before you start
 
@@ -59,3 +59,6 @@ Confirm actual public macro names and types against the headers when implementin
 | Contention | Ownership and concurrent access rules are defined |
 | Hardware | Missing peripherals are handled safely on Pico and Pico W |
 
+---
+
+**Related links:** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md)

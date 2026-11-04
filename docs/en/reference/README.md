@@ -1,8 +1,6 @@
 # Technical reference — Index
 
-**Document type: REFERENCE INDEX** | [Textbook](../learn/README.md) | [Documentation](../../DOCS.md) | [日本語](../../ja/reference/README.md)
-
-References provide **specifications for lookup**, not sequential lessons. They have no A1.1 section numbering or Next/Previous textbook links. Start at the [textbook contents](../learn/README.md) if you want guided learning.
+Look up OS behavior, APIs, and limitations by topic. For sequential UNIX lessons, follow the [textbook](../learn/README.md).
 
 **Find by goal:** [Task index](../TASKS.md).
 
@@ -14,7 +12,6 @@ References provide **specifications for lookup**, not sequential lessons. They h
 - [Initial RAM Files and /etc/rc](INITIAL-FILES.md)
 - [PicoNIX internals](INTERNAL.md)
 - [Kernel symbols in `mem` (current implementation)](KERNEL-SYMBOLS.md)
-- [Memory symbols (guide)](MEM-SYMBOLS.md)
 - [RP2040 SRAM Layout (current layout)](MEMORY-LAYOUT.md)
 - [PicoNIX Specification](SPECIFICATION.md)
 - [System Calls and ABI Reference](SYSCALLS.md)
@@ -45,3 +42,7 @@ References provide **specifications for lookup**, not sequential lessons. They h
 - [Wiring and electrical precautions](hardware/WIRING.md)
 
 [Return to textbook](../learn/README.md) | [Supplementary guides](../guides/README.md) | [Development guides](../development/README.md)
+
+---
+
+**Related links:** [Documentation](../../DOCS.md) | [日本語](../../ja/reference/README.md)

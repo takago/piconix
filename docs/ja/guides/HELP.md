@@ -1,6 +1,6 @@
 # help コマンド
 
-> **資料区分：操作ガイド（教科書本編ではありません）**．[対応する教科書の章](../learn/A/A1.md) ｜ [操作ガイド一覧](README.md)．
+*操作ガイド*
 
 `help` は PicoNIX のコマンドを分類して一覧表示する独立した RAM アプリケーションです．
 
@@ -54,7 +54,7 @@ piconix# fbed
 
 `ping [-c COUNT] IPv4`は既定で4回のEcho Requestを送ります．`192.168.4.2`のような数値のIPv4アドレスを指定してください．`tcpdump [-x] [-c COUNT]`はIPv4のTCP/UDP/ICMPを観察します．`-x`を指定すると字下げした2行目にデータ長と先頭最大16バイト（HEX・ASCII）を表示します．どちらもPico W専用です．詳しくは[教科書 B6](../learn/B/B6.md)を参照してください．
 
-`ip addr`でPico WのループバックとWi-Fiインターフェースを確認できます．`edit`は未保存の変更がある場合，Ctrl+Qを2回押すと破棄して終了します．保存するときはCtrl+Sです．Ctrl+Cでも保存せず終了できます．
 
-ファイルを複製するときは`cp SRC DST`を使用します．例：`cp /etc/index.html /tmp/index.html`．`/tmp`と`/etc`のRAMファイル以外は対象外です．
+---
 
+**関連リンク：** [対応する教科書の章](../learn/A/A1.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/HELP.md)

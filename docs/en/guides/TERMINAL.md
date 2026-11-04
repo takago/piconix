@@ -1,8 +1,6 @@
 # Terminal Usage and Screen Control
 
-> **Document type: USAGE GUIDE (not a textbook chapter).** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md).
-
-[日本語](../../ja/guides/TERMINAL.md) | [TTY settings](TTY.md) | [UART and terminals](../reference/devices/UART.md) | [Historical debugging notes](../../history/en/TERMINAL-DEBUG.md)
+*Usage guide*
 
 In PicoNIX, **the kernel manages TTY input/output behavior**, while **applications control cursor position, full-screen display, and other screen features by emitting ANSI/DEC escape sequences**. These layers are independent: restoring TTY settings does not necessarily restore the screen.
 
@@ -124,3 +122,6 @@ cat note.txt | grep hello
 
 An invalid option or argument count is reported by the command itself. The small shell does not implement full POSIX quoting, and `/tmp` executable images currently do not accept arguments. Without an argument, `omikuji` counts down for 10 seconds, so `omikuji &` works too. `omikuji -i` repeatedly reads integers from standard input as an input exercise. `echo "3 4" | omikuji -i` runs a 3-second and then a 4-second fortune, stopping at EOF. Whitespace separates values; invalid tokens and numbers outside 1..30 are ignored. Avoid running interactive `-i` in the background because it may compete for terminal input.
 
+---
+
+**Related links:** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md) | [日本語](../../ja/guides/TERMINAL.md)

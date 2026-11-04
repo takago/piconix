@@ -1,8 +1,6 @@
 # PicoNIX Kernel Reading Guide
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md).
-
-[Documentation](../../../DOCS.md) | [Kernel development](KERNEL-DEVELOPMENT.md) | [Function index (Japanese)](../../../FUNCTIONS.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)
+*Development guide*
 
 This guide explains **how to read the current PicoNIX kernel source**, rather than how to extend it. Follow one path through the system: **boot → task creation → scheduling → context switching → system calls → files → IPC → devices → networking (optional)**. Read one function and its callers and callees at a time. For modifications, use the [kernel development guide](KERNEL-DEVELOPMENT.md).
 
@@ -37,3 +35,6 @@ echo hello | grep hello | cat
 
 Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../guides/TRACE.md), [Memory inspection](../../guides/MEM.md), [TTY](../../guides/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../FUNCTIONS.md).
 
+---
+
+**Related links:** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md) | [Documentation](../../../DOCS.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)

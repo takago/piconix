@@ -1,8 +1,6 @@
 # UART1と端末操作
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md)．
-
-[English](../../../en/reference/devices/UART.md) | [概要へ戻る](../../guides/README.md) | [内部構造](../INTERNAL.md)
+*技術リファレンス*
 
 PicoNIXでは，`/dev/ttyS1`を**通常のシリアルデバイス**として使う方法と，`getty`によって**対話端末**として使う方法を区別しています．これにより，通常の通信で制御文字を失わずに，別端末でShellやPythonを操作できます．
 
@@ -74,3 +72,7 @@ USB側では`tty`は`/dev/console`，UART1側のShellでは`/dev/ttyS1`を表示
 - 実機での動作は利用する端末ソフトウェアや接続設定にも依存します．
 
 関連文書：[セットアップ](../../setup/SETUP.md)・[内部構造](../INTERNAL.md)・[Python風インタプリタ](../../development/apps/python/PYTHON.md)．
+
+---
+
+**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/devices/UART.md) ｜ [概要へ戻る](../../guides/README.md)

@@ -1,8 +1,6 @@
 # Pico Wネットワーク接続
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md)．
-
-[English](../../../en/reference/network/NETWORK.md) | [セットアップ](../../setup/SETUP.md)
+*技術リファレンス*
 
 Pico W版のPicoNIXは標準でWi-Fiアクセスポイント（AP）として動作し，DHCPで接続端末へIPアドレスを割り当てます．ビルド時にSTAモードを選択すると，既存のWi-Fiネットワークにも参加できます．USB CDCコンソールとは別に，ネットワーク経由のシェルを利用できます．通常のPicoにはWi-Fi機能はありません．なお，現在のPico W向けファームウェアは通常のPicoでも動作確認済みですが，Wi-Fi機能は利用できません．
 
@@ -129,3 +127,7 @@ piconix# ping -c 2 192.168.4.2
 ```
 
 `tcpdump [-x] [-c COUNT]`はPico W上で動作し，オプションは組み合わせられます．USB端末から`tcpdump -x -c 10`を起動し，PCの`curl http://192.168.4.1/`や別のPicoNIX端末の`ping`で通信を発生させてください．詳しい手順と表示例は[教科書 B6](../../learn/B/B6.md)にあります．`LEN`はIPv4パケット全体の長さ，`DATA`は先頭フラグメントにおけるTCP/UDPデータ長です．通常の`tcpdump`はパケット概要を1行で表示します．`-x`を指定すると，1行目に`DATA=`（データ長）を追加し，データがある場合は字下げした2行目の`DATA:`に先頭最大16バイトを，`hexdump`のように空白区切りの16進数と桁を揃えたASCII欄（`|...|`）で表示します．TCPのSYN・ACKなどデータがないパケットでは`DATA=0`のみ表示します．ICMPの`TYPE`はEcho Requestが8，Echo Replyが0です．待機するコマンドはシェルのCtrl+Cで終了できます．パケットの観察では通信内容が見えることがあるため，信頼できる実習ネットワークだけで使用してください．
+
+---
+
+**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/network/NETWORK.md) ｜ [セットアップ](../../setup/SETUP.md)

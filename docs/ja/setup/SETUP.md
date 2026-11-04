@@ -1,9 +1,5 @@
 # セットアップ
 
-> **資料区分：セットアップ手順**．学習開始前の準備です．作業が終わったら[教科書 A1](../learn/A/A1.md)へ進んでください．
-
-[English](../../en/setup/SETUP.md) | [概要](../guides/README.md)
-
 Ubuntu／Debian系Linuxを想定した導入手順です．Raspberry Pi PicoまたはPico W（RP2040）とデータ通信可能なUSBケーブルを用意してください．
 
 ## ハードウェアの準備
@@ -136,8 +132,11 @@ USBと別にUART1からShellを利用するには`getty /dev/ttyS1 sh &`を実�
 
 Pico Wのビルド，Wi-Fi設定，Telnet／socatの接続と終了方法は[Pico WのWi-Fi・Telnet・生TCP接続](../reference/network/NETWORK.md)を参照してください．
 
-PWMデューティ比は `/dev/pwm/1/a` と `/dev/pwm/1/b` に `7.5` のような0.1％刻みの値を書き込めます．読み取りも `7.5` のように小数1桁で返します．周波数 `/dev/pwm/1/freq` は従来どおり整数Hzです．
 
 ## 次に学ぶこと
 
 接続できたら，[新版教科書 A1](../learn/A/A1.md)から始まる実習で，ファイル，パイプ，タスクを確認してください．PCで実行するビルドコマンドと，`piconix#`で実行するOSコマンドを混同しないようにします．
+
+---
+
+**関連リンク：** [English](../../en/setup/SETUP.md) ｜ [操作ガイド一覧](../guides/README.md)

@@ -1,7 +1,5 @@
 # Development Guides
 
-**Document type: DEVELOPMENT GUIDE INDEX** | [Textbook](../learn/README.md) | [日本語](../../ja/development/README.md)
-
 These contain detailed implementation instructions and API information. Follow the [Part C textbook](../learn/C/README.md) for learning order and consult these guides as needed.
 
 **Find by goal:** [Task index](../TASKS.md).
@@ -36,3 +34,7 @@ These contain detailed implementation instructions and API information. Follow t
 - [Wi-Fi, lwIP, sockets and kernel service implementation](network/NETWORK-DEVELOPMENT.md)
 
 **Source index:** [Function list (Japanese)](../../FUNCTIONS.md). Line locations change with code revisions.
+
+---
+
+**Related links:** [Textbook](../learn/README.md) | [日本語](../../ja/development/README.md)

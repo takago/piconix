@@ -1,6 +1,6 @@
 # RP2040 SRAM Layout (current layout)
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+*Technical reference*
 
 | Region | Address range | Size |
 |---|---|---:|
@@ -64,3 +64,7 @@ dd if=/dev/shm of=- bs=1 count=4 | hexdump
 If the counter was initially zero, three runs produce the bytes `03 00 00 00` in little-endian order. A 16-bit-oriented `hexdump` may instead show `0003 0000`. The assembler writes `/tmp/a.out`.
 
 **Caution:** The `ldr`/increment/`str` sequence is not atomic. Concurrent processes can lose updates. Run the example sequentially; `/dev/shm` is shared with other programs, so do not overwrite the first four bytes when they are in use.
+
+---
+
+**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/MEMORY-LAYOUT.md)

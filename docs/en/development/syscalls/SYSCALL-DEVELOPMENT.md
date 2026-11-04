@@ -1,6 +1,6 @@
 # System Call Development
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md).
+*Development guide*
 
 ## Before you start
 
@@ -44,3 +44,6 @@ case SYS_EXAMPLE:
 - Wrapper argument positions match the dispatcher
 - SVC events appear in `trace` where relevant
 
+---
+
+**Related links:** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md)

@@ -1,8 +1,6 @@
 # PicoNIX 全体アーキテクチャ
 
-> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
-
-[English](../../en/reference/ARCHITECTURE.md) | [仕様書](SPECIFICATION.md) | [内部構造](INTERNAL.md) | [文書案内](../../DOCS.ja.md)
+*技術リファレンス*
 
 この文書は，現行ソースコードを読み始めるための**構成図と参照先**を示します．内部ABIやメモリ上限は[仕様書](SPECIFICATION.md)，各機能の詳細は個別ガイドを参照してください．
 
@@ -52,3 +50,7 @@
 ## 4．ソースコードの読み順
 
 初めて読む場合は，`kernel/main.c` → `userland/apps/shell.c` → `userland/lib/syscalls.c` → `kernel/kernel.c` → `kernel/context.S`の順が理解しやすいでしょう．ネットワークは`kernel/net_socket.c`，デバイスは各ドライバへ進みます．変更時には日英双方の文書と`userland/apps/help.c`の整合性も確認してください．
+
+---
+
+**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [English](../../en/reference/ARCHITECTURE.md) ｜ [内部構造](INTERNAL.md) ｜ [文書案内](../../DOCS.ja.md)

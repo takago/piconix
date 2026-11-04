@@ -1,7 +1,5 @@
 # PicoNIX Development Diary
 
-[Documentation index](DOCS.md) | [Overview](en/guides/README.md) | [日本語](DEVELOPMENT_DIARY.ja.md)
-
 ## Purpose and scope
 
 The design principles and specifications of PicoNIX are determined by its creator based on their knowledge and experience. Source code and documentation are generated and refined using ChatGPT under these decisions. The creator reviews changes and performs build and hardware checks during development. AI generation is not equivalent to verified behavior.
@@ -329,3 +327,6 @@ This is a narrative reconstruction from conversations, not an exhaustive Git aud
 
 For the current behavior and usage, consult [Internal architecture](en/reference/INTERNAL.md), [Networking](en/reference/network/NETWORK.md), [TTY](en/guides/TTY.md), [Pipes](en/guides/PIPE.md), [Tracing](en/guides/TRACE.md), and [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md).
 
+---
+
+**Related links:** [Documentation index](DOCS.md) | [Project overview](../README.md) | [日本語](DEVELOPMENT_DIARY.ja.md)

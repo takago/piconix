@@ -1,8 +1,6 @@
 # PicoNIX Architecture
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
-
-[日本語](../../ja/reference/ARCHITECTURE.md) | [Specification](SPECIFICATION.md) | [Internals](INTERNAL.md) | [Documentation](../../DOCS.md)
+*Technical reference*
 
 This guide maps the **current source tree** to major OS responsibilities. See the [specification](SPECIFICATION.md) for ABI and resource limits and the individual guides for detailed behavior.
 
@@ -52,3 +50,7 @@ Registered user programs are stored as PIC images in Flash and copied into RAM s
 ## 4. Suggested reading order
 
 Start with `kernel/main.c`, `userland/apps/shell.c`, `userland/lib/syscalls.c`, `kernel/kernel.c`, and `kernel/context.S`. Follow network or device subsystems as needed. Update both language versions of the documentation and `userland/apps/help.c` whenever user-facing behavior changes.
+
+---
+
+**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/ARCHITECTURE.md) | [Internals](INTERNAL.md) | [Documentation](../../DOCS.md)

@@ -1,7 +1,5 @@
 # Hardware — Technical Reference
 
-**Document type: TECHNICAL REFERENCE INDEX** | [Reference index](../README.md) | [Devices and I/O](../devices/README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/hardware/README.md)
-
 Use this index for **boards and physical connections**. The [device reference](../devices/DEVICES.md) explains `/dev` operations; the [driver development guide](../../development/drivers/DRIVER-DEVELOPMENT.md) explains implementing them in the kernel.
 
 | Topic | Document |
@@ -13,3 +11,7 @@ Use this index for **boards and physical connections**. The [device reference](.
 **Suggested order:** [Overview](HARDWARE.md) → [Pin assignments](PINS.md) → [Wiring](WIRING.md) → [Device usage](../devices/DEVICES.md).
 
 Cross-check `kernel/pins.h` (pin modes), `kernel/fb.c` (LED scanning), and the actual component datasheets.
+
+---
+
+**Related links:** [Reference index](../README.md) | [Devices and I/O](../devices/README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/hardware/README.md)

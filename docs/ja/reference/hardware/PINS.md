@@ -1,8 +1,6 @@
 # ピン割当とボード端子
 
-> **資料区分：技術リファレンス**．PicoNIXの現在のピン用途とボード上の位置を調べるためのページです．[ハードウェア目次](README.md) ｜ [配線](WIRING.md) ｜ [デバイスの操作](../devices/DEVICES.md)．
-
-[English](../../../en/reference/hardware/PINS.md)
+*技術リファレンス*
 
 **実装上の正本は`kernel/pins.h`**です．このページは添付ソースの`GPn_MODE`と照合して作成しています．`pins`コマンドでも割当を確認できます．物理端子番号の解釈はPico/Pico Wの基板資料を参照してください．
 
@@ -72,3 +70,7 @@ GP26／27はI²C1専用の固定割り当てで，`PIN_GPIO`や`PIN_ADC`に変�
 ## 接続方法
 
 [配線と電気的注意](WIRING.md)には，LEDマトリクスの端子対応，スイッチ，PWM，UART，I²C，ADCの具体例があります．
+
+---
+
+**関連リンク：** [ハードウェア目次](README.md) ｜ [デバイスの操作](../devices/DEVICES.md) ｜ [English](../../../en/reference/hardware/PINS.md)

@@ -1,6 +1,6 @@
 # UDP remote GPIO control (experimental)
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
+*Technical reference*
 
 The kernel UDP service listens on port 2000. Its requests are not authenticated.
 Only use it on a trusted isolated PicoNIX access point.
@@ -26,3 +26,7 @@ onboard LED (which is driven by CYW43).
 The GPIO implementation delegates to existing `gpio_driver_rw` and
 `gpio_driver_ioctl` to retain device access checks. The protocol remains
 intentionally restricted; it does not expose arbitrary VFS paths.
+
+---
+
+**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/REMOTE_GPIO.md)

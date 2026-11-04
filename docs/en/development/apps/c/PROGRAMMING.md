@@ -1,6 +1,6 @@
 # Developing C applications for PicoNIX
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
+*Development guide*
 
 ## Before you start
 
@@ -262,3 +262,6 @@ Like the earlier `greet` example, this application must be added to CMake and re
 - [Architecture](../../../reference/ARCHITECTURE.md) and [Internals](../../../reference/INTERNAL.md): PIC loading, scheduling, and kernel implementation
 - [Network programming](NETWORK-PROGRAMMING.md): TCP/UDP application development on Pico W
 
+---
+
+**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md)

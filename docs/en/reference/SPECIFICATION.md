@@ -1,6 +1,6 @@
 # PicoNIX Specification
 
-> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+*Technical reference*
 
 This document summarizes the **current implementation and fixed resource limits** for developers. For usage instructions, see the [documentation index](../../DOCS.md). PicoNIX does not claim full POSIX compatibility. The source code of the relevant revision takes precedence if behavior differs from this document.
 
@@ -87,3 +87,7 @@ Pico W also provides `/dev/net/packet` (16-record IPv4 capture ring) and `/dev/n
 ## 10. Sources and maintenance
 
 Primary sources: `include/piconix.h`, `kernel/kernel.c`, `kernel/net_socket.h`, `userland/lib/syscalls.c`, `userland/apps/shell.c`, and `CMakeLists.txt`. When implementation changes, update this specification, relevant guides, both languages, and executable examples together.
+
+---
+
+**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/SPECIFICATION.md)

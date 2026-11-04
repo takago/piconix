@@ -1,6 +1,6 @@
 # Pico W Kernel Networking: Implementation and Extension
 
-> **Document type: DEVELOPMENT GUIDE (not a textbook chapter or API reference).** [Network development index](README.md) | [Textbook C5](../../learn/C/C5.md) | [日本語](../../../ja/development/network/NETWORK-DEVELOPMENT.md)
+*Development guide*
 
 This guide is a source-reading and modification map for **kernel-side** Wi-Fi, lwIP, sockets, and built-in services. The **user-space** `socket()` API is documented in [Network Programming in C](../apps/c/NETWORK-PROGRAMMING.md); current connection behavior and limits belong in the [Network Reference](../../reference/network/README.md). Study networking **after [device drivers](../drivers/DRIVER-DEVELOPMENT.md)** as an optional topic.
 
@@ -88,3 +88,7 @@ Test AP, STA if used, Telnet connect/disconnect, user sockets (`httpd`, `nc`), `
 - **Sequential learning and exercises:** [Textbook C5](../../learn/C/C5.md)
 
 If implementation and documentation diverge, inspect current source and update **both Japanese and English** pages.
+
+---
+
+**Related links:** [Network development index](README.md) | [日本語](../../../ja/development/network/NETWORK-DEVELOPMENT.md)
