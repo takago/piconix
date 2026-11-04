@@ -102,7 +102,7 @@ To avoid deadlocking on the kernel's 256-byte pipe, `watch` drains the pipe to E
 
 `edit`, `vi`, `mem`, and `mb` use a small header for alternate-screen entry/exit and cursor movement. `edit`, `vi`, and `mb` optionally query the terminal size using a cursor position report (DSR, `ESC[6n`). The query must happen **after disabling canonical input**. When a terminal does not respond, the caller retains the 80-column, 24-row default. The kernel does not provide terminal window dimensions.
 
-To bound resource use, `edit` and `vi` cap their layouts at 160 columns and 60 rows. `mb` centers its existing 52-by-10 playing field (unchanged physics) on larger terminals. `mem` still displays a fixed 16-by-16-byte window. `pong` measures the launching terminal and centers its 48-column by 16-row game display; in two-terminal mode the same coordinates are used on both screens. `watch` uses fixed capture buffers. Live terminal resizing is not supported.
+To bound resource use, `edit` and `vi` cap their layouts at 160 columns and 60 rows. `mb` centers its existing 52-by-10 playing field (unchanged physics) on larger terminals. `mem` displays 16 bytes per row, adapting to the terminal height (up to 36 data rows; see [MEM](MEM.md)). `pong` measures the launching terminal and centers its 48-column by 16-row game display; in two-terminal mode the same coordinates are used on both screens. `watch` uses fixed capture buffers. Live terminal resizing is not supported.
 
 
 ### Foreground launch and terminal control

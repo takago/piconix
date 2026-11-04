@@ -25,13 +25,14 @@ for f in files:
 # 現行のedit/viは/tmpと/etcの両方を受け付ける．教材も実装と一致させる．
 editor = (root / 'userland/apps/editor_common.h').read_text(encoding='utf-8')
 assert 'strncmp(path,"/tmp/",5)&&strncmp(path,"/etc/",5)' in editor
-for f in [root / 'README.md', docs / 'en' / 'development' / 'apps' / 'c' / 'NETWORK-PROGRAMMING.md',
-          docs / 'ja' / 'development' / 'apps' / 'c' / 'NETWORK-PROGRAMMING.md']:
+for f in [root / 'README.md', docs / 'en' / 'reference' / 'network' / 'HTTPD.md',
+          docs / 'ja' / 'reference' / 'network' / 'HTTPD.md',
+          docs / 'en' / 'guides' / 'EDIT.md', docs / 'ja' / 'guides' / 'EDIT.md']:
     assert 'edit /etc/index.html' in f.read_text(encoding='utf-8'), f
-assert 'Horizontal scrolling is not implemented' not in (docs/'en'/'literacy'/'EDIT.md').read_text()
-assert '横方向のスクロールは未対応' not in (docs/'ja'/'literacy'/'EDIT.md').read_text()
+assert 'Horizontal scrolling is not implemented' not in (docs/'en'/'guides'/'EDIT.md').read_text()
+assert '横方向のスクロールは未対応' not in (docs/'ja'/'guides'/'EDIT.md').read_text()
 for lang in ('en', 'ja'):
-    trace = (docs/lang/'literacy'/'TRACE.md').read_text()
+    trace = (docs/lang/'guides'/'TRACE.md').read_text()
     assert 'ls -l' in trace
     assert ('device' in trace.lower()) if lang == 'en' else ('デバイス' in trace)
 print(f'PASS: {len(ja)} bilingual manual pairs, {count} local links and interface claims')

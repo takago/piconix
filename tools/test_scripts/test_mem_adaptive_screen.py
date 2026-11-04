@@ -21,7 +21,7 @@ for height,expected in ((8,2),(24,18),(42,36),(60,36)):
     assert rows==expected
     assert rows+6<=height
 for locale in ('en','ja'):
-    mem=(root/f'docs/{locale}/literacy/MEM.md').read_text()
+    mem=(root/f'docs/{locale}/guides/MEM.md').read_text()
     assert '36' in mem and 'PgUp' in mem
 cc=shutil.which('gcc') or shutil.which('clang')
 if cc:
