@@ -130,18 +130,18 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 
 ## Documentation / ドキュメント
 
-Documentation has **four document types**, plus a **task-based index** connecting them. / 文書は**4種類**に整理され，それらを横断する**目的別索引**も用意しています．
+Choose a starting point according to your goal. / 目的に応じて，以下の資料を選んでください．
 
-| Purpose / 目的 | English | 日本語 |
+| Category / 分類 | English | 日本語 |
 |---|---|---|
-| **Textbook / 教科書** (read in order) | [Learning path — Parts A/B/C](docs/en/learn/README.md) | [UNIX教科書 — Part A/B/C](docs/ja/learn/README.md) |
-| **Task index / 目的別索引** (start with a goal) | [Find by task](docs/en/TASKS.md) | [やりたいことから探す](docs/ja/TASKS.md) |
-| **Usage guides / 操作ガイド** (command details) | [Usage and labs](docs/en/guides/README.md) | [操作・実習ガイド](docs/ja/guides/README.md) |
-| **Reference / 技術リファレンス** (look up details) | [Technical reference](docs/en/reference/README.md) | [仕様リファレンス](docs/ja/reference/README.md) |
-| **Development guides / 開発ガイド** (implementation how-to) | [Development](docs/en/development/README.md) | [開発手順](docs/ja/development/README.md) |
+| **Setup / セットアップ** — Prepare the development environment / 開発環境を準備する | [Setup guide](docs/en/setup/SETUP.md) | [セットアップ手順](docs/ja/setup/SETUP.md) |
+| **Textbook / 教科書** — Learn UNIX in order, Parts A/B/C / Part A・B・Cを順番に学ぶ | [Contents](docs/en/learn/README.md) · [Start at A1](docs/en/learn/A/A1.md) | [教科書総目次](docs/ja/learn/README.md) · [A1から始める](docs/ja/learn/A/A1.md) |
+| **Task index / 目的別索引** — Find documentation by what you want to do / やりたいことから探す | [Find by task](docs/en/TASKS.md) | [目的別に探す](docs/ja/TASKS.md) |
+| **Usage guides / 操作ガイド** — Learn command operations / 個々のコマンド操作を調べる | [Usage guides](docs/en/guides/README.md) | [操作ガイド](docs/ja/guides/README.md) |
+| **Technical reference / 技術リファレンス** — Look up specifications and APIs / 仕様とAPIを調べる | [Reference](docs/en/reference/README.md) | [技術リファレンス](docs/ja/reference/README.md) |
+| **Development guides / 開発ガイド** — Implement and extend PicoNIX / プログラムやカーネルを開発する | [Development](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
+| **Documentation index / 文書一覧** — Browse all documentation / 文書全体を一覧する | [Documentation index](docs/DOCS.md) | [ドキュメント案内](docs/DOCS.ja.md) |
+| **Function index / 関数索引** — Generated source function list / ソースコードの関数一覧 | [Function index (Japanese)](docs/FUNCTIONS.md) | [関数索引（自動生成）](docs/FUNCTIONS.md) |
+| **Development diary / 開発日誌** — Review the project's development history / 開発の経緯を読む | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
 
-**Read in sequence / 順番に学ぶ：** [A1 first lesson](docs/en/learn/A/A1.md) / [A1 最初の章](docs/ja/learn/A/A1.md). Textbook sections are numbered `A1.1`, `B2.3`, `C4.1`, etc.; supporting guides and references are **not** part of the chapter sequence. / 補助教材やリファレンスは教科書の章節番号を持ちません．
-
-**Preparation / 準備：** [Setup](docs/en/setup/SETUP.md) / [セットアップ](docs/ja/setup/SETUP.md).
-
-**Documentation directories / 文書案内：** [English](docs/DOCS.md) / [日本語](docs/DOCS.ja.md). **Source index / 関数索引：** [FUNCTIONS.md](docs/FUNCTIONS.md). **Development history / 開発日誌：** [English](docs/DEVELOPMENT_DIARY.md) / [日本語](docs/DEVELOPMENT_DIARY.ja.md).
+Textbook sections use numbers such as `A1.1`, `B2.3`, and `C4.1`. Usage guides, references, and development guides are separate from this learning sequence. / 教科書には`A1.1`，`B2.3`，`C4.1`などの節番号を付けています．操作ガイド，リファレンス，開発ガイドは学習順路とは独立した資料です．
