@@ -130,18 +130,17 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 
 ## Documentation
 
-Choose a starting point according to your goal.
+Choose a guide based on what you want to do. If you are new to PicoNIX, start with the setup guide.
 
 | Category | English | 日本語 |
 |---|---|---|
-| **Setup** — Prepare the development environment| [Setup guide](docs/en/setup/SETUP.md) | [セットアップ手順](docs/ja/setup/SETUP.md) |
-| **Textbook** — Learn UNIX in order, Parts A/B/C | [Contents](docs/en/learn/README.md) · [Start at A1](docs/en/learn/A/A1.md) | [教科書総目次](docs/ja/learn/README.md) · [A1から始める](docs/ja/learn/A/A1.md) |
-| **Task index** — Find documentation by what you want to do | [Find by task](docs/en/TASKS.md) | [目的別に探す](docs/ja/TASKS.md) |
-| **Usage guides** — Learn command operations | [Usage guides](docs/en/guides/README.md) | [操作ガイド](docs/ja/guides/README.md) |
-| **Technical reference** — Look up specifications and APIs | [Reference](docs/en/reference/README.md) | [技術リファレンス](docs/ja/reference/README.md) |
-| **Development guides** — Implement and extend PicoNIX  | [Development](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
-| **Documentation index** — Browse all documentation | [Documentation index](docs/DOCS.md) | [ドキュメント案内](docs/DOCS.ja.md) |
-| **Function index** — Generated source function list | [Function index (Japanese)](docs/FUNCTIONS.md) | [関数索引（自動生成）](docs/FUNCTIONS.md) |
-| **Development diary** — Review the project's development history  | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
+| **Setup** — Install the tools and connect PicoNIX | [Setup guide](docs/en/setup/SETUP.md) | [セットアップ手順](docs/ja/setup/SETUP.md) |
+| **Textbook** — Learn UNIX step by step (Parts A–C) | [Textbook](docs/en/learn/README.md) | [教科書](docs/ja/learn/README.md) |
+| **Task index** — Find instructions by what you want to do | [Task index](docs/en/TASKS.md) | [目的別索引](docs/ja/TASKS.md) |
+| **Usage guides** — Look up commands and examples | [Usage guides](docs/en/guides/README.md) | [操作ガイド](docs/ja/guides/README.md) |
+| **Technical reference** — Check specifications and APIs | [Technical reference](docs/en/reference/README.md) | [技術リファレンス](docs/ja/reference/README.md) |
+| **Development guides** — Develop applications or extend the kernel | [Development guides](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
+| **Function index** — Browse source functions (Japanese only) | [Function index (Japanese)](docs/FUNCTIONS.md) | [関数索引](docs/FUNCTIONS.md) |
+| **Development diary** — Follow the development history | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
 
-Textbook sections use numbers such as `A1.1`, `B2.3`, and `C4.1`. Usage guides, references, and development guides are separate from this learning sequence.
+Textbook sections use numbers such as `A1.1`, `B2.3`, and `C4.1`. The other guides are organized by topic rather than chapter order.
