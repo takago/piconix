@@ -7,7 +7,7 @@
 - [UART1と端末操作](UART.md)
 - [ハードウェア・ピン割当・配線](../hardware/README.md)
 
-**学ぶ順序を確認：** [B5 デバイス](DEVICES.md) → [C4 デバイスドライバ](../../development/drivers/DRIVER-DEVELOPMENT.md)．
+**学習の順序：** [学習ロードマップ](../../ROADMAP.md)
 
 ---
 

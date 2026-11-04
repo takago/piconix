@@ -155,9 +155,7 @@ The application is built as a Flash-resident PIC image and copied into a RAM slo
 
 ## Directory-entry device IDs
 
-In long listing mode (`ls -l /dev`), device nodes display their kernel-assigned IDs with a type and ID; this also works in subdirectories such as `/dev/gpio`. `piconix_dirent_t` returned by `getdents()` now includes a `uint16_t device_id` field, with `0xffff` indicating no ID. This changes the directory-entry ABI, so rebuild the kernel and user applications together.
-
-The `device_id` field returned by `getdents()` identifies the directory entry: device ID for `/dev` and `/proc`, program ID for `/bin`, and zero-based RAM-file slot for `/tmp` and `/etc`. Directories or entries without an ID use `0xffff`. `ls -l` prints a `TYPE ID SIZE NAME` header, where `p` means program, `f` RAM file, `c` device, and `d` directory. RAM-file slot IDs are not persistent across deletion and recreation.
+The current `piconix_dirent_t` includes a `uint16_t device_id` field, and `ls -l` displays entry IDs. See the [system call reference](../../../reference/SYSCALLS.md) for the meanings of these IDs and the `0xffff` sentinel. If the ABI changes, rebuild both the kernel and user programs.
 
 ## Starting interactive child programs
 

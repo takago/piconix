@@ -12,36 +12,36 @@
 
 | やりたいこと | 関連ページ |
 |---|---|
-| まずPicoNIXを動かしたい | [導入：セットアップ](setup/SETUP.md) · [仕様：配線](reference/hardware/WIRING.md) |
+| まずPicoNIXを動かしたい | [導入：セットアップ](setup/SETUP.md) · [基本操作](guides/HELP.md) · [仕様：配線](reference/hardware/WIRING.md) |
 | ビルドしてUF2を書き込みたい | [導入：セットアップ](setup/SETUP.md) · [Cアプリ開発](development/apps/c/PROGRAMMING.md) |
-| USB端末に接続したい | [導入：セットアップ](setup/SETUP.md) · [TTY・stty](guides/TTY.md) |
-| コマンドの使い方や一覧を調べたい | [操作：help](guides/HELP.md) · [セットアップ](setup/SETUP.md) |
-| PicoNIXとLinuxの違いを知りたい | [セットアップ](setup/SETUP.md) · [仕様：Linuxとの違い](reference/DIFFERENCES.md) · [仕様：制限・仕様](reference/SPECIFICATION.md) |
+| USB端末に接続したい | [導入：セットアップ](setup/SETUP.md) · [基本操作](guides/HELP.md) · [TTY操作](guides/TTY.md) |
+| コマンドの使い方や一覧を調べたい | [操作：help](guides/HELP.md) |
+| PicoNIXとLinuxの違いを知りたい | [基本操作](guides/HELP.md) · [仕様：Linuxとの違い](reference/DIFFERENCES.md) · [仕様：制限・仕様](reference/SPECIFICATION.md) |
 
 ### シェル・ファイル・パイプ
 
 | やりたいこと | 関連ページ |
 |---|---|
-| ディレクトリを移動・一覧表示したい | [セットアップ](setup/SETUP.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
-| ファイルを作成・コピー・削除したい | [パイプ操作](guides/PIPE.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
-| ファイルから文字列を探したい（grep） | [パイプ操作](guides/PIPE.md)|
-| 標準入出力やリダイレクトを使いたい | [パイプ操作](guides/PIPE.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
-| パイプでコマンドをつなぎたい | [パイプ操作](guides/PIPE.md) · [ファイルシステム](reference/FILESYSTEM.md) |
+| ディレクトリを移動・一覧表示したい | [基本操作](guides/HELP.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
+| ファイルを作成・コピー・削除したい | [パイプとFD](guides/PIPE.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
+| ファイルから文字列を探したい（grep） | [パイプとFD](guides/PIPE.md) |
+| 標準入出力やリダイレクトを使いたい | [パイプとFD](guides/PIPE.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
+| パイプでコマンドをつなぎたい | [パイプとFD](guides/PIPE.md) · [ファイルシステム](reference/FILESYSTEM.md) |
 | edit・viでファイルを編集したい | [操作：edit](guides/EDIT.md) · [操作：vi](guides/VI.md) |
-| fdでディレクトリを閲覧したい | [操作：fd](guides/FD.md) · [セットアップ](setup/SETUP.md) |
+| fdでディレクトリを閲覧したい | [操作：fd](guides/FD.md) · [基本操作](guides/HELP.md) |
 | ddでバイナリデータを転送したい | [操作：dd](guides/DD.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
-| 起動時の/etc/rcや初期ファイルを調べたい | [仕様：初期ファイルとrc](reference/INITIAL-FILES.md) · [セットアップ](setup/SETUP.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
+| 起動時の/etc/rcや初期ファイルを調べたい | [仕様：初期ファイルとrc](reference/INITIAL-FILES.md) · [基本操作](guides/HELP.md) · [仕様：ファイルシステム](reference/FILESYSTEM.md) |
 
 ### プロセス・端末操作
 
 | やりたいこと | 関連ページ |
 |---|---|
-| psでプロセスを確認し，killで停止したい | [TTY・stty](guides/TTY.md) · [mem操作](guides/MEM.md) |
-| バックグラウンド実行やCtrl+Cを理解したい | [TTY・stty](guides/TTY.md)|
-| 開かれているFDをlsofで確認したい | [ファイルシステム](reference/FILESYSTEM.md) · [trace操作](guides/TRACE.md)|
-| USBとは別にUART1のシェルを使いたい | [TTY・stty](guides/TTY.md) · [仕様：UART1](reference/devices/UART.md) |
-| sttyやraw/cooked入力を理解したい | [TTY・stty](guides/TTY.md)|
-| 画面制御や全画面アプリの動作を知りたい | [操作：端末画面](guides/TERMINAL.md) · [実習：TTY設定](guides/TTY.md)|
+| psでプロセスを確認し，killで停止したい | [システム仕様](reference/SPECIFICATION.md) · [mem操作](guides/MEM.md) |
+| バックグラウンド実行やCtrl+Cを理解したい | [システム仕様](reference/SPECIFICATION.md) · [実習：TTY設定](guides/TTY.md) |
+| 開かれているFDをlsofで確認したい | [ファイルシステム](reference/FILESYSTEM.md) · [trace操作](guides/TRACE.md) |
+| USBとは別にUART1のシェルを使いたい | [TTY操作](guides/TTY.md) · [仕様：UART1](reference/devices/UART.md) |
+| sttyやraw/cooked入力を理解したい | [TTY操作](guides/TTY.md) |
+| 画面制御や全画面アプリの動作を知りたい | [操作：端末画面](guides/TERMINAL.md) · [実習：TTY設定](guides/TTY.md) |
 
 ### OS内部を観察する
 
@@ -51,14 +51,14 @@
 | memでRAMやタスクのメモリを見たい | [mem操作](guides/MEM.md) · [仕様：SRAM配置](reference/MEMORY-LAYOUT.md) |
 | FlashとRAMの配置・PICを理解したい | [mem操作](guides/MEM.md) · [仕様：SRAM配置](reference/MEMORY-LAYOUT.md) |
 | カーネルのシンボルを調べたい | [仕様：カーネルシンボル](reference/KERNEL-SYMBOLS.md) · [操作：mem](guides/MEM.md) · [索引：ソース関数一覧](../FUNCTIONS.md) |
-| VFSとFDの関係を理解したい | [ファイルシステム](reference/FILESYSTEM.md) · [システムコール開発](development/syscalls/SYSCALL-DEVELOPMENT.md)|
+| VFSとFDの関係を理解したい | [ファイルシステム](reference/FILESYSTEM.md) · [システムコール開発](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
 ### デバイス・電子工作
 
 | やりたいこと | 関連ページ |
 |---|---|
 | 使用可能なGPIOピンや配線を調べたい | [仕様：ピン割当](reference/hardware/PINS.md) · [仕様：配線](reference/hardware/WIRING.md) · [デバイス仕様](reference/devices/DEVICES.md) |
-| GPIOの入出力を操作したい | [デバイス仕様](reference/devices/DEVICES.md)|
+| GPIOの入出力を操作したい | [デバイス仕様](reference/devices/DEVICES.md) |
 | 8×8 LEDマトリクスを操作したい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：LED配線](reference/hardware/WIRING.md) |
 | PWM・ブザー・サーボを試したい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：配線](reference/hardware/WIRING.md) |
 | ADCやセンサを読みたい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：配線](reference/hardware/WIRING.md) |
@@ -73,7 +73,7 @@
 | Telnetで遠隔シェルを使いたい | [ネットワーク接続](reference/network/NETWORK.md) · [操作：net](reference/network/NET.md) |
 | ncでTCP/UDP通信を試したい | [ネットワーク接続](reference/network/NETWORK.md) · [操作：nc](reference/network/NC.md) |
 | httpdでWebページを公開したい | [操作：httpd](reference/network/HTTPD.md) · [仕様：初期ファイルとrc](reference/INITIAL-FILES.md) · [ネットワーク接続](reference/network/NETWORK.md) |
-| ping・tcpdumpで通信を観察したい | [ネットワーク接続](reference/network/NETWORK.md)|
+| ping・tcpdumpで通信を観察したい | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
 | UDPでデバイスを遠隔制御したい | [仕様：遠隔デバイス制御](reference/network/REMOTE-DEVICE.md) · [実習：遠隔GPIO](reference/network/REMOTE_GPIO.md) · [ネットワーク接続](reference/network/NETWORK.md) |
 
 ### プログラム・カーネルの開発
@@ -96,7 +96,7 @@
 ## ほかの探し方
 
 - **順番に学びたい** → [学習ロードマップ](ROADMAP.md)
-- **操作例を一覧で探したい** → [操作ガイド](guides/README.md)
+- **操作例を一覧で探したい** → [補助教材・操作ガイド](guides/README.md)
 - **仕様を項目名から探したい** → [技術リファレンス](reference/README.md)
 - **ソースの改造手順を探したい** → [開発ガイド](development/README.md)
 - **ビルドや書き込みで困っている** → [セットアップ・トラブルシューティング](setup/SETUP.md)

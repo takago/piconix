@@ -11,7 +11,7 @@ Use these in order, since each tool observes a **different layer**:
 3. [`tcpdump`: TCP/UDP/ICMP packet summaries](TCPDUMP.md)
 4. [`net`: Wi-Fi, AP stations and ARP](NET.md)
 
-Start with [Network connection](NETWORK.md). These diagnostics require a **Pico W**, not the regular Pico.
+Start with [Network reference](NETWORK.md). These diagnostics require a **Pico W**, not the regular Pico.
 
 
 ## Connection and diagnostics
@@ -29,7 +29,7 @@ Start with [Network connection](NETWORK.md). These diagnostics require a **Pico 
 
 **Development guides:** [User-space C networking](../../development/apps/c/NETWORK-PROGRAMMING.md) | [Kernel network implementation and extension](../../development/network/NETWORK-DEVELOPMENT.md).
 
-**Guided learning:** [B6 Networking](NETWORK.md) → [C5 Network implementation](../../development/network/NETWORK-DEVELOPMENT.md).
+**Guided learning:** [Network reference](NETWORK.md) → [Network development](../../development/network/NETWORK-DEVELOPMENT.md).
 
 ---
 

@@ -29,7 +29,6 @@ Pico WのWi-Fi接続，TCP/UDP通信，ネットワークサービスに関す�
 
 **関連する開発資料：** [ユーザCアプリ開発](../../development/apps/c/NETWORK-PROGRAMMING.md) ｜ [カーネル側ネットワーク実装・拡張](../../development/network/NETWORK-DEVELOPMENT.md)．
 
-**学ぶ順序を確認：** [B6 ネットワーク](NETWORK.md) → [C5 ネットワーク実装](../../development/network/NETWORK-DEVELOPMENT.md)．
 
 ---
 

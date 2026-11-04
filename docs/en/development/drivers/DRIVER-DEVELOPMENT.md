@@ -9,7 +9,7 @@ cat /dev/uptime → vfs_open() → DEV_UPTIME → vfs_rw()
 → uptime_device_read() → "12.345 s\n" → user read()
 ```
 
-`/proc/uptime` already exists. This deliberate duplication is for the lab. Before modifying code, read the [VFS/FD lesson](../../reference/FILESYSTEM.md) and [Device reference](../../reference/devices/DEVICES.md).
+`/proc/uptime` already exists. This deliberate duplication is for the lab. Before modifying code, read the [File system](../../reference/FILESYSTEM.md) and [Device reference](../../reference/devices/DEVICES.md).
 
 ## 2. Register the ID and path
 
