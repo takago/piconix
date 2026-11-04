@@ -88,6 +88,8 @@ with `tools/build_sdk.sh` and its ELF layout checks after integrating this
 change. These safeguards do not yet establish that the earlier
 `tcp_receive: valid queue length` assertion has been completely eliminated.
 
+User TCP/UDP sockets are polled irrespective of the `O_NONBLOCK` flag. Unavailable I/O returns `OS_EAGAIN` and the application should retry after a short delay. UDP buffers just one datagram; an undersized receive buffer returns `OS_EINVAL` without consuming it. See the [socket programming guide](../../development/apps/c/NETWORK-PROGRAMMING.md).
+
 ## TCP transmission and half-close
 
 Each user TCP write is bounded by `TCP_MSS` (536 bytes) and the available `tcp_sndbuf()`. If `tcp_write()` returns `ERR_MEM`, nothing from that attempt is counted as queued and the caller can retry; other errors are not mistaken for transient backpressure. Once `tcp_write()` succeeds, data is queued even if the subsequent `tcp_output()` fails, so the caller must not enqueue those bytes again.

@@ -29,6 +29,14 @@ On PicoNIX, run `ip addr` and `net` to confirm its IP state. On the **PC**, run 
 
 The implementation is **not** a full BSD/POSIX stack. Errors are returned as negative `OS_*` values rather than setting `errno`. Pass numeric IPv4 addresses. Ports in `sockaddr_in` use `htons()`. Refer to [`unistd.h`](../../../../../userland/lib/unistd.h) and the [C API guide](LIBC.md).
 
+## Socket polling, errors, and resource lifetime
+
+- User TCP/UDP sockets are **polled regardless of `O_NONBLOCK`**. Although `fcntl(F_SETFL)` accepts the flag, socket `read()`/`write()` never wait inside the kernel for a connection, receive data, or available transmit capacity. An unavailable operation returns `OS_EAGAIN`; retry after a short `msleep()`. This differs from blocking TTY and pipe operations.
+- `connect()` returning 0 means that asynchronous connection setup started, not that the connection is established. Use `tcp_status()` (1 connected, 0 pending, -2 peer closed after buffered data drains, -1 fault). `accept()` returns `OS_EAGAIN` instead of waiting; `read()`/`write()` on a listening TCP FD return `OS_EBADF`.
+- TCP `send()` may accept fewer bytes than requested, limited by `TCP_MSS` and the transmit queue; `recv()` returns only currently buffered bytes. After a normal peer close and drain, `recv()` returns 0 (EOF). Sending after `shutdown(SHUT_WR)` returns `OS_EIO`.
+- UDP supports one user socket globally and stores at most one incoming datagram. An undersized receive buffer produces `OS_EINVAL` **without consuming** the datagram. A valid zero-length datagram returns 0, distinct from `OS_EAGAIN` for no datagram. Sending before `bind()` assigns an ephemeral local port; a later `bind()` fails. Bind first if a fixed receive port is required.
+- Socket descriptors cannot be passed to `dup()`/`dup2()`. `close()` releases their resources and task termination also reclaims owned sockets. A TCP listening FD and its accepted FD share one management slot, so serve connections sequentially.
+
 ## 3. Install and register both programs
 
 From the **Linux PC, in the repository root**:

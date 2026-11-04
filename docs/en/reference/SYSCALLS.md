@@ -72,6 +72,8 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 - `getdents(fd, entry, size)`: `entry` is `piconix_dirent_t *`. Returns 1 for an entry and 0 at directory end.
 - `spawn_tmp(path)`: path names a PNX1-format Thumb image under `/tmp`.
 
+- TCP/UDP socket `read()`/`write()` are polled independently of `O_NONBLOCK`; unavailable I/O returns `OS_EAGAIN`. `fcntl()` changes the flag but not the socket waiting behavior. An undersized UDP receive buffer returns `OS_EINVAL` without consuming the datagram. TCP `read()` returns 0 after a normal peer close and drain.
+
 ## Boundary conditions for `open()`, `unlink()`, and `getdents()`
 
 - `open()` accepts the access modes `O_RDONLY`, `O_WRONLY`, `O_RDWR` and supported combinations of `O_CREAT`, `O_TRUNC`, `O_APPEND`, and `O_NONBLOCK`. Invalid combinations return `OS_EINVAL`. At `open()` time, `O_NONBLOCK` is accepted only for the console and UART1; supported TTYs (including Wi-Fi TTY) and sockets can change it later with `fcntl(F_SETFL)`.

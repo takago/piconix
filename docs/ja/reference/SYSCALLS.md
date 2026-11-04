@@ -72,6 +72,8 @@
 - `getdents(fd, entry, size)`：`entry` は `piconix_dirent_t *` です．1はエントリ取得，0は終端を表します．
 - `spawn_tmp(path)`：`path` は `/tmp` 内のPNX1形式のThumbイメージを指定します．
 
+- TCP/UDPソケットの`read()`／`write()`は`O_NONBLOCK`に関係なく待機せず，準備できない場合は`OS_EAGAIN`です．`fcntl()`はフラグを変更しますが，通信時の待機方式は変わりません．UDPの短すぎる受信バッファは`OS_EINVAL`で，データグラムは保持されます．TCPの正常終端を読み切った後は`read()`が0を返します．
+
 ## `open()`，`unlink()`，`getdents()`の境界条件
 
 - `open()`で指定するフラグは`O_RDONLY`，`O_WRONLY`，`O_RDWR`と，対応する`O_CREAT`，`O_TRUNC`，`O_APPEND`，`O_NONBLOCK`の組合せに限定されます．不正な組合せは`OS_EINVAL`を返します．`O_NONBLOCK`を`open()`時に指定できるのはコンソールとUART1だけです（Wi-Fi端末を含め，対応するTTYやソケットでは開いた後に`fcntl(F_SETFL)`で変更できます）．
