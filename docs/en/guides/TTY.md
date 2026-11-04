@@ -27,7 +27,7 @@ Use `fcntl(fd, F_GETFL, 0)` to read FD flags, and `fcntl(fd, F_SETFL, flags)` to
 
 In the current implementation, `F_SETFL` can change `O_NONBLOCK` on the USB CDC console, UART1, the Wi-Fi TTY (when enabled), and TCP/UDP socket descriptors. It is not supported for ordinary files, pipes, or other devices. At `open()` time, `O_NONBLOCK` is accepted only for `/dev/console` and `/dev/ttyS1`; for `/dev/ttyN0`, set it afterward with `fcntl()`.
 
-When no input is available, a nonblocking TTY `read()` returns **0** (not a negative `EAGAIN`-style error). Do not always interpret that 0 as permanent EOF. Pipes and sockets have different I/O semantics; see [Pipes](PIPE.md) and [Socket APIs](../development/apps/c/NETWORK-PROGRAMMING.md).
+When no input is available, a nonblocking TTY `read()` returns **0** in both canonical and noncanonical modes (not a negative `EAGAIN`-style error). In canonical mode, a line may not yet be complete; Ctrl+D can also produce a zero-length EOF result, so a return value of 0 alone does not distinguish them. Blocking reads wait for input; `VMIN` / `VTIME` timeouts are not available. Pipes and sockets have different I/O semantics; see [Pipes](PIPE.md) and [Socket APIs](../development/apps/c/NETWORK-PROGRAMMING.md).
 
 ## Restoration and screen control
 
@@ -37,7 +37,7 @@ Cursor visibility, alternate screens, and text attributes are separate from TTY 
 
 ## TTY output newline conversion (ONLCR)
 
-By default, the USB CDC console and UART1 terminal convert LF (`\n`) to CRLF (`\r\n`). An LF immediately following CR is passed through, so existing CRLF sequences are not doubled. Files and non-TTY devices are unaffected.
+By default, the USB CDC console, UART1, and the Wi-Fi TTY (when enabled) convert LF (`\n`) to CRLF (`\r\n`). An LF immediately following CR is passed through, so existing CRLF sequences are not doubled. Files and non-TTY devices are unaffected.
 
 ```text
 stty             # Show onlcr or -onlcr
@@ -46,6 +46,12 @@ stty onlcr       # Enable output conversion
 ```
 
 C applications can use `ioctl(fd, OS_TTY_GET_ONLCR, 0)` and `ioctl(fd, OS_TTY_SET_ONLCR, 0 or 1)`. The setting is per terminal and independent of canonical input and echo. The `raw` convenience command does not change output conversion.
+
+## Return values of TTY `read()` and `write()`
+
+- `read(fd, buf, n)` returns a positive byte count when input is ready, or 0 when `n=0`. Without available input, a blocking FD waits and a nonblocking FD returns 0. Ctrl+D on an empty canonical line can also return 0.
+- `write(fd, buf, n)` returns the number of **input data bytes** accepted, which may differ from bytes transmitted after ONLCR conversion. A full USB CDC transmit queue may cause a zero-byte write. On Wi-Fi TTY, a full queue can return `OS_EAGAIN`, a disconnected terminal can return `OS_EIO`, and a partially accepted write returns the byte count. TTY writes do not automatically block until space becomes available.
+- Access to terminal input, or output on a claimed TTY, from a non-owning task may return `OS_EIO`. These rules should not be assumed for ordinary files or sockets.
 
 ## TAB input
 

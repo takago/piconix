@@ -27,7 +27,7 @@ Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_
 
 現行実装で `F_SETFL` による `O_NONBLOCK` の変更が可能なのは，USB CDCコンソール，UART1，Wi-Fi TTY（有効な場合），TCP/UDPソケットのFDです．通常ファイル，パイプ，デバイス一般への変更には対応していません．`open()` 時に `O_NONBLOCK` を指定できるのは `/dev/console` と `/dev/ttyS1` に限られ，`/dev/ttyN0` は `open()` 後に `fcntl()` で設定します．
 
-TTYの非canonical入力で受信データがない場合，`O_NONBLOCK` が設定された `read()` は **0** を返します（`EAGAIN` 相当の負値ではありません）．したがって0を常に恒久的なEOFと解釈しないでください．ソケットやパイプのI/O動作はTTYと異なるため，[パイプ](PIPE.md)と[ソケットAPI](../development/apps/c/NETWORK-PROGRAMMING.md)も参照してください．
+TTYで受信データがない場合，`O_NONBLOCK` が設定された `read()` はcanonical・非canonicalのどちらのモードでも **0** を返します（`EAGAIN` 相当の負値ではありません）．canonicalモードでは行が確定するまでデータがなく，Ctrl+DによるEOFでも0が返るため，0だけで両者を区別できません．ブロッキングFDではデータ到着まで待機し，`VMIN` / `VTIME` によるタイムアウト制御はありません．ソケットやパイプのI/O動作はTTYと異なるため，[パイプ](PIPE.md)と[ソケットAPI](../development/apps/c/NETWORK-PROGRAMMING.md)も参照してください．
 
 ## 設定の復元と画面制御の分担
 
@@ -37,7 +37,7 @@ TTYの非canonical入力で受信データがない場合，`O_NONBLOCK` が設�
 
 ## TTY出力の改行変換（ONLCR）
 
-通常，USB CDCコンソールとUART1のTTYでは，LF（`\n`）をCRLF（`\r\n`）に変換します．既存のCRLFを二重変換せず，CR直後のLFはそのまま出力します．ファイルやGPIO等のデバイスには適用されません．
+通常，USB CDCコンソール，UART1，Wi-Fi TTY（有効な場合）では，LF（`\n`）をCRLF（`\r\n`）に変換します．既存のCRLFを二重変換せず，CR直後のLFはそのまま出力します．ファイルやGPIO等のデバイスには適用されません．
 
 ```text
 stty             # onlcr または -onlcr を表示
@@ -46,6 +46,12 @@ stty onlcr       # TTY出力変換を有効化
 ```
 
 Cプログラムでは `ioctl(fd, OS_TTY_GET_ONLCR, 0)` と `ioctl(fd, OS_TTY_SET_ONLCR, 0 または 1)` を利用できます．設定はTTYごとに独立しており，canonical入力とエコー設定とは別です．`raw` コマンドでも出力変換は自動的に変更しません．
+
+## TTYの`read()`と`write()`の戻り値
+
+- `read(fd, buf, n)` は受信済みのデータがあればそのバイト数を返します．`n=0`なら0です．ブロッキングFDで入力がないときは待機し，非ブロッキングFDでは0を返します．Ctrl+Dによる空行のEOFでも0になります．
+- `write(fd, buf, n)` は送信できた**入力データのバイト数**を返します．ONLCRにより実際の送信バイト数は増える場合があります．USB CDC側の送信キューがいっぱいになると，0バイトの書込み結果になる場合があります．Wi-Fi TTYでは送信キューがいっぱいなら`OS_EAGAIN`，切断中なら`OS_EIO`となる場合があり，途中まで送れたときは部分書込み長を返します．TTY出力の空き待ちをカーネルが自動的に行うわけではありません．
+- 他タスクがTTYの入力や占有中の出力を利用しようとした場合，`OS_EIO`となることがあります．これらは通常ファイルやソケットにそのまま適用される規則ではありません．
 
 ## TAB入力
 
