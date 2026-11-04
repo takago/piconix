@@ -13,6 +13,8 @@ piconix# echo hello
 piconix# echo hello > /tmp/hello.txt
 piconix# cat /tmp/hello.txt
 piconix# cat -n /tmp/hello.txt
+piconix# cp /tmp/hello.txt /tmp/backup.txt
+piconix# cat /tmp/backup.txt
 piconix# echo >> /tmp/hello.txt
 piconix# cat -n /tmp/hello.txt
 piconix# echo hello | cat
@@ -24,6 +26,8 @@ piconix# lsof
 `cat`は指定したファイルを表示します．ファイルを省略すると標準入力から読み込みます．`cat -n`は空行も含めて各行に1から始まる番号とタブを付けて表示します．`echo >> /tmp/hello.txt`は空行をファイルの末尾に追加します．その前後の`cat -n`を比べてください．行番号は表示時に付けるだけで，ファイルの内容は変更しません．パイプから入力しても番号は付けられます．
 
 `>`はコマンドの標準出力をファイルに向けます．`|`はコマンド間でバイト列を受け渡します．PicoNIXのシェルではパイプは最大3段で，パイプとリダイレクトの併用には制約があります．Linuxの一般的なシェルと完全に同じではありません．
+
+`cp SRC DST`はRAMファイルを複製します．`/tmp`と`/etc`の直下にある通常ファイルのみ扱い，既存のコピー先は上書きします．同じファイルを指定するとエラーになります．どちらのディレクトリもRAM上にあるため，コピーは再起動すると失われます．書き込み中に失敗するとコピー先が不完全になることがあります．
 
 ## 観察・考察
 

@@ -16,6 +16,7 @@ int main(int argc, char **argv) {
         puts("  vi         Modal /tmp or /etc editor (vi-like)");
         puts("  dd         Copy binary data / RAM blocks");
         puts("  cat        Read file / standard input");
+        puts("  cp         Copy a RAM file");
         puts("  grep       Filter lines by matching text");
         puts("  rm         Remove a /tmp file");
         puts("  echo       Print text");
@@ -79,6 +80,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"grep")) puts("grep: Filter matching lines from a file or standard input\nusage: grep PATTERN [file]\nLiteral substring; lines over 128 bytes are skipped");
     else if(!strcmp(argv[1],"ping")) puts("ping: ICMP Echo tests (Pico W)\nusage: ping [-c COUNT] IPv4\nDefault: 4 probes; numerical IPv4 only\nexample: ping -c 2 192.168.4.2");
     else if(!strcmp(argv[1],"tcpdump")) puts("tcpdump: Observe IPv4 packets (Pico W)\nusage: tcpdump [-x] [-c COUNT]\n-x: show DATA length and up to 16 payload bytes in HEX and ASCII on an indented second line\n-c: stop after COUNT packets; Ctrl+C to stop\nexample: tcpdump -c 10");
+    else if(!strcmp(argv[1],"cp")) puts("cp: Copy a /tmp or /etc RAM file\nusage: cp SRC DST\nOverwrites DST; refuses the same file\nexample: cp /etc/index.html /tmp/index.html");
     else if(!strcmp(argv[1],"cat")) puts("cat: Display a file or standard input\nusage: cat [-n] [file]\n-n: Number all lines, including empty lines\nexample: cat -n /tmp/test.py\nexample: echo hello | cat -n");
     else if(!strcmp(argv[1],"fd")) puts("fd: Interactive file browser\nusage: fd [directory]\nArrows: select/navigate, Enter: open, Backspace: parent, e: edit /tmp or /etc, q: quit");
     else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command\nusage: watch [seconds] command [args...]");

@@ -101,3 +101,5 @@ PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送�
 GPL-3.0-or-later．詳細は`LICENSE`を参照してください．
 
 [文書一覧](../../DOCS.ja.md) | [English](../../en/literacy/README.md)
+
+RAMファイルのコピーには`cp SRC DST`を使用します（例：`cp /etc/index.html /tmp/index.html`）．

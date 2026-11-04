@@ -13,6 +13,8 @@ piconix# echo hello
 piconix# echo hello > /tmp/hello.txt
 piconix# cat /tmp/hello.txt
 piconix# cat -n /tmp/hello.txt
+piconix# cp /tmp/hello.txt /tmp/backup.txt
+piconix# cat /tmp/backup.txt
 piconix# echo >> /tmp/hello.txt
 piconix# cat -n /tmp/hello.txt
 piconix# echo hello | cat
@@ -24,6 +26,8 @@ piconix# lsof
 `cat` reads from a named file, or from standard input when no file is given. `cat -n` adds a right-aligned number and a tab before each line, including blank lines. The added `echo` writes an empty line to the file. Compare the two `cat -n` outputs: the original file remains unchanged by `cat`, but the file appended to by `echo` gains a second line. Line numbering starts at 1 for each invocation.
 
 `>` directs a command's standard output into a file. `|` sends bytes from one command to another. PicoNIX supports at most three commands in a pipeline and restricts mixing pipes with redirection. This is not a complete Linux/POSIX shell.
+
+`cp SRC DST` copies a RAM file under `/tmp` or `/etc`. An existing destination is overwritten, while copying a file onto itself is rejected. Both directories are volatile: copies disappear after reboot. A write error can leave the destination incomplete.
 
 ## Observe and explain
 

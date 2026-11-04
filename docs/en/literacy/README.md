@@ -100,3 +100,5 @@ GPL-3.0-or-later. See `LICENSE`.
 
 
 [Documentation index](../../DOCS.md) | [日本語](../../ja/literacy/README.md)
+
+Copy RAM files with `cp SRC DST`, e.g. `cp /etc/index.html /tmp/index.html`.
