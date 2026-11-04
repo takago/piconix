@@ -83,4 +83,4 @@ Fixed device IDs and paths are shared between the kernel VFS and `trace` through
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/B/B4.md) | [Guide index](README.md) | [日本語](../../ja/guides/TRACE.md) | [Internals](../reference/INTERNAL.md)
+**Related links:** [trace guide](TRACE.md) | [Guide index](README.md) | [日本語](../../ja/guides/TRACE.md) | [Internals](../reference/INTERNAL.md)

@@ -47,4 +47,4 @@ Ctrl+C interrupts registered foreground pipeline tasks (up to three stages) dire
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md) | [日本語](../../ja/guides/PIPE.md)
+**Related links:** [Pipe guide](PIPE.md) | [Guide index](README.md) | [日本語](../../ja/guides/PIPE.md)

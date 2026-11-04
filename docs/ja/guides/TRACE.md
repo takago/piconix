@@ -83,4 +83,4 @@ SysTickは1ms周期，通常のタイムスライスは10msです．sleepでの�
 
 ---
 
-**関連リンク：** [対応する教科書の章](../learn/B/B4.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TRACE.md) ｜ [内部構造](../reference/INTERNAL.md)
+**関連リンク：** [trace操作](TRACE.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TRACE.md) ｜ [内部構造](../reference/INTERNAL.md)

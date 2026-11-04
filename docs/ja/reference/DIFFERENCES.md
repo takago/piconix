@@ -101,4 +101,4 @@ echo hello | cat -n
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [English](../../en/reference/DIFFERENCES.md) ｜ [文書案内](../../DOCS.ja.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/DIFFERENCES.md) ｜ [文書案内](../../DOCS.ja.md)

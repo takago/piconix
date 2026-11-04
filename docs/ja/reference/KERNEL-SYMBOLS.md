@@ -24,4 +24,4 @@ mem -s sh
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [English](../../en/reference/KERNEL-SYMBOLS.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/KERNEL-SYMBOLS.md)

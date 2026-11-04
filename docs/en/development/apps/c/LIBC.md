@@ -165,4 +165,4 @@ Interactive child programs can use `spawn_foreground(program, argc, argv)` or `s
 
 ---
 
-**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md) | [日本語](../../../../ja/development/apps/c/LIBC.md)
+**Related links:** [Development guide index](../../README.md) | [Learning roadmap](../../../ROADMAP.md) | [日本語](../../../../ja/development/apps/c/LIBC.md)

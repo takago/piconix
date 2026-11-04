@@ -25,7 +25,7 @@ application → write() → call(SYS_WRITE, ...) → svc #0
             → isr_svcall → os_svc_dispatch() → vfs_rw() → TTY
 ```
 
-For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS device dispatch before inspecting hardware backends; use the [Textbook B5](../../learn/B/B5.md). Step 9 is a separate, optional Pico W topic; use the [kernel networking development guide](../network/NETWORK-DEVELOPMENT.md) for kernel internals, and the [user socket programming guide](../apps/c/NETWORK-PROGRAMMING.md) for applications; distinguish built-in services from user-space `httpd`. For step 7, run:
+For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS device dispatch before inspecting hardware backends; use the [Device reference](../../reference/devices/DEVICES.md). Step 9 is a separate, optional Pico W topic; use the [kernel networking development guide](../network/NETWORK-DEVELOPMENT.md) for kernel internals, and the [user socket programming guide](../apps/c/NETWORK-PROGRAMMING.md) for applications; distinguish built-in services from user-space `httpd`. For step 7, run:
 
 ```sh
 echo hello | grep hello | cat
@@ -37,4 +37,4 @@ Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../refe
 
 ---
 
-**Related links:** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md) | [Documentation](../../../DOCS.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)
+**Related links:** [Development guide index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [Documentation](../../../DOCS.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)

@@ -67,4 +67,4 @@ dd if=/dev/shm of=- bs=1 count=4 | hexdump
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [English](../../en/reference/MEMORY-LAYOUT.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/MEMORY-LAYOUT.md)

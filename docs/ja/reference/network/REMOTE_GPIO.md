@@ -20,4 +20,4 @@ printf 'DISABLE /dev/gpio/22\n' | nc -u -w 2 192.168.4.1 2000
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/network/REMOTE_GPIO.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/network/REMOTE_GPIO.md)

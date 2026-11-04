@@ -135,7 +135,7 @@ For Pico W builds, Wi-Fi settings, Telnet/socat access and disconnect instructio
 
 ## Next steps
 
-After connecting, follow the numbered lessons beginning with [textbook A1](../learn/A/A1.md) to explore files, pipes, and tasks. Keep commands for the Linux build PC separate from commands typed at `piconix#`.
+After connecting, follow the [Learning roadmap](../ROADMAP.md) to explore files, pipes, and tasks. Keep commands for the Linux build PC separate from commands typed at `piconix#`.
 
 ---
 

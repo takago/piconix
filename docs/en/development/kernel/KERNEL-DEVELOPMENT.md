@@ -63,4 +63,4 @@ The two dedicated guides contain the full changes, commands, expected observatio
 
 ---
 
-**Related links:** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md)
+**Related links:** [Development guide index](../README.md) | [Learning roadmap](../../ROADMAP.md)

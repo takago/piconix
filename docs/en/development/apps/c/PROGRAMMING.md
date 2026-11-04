@@ -264,4 +264,4 @@ Like the earlier `greet` example, this application must be added to CMake and re
 
 ---
 
-**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md)
+**Related links:** [Development guide index](../../README.md) | [Learning roadmap](../../../ROADMAP.md)

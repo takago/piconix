@@ -14,4 +14,4 @@ PicoNIXを動かす**基板と実際の接続**について調べる入口です
 
 ---
 
-**関連リンク：** [リファレンス総目次](../README.md) ｜ [デバイス・I/O](../devices/README.md) ｜ [教科書](../../learn/README.md) ｜ [English](../../../en/reference/hardware/README.md)
+**関連リンク：** [リファレンス総目次](../README.md) ｜ [デバイス・I/O](../devices/README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/hardware/README.md)

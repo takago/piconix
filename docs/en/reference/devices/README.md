@@ -7,8 +7,8 @@ This directory documents local I/O devices and peripherals. For Wi-Fi, remote co
 - [UART1 and terminal operation](UART.md)
 - [Hardware, pin assignments, and wiring](../hardware/README.md)
 
-**Guided learning:** [B5 Devices](../../learn/B/B5.md) → [C4 Driver development](../../learn/C/C4.md).
+**Guided learning:** [B5 Devices](DEVICES.md) → [C4 Driver development](../../development/drivers/DRIVER-DEVELOPMENT.md).
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/devices/README.md)
+**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/devices/README.md)

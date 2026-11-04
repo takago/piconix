@@ -99,4 +99,4 @@ as: 24 bytes (32 total) -> /tmp/a.out
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md) ｜ [English](../../../../en/development/apps/asm/ASM.md)
+**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [学習ロードマップ](../../../ROADMAP.md) ｜ [English](../../../../en/development/apps/asm/ASM.md)

@@ -1,6 +1,6 @@
 # Development Guides
 
-These contain detailed implementation instructions and API information. Follow the [Part C textbook](../learn/C/README.md) for learning order and consult these guides as needed.
+These contain detailed implementation instructions and API information. Follow the [Learning roadmap](../ROADMAP.md) for learning order and consult these guides as needed.
 
 **Find by goal:** [Task index](../TASKS.md).
 
@@ -39,4 +39,4 @@ These contain detailed implementation instructions and API information. Follow t
 
 ---
 
-**Related links:** [Textbook](../learn/README.md) | [日本語](../../ja/development/README.md)
+**Related links:** [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/development/README.md)

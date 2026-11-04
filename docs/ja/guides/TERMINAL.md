@@ -126,4 +126,4 @@ cat note.txt | grep hello
 
 ---
 
-**関連リンク：** [対応する教科書の章](../learn/B/B2.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TERMINAL.md)
+**関連リンク：** [TTY・stty](TTY.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TERMINAL.md)

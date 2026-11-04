@@ -106,4 +106,4 @@ The additional `cat /proc/net/memory` snapshot is available in both AP and STA m
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/WIFI-MODES.md)
+**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/network/WIFI-MODES.md)

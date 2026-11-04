@@ -1,6 +1,6 @@
 # Network Development Guides
 
-Start here to **read or modify the kernel-side networking implementation**. For sequential learning, use [Textbook C5](../../learn/C/C5.md); for current connection behavior and command specifications, use the [network reference](../../reference/network/README.md).
+Start here to **read or modify the kernel-side networking implementation**. For sequential learning, use [Network development](NETWORK-DEVELOPMENT.md); for current connection behavior and command specifications, use the [network reference](../../reference/network/README.md).
 
 ## Find the right guide
 
@@ -10,7 +10,7 @@ Start here to **read or modify the kernel-side networking implementation**. For 
 | Write a **user-space C TCP/UDP application** | [Socket API and network applications](../apps/c/NETWORK-PROGRAMMING.md) |
 | Trace the kernel from boot | [Kernel Reading Guide](../kernel/KERNEL-READING-GUIDE.md) |
 | Look up Telnet, Wi-Fi, and network behavior | [Network technical reference](../../reference/network/README.md) |
-| Learn networking in order | [Textbook B6](../../learn/B/B6.md) → [Textbook C5](../../learn/C/C5.md) |
+| Learn networking in order | [Network connection](../../reference/network/NETWORK.md) → [Network development](NETWORK-DEVELOPMENT.md) |
 
 **Ownership rule:** `development/network/` describes **kernel implementation and modification**. `development/apps/c/NETWORK-PROGRAMMING.md` describes **the API exposed to user-space programs and application examples**. Current behavior and limits are specified in `reference/network/` and the [syscall reference](../../reference/SYSCALLS.md).
 

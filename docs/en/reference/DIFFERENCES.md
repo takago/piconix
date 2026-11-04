@@ -101,4 +101,4 @@ Limits and behavior were checked against `include/piconix.h`, `include/device_na
 
 ---
 
-**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/DIFFERENCES.md) | [Documentation guide](../../DOCS.md)
+**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/DIFFERENCES.md) | [Documentation guide](../../DOCS.md)

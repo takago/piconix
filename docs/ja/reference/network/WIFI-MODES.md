@@ -103,4 +103,4 @@ AP・STAどちらでも`cat /proc/net/memory`で追加のメモリ診断を確�
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/network/WIFI-MODES.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/network/WIFI-MODES.md)

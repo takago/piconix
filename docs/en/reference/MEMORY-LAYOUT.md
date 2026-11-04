@@ -67,4 +67,4 @@ If the counter was initially zero, three runs produce the bytes `03 00 00 00` in
 
 ---
 
-**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/MEMORY-LAYOUT.md)
+**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/MEMORY-LAYOUT.md)

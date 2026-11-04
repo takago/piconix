@@ -58,4 +58,4 @@ printf 'WRITE /dev/pwm/1/freq\n50' | nc -u -w 1 192.168.4.1 2000
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/network/REMOTE-DEVICE.md) ｜ [ネットワーク](NETWORK.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/network/REMOTE-DEVICE.md) ｜ [ネットワーク](NETWORK.md)

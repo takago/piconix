@@ -49,4 +49,4 @@ cat test.s | grep movs | hexdump
 
 ---
 
-**関連リンク：** [対応する教科書の章](../learn/A/A2.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/PIPE.md)
+**関連リンク：** [パイプ操作](PIPE.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/PIPE.md)

@@ -53,4 +53,4 @@ Start with `kernel/main.c`, `userland/apps/shell.c`, `userland/lib/syscalls.c`, 
 
 ---
 
-**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/ARCHITECTURE.md) | [Internals](INTERNAL.md) | [Documentation](../../DOCS.md)
+**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/ARCHITECTURE.md) | [Internals](INTERNAL.md) | [Documentation](../../DOCS.md)

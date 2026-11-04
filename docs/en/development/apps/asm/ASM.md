@@ -100,4 +100,4 @@ The immediate `0` in `svc #0` is **not** the system call number; the call number
 
 ---
 
-**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md) | [日本語](../../../../ja/development/apps/asm/ASM.md)
+**Related links:** [Development guide index](../../README.md) | [Learning roadmap](../../../ROADMAP.md) | [日本語](../../../../ja/development/apps/asm/ASM.md)

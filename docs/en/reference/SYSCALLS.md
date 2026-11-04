@@ -92,4 +92,4 @@ The `spawn_foreground()` and `spawn_tmp_foreground()` C wrappers are not extra s
 
 ---
 
-**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/SYSCALLS.md)
+**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/SYSCALLS.md)

@@ -58,4 +58,4 @@ For robust parsing of replies (especially binary data), prefer `host/piconixctl.
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/REMOTE-DEVICE.md) | [Networking](NETWORK.md)
+**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/network/REMOTE-DEVICE.md) | [Networking](NETWORK.md)

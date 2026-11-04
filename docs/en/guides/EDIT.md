@@ -26,4 +26,4 @@ For a simple exercise, run `edit /tmp/hello.txt`, type and save a short line, th
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md) | [日本語](../../ja/guides/EDIT.md)
+**Related links:** [Pipe guide](PIPE.md) | [Guide index](README.md) | [日本語](../../ja/guides/EDIT.md)

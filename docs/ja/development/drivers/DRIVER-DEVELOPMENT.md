@@ -13,7 +13,7 @@ cat /dev/uptime
 
 既存の`/proc/uptime`と機能的に重複しますが，ここでは**ドライバを独立したCファイルとして作る練習**が目的です．デバイスノードは物理部品を必要としません．パスがVFSから参照できることと，実際に`read()`が働くことは別々の実装段階です．
 
-**先に確認：** [VFSとFD](../../learn/B/B1.md)，[デバイス仕様](../../reference/devices/DEVICES.md)，[システムコール演習](../syscalls/SYSCALL-DEVELOPMENT.md)．ユーザアプリに使う`read()`や`open()`の使い方は[C開発](../apps/c/PROGRAMMING.md)を参照してください．
+**先に確認：** [VFSとFD](../../reference/FILESYSTEM.md)，[デバイス仕様](../../reference/devices/DEVICES.md)，[システムコール演習](../syscalls/SYSCALL-DEVELOPMENT.md)．ユーザアプリに使う`read()`や`open()`の使い方は[C開発](../apps/c/PROGRAMMING.md)を参照してください．
 
 ## 2．デバイスIDとパスを登録する
 

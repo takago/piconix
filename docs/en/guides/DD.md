@@ -74,4 +74,4 @@ Check transfer length and EOF handling. `/dev/shm` is shared by all tasks: do no
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/A/A2.md) | [Guide index](README.md) | [日本語](../../ja/guides/DD.md) | [Documentation](../../DOCS.md) | [nc](../reference/network/NC.md) | [Devices](../reference/devices/DEVICES.md)
+**Related links:** [Pipe guide](PIPE.md) | [Guide index](README.md) | [日本語](../../ja/guides/DD.md) | [Documentation](../../DOCS.md) | [nc](../reference/network/NC.md) | [Devices](../reference/devices/DEVICES.md)

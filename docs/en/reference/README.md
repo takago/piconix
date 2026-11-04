@@ -1,6 +1,6 @@
 # Technical reference — Index
 
-Look up OS behavior, APIs, and limitations by topic. For sequential UNIX lessons, follow the [textbook](../learn/README.md).
+Look up OS behavior, APIs, and limitations by topic. For sequential UNIX lessons, follow the [Learning roadmap](../ROADMAP.md).
 
 **Find by goal:** [Task index](../TASKS.md).
 
@@ -41,7 +41,7 @@ Look up OS behavior, APIs, and limitations by topic. For sequential UNIX lessons
 - [Pin assignments and 40-pin header](hardware/PINS.md)
 - [Wiring and electrical precautions](hardware/WIRING.md)
 
-[Return to textbook](../learn/README.md) | [Supplementary guides](../guides/README.md) | [Development guides](../development/README.md)
+[Learning roadmap](../ROADMAP.md) | [Supplementary guides](../guides/README.md) | [Development guides](../development/README.md)
 
 ---
 

@@ -39,4 +39,4 @@
 
 ---
 
-**関連リンク：** [対応する教科書の章](../learn/B/B3.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/MEM.md)
+**関連リンク：** [mem操作](MEM.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/MEM.md)

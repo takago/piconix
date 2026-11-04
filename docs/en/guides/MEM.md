@@ -34,4 +34,4 @@ Memory browsing continues if symbols are unavailable.
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/B/B3.md) | [Guide index](README.md) | [日本語](../../ja/guides/MEM.md)
+**Related links:** [mem guide](MEM.md) | [Guide index](README.md) | [日本語](../../ja/guides/MEM.md)

@@ -30,7 +30,7 @@ PicoNIX provides `python`, not `python3`. Run a script with `python /tmp/test.py
 
 ## Reading files and checking line numbers
 
-`cat FILE` shows the file as it is; `cat -n FILE` shows every line with a number, starting at 1. Blank lines are numbered too. With no FILE, `cat` reads standard input, so `echo hello | cat -n` also works. Use `help cat` to see the command format and [Textbook A2](../learn/A/A2.md) for a short exercise.
+`cat FILE` shows the file as it is; `cat -n FILE` shows every line with a number, starting at 1. Blank lines are numbered too. With no FILE, `cat` reads standard input, so `echo hello | cat -n` also works. Use `help cat` to see the command format and [Pipe guide](PIPE.md) for a short exercise.
 
 Some other important usage details: `ls -a` shows `.` and `..`; `ls -l` shows type, ID and size. `edit` accepts RAM files directly under `/tmp` or `/etc`. `dd` accepts `if=` and `of=` (or defaults to stdin/stdout), with `bs=1..256`; `grep` matches literal substrings and skips input lines longer than 128 bytes.
 
@@ -50,9 +50,9 @@ Some other important usage details: `ls -a` shows `.` and `..`; `ls -l` shows ty
 
 ## Pico W network commands
 
-`ping [-c COUNT] IPv4` sends four Echo Requests by default; use a numeric address such as `192.168.4.2`. `tcpdump [-x] [-c COUNT]` shows IPv4 TCP/UDP/ICMP packet summaries; use `-x` to show the data length and up to 16 payload bytes (HEX and ASCII) on an indented second line. These commands require Pico W. See the [Textbook B6](../learn/B/B6.md).
+`ping [-c COUNT] IPv4` sends four Echo Requests by default; use a numeric address such as `192.168.4.2`. `tcpdump [-x] [-c COUNT]` shows IPv4 TCP/UDP/ICMP packet summaries; use `-x` to show the data length and up to 16 payload bytes (HEX and ASCII) on an indented second line. These commands require Pico W. See the [Network connection](../reference/network/NETWORK.md).
 
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/A/A1.md) | [Guide index](README.md) | [日本語](../../ja/guides/HELP.md)
+**Related links:** [Setup](../setup/SETUP.md) | [Guide index](README.md) | [日本語](../../ja/guides/HELP.md)

@@ -29,4 +29,4 @@ intentionally restricted; it does not expose arbitrary VFS paths.
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/REMOTE_GPIO.md)
+**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/network/REMOTE_GPIO.md)

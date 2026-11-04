@@ -71,4 +71,4 @@ TAB（`0x09`）はシェルの行編集とcanonical入力で受け付け，フ�
 
 ---
 
-**関連リンク：** [対応する教科書の章](../learn/B/B2.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TTY.md) ｜ [UART1と端末](../reference/devices/UART.md) ｜ [Cアプリ開発](../development/apps/c/PROGRAMMING.md)
+**関連リンク：** [TTY・stty](TTY.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TTY.md) ｜ [UART1と端末](../reference/devices/UART.md) ｜ [Cアプリ開発](../development/apps/c/PROGRAMMING.md)

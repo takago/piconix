@@ -66,4 +66,4 @@ Pico Wの紹介ページは`edit /etc/index.html`で直接編集し，Ctrl+Sで�
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/network/HTTPD.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/network/HTTPD.md)

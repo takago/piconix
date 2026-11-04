@@ -244,4 +244,4 @@ TCP and UDP have separate port spaces. `accept()` and `recvfrom()` are nonblocki
 
 ---
 
-**Related links:** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md)
+**Related links:** [Development guide index](../../README.md) | [Learning roadmap](../../../ROADMAP.md)

@@ -110,7 +110,7 @@ echo hello | grep hello | cat
 
 **読む順序：** `kernel/kernel.c`のデバイスI/O振り分け → `kernel/gpio.c` → `kernel/fb.c` → `kernel/adc.c` → `kernel/i2c.c` → `kernel/pwm.c`．ハードウェアの定義は`kernel/pins.h`・`kernel/devices.h`・`include/device_names.h`も参照します．
 
-GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [教科書 B5](../../learn/B/B5.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
+GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [デバイス仕様](../../reference/devices/DEVICES.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
 
 **確認問題：** デバイス固有のコードを通常のI/O入口から切り離す利点は何か．VFS側とドライバ側では何を担当するか．
 
@@ -146,4 +146,4 @@ Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイ�
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md) ｜ [文書案内](../../../DOCS.ja.md) ｜ [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)
+**関連リンク：** [開発ガイド一覧](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [文書案内](../../../DOCS.ja.md) ｜ [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)

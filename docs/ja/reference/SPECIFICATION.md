@@ -90,4 +90,4 @@ Pico Wでは`tcpdump`用の`/dev/net/packet`（16件のIPv4情報記録）と，
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md) ｜ [English](../../en/reference/SPECIFICATION.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/SPECIFICATION.md)

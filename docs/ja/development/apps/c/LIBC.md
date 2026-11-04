@@ -165,4 +165,4 @@ int main(int argc, char *argv[]) {
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md) ｜ [English](../../../../en/development/apps/c/LIBC.md)
+**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [学習ロードマップ](../../../ROADMAP.md) ｜ [English](../../../../en/development/apps/c/LIBC.md)

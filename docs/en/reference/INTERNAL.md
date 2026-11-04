@@ -143,4 +143,4 @@ Pico W uses the 16-KiB network reserve for its 10-KiB lwIP heap and 4-KiB idle t
 
 ---
 
-**Related links:** [Reference index](README.md) | [Textbook](../learn/README.md) | [日本語](../../ja/reference/INTERNAL.md) | [Usage guides](../guides/README.md)
+**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/INTERNAL.md) | [Usage guides](../guides/README.md)

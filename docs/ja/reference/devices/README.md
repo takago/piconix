@@ -7,8 +7,8 @@
 - [UART1と端末操作](UART.md)
 - [ハードウェア・ピン割当・配線](../hardware/README.md)
 
-**学ぶ順序を確認：** [B5 デバイス](../../learn/B/B5.md) → [C4 デバイスドライバ](../../learn/C/C4.md)．
+**学ぶ順序を確認：** [B5 デバイス](DEVICES.md) → [C4 デバイスドライバ](../../development/drivers/DRIVER-DEVELOPMENT.md)．
 
 ---
 
-**関連リンク：** [リファレンス総目次](../README.md) ｜ [教科書](../../learn/README.md) ｜ [English](../../../en/reference/devices/README.md)
+**関連リンク：** [リファレンス総目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/devices/README.md)

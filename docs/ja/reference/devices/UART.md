@@ -75,4 +75,4 @@ USB側では`tty`は`/dev/console`，UART1側のShellでは`/dev/ttyS1`を表示
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/devices/UART.md) ｜ [概要へ戻る](../../guides/README.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/devices/UART.md) ｜ [概要へ戻る](../../guides/README.md)

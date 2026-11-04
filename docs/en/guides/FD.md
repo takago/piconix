@@ -16,4 +16,4 @@ For `/proc/sym/kernel`, if the kernel supports `lseek()`, the viewer keeps a bou
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/A/A1.md) | [Guide index](README.md) | [日本語](../../ja/guides/FD.md) | [Documentation](../../DOCS.md)
+**Related links:** [Setup](../setup/SETUP.md) | [Guide index](README.md) | [日本語](../../ja/guides/FD.md) | [Documentation](../../DOCS.md)

@@ -1,6 +1,6 @@
 # Usage and Command Guides
 
-Find command instructions, operational cautions, and practical examples here. For a sequential introduction to UNIX, follow the [Part A/B/C textbook](../learn/README.md).
+Find command instructions, operational cautions, and practical examples here. For a sequential introduction to UNIX, follow the [Learning roadmap](../ROADMAP.md).
 
 **Setup:** [Installation guide](../setup/SETUP.md).
 
@@ -26,7 +26,7 @@ Find command instructions, operational cautions, and practical examples here. Fo
 - [trace — kernel tracing](TRACE.md)
 - [mem — memory viewer](MEM.md)
 
-[Textbook contents](../learn/README.md) | [Technical references](../reference/README.md)
+[Learning roadmap](../ROADMAP.md) | [Technical references](../reference/README.md)
 
 ---
 

@@ -54,7 +54,7 @@ Then trace these **separately**:
 
 ## 5. Verification workflow
 
-Record baseline behavior before modifying code. Use [Textbook B6](../../learn/B/B6.md) for an introductory hardware exercise.
+Record baseline behavior before modifying code. Use [Network connection](../../reference/network/NETWORK.md) for an introductory hardware exercise.
 
 ```sh
 # From the repository root on a development PC: source-level regression tests
@@ -85,7 +85,7 @@ Test AP, STA if used, Telnet connect/disconnect, user sockets (`httpd`, `nc`), `
 - **User-visible behavior, connection methods and limits:** [Technical network reference](../../reference/network/README.md)
 - **User C application API and compatibility rules:** [Network programming in C](../apps/c/NETWORK-PROGRAMMING.md)
 - **Kernel implementation and modification guidance:** This guide
-- **Sequential learning and exercises:** [Textbook C5](../../learn/C/C5.md)
+- **Sequential learning and exercises:** [Network development](NETWORK-DEVELOPMENT.md)
 
 If implementation and documentation diverge, inspect current source and update **both Japanese and English** pages.
 

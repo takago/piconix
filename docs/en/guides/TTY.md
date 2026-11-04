@@ -71,4 +71,4 @@ During shell line editing, Ctrl+L clears the terminal screen using ANSI sequence
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md) | [日本語](../../ja/guides/TTY.md) | [UART1 and terminals](../reference/devices/UART.md) | [C programming](../development/apps/c/PROGRAMMING.md)
+**Related links:** [TTY guide](TTY.md) | [Guide index](README.md) | [日本語](../../ja/guides/TTY.md) | [UART1 and terminals](../reference/devices/UART.md) | [C programming](../development/apps/c/PROGRAMMING.md)

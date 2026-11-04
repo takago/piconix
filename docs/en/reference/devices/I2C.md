@@ -66,4 +66,4 @@ int main(void) {
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/devices/I2C.md) | [Devices](DEVICES.md)
+**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/devices/I2C.md) | [Devices](DEVICES.md)

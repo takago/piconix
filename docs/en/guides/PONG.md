@@ -36,4 +36,4 @@ The game cannot detect whether a terminal emulator is physically connected. Each
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md) | [日本語](../../ja/guides/PONG.md)
+**Related links:** [TTY guide](TTY.md) | [Guide index](README.md) | [日本語](../../ja/guides/PONG.md)

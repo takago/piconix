@@ -32,7 +32,7 @@ piconix# fbed
 
 ## ファイルの表示と行番号
 
-`cat FILE`はファイルをそのまま表示し，`cat -n FILE`は空行を含むすべての行に1から始まる番号を付けます．ファイル名を省略すると標準入力から読み込むため，`echo hello | cat -n`も使えます．書式は`help cat`で確認できます．実習例は[教科書 A2](../learn/A/A2.md)を参照してください．
+`cat FILE`はファイルをそのまま表示し，`cat -n FILE`は空行を含むすべての行に1から始まる番号を付けます．ファイル名を省略すると標準入力から読み込むため，`echo hello | cat -n`も使えます．書式は`help cat`で確認できます．実習例は[パイプ操作](PIPE.md)を参照してください．
 
 `ls -a`は`.`と`..`も表示し，`ls -l`は種別，ID，サイズを表示します．`edit`では`/tmp`または`/etc`直下のRAMファイルを指定します．`dd`の`if=`と`of=`を省略すると標準入出力を使い，`bs`は1〜256バイトです．`grep`は正規表現ではなく文字列を検索し，128バイトを超える行は検索対象から除外します．
 
@@ -52,9 +52,9 @@ piconix# fbed
 
 ## Pico Wのネットワークコマンド
 
-`ping [-c COUNT] IPv4`は既定で4回のEcho Requestを送ります．`192.168.4.2`のような数値のIPv4アドレスを指定してください．`tcpdump [-x] [-c COUNT]`はIPv4のTCP/UDP/ICMPを観察します．`-x`を指定すると字下げした2行目にデータ長と先頭最大16バイト（HEX・ASCII）を表示します．どちらもPico W専用です．詳しくは[教科書 B6](../learn/B/B6.md)を参照してください．
+`ping [-c COUNT] IPv4`は既定で4回のEcho Requestを送ります．`192.168.4.2`のような数値のIPv4アドレスを指定してください．`tcpdump [-x] [-c COUNT]`はIPv4のTCP/UDP/ICMPを観察します．`-x`を指定すると字下げした2行目にデータ長と先頭最大16バイト（HEX・ASCII）を表示します．どちらもPico W専用です．詳しくは[ネットワーク接続](../reference/network/NETWORK.md)を参照してください．
 
 
 ---
 
-**関連リンク：** [対応する教科書の章](../learn/A/A1.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/HELP.md)
+**関連リンク：** [セットアップ](../setup/SETUP.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/HELP.md)

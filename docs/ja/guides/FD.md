@@ -16,4 +16,4 @@
 
 ---
 
-**関連リンク：** [対応する教科書の章](../learn/A/A1.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/FD.md) ｜ [文書一覧](../../DOCS.ja.md)
+**関連リンク：** [セットアップ](../setup/SETUP.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/FD.md) ｜ [文書一覧](../../DOCS.ja.md)

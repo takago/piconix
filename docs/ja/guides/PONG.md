@@ -36,4 +36,4 @@ Pongはゲーム中，使用するTTYを非canonical・エコーOFF・ノンブ�
 
 ---
 
-**関連リンク：** [対応する教科書の章](../learn/B/B2.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/PONG.md)
+**関連リンク：** [TTY・stty](TTY.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/PONG.md)

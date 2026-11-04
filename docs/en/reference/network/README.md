@@ -11,7 +11,7 @@ Use these in order, since each tool observes a **different layer**:
 3. [`tcpdump`: TCP/UDP/ICMP packet summaries](TCPDUMP.md)
 4. [`net`: Wi-Fi, AP stations and ARP](NET.md)
 
-Start with [Textbook B6](../../learn/B/B6.md). These diagnostics require a **Pico W**, not the regular Pico.
+Start with [Network connection](NETWORK.md). These diagnostics require a **Pico W**, not the regular Pico.
 
 
 ## Connection and diagnostics
@@ -29,8 +29,8 @@ Start with [Textbook B6](../../learn/B/B6.md). These diagnostics require a **Pic
 
 **Development guides:** [User-space C networking](../../development/apps/c/NETWORK-PROGRAMMING.md) | [Kernel network implementation and extension](../../development/network/NETWORK-DEVELOPMENT.md).
 
-**Guided learning:** [B6 Networking](../../learn/B/B6.md) → [C5 Network implementation](../../learn/C/C5.md).
+**Guided learning:** [B6 Networking](NETWORK.md) → [C5 Network implementation](../../development/network/NETWORK-DEVELOPMENT.md).
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Devices](../devices/README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/README.md)
+**Related links:** [Reference index](../README.md) | [Devices](../devices/README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/network/README.md)

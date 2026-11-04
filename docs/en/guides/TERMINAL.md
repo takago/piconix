@@ -124,4 +124,4 @@ An invalid option or argument count is reported by the command itself. The small
 
 ---
 
-**Related links:** [Related textbook chapter](../learn/B/B2.md) | [Guide index](README.md) | [日本語](../../ja/guides/TERMINAL.md)
+**Related links:** [TTY guide](TTY.md) | [Guide index](README.md) | [日本語](../../ja/guides/TERMINAL.md)

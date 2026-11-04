@@ -135,7 +135,7 @@ Choose a guide based on what you want to do. If you are new to PicoNIX, start wi
 | Category | English | 日本語 |
 |---|---|---|
 | **Setup** — Install the tools and connect PicoNIX | [Setup guide](docs/en/setup/SETUP.md) | [セットアップ手順](docs/ja/setup/SETUP.md) |
-| **Textbook** — Learn UNIX step by step (Parts A–C) | [Textbook](docs/en/learn/README.md) | [教科書](docs/ja/learn/README.md) |
+| **Learning roadmap** — Suggested order for learning UNIX with the practical guides | [Learning roadmap](docs/en/ROADMAP.md) | [学習ロードマップ](docs/ja/ROADMAP.md) |
 | **Task index** — Find instructions by what you want to do | [Task index](docs/en/TASKS.md) | [目的別索引](docs/ja/TASKS.md) |
 | **Usage guides** — Look up commands and examples | [Usage guides](docs/en/guides/README.md) | [操作ガイド](docs/ja/guides/README.md) |
 | **Technical reference** — Check specifications and APIs | [Technical reference](docs/en/reference/README.md) | [技術リファレンス](docs/ja/reference/README.md) |
@@ -143,4 +143,4 @@ Choose a guide based on what you want to do. If you are new to PicoNIX, start wi
 | **Function index** — Browse source functions (Japanese only) | [Function index (Japanese)](docs/FUNCTIONS.md) | [関数索引](docs/FUNCTIONS.md) |
 | **Development diary** — Follow the development history | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
 
-Textbook sections use numbers such as `A1.1`, `B2.3`, and `C4.1`. The other guides are organized by topic rather than chapter order.
+The roadmap gives a suggested learning order. Practical guides and references contain the detailed instructions.

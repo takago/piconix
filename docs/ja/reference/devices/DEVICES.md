@@ -168,4 +168,4 @@ GP26（SDA）とGP27（SCL）はI²C1専用です．`/dev/i2c/1`を通じて利�
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/devices/DEVICES.md) ｜ [デバイス目次](README.md) ｜ [ハードウェア・配線](../hardware/README.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/devices/DEVICES.md) ｜ [デバイス目次](README.md) ｜ [ハードウェア・配線](../hardware/README.md)
