@@ -83,6 +83,14 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 - `getdents()` works on directory FDs only. It returns `1` per entry and `0` at the end. A buffer smaller than `sizeof(piconix_dirent_t)` returns `OS_EINVAL`; a non-directory FD returns `OS_EBADF`.
 - `lseek()` is restricted to supported FD types. RAM files and `/dev/shm` can seek past their current data end, but not beyond 2 KiB (`OS_EINVAL`). Unsupported FDs also return `OS_EINVAL`.
 
+## Process and FD errors and resource ownership
+
+- `spawn(program, argc, argv)` returns `OS_ENOENT` for an unregistered ID, `OS_EINVAL` for invalid `argc` (outside 1–8), pointers, or argument storage (including more than 128 bytes of strings), and `OS_EAGAIN` when all six user slots are occupied. Only standard FDs 0–2 are inherited from the parent; other FDs are not inherited.
+- `waitpid(pid, status, options)` accepts a child PID or `-1`; `options` must be 0 or `WNOHANG`. Invalid arguments return `OS_EINVAL`. If neither a matching running child nor an unreaped exit notification exists, it returns `OS_ESRCH`. With `WNOHANG`, a still-running child causes a return of 0. Exited tasks immediately release their task slots; one PID can be reaped from each notification. At most six exit notifications are retained, and if full, the first array entry is overwritten, so an unreaped notification may be lost. `status` is always set to 0 regardless of the reason for termination.
+- `kill(pid)` terminates the target and returns 0 on success. An unknown PID, the current task, and the idle task return `OS_ESRCH`. This is not general POSIX signal delivery.
+- `pipe(fds)` returns 0 on success; invalid output storage returns `OS_EINVAL`, fewer than two available FDs returns `OS_EMFILE`, and both pipe slots already in use returns `OS_EAGAIN`. Reading an empty pipe or writing a full pipe waits; an empty pipe with no writers returns EOF (0), and writing with no readers returns `OS_EIO`.
+- `dup(oldfd)` allocates a free FD; `dup2(oldfd, newfd)` replaces a chosen FD. Invalid FDs return `OS_EBADF`; `dup()` with no free FD returns `OS_EMFILE`. A socket source, or a socket destination in `dup2()`, returns `OS_EINVAL`. `dup2(fd, fd)` returns the valid FD unchanged. Pipe endpoint references are updated on duplication, inheritance, `close()`, and task exit.
+
 ## C APIs versus raw ABI
 
 `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` are user-space BSD-style adapters, not separate SVC numbers. TCP `bind()` starts listening, `listen()` does not maintain a backlog, and `accept()` cannot return the peer address. See [NETWORK-PROGRAMMING.md](../development/apps/c/NETWORK-PROGRAMMING.md).

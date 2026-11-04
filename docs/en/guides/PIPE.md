@@ -22,6 +22,12 @@ Pipelines may contain two or three commands; four or more stages are not support
 - After all writers close and buffered data is consumed, reading returns EOF (zero bytes). Writing with no readers returns an error.
 - Reading from an empty pipe or writing to a full pipe waits for progress. The internal implementation has an `O_NONBLOCK` branch returning `OS_EAGAIN`, but the current `fcntl(F_SETFL)` does not support pipe descriptors. Therefore applications cannot enable nonblocking pipes through the public API.
 
+## FD inheritance and resource exhaustion
+
+Only standard FDs 0–2 are inherited when a child task starts. The shell first uses `dup2()` to connect standard descriptors to pipe endpoints before spawning each child. Other pipe descriptors are not inherited automatically; multi-stage pipelines must explicitly arrange each stage's input and output.
+
+Each `pipe()` requires two free FDs. It returns `OS_EMFILE` when fewer than two are free, and `OS_EAGAIN` if both pipe slots are occupied. `dup()` also returns `OS_EMFILE` if no FD is free. Pipe references are updated by `dup()`/`dup2()`, child inheritance of standard FDs, `close()`, and task exit. Replacing a socket destination via `dup2()` returns `OS_EINVAL`.
+
 ## Limits and shell restrictions
 
 Pipelines cannot be combined with `&`, `<`, or `>`; use those operators with standalone commands.

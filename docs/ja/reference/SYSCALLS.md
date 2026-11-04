@@ -83,6 +83,14 @@
 - `getdents()`はディレクトリFDにのみ有効で，正常時は1件につき`1`，末尾で`0`を返します．サイズが`sizeof(piconix_dirent_t)`未満の場合は`OS_EINVAL`，ディレクトリではないFDの場合は`OS_EBADF`です．
 - `lseek()`は対応するファイルに限定されます．RAMファイルと`/dev/shm`はサイズ末尾を超えた位置までシークできますが，それぞれ2 KiBを超える位置は`OS_EINVAL`です．シーク非対応のFDも`OS_EINVAL`を返します．
 
+## プロセス・FD操作のエラー条件と資源管理
+
+- `spawn(program, argc, argv)`は未登録IDに`OS_ENOENT`，不正な`argc`（1～8以外）・ポインタ・引数領域（文字列合計128バイト超など）に`OS_EINVAL`，6個のユーザスロットが埋まっている場合に`OS_EAGAIN`を返します．子には親の標準FD 0～2だけが継承され，それ以外のFDは継承されません．
+- `waitpid(pid, status, options)`は自分の子のPIDまたは`-1`を受け付けます．`options`は0か`WNOHANG`だけです．不正引数は`OS_EINVAL`，対象の実行中の子も未回収の終了通知もなければ`OS_ESRCH`です．`WNOHANG`で子が実行中なら0を返します．終了済みの子はタスクスロットを占有せず，通知からPIDを1回だけ取得できます．終了通知は最大6件で，満杯の場合は配列の先頭の通知を上書きするため，未回収の終了情報が失われる可能性があります．`status`の値は終了理由によらず0です．
+- `kill(pid)`は指定PIDを終了させ，成功時は0を返します．該当PIDなし，自分自身，アイドルタスクへの指定は`OS_ESRCH`です．一般的なPOSIXシグナル配信ではありません．
+- `pipe(fds)`は成功時0です．無効な格納先は`OS_EINVAL`，FDの空きが2つ未満なら`OS_EMFILE`，2本のパイプが使用中なら`OS_EAGAIN`を返します．パイプが空のときの読取り，満杯時の書込みは待機し，すべての書込み端が閉じられた空のパイプはEOF（0），読み手のないパイプへの書込みは`OS_EIO`です．
+- `dup(oldfd)`は空きFDを割り当て，`dup2(oldfd, newfd)`は指定FDを置き換えます．不正なFDは`OS_EBADF`，`dup()`で空きがなければ`OS_EMFILE`です．ソケットを複製元または`dup2()`の置換先とする操作は`OS_EINVAL`です．同じFDへの`dup2(fd, fd)`は有効なFDならその番号を返します．パイプ端点の参照数は複製，継承，`close()`，タスク終了時に調整されます．
+
 ## C APIと低水準ABIの違い
 
 `bind()`，`listen()`，`accept()`，`connect()`，`send()`，`recv()`，`sendto()`，`recvfrom()` はユーザ側のBSD風アダプターで，個々に独立したSVC番号はありません．特にTCPの `bind()` は待受開始を行い，`listen()` はバックログ管理を実装しません．`accept()` は相手アドレスの取得に対応していません．詳しくは [NETWORK-PROGRAMMING.md](../development/apps/c/NETWORK-PROGRAMMING.md) を参照してください．
