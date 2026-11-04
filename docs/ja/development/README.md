@@ -17,7 +17,7 @@
 
 ## カーネルの読解と拡張
 
-- [PicoNIX カーネルリーディングガイド](kernel/KERNEL-READING-GUIDE.md)
+- [PicoNIX カーネル読解ガイド](kernel/KERNEL-READING-GUIDE.md)
 - [カーネル拡張ガイド](kernel/KERNEL-DEVELOPMENT.md)
 
 ## システムコール

@@ -8,7 +8,7 @@
 |---|---|
 | カーネル側のWi-Fi・lwIP・ソケットを理解・改造したい | [ネットワーク実装・拡張ガイド](NETWORK-DEVELOPMENT.md) |
 | TCP/UDPを使う**ユーザCアプリ**を作りたい | [ソケットAPIとネットワークアプリケーション](../apps/c/NETWORK-PROGRAMMING.md) |
-| カーネル全体の動作を起動から追いたい | [カーネルリーディングガイド](../kernel/KERNEL-READING-GUIDE.md) |
+| カーネル全体の動作を起動から追いたい | [カーネル読解ガイド](../kernel/KERNEL-READING-GUIDE.md) |
 | TelnetやWi-Fi接続の仕様を確認したい | [ネットワークリファレンス](../../reference/network/README.md) |
 | ネットワークを初めて学習したい | [教科書B6](../../learn/B/B6.md) → [教科書C5](../../learn/C/C5.md) |
 
