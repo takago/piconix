@@ -1,4 +1,4 @@
-# 2．標準入出力とプロセス間通信
+# 標準入出力とプロセス間通信
 
 [学習ガイド](LEARNING-PATH.md) | [English](../../en/literacy/IO-IPC.md) | [パイプの詳細](PIPE.md)
 

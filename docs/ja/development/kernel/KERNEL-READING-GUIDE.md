@@ -2,7 +2,7 @@
 
 [文書案内](../../../DOCS.ja.md) | [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md) | [関数一覧](../../../FUNCTIONS.md) | [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)
 
-このガイドは，PicoNIXの**現行ソースを読んでOSの動作原理を理解する**ための道順です．機能の追加手順は[カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)を参照してください．ソースをファイルの先頭から順番に読む必要はありません．**起動 → タスクの準備 → スケジューリング → 例外 → システムコール → ファイル → 通信 → デバイス**の順で，関心のある処理を追います．
+このガイドは，PicoNIXの**現行ソースを読んでOSの動作原理を理解する**ための道順です．機能の追加手順は[カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)を参照してください．ソースをファイルの先頭から順番に読む必要はありません．**起動 → タスクの準備 → スケジューリング → 例外 → システムコール → ファイル → TTY・パイプ → デバイス → ネットワーク**の順で，関心のある処理を追います．
 
 ## 読み進め方
 
@@ -21,8 +21,9 @@
 | 4 | コンテキスト切替 | `kernel/context.S` | PendSV，PSP，レジスタ退避・復元 |
 | 5 | システムコール | `userland/lib/syscalls.c`，`kernel/context.S`，`kernel/kernel.c` | SVCとカーネルへの入口 |
 | 6 | ファイル・FD | `kernel/kernel.c` | open/read/write/close，VFS，/tmp，/proc |
-| 7 | TTY・パイプ | `kernel/kernel.c`，`userland/shell.c` | 入力待ち，FDの複製，EOF，起床 |
-| 8 | デバイス・通信 | `kernel/gpio.c`など，`kernel/net*.c` | ハードウェアとソケットの境界 |
+| 7 | TTY・パイプ | `kernel/kernel.c`，`userland/apps/shell.c` | 入力待ち，FDの複製，EOF，起床 |
+| 8 | デバイス | `kernel/gpio.c`，`kernel/fb.c`など | VFSとデバイスドライバの役割分担 |
+| 9（任意） | ネットワーク（Pico W） | `kernel/net.c`，`kernel/net_socket.c`など | Wi-Fi，lwIP，ソケットの役割分担 |
 
 > **ファイルの探し方：** 関数定義と概説は[関数一覧](../../../FUNCTIONS.md)を利用してください．同一覧の行番号はソースを編集すると変わるため，本ガイドでは固定の行番号を記しません．
 
@@ -64,7 +65,7 @@ PSP（プロセススタック），MSP（例外処理側のスタック），�
 
 ## 第5段階：システムコール
 
-**読む順序：** `userland/hello.c`（または別の`write()`使用アプリ） → `userland/lib/syscalls.c`の`write()`と`call()` → `include/piconix_syscall.h` → `kernel/context.S`の`isr_svcall` → `kernel/kernel.c`の`os_svc_dispatch()`．
+**読む順序：** `userland/apps/hello.c`（または別の`write()`使用アプリ） → `userland/lib/syscalls.c`の`write()`と`call()` → `include/piconix_syscall.h` → `kernel/context.S`の`isr_svcall` → `kernel/kernel.c`の`os_svc_dispatch()`．
 
 ```text
 ユーザプログラム
@@ -105,13 +106,21 @@ echo hello | grep hello | cat
 
 **確認問題：** パイプの読取側がデータを待つときタスクはどうなるか．書込側の参照がなくなったことをどこで判断し，EOFを返すか．TTYの入力行編集と画面制御は誰の責任か．
 
-## 第8段階：デバイスとネットワーク
+## 第8段階：デバイス
 
-**読む順序：** `kernel/gpio.c` → `kernel/fb.c` → `kernel/adc.c` → `kernel/i2c.c` → `kernel/pwm.c` → `kernel/net.c` → `kernel/net_socket.c`．ハードウェアの定義は`kernel/pins.h`・`kernel/devices.h`・`include/device_names.h`も参照します．
+**読む順序：** `kernel/kernel.c`のデバイスI/O振り分け → `kernel/gpio.c` → `kernel/fb.c` → `kernel/adc.c` → `kernel/i2c.c` → `kernel/pwm.c`．ハードウェアの定義は`kernel/pins.h`・`kernel/devices.h`・`include/device_names.h`も参照します．
 
-GPIOなどのバックエンドがVFS・ioctlからどう呼ばれるかを調べます．ネットワークについては`net_init()`・`net_poll()`から始め，ソケットの各処理に進みます．Pico W固有処理は条件付きコンパイルされ，ネットワークスタックにはlwIPも関与します．詳細は[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)と[ネットワークプログラミング](../apps/c/NETWORK-PROGRAMMING.md)を参照してください．
+GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [デバイスI/O実習](../../literacy/DEVICE-IO.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
 
-**確認問題：** デバイス固有のコードを通常の`read()`や`write()`の入口から切り離す利点は何か．Pico版とPico W版でどの処理が異なるか．
+**確認問題：** デバイス固有のコードを通常のI/O入口から切り離す利点は何か．VFS側とドライバ側では何を担当するか．
+
+## 第9段階：ネットワーク（Pico Wのみ・任意）
+
+**読む順序：** `kernel/main.c`での`net_init()` → `kernel/net.c`の`net_init()`・`net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c`・`kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c`．
+
+Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイス制御，ユーザアプリのTCP/UDPソケットを区別します．ソケットAPIとユーザ側の例は[ネットワークプログラミング](../apps/c/NETWORK-PROGRAMMING.md)を参照してください．**通常のPicoだけで学ぶ場合はこの段階を省略できます．**
+
+**確認問題：** `net_poll()`はなぜ必要か．`httpd`がユーザプログラムなのに，Telnetサービスはカーネル側にあるのはどのような設計上の違いか．
 
 ## 最終演習：一つの操作を端から端まで追う
 

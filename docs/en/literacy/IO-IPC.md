@@ -1,4 +1,4 @@
-# 2. Standard I/O and interprocess communication
+# Standard I/O and interprocess communication
 
 [Learning path](LEARNING-PATH.md) | [日本語](../../ja/literacy/IO-IPC.md) | [Pipe reference](PIPE.md)
 

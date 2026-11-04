@@ -1,4 +1,4 @@
-# 3．デバイスと入出力
+# デバイスと入出力
 
 [学習ガイド](LEARNING-PATH.md) | [English](../../en/literacy/DEVICE-IO.md) | [デバイス仕様](../reference/devices/DEVICES.md)
 

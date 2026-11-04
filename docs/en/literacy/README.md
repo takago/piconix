@@ -1,10 +1,16 @@
 # PicoNIX
 
-**First time here?** Follow the [guided learning path](LEARNING-PATH.md) for hands-on exercises before the detailed reference.
+**Start learning:** Use the [three-level learning path](LEARNING-PATH.md) rather than treating the reference as a reading sequence.
+
+| Level | First course | Goal |
+|---|---|---|
+| **Beginner** | [Use PicoNIX](BEGINNER.md) | Commands, files, pipes, processes |
+| **Intermediate** | [Investigate the OS](INTERMEDIATE.md) | FDs, terminals, memory, devices, networking |
+| **Advanced** | [Read and extend the OS](ADVANCED.md) | System calls and kernel code paths |
+
+The following feature descriptions and [topic index](../../DOCS.md) are for reference during those courses.
 
 **File browser:** [fd](FD.md) supports directory navigation, live viewing, and `/tmp` editing.
-
-**Hands-on themes:** [System monitoring](MONITORING.md) (Pico / Pico W) and [Networking](NETWORKING.md) (Pico W) are separate labs.
 
 [日本語](../../ja/literacy/README.md) | [Documentation guide](../../DOCS.md)
 

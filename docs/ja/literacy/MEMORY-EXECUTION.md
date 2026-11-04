@@ -1,4 +1,4 @@
-# 5．メモリとプログラムの実行
+# メモリとプログラムの実行
 
 [学習ガイド](LEARNING-PATH.md) | [English](../../en/literacy/MEMORY-EXECUTION.md) | [メモリ配置仕様](../reference/MEMORY-LAYOUT.md)
 

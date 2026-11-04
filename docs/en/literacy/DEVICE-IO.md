@@ -1,4 +1,4 @@
-# 3. Devices and I/O
+# Devices and I/O
 
 [Learning path](LEARNING-PATH.md) | [日本語](../../ja/literacy/DEVICE-IO.md) | [Device reference](../reference/devices/DEVICES.md)
 

@@ -1,4 +1,4 @@
-# 6．端末と対話処理
+# 端末と対話処理
 
 [学習ガイド](LEARNING-PATH.md) | [English](../../en/literacy/TERMINALS-LAB.md) | [端末設定の仕様](TTY.md)
 

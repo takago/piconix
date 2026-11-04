@@ -1,59 +1,48 @@
-# PicoNIX 学習ガイド — 10のテーマ
+# PicoNIX 学習コース — 初級・中級・上級
 
-[English](../../en/literacy/LEARNING-PATH.md) | [文書一覧](../../DOCS.ja.md) | [セットアップ](../setup/SETUP.md)
+[English](../../en/literacy/LEARNING-PATH.md) | [文書案内](../../DOCS.ja.md) | [セットアップ](../setup/SETUP.md)
 
-このガイドは，工学部の学部生が**操作から観察，プログラミング，OSの拡張へ**進むための道筋です．最初からOS内部の知識は不要です．Linux PCで行うビルドとPicoNIX端末で行う操作は区別します．例の`piconix#`はPicoNIXのプロンプトです．
+PicoNIXは，**操作する → OSの動作を観察する → ソースを読み，拡張する**という順に学べます．本ページは教材の入口です．詳しい操作や仕様は既存の個別文書にまとめており，同じ説明をここで繰り返しません．
 
-**準備：** Raspberry Pi PicoまたはPico W，データ通信可能なUSBケーブル，ビルド用Linux PC．[Setup](../setup/SETUP.md)で書き込み・端末接続を済ませてください．テーマ8のネットワークにはPico Wが必要です．テーマ3の外部回路を使う部分は配線が確認できてから実施します．`/tmp`はRAM上なので再起動で消えます．
+| 段階 | コース | 学ぶこと | 前提 | 使用機材 |
+|---|---|---|---|---|
+| 初級 | **[初級：使ってみる](BEGINNER.md)** | シェル，ファイル，標準入出力，パイプ，プロセス | 不要 | Pico / Pico W，USB接続 |
+| 中級 | **[中級：動作を調べる](INTERMEDIATE.md)** | FD，端末，メモリ，システムコールの観察，デバイス，通信 | 初級相当の操作 | Pico / Pico W，USB接続．通信実習のみPico W |
+| 上級 | **[上級：コードを読む・拡張する](ADVANCED.md)** | Cアプリ，SVC，VFS，カーネル読解，デバイス・ネットワーク開発 | 中級相当の概念，Cの基礎 | Pico / Pico W，Linux開発PC |
 
-## 学習テーマと順序
+**学習の進め方：** 各コースにある実習を順番に実施し，最後の「到達確認」を自分の言葉で説明できたら次へ進みます．興味のあるテーマだけを選ぶ場合も，前提とするコースを先に確認してください．最初の2段階はカーネルを改造しなくても学習できます．
 
-| 順序 | 学習テーマ | 最初の教材 | 到達目標 |
-|---|---|---|---|
-| 1 | UNIXの基本操作 | [基本操作](BASICS.md) | シェル，パス，コマンドを説明できる |
-| 2 | 標準入出力とプロセス間通信 | [標準I/O・パイプ](IO-IPC.md) | FD，リダイレクト，パイプを区別できる |
-| 3 | デバイスと入出力 | [デバイスI/O](DEVICE-IO.md) | `/dev`と入出力APIの役割を説明できる |
-| 4 | プロセスとタスク | [プロセス](PROCESSES.md) | PID，前景・背景実行を説明できる |
-| 5 | メモリとプログラムの実行 | [メモリと実行](MEMORY-EXECUTION.md) | RAM，Flash，PICとスロットの関係を理解する |
-| 6 | 端末と対話処理 | [端末実習](TERMINALS-LAB.md) | 端末設定と画面制御の違いを説明できる |
-| 7 | システムモニタリング | [モニタリング実習](MONITORING.md) | `ps`，`mem`，`trace`などでOSを観察できる |
-| 8 | ネットワーク | [ネットワーク実習](NETWORKING.md) | IP，TCP，Telnet，HTTPを観察できる（Pico W） |
-| 9 | プログラミング | [言語別ガイド](#9プログラミングの選択) | C・Python・アセンブリの違いを理解する |
-| 10 | OSの拡張 | [拡張ガイド](#10osの拡張) | システムコール，ドライバ，カーネルの改造方法を理解する |
+## 準備と使い分け
 
-すべてを一度に終える必要はありません．テーマ1～7は通常のPicoでも進められます．テーマ8はPico Wを使用する場合に選択します．**テーマ9・10は興味と前提知識に合わせた発展学習**で，すべての言語・改造方法を履修する必要はありません．
+- [セットアップ](../setup/SETUP.md)でビルド・書き込み・USB端末への接続を済ませます．Pico Wを使わなくても，初級と中級のネットワーク以外の部分を学べます．
+- `piconix#`で始まる例は**PicoNIX上のシェル**で入力します．`git`や`rg`，ビルドコマンドは**Linux PC側**で実行します．
+- `/tmp`と`/etc`はRAM上にあり，変更は再起動で消えます．最初は外付け回路を使わず，デバイス操作は配線を確認した後に実施します．
+- PicoNIXは教育用の小さなUNIX風OSです．Linuxと同じ仮想記憶や完全なPOSIX機能を備えるわけではありません．違いは[Linuxとの比較](../reference/DIFFERENCES.md)で確認できます．
 
-## 最初の15分の確認
+## 段階と教材の対応
 
-```text
-piconix# help
-piconix# pwd
-piconix# ls /bin
-piconix# echo hello > /tmp/hello.txt
-piconix# cat /tmp/hello.txt
-piconix# cat -n /tmp/hello.txt
-piconix# ps
-```
-
-この実習で，どの操作がファイルに作用し，どの操作が現在のOSの状態を示したかを説明してみてください．`cat -n`で表示した行番号がファイルの内容を変えない理由も考えてください．
-
-## 9．プログラミングの選択
-
-| 言語 | 最初に読む文書 | 作業場所 |
+| コース内の順序 | 主題 | 既存の実習・解説 |
 |---|---|---|
-| Python風インタプリタ | [Python](../development/apps/python/PYTHON.md) | PicoNIXで対話入力・小さなスクリプト |
-| C | [Cアプリ開発](../development/apps/c/PROGRAMMING.md) | Linux PCでビルドしPicoNIXで実行 |
-| Thumbアセンブリ | [アセンブラ](../development/apps/asm/ASM.md) | PicoNIXの小型`as`で試す |
+| 初級 1–2 | コマンドとファイル | [基本操作](BASICS.md)，[help](HELP.md)，[編集](EDIT.md)，[vi](VI.md)，[fd](FD.md) |
+| 初級 3 | リダイレクトとパイプ | [標準入出力](IO-IPC.md)，[パイプの仕組み](PIPE.md) |
+| 初級 4 | プロセス | [プロセスとタスク](PROCESSES.md) |
+| 中級 1–2 | FDと端末 | [FD・パイプ](IO-IPC.md)，[端末実習](TERMINALS-LAB.md)，[TTY設定](TTY.md) |
+| 中級 3–4 | メモリと内部観察 | [メモリと実行](MEMORY-EXECUTION.md)，[モニタリング](MONITORING.md)，[トレース](TRACE.md) |
+| 中級 5 | デバイスI/O | [デバイス実習](DEVICE-IO.md)，[デバイス仕様](../reference/devices/DEVICES.md) |
+| 中級 6（任意） | ネットワーク（Pico W） | [ネットワーク実習](NETWORKING.md) |
+| 上級 1–2 | プログラミングとシステムコール | [Cアプリ](../development/apps/c/PROGRAMMING.md)，[Cライブラリ](../development/apps/c/LIBC.md)，[SVC一覧](../reference/SYSCALLS.md) |
+| 上級 3 | カーネル読解 | [カーネルリーディングガイド](../development/kernel/KERNEL-READING-GUIDE.md)，[関数一覧](../../FUNCTIONS.md) |
+| 上級 4–5 | 拡張と通信プログラミング | [システムコール開発](../development/syscalls/SYSCALL-DEVELOPMENT.md)，[ドライバ開発](../development/drivers/DRIVER-DEVELOPMENT.md)，[ネットワークプログラミング](../development/apps/c/NETWORK-PROGRAMMING.md) |
 
-Python風インタプリタはCPythonではありません．Cアプリの追加にはファームウェア再ビルドが必要です．アセンブリはメモリ保護のない環境で実行されるため小さい例から始めます．
+**選択学習：** PicoNIX上で短いプログラムを書きたい場合は，[Python風インタプリタ](../development/apps/python/PYTHON.md)や[Thumbアセンブラ](../development/apps/asm/ASM.md)を，中級からでも試せます．上級のC・カーネル開発を始めるために，両方の習得は必要ありません．
 
-## 10．OSの拡張
+## 学習記録の書き方
 
-[システムコールの追加](../development/syscalls/SYSCALL-DEVELOPMENT.md) → [ドライバの追加](../development/drivers/DRIVER-DEVELOPMENT.md) → [カーネル開発](../development/kernel/KERNEL-DEVELOPMENT.md)の順に学べます．改造前に[システムコール仕様](../reference/SYSCALLS.md)と[メモリ配置](../reference/MEMORY-LAYOUT.md)を確認してください．
+各実習では，**(1) 実行した操作，(2) 観察した結果，(3) 関係するOSの概念，(4) 分からなかった点**を記録してください．PID，アドレス，時刻などは環境や実行時点によって変わります．サンプルの数値との一致よりも，意味を説明できることを重視します．
 
-## 観察・考察を記録する
+## 仕様を調べたいとき
 
-各テーマで「何を実行したか」「どの出力を見たか」「その結果から何が分かるか」「予想と違った点」を数行で記録します．値やPIDは実行のたびに変わり得るため，サンプルと数値が一致しなくても直ちに失敗ではありません．
+学習コースは「学ぶ順序」を示すものです．正確な引数や制限値は，[文書案内のリファレンス一覧](../../DOCS.ja.md#リファレンスと機能別ガイド)から確認してください．既存の個別文書は削除・移動していません．
 
 ## 用語の手引き
 
@@ -66,5 +55,3 @@ Python風インタプリタはCPythonではありません．Cアプリの追加
 | システムコール | ユーザプログラムがカーネルの機能を呼び出す入口 |
 | PIC | 配置アドレスに依存しないコード |
 | XIP | Flash上のコードをRAMへ全コピーせずに実行する方式 |
-
-**参照先：** 各機能の正確な仕様は[Reference](../reference/SPECIFICATION.md)，デバイスと配線は[デバイスガイド](../reference/devices/DEVICES.md)と[ハードウェア仕様](../reference/hardware/HARDWARE.md)を参照してください．

@@ -1,4 +1,4 @@
-# 4. Processes and tasks
+# Processes and tasks
 
 [Learning path](LEARNING-PATH.md) | [日本語](../../ja/literacy/PROCESSES.md) | [Monitoring](MONITORING.md)
 

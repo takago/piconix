@@ -1,4 +1,4 @@
-# 5. Memory and program execution
+# Memory and program execution
 
 [Learning path](LEARNING-PATH.md) | [日本語](../../ja/literacy/MEMORY-EXECUTION.md) | [Memory layout](../reference/MEMORY-LAYOUT.md)
 

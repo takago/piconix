@@ -2,7 +2,7 @@
 
 [Documentation](../../../DOCS.md) | [Kernel development](KERNEL-DEVELOPMENT.md) | [Function index (Japanese)](../../../FUNCTIONS.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)
 
-This guide explains **how to read the current PicoNIX kernel source**, rather than how to extend it. Follow one path through the system: **boot → task creation → scheduling → context switching → system calls → files → IPC → devices**. Read one function and its callers and callees at a time. For modifications, use the [kernel development guide](KERNEL-DEVELOPMENT.md).
+This guide explains **how to read the current PicoNIX kernel source**, rather than how to extend it. Follow one path through the system: **boot → task creation → scheduling → context switching → system calls → files → IPC → devices → networking (optional)**. Read one function and its callers and callees at a time. For modifications, use the [kernel development guide](KERNEL-DEVELOPMENT.md).
 
 Before starting, read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Differences from Linux](../../reference/DIFFERENCES.md). PicoNIX uses fixed-size task slots and does **not** implement the full process isolation or virtual memory of Linux. Use `rg -n 'function_name\(' kernel userland` to locate calls and definitions; line numbers can change as code is edited.
 
@@ -15,7 +15,8 @@ Before starting, read [Architecture](../../reference/ARCHITECTURE.md), [Memory l
 | 5 | System calls | An application using `write()` → `userland/lib/syscalls.c`: `write()`, `call()` → `include/piconix_syscall.h` → `kernel/context.S`: `isr_svcall` → `kernel/kernel.c`: `os_svc_dispatch()` | How does `svc #0` enter the kernel and how are arguments/results passed? Where is the user buffer checked? |
 | 6 | Files and FDs | `fd_set()` → `fd_release()` → `vfs_open()` → `vfs_rw()` → `tmp_open()` / `tmp_rw()` → `device_rw_proc()` / `device_rw_tty()` | How do `/tmp`, `/proc` and `/dev` share `open/read/write/close`? |
 | 7 | TTY and pipes | `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`; then `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → FD helpers → `SYS_PIPE` / `SYS_DUP2` / `SYS_CLOSE` → shell pipeline handling | Why does a reader block? How are pipe EOF and reference counts related? |
-| 8 | Devices and network | `kernel/gpio.c` → `fb.c` → `adc.c` → `i2c.c` → `pwm.c` → `net.c` → `net_socket.c` | What belongs in a hardware backend, what belongs in the VFS, and what is Pico W-specific? |
+| 8 | Devices | VFS device dispatch in `kernel/kernel.c` → `kernel/gpio.c` → `fb.c` → `adc.c` → `i2c.c` → `pwm.c` | What belongs in device-specific code versus the VFS or `ioctl()` interface? |
+| 9 (optional) | Networking (Pico W) | `kernel/main.c`: `net_init()` → `kernel/net.c`: `net_init()` / `net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c` / `kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c` | How are Wi-Fi/lwIP, built-in Telnet, and user-process sockets separated? |
 
 For step 2, try `ps`, `mem -s kernel`, and `mem -s sh`. For step 5, use `trace run hello` and follow this path:
 
@@ -24,7 +25,7 @@ application → write() → call(SYS_WRITE, ...) → svc #0
             → isr_svcall → os_svc_dispatch() → vfs_rw() → TTY
 ```
 
-For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. For step 7, run:
+For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS device dispatch before inspecting hardware backends; use the [device I/O lab](../../literacy/DEVICE-IO.md). Step 9 is a separate, optional Pico W topic; use the [network programming guide](../apps/c/NETWORK-PROGRAMMING.md) and distinguish kernel services from user-space `httpd`. For step 7, run:
 
 ```sh
 echo hello | grep hello | cat

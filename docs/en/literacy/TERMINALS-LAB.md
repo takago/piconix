@@ -1,4 +1,4 @@
-# 6. Terminals and interactive input
+# Terminals and interactive input
 
 [Learning path](LEARNING-PATH.md) | [日本語](../../ja/literacy/TERMINALS-LAB.md) | [TTY reference](TTY.md)
 

@@ -1,4 +1,4 @@
-# 1. UNIX command basics
+# UNIX command basics
 
 [Learning path](LEARNING-PATH.md) | [日本語](../../ja/literacy/BASICS.md) | [Command guide](HELP.md)
 

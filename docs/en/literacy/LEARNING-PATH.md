@@ -1,70 +1,57 @@
-# PicoNIX learning path — ten topics
+# PicoNIX learning path — beginner, intermediate, advanced
 
-[日本語](../../ja/literacy/LEARNING-PATH.md) | [Documentation](../../DOCS.md) | [Setup](../setup/SETUP.md)
+[日本語](../../ja/literacy/LEARNING-PATH.md) | [Documentation index](../../DOCS.md) | [Setup](../setup/SETUP.md)
 
-This guide helps undergraduate engineering students progress **from hands-on commands to observation, programming, and OS extension**. No prior OS internals knowledge is required. Keep Linux build-PC commands separate from commands entered at the PicoNIX terminal (`piconix#`).
+Learn PicoNIX in three steps: **use the system → observe how it works → read and extend the source**. This page is the curriculum entry point. Detailed usage and specifications remain in the existing topic guides rather than being duplicated here.
 
-**Before starting:** Use a Raspberry Pi Pico or Pico W, a data-capable USB cable, and a Linux build PC. Complete [Setup](../setup/SETUP.md). Networking (topic 8) requires Pico W; optional external-device experiments in topic 3 require verified wiring. Files in `/tmp` are RAM-backed and disappear on reboot.
+| Level | Course | Focus | Prerequisites | Hardware |
+|---|---|---|---|---|
+| Beginner | **[Use PicoNIX](BEGINNER.md)** | Shell, files, standard I/O, pipelines, processes | None | Pico or Pico W, USB |
+| Intermediate | **[Investigate PicoNIX](INTERMEDIATE.md)** | FDs, terminals, RAM, tracing, devices, networking | Beginner-level commands | Pico or Pico W; Pico W for networking only |
+| Advanced | **[Read and extend PicoNIX](ADVANCED.md)** | C applications, SVC, VFS, kernel reading, device and network development | Intermediate concepts, basic C | Pico or Pico W, Linux development PC |
 
-## Ten learning topics
+Complete the exercises in each course in order. Move to the next level when you can explain the end-of-level questions in your own words. You can also follow a particular topic after checking its prerequisites. Kernel modifications are not required for the first two levels.
 
-| Order | Topic | Start here | Learning outcome |
-|---|---|---|---|
-| 1 | UNIX commands | [Basics](BASICS.md) | Explain the shell, paths, and commands |
-| 2 | Standard I/O and IPC | [Standard I/O and pipes](IO-IPC.md) | Distinguish FDs, redirection, and pipes |
-| 3 | Devices and I/O | [Device I/O](DEVICE-IO.md) | Explain `/dev` and basic device APIs |
-| 4 | Processes and tasks | [Processes](PROCESSES.md) | Explain PIDs and foreground/background jobs |
-| 5 | Memory and execution | [Memory and execution](MEMORY-EXECUTION.md) | Relate RAM, Flash, PIC, and task slots |
-| 6 | Terminals | [Terminal lab](TERMINALS-LAB.md) | Distinguish terminal settings and screen drawing |
-| 7 | System monitoring | [Monitoring lab](MONITORING.md) | Observe the OS using `ps`, `mem`, `trace`, etc. |
-| 8 | Networking | [Networking lab](NETWORKING.md) | Observe IP, TCP, Telnet, and HTTP (Pico W) |
-| 9 | Programming | [Language choices](#9-choose-a-programming-language) | Compare C, Tiny Python, and assembly |
-| 10 | OS extension | [Extension guides](#10-extend-the-os) | Understand syscalls, drivers, and kernel changes |
+## Preparation and conventions
 
-You need not finish everything in one session. Topics 1–7 work on an ordinary Pico. Topic 8 is optional and requires Pico W. **Topics 9–10 are extension pathways**; you need not study all languages or all modifications.
+- Follow [Setup](../setup/SETUP.md) to build, flash and connect over USB. A regular Pico is sufficient except for the optional network lab.
+- Commands prefixed `piconix#` run **on PicoNIX**. Commands such as `git`, `rg` and build scripts run **on the Linux host**.
+- `/tmp` and `/etc` are RAM-backed; changes disappear after reboot. Do device experiments only after checking wiring and voltage levels.
+- PicoNIX is a teaching OS, not a drop-in Linux replacement. See [Differences from Linux](../reference/DIFFERENCES.md).
 
-## Your first fifteen minutes
+## Learning materials by level
 
-```text
-piconix# help
-piconix# pwd
-piconix# ls /bin
-piconix# echo hello > /tmp/hello.txt
-piconix# cat /tmp/hello.txt
-piconix# cat -n /tmp/hello.txt
-piconix# ps
-```
-
-Which operations work on files and which reveal the current OS state? Explain why `cat -n` adds a number without changing the saved file.
-
-## 9. Choose a programming language
-
-| Language | Start here | Where you work |
+| Course section | Subject | Existing lessons and guides |
 |---|---|---|
-| Tiny Python | [Python](../development/apps/python/PYTHON.md) | Short scripts and interactive input on PicoNIX |
-| C | [C applications](../development/apps/c/PROGRAMMING.md) | Build on Linux, run on PicoNIX |
-| Thumb assembly | [Assembler](../development/apps/asm/ASM.md) | Try short examples with PicoNIX's `as` |
+| Beginner 1–2 | Commands and files | [Basics](BASICS.md), [help](HELP.md), [edit](EDIT.md), [vi](VI.md), [fd](FD.md) |
+| Beginner 3 | Redirection and pipes | [Standard I/O](IO-IPC.md), [Pipes](PIPE.md) |
+| Beginner 4 | Processes | [Processes](PROCESSES.md) |
+| Intermediate 1–2 | FDs and terminals | [Standard I/O](IO-IPC.md), [Terminal lab](TERMINALS-LAB.md), [TTY settings](TTY.md) |
+| Intermediate 3–4 | Memory and observation | [Memory and execution](MEMORY-EXECUTION.md), [Monitoring](MONITORING.md), [Trace](TRACE.md) |
+| Intermediate 5 | Device I/O | [Device lab](DEVICE-IO.md), [Device reference](../reference/devices/DEVICES.md) |
+| Intermediate 6 (optional) | Networking (Pico W) | [Networking lab](NETWORKING.md) |
+| Advanced 1–2 | Programming and system calls | [C applications](../development/apps/c/PROGRAMMING.md), [C library](../development/apps/c/LIBC.md), [Syscalls](../reference/SYSCALLS.md) |
+| Advanced 3 | Kernel reading | [Kernel reading guide](../development/kernel/KERNEL-READING-GUIDE.md), [Function index](../../FUNCTIONS.md) |
+| Advanced 4–5 | Extensions and networking | [Adding syscalls](../development/syscalls/SYSCALL-DEVELOPMENT.md), [Drivers](../development/drivers/DRIVER-DEVELOPMENT.md), [Network programming](../development/apps/c/NETWORK-PROGRAMMING.md) |
 
-Tiny Python is not CPython. Adding a C program requires rebuilding firmware. Assembly runs without process memory protection; start with small examples.
+**Optional paths:** Try the [Python-like interpreter](../development/apps/python/PYTHON.md) or the [Thumb assembler](../development/apps/asm/ASM.md) after learning the basic commands. Neither is a prerequisite for kernel development.
 
-## 10. Extend the OS
+## Record what you learn
 
-Follow [adding syscalls](../development/syscalls/SYSCALL-DEVELOPMENT.md), [adding drivers](../development/drivers/DRIVER-DEVELOPMENT.md), and [kernel development](../development/kernel/KERNEL-DEVELOPMENT.md). Consult the [syscall specification](../reference/SYSCALLS.md) and [memory layout](../reference/MEMORY-LAYOUT.md) before changing code.
+For each exercise, write down **(1) commands, (2) observed output, (3) the OS concept it illustrates, and (4) open questions**. PIDs, addresses and timing values vary; understanding matters more than matching sample numbers.
 
-## Record your observations
+## Reference material
 
-For each topic, record what you executed, what output you observed, what it means, and any differences from your expectations. PIDs and measured values can vary between runs.
+The courses define *learning order*. For exact options, APIs and limits, use the [topic and reference index](../../DOCS.md#reference-and-topic-guides). Existing documents are preserved in their current locations.
 
 ## Quick glossary
 
 | Term | Meaning |
 |---|---|
-| Shell | Environment that accepts commands and launches programs |
-| Process/task | Running program managed in PicoNIX's fixed RAM slots |
-| FD | Number representing an open file or terminal; 0/1/2 are stdin/stdout/stderr |
-| VFS | Common paths and operations for files and devices |
+| Shell | Accepts commands and launches programs |
+| Process/task | Running program managed in fixed RAM slots |
+| FD | Number for an open file or terminal; 0/1/2 are stdin/stdout/stderr |
+| VFS | Common path and I/O interface for files and devices |
 | System call | Interface from a user program to a kernel service |
-| PIC | Code independent of its placement address |
-| XIP | Execute code directly from Flash without copying it all into RAM |
-
-**References:** [Specification](../reference/SPECIFICATION.md), [Devices](../reference/devices/DEVICES.md), and [Hardware](../reference/hardware/HARDWARE.md).
+| PIC | Code that does not depend on one placement address |
+| XIP | Execute code directly from Flash without copying all of it into RAM |

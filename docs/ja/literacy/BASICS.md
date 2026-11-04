@@ -1,4 +1,4 @@
-# 1．UNIXの基本操作
+# UNIXの基本操作
 
 [学習ガイド](LEARNING-PATH.md) | [English](../../en/literacy/BASICS.md) | [コマンド一覧](HELP.md)
 

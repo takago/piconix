@@ -1,4 +1,4 @@
-# 4．プロセスとタスク
+# プロセスとタスク
 
 [学習ガイド](LEARNING-PATH.md) | [English](../../en/literacy/PROCESSES.md) | [システムモニタリング](MONITORING.md)
 

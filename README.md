@@ -130,7 +130,15 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 
 ## Documentation / ドキュメント
 
-**Start here ：** [Documentation Guide](docs/DOCS.md) / [文書案内](docs/DOCS.ja.md) — recommended reading order and links to detailed references.
+**Learn in order / 順番に学ぶ：** [Learning path](docs/en/literacy/LEARNING-PATH.md) / [学習コース](docs/ja/literacy/LEARNING-PATH.md)
+
+| Level | English | 日本語 |
+|---|---|---|
+| Beginner / 初級 | [Use PicoNIX](docs/en/literacy/BEGINNER.md) | [PicoNIXを使ってみる](docs/ja/literacy/BEGINNER.md) |
+| Intermediate / 中級 | [Investigate the OS](docs/en/literacy/INTERMEDIATE.md) | [OSの動作を調べる](docs/ja/literacy/INTERMEDIATE.md) |
+| Advanced / 上級 | [Read and extend the OS](docs/en/literacy/ADVANCED.md) | [コードを読み，OSを拡張する](docs/ja/literacy/ADVANCED.md) |
+
+**Look up a topic / 調べたいとき：** [Documentation Guide](docs/DOCS.md) / [文書案内](docs/DOCS.ja.md). The following links are references grouped by topic, **not a required reading sequence**. / 以下は機能別の参考資料であり，すべてを順に読む必要はありません．
 
 ### Setup
 
@@ -141,7 +149,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 | [Wi-Fi modes](docs/en/reference/devices/WIFI-MODES.md) | [Wi-Fiモード](docs/ja/reference/devices/WIFI-MODES.md) |
 | [Initial RAM files and /etc/rc](docs/en/reference/INITIAL-FILES.md) | [初期RAMファイルと /etc/rc](docs/ja/reference/INITIAL-FILES.md) |
 
-### Understanding PicoNIX
+### Concepts and references / 概念とリファレンス
 
 | English | 日本語 |
 |---|---|
@@ -159,7 +167,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 | [Memory inspection](docs/en/literacy/MEM.md) | [メモリ参照](docs/ja/literacy/MEM.md) |
 | [SRAM layout and shared memory](docs/en/reference/MEMORY-LAYOUT.md) | [SRAMレイアウトと共有メモリ](docs/ja/reference/MEMORY-LAYOUT.md) |
 
-### Development
+### Development references / 開発用資料
 
 | English | 日本語 |
 |---|---|
