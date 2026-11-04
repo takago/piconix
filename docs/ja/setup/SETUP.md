@@ -1,6 +1,8 @@
 # セットアップ
 
-[English](../../en/setup/SETUP.md) | [概要](../literacy/README.md)
+> **資料区分：セットアップ手順**．学習開始前の準備です．作業が終わったら[教科書 A1](../learn/A/A1.md)へ進んでください．
+
+[English](../../en/setup/SETUP.md) | [概要](../guides/README.md)
 
 Ubuntu／Debian系Linuxを想定した導入手順です．Raspberry Pi PicoまたはPico W（RP2040）とデータ通信可能なUSBケーブルを用意してください．
 
@@ -10,10 +12,10 @@ PicoNIXの起動とUSB CDCコンソールの操作だけなら，**Pico／Pico W
 
 GPIOや周辺機器を試す場合は，使用する部品と接続方法を事前に確認してください．
 
-- [ハードウェアと配線](../reference/hardware/HARDWARE.md)：対応ボード，ピン配置と回路情報への入口
-- [デバイスガイド](../reference/devices/DEVICES.md)：8×8 LEDマトリクス，スイッチ，PWMなどのピン配置と使用方法
-- [I²C](../reference/devices/I2C.md)：GP26（SDA）／GP27（SCL）への接続
-- [UART](../reference/devices/UART.md)：GP20（TX）／GP21（RX）への接続
+- [ハードウェア概要](../reference/hardware/HARDWARE.md)：対応ボードと安全上の前提
+- [ピン割当と40ピン配置図](../reference/hardware/PINS.md)：GPIO番号と物理端子番号
+- [配線ガイド](../reference/hardware/WIRING.md)：LED，スイッチ，PWM，I²C，UART，ADCの接続
+- [デバイスガイド](../reference/devices/DEVICES.md)：接続後の操作，GPIO・ADC・PWM・フレームバッファ
 
 **配線前の注意：** GPIOは3.3 V系です．LEDには電流制限抵抗と適切な駆動回路が必要です．USBケーブルを抜いた状態で配線し，ピンの用途と極性を確認してから通電してください．最新の割り当ては`kernel/pins.h`を基準にしてください．
 
@@ -132,10 +134,10 @@ USBと別にUART1からShellを利用するには`getty /dev/ttyS1 sh &`を実�
 
 ## Pico Wのネットワーク接続
 
-Pico Wのビルド，Wi-Fi設定，Telnet／socatの接続と終了方法は[Pico WのWi-Fi・Telnet・生TCP接続](../reference/devices/NETWORK.md)を参照してください．
+Pico Wのビルド，Wi-Fi設定，Telnet／socatの接続と終了方法は[Pico WのWi-Fi・Telnet・生TCP接続](../reference/network/NETWORK.md)を参照してください．
 
 PWMデューティ比は `/dev/pwm/1/a` と `/dev/pwm/1/b` に `7.5` のような0.1％刻みの値を書き込めます．読み取りも `7.5` のように小数1桁で返します．周波数 `/dev/pwm/1/freq` は従来どおり整数Hzです．
 
 ## 次に学ぶこと
 
-接続できたら，[学習ガイド](../literacy/LEARNING-PATH.md)の短い演習で，ファイル，パイプ，タスクを確認してください．PCで実行するビルドコマンドと，`piconix#`で実行するOSコマンドを混同しないようにします．
+接続できたら，[新版教科書 A1](../learn/A/A1.md)から始まる実習で，ファイル，パイプ，タスクを確認してください．PCで実行するビルドコマンドと，`piconix#`で実行するOSコマンドを混同しないようにします．

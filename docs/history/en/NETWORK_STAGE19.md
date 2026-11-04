@@ -1,6 +1,6 @@
 # Stage 19: Remote device service refactoring
 
-> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/literacy/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/literacy/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/guides/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/guides/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
 
 
 - Moved UDP 2000 command parsing and the restricted device allowlist from `kernel/kernel.c` to `kernel/net_service_remote_devctl.c`.

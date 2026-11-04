@@ -37,3 +37,9 @@ This directory preserves earlier designs, implementation stages, and debugging n
 
 - [日本語：端末表示の調査記録](ja/TERMINAL-DEBUG.md)
 - [English: Terminal display debugging](en/TERMINAL-DEBUG.md)
+
+## 旧学習コースについて / Retired learning paths
+
+旧学習コース案内と重複した基礎実習は，現行の[教科書（日本語）](../ja/learn/README.md)・[Textbook (English)](../en/learn/README.md)へ統合しました．古いファイルを残して混乱を招かないよう，過去版はGitのコミット履歴で参照してください．
+
+Previous learning-path files and duplicated foundational exercises have been integrated into the current textbook. Consult Git history if the older versions are needed.

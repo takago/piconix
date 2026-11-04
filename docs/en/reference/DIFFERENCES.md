@@ -1,5 +1,7 @@
 # How PicoNIX differs from Linux
 
+> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+
 [日本語](../../ja/reference/DIFFERENCES.md) | [Specification](SPECIFICATION.md) | [Documentation guide](../../DOCS.md)
 
 PicoNIX is a **small educational UNIX-like operating system**, not a Linux distribution or a POSIX-compatible replacement. It retains useful UNIX ideas—processes, file descriptors, device files, pipes, terminals, and system calls—while deliberately omitting or simplifying other mechanisms. The differences below describe the current source tree, not promises of Linux compatibility.
@@ -75,7 +77,7 @@ The following are **fixed implementation capacities**, not Linux-like resource-l
 | C stdio | **64-byte buffer per stream**; up to **4 additional `fopen()` streams** |
 | TTY endpoints | **2** on Pico; **3** on Pico W, including Telnet |
 
-These are capacities, not guarantees that every combination of processes, descriptors, sockets, and services will run simultaneously. See [memory layout](MEMORY-LAYOUT.md), [filesystem](FILESYSTEM.md), [TTY guide](../literacy/TTY.md), and [network devices](devices/NETWORK.md) for details.
+These are capacities, not guarantees that every combination of processes, descriptors, sockets, and services will run simultaneously. See [memory layout](MEMORY-LAYOUT.md), [filesystem](FILESYSTEM.md), [TTY guide](../guides/TTY.md), and [network devices](network/NETWORK.md) for details.
 
 ## 6. Exercises: observe the differences
 

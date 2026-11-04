@@ -1,6 +1,6 @@
 # PicoNIX開発日誌
 
-[文書案内](DOCS.ja.md) | [概要](ja/literacy/README.md) | [English](DEVELOPMENT_DIARY.md)
+[文書案内](DOCS.ja.md) | [概要](ja/guides/README.md) | [English](DEVELOPMENT_DIARY.md)
 
 ## はじめに
 
@@ -125,7 +125,7 @@ LEDマトリクス，GPIO，PWMなどをデバイスファイルで扱えるよ�
 
 既存の`edit`に加えて，通常モードと挿入モードを持つ簡易`vi`を追加しました．この段階では`h`，`j`，`k`，`l`による移動に対応し，カーソルキーでの移動は今後の改良課題として残しました．また，`dd`を追加し，ファイルや`/dev/mem`の内容をバイト単位でコピーできるようにしました．`if=-`と`of=-`で標準入出力を指定できるようにし，`nc -N`のTCP送信方向の終了処理と組み合わせて，LinuxとPicoNIXの間でバイナリを転送する構成にしました．
 
-開発者による実機試験では，`dd`でRAMの内容を`/tmp`へ保存し，`nc`とパイプを使ったファイル・メモリデータの転送が動作しました．これに伴い，混在していた`DD-VI.md`を廃止し，`DD.md`，`VI.md`，既存の`NC.md`に日英で操作を整理しました．転送手順は[ddとバイナリ転送](ja/literacy/DD.md)を参照してください．
+開発者による実機試験では，`dd`でRAMの内容を`/tmp`へ保存し，`nc`とパイプを使ったファイル・メモリデータの転送が動作しました．これに伴い，混在していた`DD-VI.md`を廃止し，`DD.md`，`VI.md`，既存の`NC.md`に日英で操作を整理しました．転送手順は[ddとバイナリ転送](ja/guides/DD.md)を参照してください．
 
 ## 11月2日：SRAMを再配置し，共有メモリとRAMファイルを独立
 
@@ -330,4 +330,4 @@ v1.3.0に向けた機能拡張と文書再編が進んだことから，次は**
 
 この文書は対話履歴を主資料とする開発史です．開発者の実機確認結果と，ChatGPTがコード変更を提案・作成しただけの段階は区別して読む必要があります．Gitの全コミット日時，すべてのZIPの内容，実機ログの完全な時系列を照合した監査記録ではありません．開発中に提案されただけで採用されなかった機能や，一時的な実装は完成版の仕様と混同しないように記しました．必要に応じてコミットIDや関連する検証ログを追記してください．
 
-技術仕様や実際の操作方法は，[内部構造](ja/reference/INTERNAL.md)，[ネットワーク](ja/reference/devices/NETWORK.md)，[TTY](ja/literacy/TTY.md)，[パイプ](ja/literacy/PIPE.md)，[トレース](ja/literacy/TRACE.md)，[カーネル開発](ja/development/kernel/KERNEL-DEVELOPMENT.md)を参照してください．
+技術仕様や実際の操作方法は，[内部構造](ja/reference/INTERNAL.md)，[ネットワーク](ja/reference/network/NETWORK.md)，[TTY](ja/guides/TTY.md)，[パイプ](ja/guides/PIPE.md)，[トレース](ja/guides/TRACE.md)，[カーネル開発](ja/development/kernel/KERNEL-DEVELOPMENT.md)を参照してください．

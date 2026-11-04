@@ -1,5 +1,7 @@
 # PicoNIX 全体アーキテクチャ
 
+> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
+
 [English](../../en/reference/ARCHITECTURE.md) | [仕様書](SPECIFICATION.md) | [内部構造](INTERNAL.md) | [文書案内](../../DOCS.ja.md)
 
 この文書は，現行ソースコードを読み始めるための**構成図と参照先**を示します．内部ABIやメモリ上限は[仕様書](SPECIFICATION.md)，各機能の詳細は個別ガイドを参照してください．
@@ -43,9 +45,9 @@
 ## 3．ファイル・端末・通信の境界
 
 - `/bin`はFlashに埋め込んだアプリ一覧，`/tmp`と`/etc`は簡易RAMファイル領域，`/dev`はデバイス，`/proc`は状態・シンボル情報を提供します．詳細は[ファイルシステム](FILESYSTEM.md)を参照してください．
-- 標準FDは通常0，1，2です．デバイス・ファイル・パイプ・ソケットをFDとして扱いますが，POSIXとの完全互換性はありません．詳細は[パイプ](../literacy/PIPE.md)と[システムコール](SYSCALLS.md)を参照してください．
-- TTYの入力設定・ONLCR等はカーネル，画面のカーソル・代替画面等はアプリとホスト端末が管理します．[TTY](../literacy/TTY.md)と[画面制御](../literacy/TERMINAL.md)を参照してください．
-- Pico WのTelnet（TCP 23）とUDPデバイス制御（UDP 2000）はカーネル側，HTTP（TCP 80）はユーザ空間の`httpd`です．Wi-Fi動作はビルド構成に依存します．[ネットワーク](devices/NETWORK.md)を参照してください．
+- 標準FDは通常0，1，2です．デバイス・ファイル・パイプ・ソケットをFDとして扱いますが，POSIXとの完全互換性はありません．詳細は[パイプ](../guides/PIPE.md)と[システムコール](SYSCALLS.md)を参照してください．
+- TTYの入力設定・ONLCR等はカーネル，画面のカーソル・代替画面等はアプリとホスト端末が管理します．[TTY](../guides/TTY.md)と[画面制御](../guides/TERMINAL.md)を参照してください．
+- Pico WのTelnet（TCP 23）とUDPデバイス制御（UDP 2000）はカーネル側，HTTP（TCP 80）はユーザ空間の`httpd`です．Wi-Fi動作はビルド構成に依存します．[ネットワーク](network/NETWORK.md)を参照してください．
 
 ## 4．ソースコードの読み順
 

@@ -1,6 +1,6 @@
 # PicoNIX Development Diary
 
-[Documentation index](DOCS.md) | [Overview](en/literacy/README.md) | [日本語](DEVELOPMENT_DIARY.ja.md)
+[Documentation index](DOCS.md) | [Overview](en/guides/README.md) | [日本語](DEVELOPMENT_DIARY.ja.md)
 
 ## Purpose and scope
 
@@ -123,7 +123,7 @@ Japanese and English documentation for I²C and Python was expanded. Initially t
 
 A small modal `vi` editor was added alongside `edit`. At this point, movement uses `h`, `j`, `k`, and `l`; arrow-key navigation remains a future improvement. The new `dd` utility can copy files and raw memory through `/dev/mem`. Its `if=-` and `of=-` options use standard input and output, while the TCP half-close behavior of `nc -N` makes binary pipelines between Linux and PicoNIX practical.
 
-Hardware tests reported successful RAM-to-`/tmp` dumps and file/memory-data transfers using `dd`, `nc`, and shell pipelines. The combined `DD-VI.md` document was retired in favor of separate bilingual `DD.md` and `VI.md` guides, with `NC.md` updated accordingly. See [dd and binary transfer](en/literacy/DD.md).
+Hardware tests reported successful RAM-to-`/tmp` dumps and file/memory-data transfers using `dd`, `nc`, and shell pipelines. The combined `DD-VI.md` document was retired in favor of separate bilingual `DD.md` and `VI.md` guides, with `NC.md` updated accordingly. See [dd and binary transfer](en/guides/DD.md).
 
 ## November 2: SRAM reorganization, independent RAM files, and shared memory
 
@@ -327,5 +327,5 @@ The work was intended to leave **program behavior, APIs, and memory layout uncha
 
 This is a narrative reconstruction from conversations, not an exhaustive Git audit. A code change proposed or produced by ChatGPT is not, by itself, evidence of a successful hardware test. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.
 
-For the current behavior and usage, consult [Internal architecture](en/reference/INTERNAL.md), [Networking](en/reference/devices/NETWORK.md), [TTY](en/literacy/TTY.md), [Pipes](en/literacy/PIPE.md), [Tracing](en/literacy/TRACE.md), and [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md).
+For the current behavior and usage, consult [Internal architecture](en/reference/INTERNAL.md), [Networking](en/reference/network/NETWORK.md), [TTY](en/guides/TTY.md), [Pipes](en/guides/PIPE.md), [Tracing](en/guides/TRACE.md), and [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md).
 

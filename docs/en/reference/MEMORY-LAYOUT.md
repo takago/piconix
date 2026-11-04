@@ -1,5 +1,7 @@
 # RP2040 SRAM Layout (current layout)
 
+> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+
 | Region | Address range | Size |
 |---|---|---:|
 | Kernel | `0x20000000..0x2000DFFF` | 56 KiB |

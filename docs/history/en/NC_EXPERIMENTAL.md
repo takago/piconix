@@ -1,6 +1,6 @@
 # Experimental nc command (stage 9)
 
-> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/literacy/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/literacy/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/guides/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/guides/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
 
 
 `nc -l 5000`, `nc 192.168.4.2 5000`, `nc -u -l 5000`, `nc -u 192.168.4.2 5000`.

@@ -1,5 +1,7 @@
 # Developing C applications for PicoNIX
 
+> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
+
 ## Before you start
 
 Review C functions, arrays and command-line arguments first. Run the existing `hello` program before adding `greet.c`. Edit the source on the build PC; changes require a new UF2 firmware flash.
@@ -50,7 +52,7 @@ There are **two required changes** in the current build system.
 Find `foreach(APP IN ITEMS ...)` near the top of `CMakeLists.txt` and append `greet` **without the `.c` suffix**:
 
 ```cmake
-foreach(APP IN ITEMS net ip pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
+foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
 ```
 
 The line above shows the current `CMakeLists.txt` with `greet` appended. Keep all existing application names; if the list changes in a newer version, append `greet` to that version instead. The common loop automatically compiles `userland/apps/greet.c` with `crt0.c`, `syscalls.c`, and `libc.c`, links the RAM image, validates its PIC behavior and size, and embeds the binary in firmware Flash. No separate custom build rule is needed.
@@ -66,10 +68,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 Add a call alongside the other `register_image(...)` calls in `main()`:
 
 ```c
-register_image(45, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(49, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**45 is one currently unused example ID (43 belongs to `net` and 44 to `fd`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
+**49 is an unused example ID in the supplied current sources (45 is `ping`, 46 is `tcpdump`, 47 is `ip`, and 48 is `cp`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
 
 ## 4. Build and run
 
@@ -110,7 +112,7 @@ int main(int argc, char *argv[])
 }
 ```
 
-For example, `greet Alice > /tmp/message` redirects output to a RAM file. File and descriptor support is intentionally smaller than POSIX; see [Filesystem](../../../reference/FILESYSTEM.md) and [Pipes](../../../literacy/PIPE.md). Device access is documented in [Devices](../../../reference/devices/DEVICES.md).
+For example, `greet Alice > /tmp/message` redirects output to a RAM file. File and descriptor support is intentionally smaller than POSIX; see [Filesystem](../../../reference/FILESYSTEM.md) and [Pipes](../../../guides/PIPE.md). Device access is documented in [Devices](../../../reference/devices/DEVICES.md).
 
 ## 6. APIs and execution constraints
 
@@ -126,7 +128,7 @@ For example, `greet Alice > /tmp/message` redirects output to a RAM file. File a
 
 Use `stdio.h`, `stdlib.h`, `string.h`, `unistd.h`, and `fcntl.h` as supplied in `userland/lib/`. For their actual functions, argument types, error returns, and supported formats, see [LIBC.md](LIBC.md). For low-level ABI details see [SYSCALLS.md](../../../reference/SYSCALLS.md). The kernel interface returns PicoNIX error values rather than standard `errno` semantics.
 
-`O_NONBLOCK` (set with `fcntl()`) does not turn canonical TTY input into character-at-a-time input; for interactive games, see [TTY](../../../literacy/TTY.md) and `userland/apps/mb.c`. Network applications have additional constraints; see [Network programming](NETWORK-PROGRAMMING.md).
+`O_NONBLOCK` (set with `fcntl()`) does not turn canonical TTY input into character-at-a-time input; for interactive games, see [TTY](../../../guides/TTY.md) and `userland/apps/mb.c`. Network applications have additional constraints; see [Network programming](NETWORK-PROGRAMMING.md).
 
 ### 6.1. PicoNIX-specific PIC and RAM constraints
 
@@ -175,7 +177,7 @@ When adding the `fd` browser, `static const char *notice = "";` caused exactly t
 | PIC or image-size check fails | Non-position-independent code, unsupported relocation, or the RAM image/stack limit |
 | Command missing from `/bin` | CMake entry, image symbol declaration, registration, and whether the new UF2 was flashed |
 | Spawn fails at runtime | Available task slots and program registration |
-| TTY appears to behave incorrectly | Canonical/echo mode and restoration; see [TTY](../../../literacy/TTY.md) |
+| TTY appears to behave incorrectly | Canonical/echo mode and restoration; see [TTY](../../../guides/TTY.md) |
 
 Host-side regression checks:
 
@@ -184,7 +186,7 @@ python3 tools/run_tests.py
 python3 tools/run_tests.py --all  # includes toolchain-dependent tests
 ```
 
-The complete firmware build and real hardware checks are still necessary; source-level tests alone do not prove a board will run correctly. Use `ps`, `cat /proc/tasks`, `trace on`, `trace off`, and `trace show` when diagnosing runtime behavior. [Tracing](../../../literacy/TRACE.md) explains syscall and context-switch events; [Memory inspection](../../../literacy/MEM.md) explains read-only RAM/Flash inspection.
+The complete firmware build and real hardware checks are still necessary; source-level tests alone do not prove a board will run correctly. Use `ps`, `cat /proc/tasks`, `trace on`, `trace off`, and `trace show` when diagnosing runtime behavior. [Tracing](../../../guides/TRACE.md) explains syscall and context-switch events; [Memory inspection](../../../guides/MEM.md) explains read-only RAM/Flash inspection.
 
 ## 8. Real-time keyboard input (noncanonical + O_NONBLOCK)
 
@@ -250,7 +252,7 @@ restore:
 
 The example saves and restores canonical mode, echo, and FD flags, including when configuration fails partway through. **Forced termination such as Ctrl+C or `kill` bypasses the C cleanup path.** The kernel's foreground-task restoration mechanism handles the TTY settings in that situation. FD flags are task-local and are explicitly restored on ordinary exit.
 
-Like the earlier `greet` example, this application must be added to CMake and registered in the kernel (substitute `keypoll` in the preceding steps). No prior `stty raw` command is needed. See [TTY](../../../literacy/TTY.md) for mode semantics, and `userland/apps/mb.c` and `userland/apps/pong.c` for real game implementations.
+Like the earlier `greet` example, this application must be added to CMake and registered in the kernel (substitute `keypoll` in the preceding steps). No prior `stty raw` command is needed. See [TTY](../../../guides/TTY.md) for mode semantics, and `userland/apps/mb.c` and `userland/apps/pong.c` for real game implementations.
 
 ## 9. Where to go next
 
@@ -260,10 +262,3 @@ Like the earlier `greet` example, this application must be added to CMake and re
 - [Architecture](../../../reference/ARCHITECTURE.md) and [Internals](../../../reference/INTERNAL.md): PIC loading, scheduling, and kernel implementation
 - [Network programming](NETWORK-PROGRAMMING.md): TCP/UDP application development on Pico W
 
----
-
-## Learning navigation
-
-| ← Previous | ↑ Contents | Next → |
-| :--- | :---: | ---: |
-| [Advanced course](../../../literacy/ADVANCED.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel reading](../../kernel/KERNEL-READING-GUIDE.md) |

@@ -1,5 +1,7 @@
 # PicoNIXのCライブラリとユーザアプリケーションAPI
 
+> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md)．
+
 [English](../../../../en/development/apps/c/LIBC.md) | [Cアプリケーション開発](PROGRAMMING.md) | [システムコール](../../../reference/SYSCALLS.md)
 
 PicoNIXは，ユーザプログラム向けに**独自の小規模なCライブラリ**を提供します．ISO Cの標準ライブラリやPOSIX libcを完全に実装したものではありません．ホスト環境のライブラリ関数がそのまま使えるとは限りません．主な実装は，`userland/lib/libc.c`（文字列・数値変換・書式付き入出力），`userland/lib/syscalls.c`（システムコールのラッパー），`userland/lib/crt0.c`（起動と終了）に分かれています．
@@ -161,12 +163,3 @@ int main(int argc, char *argv[]) {
 
 対話型子プロセスには`spawn_foreground(program, argc, argv)`または`spawn_tmp_foreground(path)`を利用できます．起動とTTY制御権移譲を一体化し，子プロセスが先に走る競合を防ぎます．`waitpid()`の後は親が`set_foreground(0)`でTTY制御権を回収します．バックグラウンド処理には通常の`spawn()`を使います．
 
----
-
-## 学習ナビゲーション
-
-**補助教材**です．「前へ」は関連する本編，「次へ」は本編の次のテーマを示します．
-
-| ← 前へ | ↑ 目次へ | 次へ → |
-| :--- | :---: | ---: |
-| [Cアプリ開発](PROGRAMMING.md) | [上級コース](../../../literacy/ADVANCED.md) | [カーネル読解](../../kernel/KERNEL-READING-GUIDE.md) |

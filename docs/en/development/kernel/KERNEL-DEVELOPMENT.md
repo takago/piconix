@@ -1,10 +1,12 @@
 # Kernel Development Guide
 
+> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md).
+
 To study the kernel before modifying it, see the [kernel reading guide](KERNEL-READING-GUIDE.md).
 
 ## Before you start
 
-**Prerequisites:** Read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Tracing](../../literacy/TRACE.md). Begin by following task creation and termination in the existing source code.
+**Prerequisites:** Read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Tracing](../../guides/TRACE.md). Begin by following task creation and termination in the existing source code.
 
 
 [Documentation guide](../../../DOCS.md) | [Internals](../../reference/INTERNAL.md) | [System calls](../../reference/SYSCALLS.md) | [Devices](../../reference/devices/DEVICES.md) | [日本語](../../../ja/development/kernel/KERNEL-DEVELOPMENT.md)
@@ -31,6 +33,7 @@ Read [ARCHITECTURE.md](../../reference/ARCHITECTURE.md) and [INTERNAL.md](../../
 
 - [Add a system call](../syscalls/SYSCALL-DEVELOPMENT.md) — ABI, dispatch, wrapper, and tests
 - [Add a device driver](../drivers/DRIVER-DEVELOPMENT.md) — VFS registration, I/O, ioctl, and tests
+- [Kernel networking (Pico W)](../network/NETWORK-DEVELOPMENT.md) — Wi-Fi, lwIP, sockets, and built-in services
 
 The following worked exercise compares both extension mechanisms.
 
@@ -156,15 +159,8 @@ The goal is to learn **two ways of exposing existing kernel state**, not to add 
 
 - [SYSCALLS.md](../../reference/SYSCALLS.md): ABI, arguments and return values
 - [LIBC.md](../apps/c/LIBC.md): C library and wrappers
-- [DEVICES.md](../../reference/devices/DEVICES.md): Device nodes and pin assignments
+- [DEVICES.md](../../reference/devices/DEVICES.md): device nodes and APIs; [PINS.md](../../reference/hardware/PINS.md): pin assignments; [WIRING.md](../../reference/hardware/WIRING.md): physical wiring
 - [INTERNAL.md](../../reference/INTERNAL.md): Tasks, VFS and internals
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md): User-space C development
-- [TRACE.md](../../literacy/TRACE.md): Inspecting SVCs and task switches
+- [TRACE.md](../../guides/TRACE.md): Inspecting SVCs and task switches
 
----
-
-## Learning navigation
-
-| ← Previous | ↑ Contents | Next → |
-| :--- | :---: | ---: |
-| [Driver development](../drivers/DRIVER-DEVELOPMENT.md) | [Advanced course](../../literacy/ADVANCED.md) | [Learning path](../../literacy/LEARNING-PATH.md) |

@@ -1,5 +1,7 @@
 # PicoNIX Kernel Reading Guide
 
+> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md).
+
 [Documentation](../../../DOCS.md) | [Kernel development](KERNEL-DEVELOPMENT.md) | [Function index (Japanese)](../../../FUNCTIONS.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)
 
 This guide explains **how to read the current PicoNIX kernel source**, rather than how to extend it. Follow one path through the system: **boot → task creation → scheduling → context switching → system calls → files → IPC → devices → networking (optional)**. Read one function and its callers and callees at a time. For modifications, use the [kernel development guide](KERNEL-DEVELOPMENT.md).
@@ -25,7 +27,7 @@ application → write() → call(SYS_WRITE, ...) → svc #0
             → isr_svcall → os_svc_dispatch() → vfs_rw() → TTY
 ```
 
-For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS device dispatch before inspecting hardware backends; use the [device I/O lab](../../literacy/DEVICE-IO.md). Step 9 is a separate, optional Pico W topic; use the [network programming guide](../apps/c/NETWORK-PROGRAMMING.md) and distinguish kernel services from user-space `httpd`. For step 7, run:
+For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS device dispatch before inspecting hardware backends; use the [Textbook B5](../../learn/B/B5.md). Step 9 is a separate, optional Pico W topic; use the [kernel networking development guide](../network/NETWORK-DEVELOPMENT.md) for kernel internals, and the [user socket programming guide](../apps/c/NETWORK-PROGRAMMING.md) for applications; distinguish built-in services from user-space `httpd`. For step 7, run:
 
 ```sh
 echo hello | grep hello | cat
@@ -33,12 +35,5 @@ echo hello | grep hello | cat
 
 **Final exercise:** trace a complete `hello` execution: the shell's `spawn()` call, task-slot allocation and initial context, PendSV scheduling, `write()` through VFS/TTY, and cleanup on exit. Next, draw the FD and pipe flow for `echo hello | cat`. Explain each transition with the names of the functions responsible, without modifying the kernel.
 
-Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../literacy/TRACE.md), [Memory inspection](../../literacy/MEM.md), [TTY](../../literacy/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../FUNCTIONS.md).
+Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../guides/TRACE.md), [Memory inspection](../../guides/MEM.md), [TTY](../../guides/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../FUNCTIONS.md).
 
----
-
-## Learning navigation
-
-| ← Previous | ↑ Contents | Next → |
-| :--- | :---: | ---: |
-| [C application development](../apps/c/PROGRAMMING.md) | [Advanced course](../../literacy/ADVANCED.md) | [System call development](../syscalls/SYSCALL-DEVELOPMENT.md) |

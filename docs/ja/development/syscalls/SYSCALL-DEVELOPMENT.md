@@ -1,8 +1,10 @@
 # システムコール開発ガイド
 
+> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md)．
+
 ## 読み始める前に
 
-**事前学習：** Cアプリ開発で`write()`などを呼び，[トレース](../../literacy/TRACE.md)でユーザプログラムからカーネルへの呼び出しを観察してください．この章は既存APIの利用ではなく**カーネルへの機能追加**を扱います．
+**事前学習：** Cアプリ開発で`write()`などを呼び，[トレース](../../guides/TRACE.md)でユーザプログラムからカーネルへの呼び出しを観察してください．この章は既存APIの利用ではなく**カーネルへの機能追加**を扱います．
 
 
 [カーネル開発](../kernel/KERNEL-DEVELOPMENT.md) | [システムコール仕様](../../reference/SYSCALLS.md) | [English](../../../en/development/syscalls/SYSCALL-DEVELOPMENT.md)
@@ -42,10 +44,3 @@ case SYS_EXAMPLE:
 - Cラッパーの番号と引数順がディスパッチ側と一致すること
 - 必要なら`trace`にSVCイベントが記録されること
 
----
-
-## 学習ナビゲーション
-
-| ← 前へ | ↑ 目次へ | 次へ → |
-| :--- | :---: | ---: |
-| [カーネル読解](../kernel/KERNEL-READING-GUIDE.md) | [上級コース](../../literacy/ADVANCED.md) | [ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md) |

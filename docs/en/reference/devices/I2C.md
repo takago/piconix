@@ -1,10 +1,12 @@
 # I²C1 and i2cctl — User Guide
 
+> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
+
 [日本語](../../../ja/reference/devices/I2C.md) | [Devices](DEVICES.md) | [Python](../../development/apps/python/PYTHON.md)
 
 PicoNIX uses the RP2040 I²C1 controller as a 100 kHz master. GP26 is SDA and GP27 is SCL. ADC0 and ADC1 are unavailable; ADC2 on GP28 and the internal temperature sensor remain available. I²C0 is not exposed.
 
-**Wiring:** SDA and SCL need suitable pull-up resistors to 3.3 V. Check whether the module already includes them. Do not apply 5 V signals directly to RP2040 GPIO. Connect grounds. Consider external pull-ups appropriate to the wiring rather than relying solely on weak internal pull-ups.
+**Wiring:** See [hardware wiring](../hardware/WIRING.md) for GP26/27 connections, pull-up resistors, and electrical precautions.
 
 ## Commands
 

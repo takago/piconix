@@ -130,61 +130,18 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 
 ## Documentation / ドキュメント
 
-**Learn in order / 順番に学ぶ：** [Learning path](docs/en/literacy/LEARNING-PATH.md) / [学習コース](docs/ja/literacy/LEARNING-PATH.md)
+Documentation has **four document types**, plus a **task-based index** connecting them. / 文書は**4種類**に整理され，それらを横断する**目的別索引**も用意しています．
 
-| Level | English | 日本語 |
+| Purpose / 目的 | English | 日本語 |
 |---|---|---|
-| Beginner / 初級 | [Use PicoNIX](docs/en/literacy/BEGINNER.md) | [PicoNIXを使ってみる](docs/ja/literacy/BEGINNER.md) |
-| Intermediate / 中級 | [Investigate the OS](docs/en/literacy/INTERMEDIATE.md) | [OSの動作を調べる](docs/ja/literacy/INTERMEDIATE.md) |
-| Advanced / 上級 | [Read and extend the OS](docs/en/literacy/ADVANCED.md) | [コードを読み，OSを拡張する](docs/ja/literacy/ADVANCED.md) |
+| **Textbook / 教科書** (read in order) | [Learning path — Parts A/B/C](docs/en/learn/README.md) | [UNIX教科書 — Part A/B/C](docs/ja/learn/README.md) |
+| **Task index / 目的別索引** (start with a goal) | [Find by task](docs/en/TASKS.md) | [やりたいことから探す](docs/ja/TASKS.md) |
+| **Usage guides / 操作ガイド** (command details) | [Usage and labs](docs/en/guides/README.md) | [操作・実習ガイド](docs/ja/guides/README.md) |
+| **Reference / 技術リファレンス** (look up details) | [Technical reference](docs/en/reference/README.md) | [仕様リファレンス](docs/ja/reference/README.md) |
+| **Development guides / 開発ガイド** (implementation how-to) | [Development](docs/en/development/README.md) | [開発手順](docs/ja/development/README.md) |
 
-**Look up a topic / 調べたいとき：** [Documentation Guide](docs/DOCS.md) / [文書案内](docs/DOCS.ja.md). The following links are references grouped by topic, **not a required reading sequence**. / 以下は機能別の参考資料であり，すべてを順に読む必要はありません．
+**Read in sequence / 順番に学ぶ：** [A1 first lesson](docs/en/learn/A/A1.md) / [A1 最初の章](docs/ja/learn/A/A1.md). Textbook sections are numbered `A1.1`, `B2.3`, `C4.1`, etc.; supporting guides and references are **not** part of the chapter sequence. / 補助教材やリファレンスは教科書の章節番号を持ちません．
 
-### Setup
+**Preparation / 準備：** [Setup](docs/en/setup/SETUP.md) / [セットアップ](docs/ja/setup/SETUP.md).
 
-| English | 日本語 |
-|---|---|
-| [Setup](docs/en/setup/SETUP.md) | [セットアップ](docs/ja/setup/SETUP.md) |
-| [Network access](docs/en/reference/devices/NETWORK.md) | [ネットワーク接続](docs/ja/reference/devices/NETWORK.md) |
-| [Wi-Fi modes](docs/en/reference/devices/WIFI-MODES.md) | [Wi-Fiモード](docs/ja/reference/devices/WIFI-MODES.md) |
-| [Initial RAM files and /etc/rc](docs/en/reference/INITIAL-FILES.md) | [初期RAMファイルと /etc/rc](docs/ja/reference/INITIAL-FILES.md) |
-
-### Concepts and references / 概念とリファレンス
-
-| English | 日本語 |
-|---|---|
-| [Overview and guides](docs/en/literacy/README.md) | [概要・文書一覧](docs/ja/literacy/README.md) |
-| [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
-| [Architecture](docs/en/reference/ARCHITECTURE.md) | [全体構造](docs/ja/reference/ARCHITECTURE.md) |
-| [Differences from Linux and limits](docs/en/reference/DIFFERENCES.md) | [Linuxとの違い・実装上の上限](docs/ja/reference/DIFFERENCES.md) |
-| [Internals](docs/en/reference/INTERNAL.md) | [内部構造](docs/ja/reference/INTERNAL.md) |
-| [Pipes and standard I/O](docs/en/literacy/PIPE.md) | [パイプと標準入出力](docs/ja/literacy/PIPE.md) |
-| [Terminal and screen](docs/en/literacy/TERMINAL.md) | [端末と画面制御](docs/ja/literacy/TERMINAL.md) |
-| [TTY settings](docs/en/literacy/TTY.md) | [TTY設定](docs/ja/literacy/TTY.md) |
-| [Devices and pin assignments](docs/en/reference/devices/DEVICES.md) | [デバイスとピン割り当て](docs/ja/reference/devices/DEVICES.md) |
-| [I²C1 and BH1750](docs/en/reference/devices/I2C.md) | [I²C1とBH1750](docs/ja/reference/devices/I2C.md) |
-| [System-call and context-switch tracing](docs/en/literacy/TRACE.md) | [システムコール・コンテキストスイッチのトレース](docs/ja/literacy/TRACE.md) |
-| [Memory inspection](docs/en/literacy/MEM.md) | [メモリ参照](docs/ja/literacy/MEM.md) |
-| [SRAM layout and shared memory](docs/en/reference/MEMORY-LAYOUT.md) | [SRAMレイアウトと共有メモリ](docs/ja/reference/MEMORY-LAYOUT.md) |
-
-### Development references / 開発用資料
-
-| English | 日本語 |
-|---|---|
-| [C application development](docs/en/development/apps/c/PROGRAMMING.md) | [Cアプリ開発](docs/ja/development/apps/c/PROGRAMMING.md) |
-| [Kernel development](docs/en/development/kernel/KERNEL-DEVELOPMENT.md) | [カーネル拡張ガイド](docs/ja/development/kernel/KERNEL-DEVELOPMENT.md) |
-| [Kernel reading guide](docs/en/development/kernel/KERNEL-READING-GUIDE.md) | [カーネル読解ガイド](docs/ja/development/kernel/KERNEL-READING-GUIDE.md) |
-| [Function index (Japanese)](docs/FUNCTIONS.md) | [関数一覧（自動生成）](docs/FUNCTIONS.md) |
-| [Assembly programming](docs/en/development/apps/asm/ASM.md) | [アセンブリプログラミング](docs/ja/development/apps/asm/ASM.md) |
-| [C library and APIs](docs/en/development/apps/c/LIBC.md) | [CライブラリとAPI](docs/ja/development/apps/c/LIBC.md) |
-| [System call reference](docs/en/reference/SYSCALLS.md) | [システムコール一覧](docs/ja/reference/SYSCALLS.md) |
-| [Sockets and servers](docs/en/development/apps/c/NETWORK-PROGRAMMING.md) | [ソケットAPI・サーバ](docs/ja/development/apps/c/NETWORK-PROGRAMMING.md) |
-| [Remote device control (UDP 2000)](docs/en/reference/devices/REMOTE-DEVICE.md) | [リモートデバイス制御（UDP 2000番）](docs/ja/reference/devices/REMOTE-DEVICE.md) |
-| [nc and termination](docs/en/reference/devices/NC.md) | [ncと通信の終了](docs/ja/reference/devices/NC.md) |
-| [Text editing](docs/en/literacy/EDIT.md) | [テキスト編集](docs/ja/literacy/EDIT.md) |
-| [vi editor](docs/en/literacy/VI.md) | [viエディタ](docs/ja/literacy/VI.md) |
-| [fd file manager](docs/en/literacy/FD.md) | [fdファイルマネージャ](docs/ja/literacy/FD.md) |
-| [dd and binary transfer](docs/en/literacy/DD.md) | [ddとバイナリ転送](docs/ja/literacy/DD.md) |
-| [Tiny Python](docs/en/development/apps/python/PYTHON.md) | [簡易Python](docs/ja/development/apps/python/PYTHON.md) |
-
-Boot RAM files and startup script: [Japanese](docs/ja/reference/INITIAL-FILES.md) / [English](docs/en/reference/INITIAL-FILES.md).
+**Documentation directories / 文書案内：** [English](docs/DOCS.md) / [日本語](docs/DOCS.ja.md). **Source index / 関数索引：** [FUNCTIONS.md](docs/FUNCTIONS.md). **Development history / 開発日誌：** [English](docs/DEVELOPMENT_DIARY.md) / [日本語](docs/DEVELOPMENT_DIARY.ja.md).

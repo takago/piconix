@@ -1,5 +1,7 @@
 # PicoNIX カーネルリーディングガイド
 
+> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md)．
+
 [文書案内](../../../DOCS.ja.md) | [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md) | [関数一覧](../../../FUNCTIONS.md) | [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)
 
 このガイドは，PicoNIXの**現行ソースを読んでOSの動作原理を理解する**ための道順です．機能の追加手順は[カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)を参照してください．ソースをファイルの先頭から順番に読む必要はありません．**起動 → タスクの準備 → スケジューリング → 例外 → システムコール → ファイル → TTY・パイプ → デバイス → ネットワーク**の順で，関心のある処理を追います．
@@ -41,7 +43,7 @@
 
 プログラムの登録情報と実行中タスクの状態を区別し，Flashのイメージ，RAM上の固定長タスクスロット，初期スタックのつながりを追います．スタック・レジスタ初期化が第4段階の復帰処理にどのようにつながるかも控えます．
 
-**実験：** `ps`でタスクを確認し，`mem -s kernel`や`mem -s sh`でシンボルを調べます．詳しい操作は[メモリ参照](../../literacy/MEM.md)を参照してください．
+**実験：** `ps`でタスクを確認し，`mem -s kernel`や`mem -s sh`でシンボルを調べます．詳しい操作は[メモリ参照](../../guides/MEM.md)を参照してください．
 
 **確認問題：** プログラムID・PID・スロット番号は同じか．RAMスロットはいつ確保されるか．
 
@@ -51,7 +53,7 @@
 
 SysTickは1 ms周期で時刻を進め，通常10 tickごとにPendSVを要求します．割込みのたびに重いタスク選択処理を直接行うのではなく，PendSV側から`os_schedule()`を呼びます．READYでないタスクとアイドルタスクの扱いも確認してください．Pico Wではネットワークのためアイドル側へ実行機会を渡す分岐があります．
 
-**実験：** 複数のコマンドが動く状態で`ps`を確認します．コンテキスト切替の観察方法は[トレース](../../literacy/TRACE.md)を参照してください．
+**実験：** 複数のコマンドが動く状態で`ps`を確認します．コンテキスト切替の観察方法は[トレース](../../guides/TRACE.md)を参照してください．
 
 **確認問題：** SysTickとPendSVは何を分担しているか．実行可能なユーザタスクがない場合どうなるか．
 
@@ -96,7 +98,7 @@ FD番号と，FDに結び付けられた対象の内部ID・ファイル位置�
 
 ## 第7段階：TTYとパイプ
 
-**TTYを読む順序：** `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`．[端末](../../literacy/TERMINAL.md)と[TTY設定](../../literacy/TTY.md)も参照します．
+**TTYを読む順序：** `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`．[端末](../../guides/TERMINAL.md)と[TTY設定](../../guides/TTY.md)も参照します．
 
 **パイプを読む順序：** `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → `fd_set()`・`fd_release()` → `os_svc_dispatch()`の`SYS_PIPE`・`SYS_DUP2`・`SYS_CLOSE` → シェルの`|`処理．
 
@@ -110,7 +112,7 @@ echo hello | grep hello | cat
 
 **読む順序：** `kernel/kernel.c`のデバイスI/O振り分け → `kernel/gpio.c` → `kernel/fb.c` → `kernel/adc.c` → `kernel/i2c.c` → `kernel/pwm.c`．ハードウェアの定義は`kernel/pins.h`・`kernel/devices.h`・`include/device_names.h`も参照します．
 
-GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [デバイスI/O実習](../../literacy/DEVICE-IO.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
+GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [教科書 B5](../../learn/B/B5.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
 
 **確認問題：** デバイス固有のコードを通常のI/O入口から切り離す利点は何か．VFS側とドライバ側では何を担当するか．
 
@@ -119,6 +121,8 @@ GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()
 **読む順序：** `kernel/main.c`での`net_init()` → `kernel/net.c`の`net_init()`・`net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c`・`kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c`．
 
 Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイス制御，ユーザアプリのTCP/UDPソケットを区別します．ソケットAPIとユーザ側の例は[ネットワークプログラミング](../apps/c/NETWORK-PROGRAMMING.md)を参照してください．**通常のPicoだけで学ぶ場合はこの段階を省略できます．**
+
+**補助資料：** [ネットワーク実装・拡張ガイド](../network/NETWORK-DEVELOPMENT.md)で各ファイルの責任分担と改造時の注意点を確認できます．
 
 **確認問題：** `net_poll()`はなぜ必要か．`httpd`がユーザプログラムなのに，Telnetサービスはカーネル側にあるのはどのような設計上の違いか．
 
@@ -142,10 +146,3 @@ Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイ�
 - [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md)：自分で呼び出しを追加する
 - [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)：機能を変更する実習
 
----
-
-## 学習ナビゲーション
-
-| ← 前へ | ↑ 目次へ | 次へ → |
-| :--- | :---: | ---: |
-| [Cアプリ開発](../apps/c/PROGRAMMING.md) | [上級コース](../../literacy/ADVANCED.md) | [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md) |

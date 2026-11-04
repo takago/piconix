@@ -1,8 +1,10 @@
 # PicoNIX internals
 
-[日本語](../../ja/reference/INTERNAL.md) | [Overview](../literacy/README.md) | [C application development](../development/apps/c/PROGRAMMING.md)
+> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
 
-This guide explains **how PicoNIX works**, from boot and task switching to system calls and I/O. For step-by-step application development, see [C application development](../development/apps/c/PROGRAMMING.md). For pin assignments, see [Devices and wiring](devices/DEVICES.md).
+[日本語](../../ja/reference/INTERNAL.md) | [Overview](../guides/README.md) | [C application development](../development/apps/c/PROGRAMMING.md)
+
+This guide explains **how PicoNIX works**, from boot and task switching to system calls and I/O. For step-by-step application development, see [C application development](../development/apps/c/PROGRAMMING.md). For physical pin assignments and connections, see [pin assignments](hardware/PINS.md) and [wiring](hardware/WIRING.md); see [devices](devices/DEVICES.md) for `/dev` interfaces.
 
 ## 1. Architecture at a glance
 
@@ -93,7 +95,7 @@ On task exit, the kernel releases FDs and sockets and removes the completed PID 
 
 PicoNIX supports the USB CDC console and a UART1 terminal. For example, `getty /dev/ttyS1 sh &` starts another Shell. Each terminal tracks its owning Shell and foreground PID; `Ctrl+C` acts on that terminal's foreground task.
 
-Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) and `fcntl()` to set **per-FD nonblocking flags**. These settings are independent. See [Terminal settings and interactive input](../literacy/TTY.md) for examples. This is not a full POSIX `termios` implementation: `VMIN` and `VTIME` are not provided.
+Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) and `fcntl()` to set **per-FD nonblocking flags**. These settings are independent. See [Terminal settings and interactive input](../guides/TTY.md) for examples. This is not a full POSIX `termios` implementation: `VMIN` and `VTIME` are not provided.
 
 ## 7. Virtual files and devices
 
@@ -107,7 +109,7 @@ Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) 
 | `/dev/trace` | Binary tracing records |
 | `/proc/tasks`, `/proc/uptime`, `/proc/interrupts`, `/proc/memory` | Kernel status |
 
-See [Devices and wiring](devices/DEVICES.md) for device paths and pin assignments. Each task has its own descriptors, and the same `read()` and `write()` APIs operate on files and devices.
+See [devices](devices/DEVICES.md) for device paths, and [pin assignments](hardware/PINS.md) for the corresponding GPIO roles. Each task has its own descriptors, and the same `read()` and `write()` APIs operate on files and devices.
 
 Internally, `open()` and `getdents()` share the same parser for `/dev/gpio/N`, `/dev/gpio/N.dir`, and `/dev/gpio/N.pull`; `kernel/pins.h` determines which pins are available. Path normalization checks each user-string address before reading it. Unsupported device IDs are not dispatched to GPIO and unsupported read/write operations return an error. Transfers through `/dev/i2c/1` use `ioctl()`, not `read()` or `write()`.
 
@@ -122,7 +124,7 @@ trace off
 trace show
 ```
 
-`/dev/trace` provides the binary records. See [Tracing](../literacy/TRACE.md) for event formats and interpretation.
+`/dev/trace` provides the binary records. See [Tracing](../guides/TRACE.md) for event formats and interpretation.
 
 ## 9. Where to look in the source
 
@@ -137,6 +139,6 @@ trace show
 | `userland/lib/syscalls.c`, `crt0.c` | User-side SVC wrappers and startup |
 | `userland/lib/slot.ld`, `CMakeLists.txt` | RAM layout, images and PIC validation |
 
-**Next:** [C application development](../development/apps/c/PROGRAMMING.md) for adding a command, [Devices and wiring](devices/DEVICES.md) for hardware, and [Terminal settings and interactive input](../literacy/TTY.md) for TTY details.
+**Next:** [C application development](../development/apps/c/PROGRAMMING.md) for adding a command, [devices](devices/DEVICES.md) for device interfaces, [wiring](hardware/WIRING.md) for physical connections, and [Terminal settings and interactive input](../guides/TTY.md) for TTY details.
 
 Pico W uses the 16-KiB network reserve for its 10-KiB lwIP heap and 4-KiB idle task stack; see [Memory layout](MEMORY-LAYOUT.md).

@@ -1,5 +1,7 @@
 # Device Driver Development
 
+> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md).
+
 ## Before you start
 
 **Prerequisites:** Read the [Device reference](../../reference/devices/DEVICES.md) for `/dev`, then use `open()` and `read()` in a [C application](../apps/c/PROGRAMMING.md). Driver changes require rebuilding and testing on hardware.
@@ -25,7 +27,7 @@ In `kernel/kernel.c`, fixed `/dev` paths are declared by `PICONIX_FIXED_DEVICES(
 4. Add a branch in `vfs_rw()` for the ID. Reject writes with `OS_EBADF`, return the number of bytes read on success, and negative `OS_E*` codes on failure. The dispatcher checks user buffer ranges, but backends must also validate their own sizes and state.
 5. For sequential reads, define offset and EOF behavior using `tasks[current].fd_pos[fd]`; implement `lseek()` support only if required.
 6. Extend `device_ioctl()` for any supported commands; leave unsupported commands as errors.
-7. For hardware devices, check `kernel/pins.h` and driver ownership: do not conflict with USB, UART, Wi-Fi, framebuffer or PWM resources.
+7. For hardware devices, check `kernel/pins.h` and driver ownership: do not conflict with USB, UART, Wi-Fi, framebuffer or PWM resources. See [pin assignments](../../reference/hardware/PINS.md) for the standard hardware configuration.
 8. Update both language versions of `DEVICES.md`, `FILESYSTEM.md`, and `LIBC.md` where relevant.
 
 This is an **application-side check**, not the device implementation:
@@ -57,10 +59,3 @@ Confirm actual public macro names and types against the headers when implementin
 | Contention | Ownership and concurrent access rules are defined |
 | Hardware | Missing peripherals are handled safely on Pico and Pico W |
 
----
-
-## Learning navigation
-
-| ← Previous | ↑ Contents | Next → |
-| :--- | :---: | ---: |
-| [System call development](../syscalls/SYSCALL-DEVELOPMENT.md) | [Advanced course](../../literacy/ADVANCED.md) | [Kernel development](../kernel/KERNEL-DEVELOPMENT.md) |

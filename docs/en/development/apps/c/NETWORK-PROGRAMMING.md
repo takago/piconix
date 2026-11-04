@@ -1,10 +1,14 @@
 # Socket API and network applications
 
-[日本語](../../../../ja/development/apps/c/NETWORK-PROGRAMMING.md) | [Network access](../../../reference/devices/NETWORK.md)
+> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
+
+[日本語](../../../../ja/development/apps/c/NETWORK-PROGRAMMING.md) | [Network access](../../../reference/network/NETWORK.md)
 
 ## Architecture
 
-On Pico W, lwIP runs on the kernel side and exposes a compact IPv4 socket interface to user processes. `net_socket.c` implements the backend; `net.c` manages Wi-Fi; `net_service_telnet.c` and `net_service_remote_devctl.c` implement built-in kernel services. `nc`, `httpd`, `tcp_echod`, and `udp_echod` are ordinary user programs. Standard Pico boards have no Wi-Fi connectivity. Pico W also supports TCP/UDP loopback to `127.0.0.1` through lwIP `lo0`; inspect network memory with `/proc/net/memory`. See [Network access](../../../reference/devices/NETWORK.md) and [Memory layout](../../../reference/MEMORY-LAYOUT.md).
+This guide covers the **IPv4 socket API exposed to user-space C applications** and practical examples. Pico W runs lwIP in the kernel; `nc`, `httpd`, `tcp_echod`, and `udp_echod` are user programs. Ordinary Pico boards have no Wi-Fi. TCP/UDP loopback to `127.0.0.1` is available on Pico W.
+
+Kernel-side `net.c`, `net_socket.c`, Telnet, and UDP device-service implementation details now belong in the [kernel networking development guide](../../network/NETWORK-DEVELOPMENT.md). For connection rules and memory limits, consult [Network access](../../../reference/network/NETWORK.md) and [Memory layout](../../../reference/MEMORY-LAYOUT.md).
 
 ## Supported API
 
@@ -48,12 +52,3 @@ Example: `printf 'READ /dev/adc/temp\n' | nc -u -w 2 192.168.4.1 2000`. These se
 
 Kernel network services are separate from user-space socket applications. `trace` can observe system calls and `lsof` can show socket FDs and local ports. Older `NETWORK_STAGE*.md` and experimental notes document development history; this guide describes the current interface.
 
----
-
-## Learning navigation
-
-**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
-
-| ← Previous | ↑ Contents | Next → |
-| :--- | :---: | ---: |
-| [Driver development](../../drivers/DRIVER-DEVELOPMENT.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel development](../../kernel/KERNEL-DEVELOPMENT.md) |

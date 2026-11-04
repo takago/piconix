@@ -1,6 +1,6 @@
 # Experimental UDP socket syscall bridge (stage 3)
 
-> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/literacy/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/literacy/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/guides/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/guides/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
 
 
 This stage exposes the existing UDP transport through four syscall entry points: `socket(AF_INET, SOCK_DGRAM, 0)`, `bind_udp(fd, port)`, `sendto_udp(fd, &packet)`, and `recvfrom_udp(fd, &packet)`. `close(fd)` releases the socket. The socket is owned by one task; task exit also releases it. `dup2` cannot duplicate or overwrite the UDP socket descriptor.

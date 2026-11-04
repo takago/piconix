@@ -1,70 +1,46 @@
-# PicoNIX documentation guide
+# PicoNIX documentation directory
 
 [Project overview](../README.md) | [日本語](DOCS.ja.md) | [Development diary](DEVELOPMENT_DIARY.md)
 
-Use **guided courses** to learn in a coherent order, and **topic/reference guides** to look up details. The existing technical guides have not been moved or removed.
+PicoNIX documentation is organized by **purpose: textbook, supplementary guides, technical reference, and development guides**. Each page identifies its document type near the top.
 
-## Learn step by step
+## 1. Learn UNIX in sequence (textbook)
 
-**Start with the [beginner–intermediate–advanced learning path](en/literacy/LEARNING-PATH.md).**
+**[Complete textbook contents: Parts A, B, and C](en/learn/README.md)**
 
-| Level | Course | Focus | Ready to progress when you can… |
-|---|---|---|---|
-| **Beginner** | [Use PicoNIX](en/literacy/BEGINNER.md) | Shell, files, pipes, processes | Run commands and explain their I/O |
-| **Intermediate** | [Investigate PicoNIX](en/literacy/INTERMEDIATE.md) | FDs, terminals, memory, tracing, devices, network | Observe and explain OS behavior |
-| **Advanced** | [Read and extend PicoNIX](en/literacy/ADVANCED.md) | C, SVC, VFS, kernel reading and extensions | Trace code paths and explain component responsibilities |
+| Part | Learning story | Start here |
+|---|---|---|
+| **Part A (beginner)** | Shell → files and pipes → processes | [A1 Entering PicoNIX](en/learn/A/A1.md) |
+| **Part B (intermediate)** | FDs/VFS → TTY → memory → syscall observation → devices → networking (optional) | [B1 FDs and VFS](en/learn/B/B1.md) |
+| **Part C (advanced)** | User C → boot/scheduling → SVC/VFS → drivers → networking (optional) → extension | [C1 User program](en/learn/C/C1.md) |
 
-Begin with [Setup](en/setup/SETUP.md). Most labs work on a standard Pico. Networking (Pico W) and external hardware experiments are optional. No code modification is required for the first two levels.
+Textbook sections have labels such as `A1.1`, and each chapter has **Previous / Part contents / Next** navigation. Pico W chapters are optional.
 
-## Reference and topic guides
+## 2. Find documentation by goal (task index)
 
-The following documents are for looking up usage, implementation details, and current specifications during a course.
+**[Task index: “I want to…” → related pages](en/TASKS.md)**
 
-### Setup and overview
+Find textbook chapters, command guides, and references for goals such as editing files, tracing a syscall, or adding a device driver. This index is **not** part of the textbook sequence.
 
-- [Setup](en/setup/SETUP.md): development environment, build and flashing
-- [PicoNIX overview and commands](en/literacy/README.md): features and initial operations
-- [Architecture](en/reference/ARCHITECTURE.md): components and execution model
-- [Differences from Linux](en/reference/DIFFERENCES.md): omissions and limits
-- [Specification](en/reference/SPECIFICATION.md): current behavior
-- [Hardware](en/reference/hardware/HARDWARE.md): wiring and equipment
+## 3. Look up individual operations (usage guides)
 
-### Shell, files, terminals
+**[Usage guides](en/guides/README.md)** cover detailed commands such as help, pipes, terminal settings, trace, the memory viewer, and editors. Sequential foundational labs now belong exclusively to the textbook. These guides **do not have textbook navigation**.
 
-- [UNIX basics](en/literacy/BASICS.md), [help](en/literacy/HELP.md)
-- [Standard I/O and IPC](en/literacy/IO-IPC.md), [Pipes](en/literacy/PIPE.md)
-- [Filesystem](en/reference/FILESYSTEM.md), [Initial RAM files and /etc/rc](en/reference/INITIAL-FILES.md)
-- [Text editing](en/literacy/EDIT.md), [vi](en/literacy/VI.md), [fd file manager](en/literacy/FD.md), [dd and binary transfer](en/literacy/DD.md)
-- [Terminal lab](en/literacy/TERMINALS-LAB.md), [Terminal usage](en/literacy/TERMINAL.md), [TTY settings](en/literacy/TTY.md), [Pong](en/literacy/PONG.md)
+## 4. Look up current behavior (technical reference)
 
-### Tasks, memory and observation
+**[Technical reference index](en/reference/README.md)** covers syscalls, FDs, memory layout, device nodes, networking, and limits. It is intended for lookup, not linear study.
 
-- [Processes](en/literacy/PROCESSES.md), [Memory and execution](en/literacy/MEMORY-EXECUTION.md)
-- [System monitoring](en/literacy/MONITORING.md), [Trace](en/literacy/TRACE.md), [Memory viewer](en/literacy/MEM.md)
-- [Internals](en/reference/INTERNAL.md), [Memory layout](en/reference/MEMORY-LAYOUT.md), [Syscalls](en/reference/SYSCALLS.md)
-- [Kernel symbols](en/reference/KERNEL-SYMBOLS.md), [mem symbols](en/reference/MEM-SYMBOLS.md)
+Browse by area: [Devices and I/O](en/reference/devices/README.md) | [Hardware / pins / wiring](en/reference/hardware/README.md) | [Networking (Pico W)](en/reference/network/README.md).
 
-### Device I/O and hardware
+## 5. Read implementation instructions (development guides)
 
-- [Device I/O lab](en/literacy/DEVICE-IO.md), [Device reference](en/reference/devices/DEVICES.md)
-- [I²C1](en/reference/devices/I2C.md), [UART](en/reference/devices/UART.md)
-- [Remote device control](en/reference/devices/REMOTE-DEVICE.md), [Remote GPIO](en/reference/devices/REMOTE_GPIO.md), [UDP device control](en/reference/devices/UDP-DEVICES.md)
+**[Development guide index](en/development/README.md)** covers C, Python, assembly, kernel reading, syscalls, drivers, and Pico W kernel networking. Follow [Part C](en/learn/C/README.md) for learning order.
 
-### Networking (Pico W)
+## Setup and history
 
-- [Networking lab](en/literacy/NETWORKING.md), [Network access and reference](en/reference/devices/NETWORK.md)
-- [Wi-Fi modes](en/reference/devices/WIFI-MODES.md), [Network command](en/reference/devices/NET.md)
-- [nc](en/reference/devices/NC.md), [HTTP server](en/reference/devices/HTTPD.md)
+- [Setup](en/setup/SETUP.md): build, flash, and connect from Linux.
+- [Function index (Japanese)](FUNCTIONS.md): locating source functions.
+- [Development diary](DEVELOPMENT_DIARY.md): design decisions.
+- [Historical notes](history/README.md): older material may no longer match current behavior.
 
-## Programming and kernel development
-
-These are primarily **advanced implementation guides**. Begin with the [advanced course](en/literacy/ADVANCED.md) for a reading order.
-
-- **User applications:** [C programming](en/development/apps/c/PROGRAMMING.md), [C library and APIs](en/development/apps/c/LIBC.md), [Network programming](en/development/apps/c/NETWORK-PROGRAMMING.md)
-- **On-device programming:** [Python-like interpreter](en/development/apps/python/PYTHON.md), [Thumb assembler](en/development/apps/asm/ASM.md)
-- **Read the kernel:** [Kernel reading guide](en/development/kernel/KERNEL-READING-GUIDE.md) → [Function index (Japanese)](FUNCTIONS.md) → [Internals](en/reference/INTERNAL.md)
-- **Extend the kernel:** [Adding syscalls](en/development/syscalls/SYSCALL-DEVELOPMENT.md), [Adding drivers](en/development/drivers/DRIVER-DEVELOPMENT.md), [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md)
-
-## History and design decisions
-
-The [Development diary](DEVELOPMENT_DIARY.md) describes design decisions. The [History archive](history/README.md) includes older experiments and decisions that may no longer match the current system. For current API and limits, prefer the reference documents.
+**To resume a course after looking something up, return to your last numbered A/B/C textbook page rather than following reference links.**

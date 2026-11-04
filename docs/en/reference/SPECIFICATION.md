@@ -1,5 +1,7 @@
 # PicoNIX Specification
 
+> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+
 This document summarizes the **current implementation and fixed resource limits** for developers. For usage instructions, see the [documentation index](../../DOCS.md). PicoNIX does not claim full POSIX compatibility. The source code of the relevant revision takes precedence if behavior differs from this document.
 
 [Architecture](ARCHITECTURE.md) maps the responsibilities to source files.
@@ -36,14 +38,14 @@ Internal task states are `UNUSED`, `READY`, `SLEEPING`, `DEAD`, and `BLOCKED`. S
 - Each task has 16 descriptor numbers (0–15); standard input/output/error normally use 0/1/2.
 - At most two pipes, each with a 256-byte ring buffer.
 - `pipe()`, `dup()`, and `dup2()` are provided. Descriptor duplication, inheritance, and release are kernel-managed.
-- Pipes carry byte streams. See [Pipes](../literacy/PIPE.md) for blocking, EOF, and endpoint lifetime behavior.
+- Pipes carry byte streams. See [Pipes](../guides/PIPE.md) for blocking, EOF, and endpoint lifetime behavior.
 - Shell pipeline syntax is limited; it is not a fully POSIX-compatible shell.
 
 ## 4. TTY
 
 The USB console, UART1, and (when enabled) Wi-Fi terminal are distinct devices. Canonical/raw input, echo, and ONLCR translation are TTY settings. Per-descriptor `O_NONBLOCK` is controlled through `fcntl()` independently of the TTY input mode. The ioctl interface is PicoNIX-specific and is not full POSIX termios.
 
-See `OS_TTY_*` in `include/piconix.h`, [TTY](../literacy/TTY.md), and [Terminal](../literacy/TERMINAL.md).
+See `OS_TTY_*` in `include/piconix.h`, [TTY](../guides/TTY.md), and [Terminal](../guides/TERMINAL.md).
 
 ## 5. System calls and ABI
 
@@ -70,9 +72,9 @@ Pico W builds use lwIP. AP or STA mode is selected at build time. STA mode requi
 | User TCP socket slots | 4 (`NET_SOCKET_TCP_SLOTS` in `kernel/net_socket.h`) |
 | Internal UDP transfer size constant | 512 bytes (`NET_SOCKET_UDP_MAX`) |
 
-Pico W supports TCP/UDP loopback to `127.0.0.1` through lwIP `lo0` in both AP and STA modes (not available on ordinary Pico builds). Inspect network usage with `/proc/net/memory`. The 16 KiB network reservation contains a 10 KiB lwIP heap, a 2 KiB boundary area including allocator overhead, and a 4 KiB idle stack. Static pbuf pools (eight 512-byte buffers) remain in kernel SRAM. See [Memory layout](MEMORY-LAYOUT.md), [Wi-Fi modes](devices/WIFI-MODES.md), [Networking](devices/NETWORK.md), and [Socket programming](../development/apps/c/NETWORK-PROGRAMMING.md). Telnet and UDP device control do not provide encrypted authenticated access; use trusted networks.
+Pico W supports TCP/UDP loopback to `127.0.0.1` through lwIP `lo0` in both AP and STA modes (not available on ordinary Pico builds). Inspect network usage with `/proc/net/memory`. The 16 KiB network reservation contains a 10 KiB lwIP heap, a 2 KiB boundary area including allocator overhead, and a 4 KiB idle stack. Static pbuf pools (eight 512-byte buffers) remain in kernel SRAM. See [Memory layout](MEMORY-LAYOUT.md), [Wi-Fi modes](network/WIFI-MODES.md), [Networking](network/NETWORK.md), and [Socket programming](../development/apps/c/NETWORK-PROGRAMMING.md). Telnet and UDP device control do not provide encrypted authenticated access; use trusted networks.
 
-Pico W also provides `/dev/net/packet` (16-record IPv4 capture ring) and `/dev/net/icmp` (single ICMP Echo endpoint) for `tcpdump` and `ping`; these are not raw sockets. See [Network reference](devices/NETWORK.md).
+Pico W also provides `/dev/net/packet` (16-record IPv4 capture ring) and `/dev/net/icmp` (single ICMP Echo endpoint) for `tcpdump` and `ping`; these are not raw sockets. See [Network reference](network/NETWORK.md).
 
 ## 8. Devices and pseudo-files
 

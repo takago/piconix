@@ -1,8 +1,10 @@
 # PicoNIXの内部構造
 
-[文書案内](../../DOCS.ja.md) | [概要](../literacy/README.md) | [English](../../en/reference/INTERNAL.md) | [Cアプリ開発](../development/apps/c/PROGRAMMING.md)
+> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
 
-この文書では，**PicoNIXがどのように動くか**を，起動からシステムコール，入出力まで順に説明します．実際にアプリを作る手順は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，配線は[デバイスと配線](devices/DEVICES.md)を参照してください．
+[文書案内](../../DOCS.ja.md) | [概要](../guides/README.md) | [English](../../en/reference/INTERNAL.md) | [Cアプリ開発](../development/apps/c/PROGRAMMING.md)
+
+この文書では，**PicoNIXがどのように動くか**を，起動からシステムコール，入出力まで順に説明します．実際にアプリを作る手順は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，配線は[ハードウェア配線](hardware/WIRING.md)，`/dev`の操作は[デバイス仕様](devices/DEVICES.md)を参照してください．
 
 ## 1．全体像
 
@@ -93,7 +95,7 @@ piconix# ps
 
 USB CDCコンソールとUART1の端末を扱えます．`getty /dev/ttyS1 sh &` により別のShellを起動できます．端末ごとに所有Shellと前景PIDを管理し，Ctrl+Cはその端末の前景タスクに作用します．
 
-端末の**入力モード**（canonical/非canonical，echo）は `ioctl()`，FDごとの**非ブロッキングフラグ**は `fcntl()` で設定します．この2種類は独立しています．詳しい操作例と `mb` は[端末設定と対話型入力](../literacy/TTY.md)を参照してください．端末モードはPOSIX `termios` の完全実装ではなく，`VMIN` と `VTIME` はありません．
+端末の**入力モード**（canonical/非canonical，echo）は `ioctl()`，FDごとの**非ブロッキングフラグ**は `fcntl()` で設定します．この2種類は独立しています．詳しい操作例と `mb` は[端末設定と対話型入力](../guides/TTY.md)を参照してください．端末モードはPOSIX `termios` の完全実装ではなく，`VMIN` と `VTIME` はありません．
 
 ## 7．仮想ファイルとデバイス
 
@@ -107,7 +109,7 @@ USB CDCコンソールとUART1の端末を扱えます．`getty /dev/ttyS1 sh &`
 | `/dev/trace` | バイナリトレースの読み取り |
 | `/proc/tasks`，`/proc/uptime`，`/proc/interrupts`，`/proc/memory` | カーネル状態の参照 |
 
-デバイス名とピンの割り当ては[デバイスと配線](devices/DEVICES.md)にまとめています．FDはタスク単位で管理され，ファイル・デバイスを同じ `read()` / `write()` で操作できます．
+デバイス名は[デバイス仕様](devices/DEVICES.md)，ピンの割当は[ピン割当](hardware/PINS.md)，接続例は[配線](hardware/WIRING.md)にまとめています．FDはタスク単位で管理され，ファイル・デバイスを同じ `read()` / `write()` で操作できます．
 
 内部では，`/dev/gpio/N`，`/dev/gpio/N.dir`，`/dev/gpio/N.pull`の番号解析を`open()`と`getdents()`で共通化しています．ピンの利用可否は`kernel/pins.h`で判断します．相対パスの正規化では，ユーザ文字列の各文字を参照する前にタスクRAMの範囲を確認します．未対応のデバイスIDをGPIOに振り分けず，読み書きできない場合はエラーを返します．なお，`/dev/i2c/1`の転送は`read()`・`write()`ではなく`ioctl()`で行います．
 
@@ -122,7 +124,7 @@ trace off
 trace show
 ```
 
-`/dev/trace` はバイナリレコードを読み出すデバイスです．詳しいイベント定義と解釈は[トレース](../literacy/TRACE.md)を参照してください．
+`/dev/trace` はバイナリレコードを読み出すデバイスです．詳しいイベント定義と解釈は[トレース](../guides/TRACE.md)を参照してください．
 
 ## 9．ソースコードの読み方
 
@@ -137,6 +139,6 @@ trace show
 | `userland/lib/syscalls.c`，`crt0.c` | ユーザ空間のSVC呼び出しと起動 |
 | `userland/lib/slot.ld`，`CMakeLists.txt` | RAM配置，イメージ生成，PIC検証 |
 
-**次に読む文書：** 実際にコマンドを追加する場合は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，端末の仕組みは[端末設定と対話型入力](../literacy/TTY.md)，ハードウェアへの接続は[デバイスと配線](devices/DEVICES.md)を参照してください．
+**次に読む文書：** 実際にコマンドを追加する場合は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，端末の仕組みは[端末設定と対話型入力](../guides/TTY.md)，ハードウェアへの接続は[配線ガイド](hardware/WIRING.md)を参照してください．
 
 Pico Wではネットワーク予約16 KiBにlwIPヒープ10 KiBとアイドルスタック4 KiBを配置します．[RAMレイアウト](MEMORY-LAYOUT.md)を参照してください．

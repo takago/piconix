@@ -1,12 +1,14 @@
 # UART1 and terminal operation
 
-[日本語](../../../ja/reference/devices/UART.md) | [Overview](../../literacy/README.md) | [Internals](../INTERNAL.md)
+> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](../README.md) | [Textbook](../../learn/README.md).
+
+[日本語](../../../ja/reference/devices/UART.md) | [Overview](../../guides/README.md) | [Internals](../INTERNAL.md)
 
 PicoNIX distinguishes between using `/dev/ttyS1` as a **raw serial device** and attaching it as an **interactive terminal** through `getty`. This keeps control bytes available for ordinary communication while allowing a second terminal to run a shell or Python.
 
 ## 1. Connecting to UART1
 
-Configure UART1 for 115200 baud, 8 data bits, no parity and 1 stop bit (8N1). Verify the RP2040 UART1 pin mapping and electrical levels, and connect a common ground. Use a serial adapter supporting 3.3 V logic.
+UART1 uses 115200 baud, 8 data bits, no parity, and 1 stop bit (8N1). For GP20/21 TX/RX wiring and 3.3 V electrical precautions, see [hardware wiring](../hardware/WIRING.md).
 
 Enable local echo in the terminal program for interactive UART1 use. UART1 does not provide the same kernel-side line editing as the USB console.
 

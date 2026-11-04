@@ -1,10 +1,12 @@
 # カーネル拡張ガイド
 
+> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md)．
+
 学習目的で最初から読む場合は[カーネル読解ガイド](KERNEL-READING-GUIDE.md)を利用してください．
 
 ## 読み始める前に
 
-**事前学習：** [全体構成](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[トレース](../../literacy/TRACE.md)を先に確認してください．最初はソースを読み，タスクの生成から終了までの流れを追うことを勧めます．
+**事前学習：** [全体構成](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[トレース](../../guides/TRACE.md)を先に確認してください．最初はソースを読み，タスクの生成から終了までの流れを追うことを勧めます．
 
 
 [文書案内](../../../DOCS.ja.md) | [内部構造](../../reference/INTERNAL.md) | [システムコール](../../reference/SYSCALLS.md) | [デバイス](../../reference/devices/DEVICES.md) | [English](../../../en/development/kernel/KERNEL-DEVELOPMENT.md)
@@ -31,6 +33,7 @@
 
 - [システムコールの追加](../syscalls/SYSCALL-DEVELOPMENT.md)：ABI，ディスパッチ，ラッパー，テスト
 - [デバイスドライバの追加](../drivers/DRIVER-DEVELOPMENT.md)：VFS登録，入出力，ioctl，テスト
+- [ネットワーク機能の拡張（Pico W）](../network/NETWORK-DEVELOPMENT.md)：Wi-Fi，lwIP，ソケット，カーネル常駐サービス
 
 以下の演習では両方の拡張方法を比較します．
 
@@ -158,15 +161,8 @@ int main(void) {
 
 - [SYSCALLS.md](../../reference/SYSCALLS.md)：ABI，引数，戻り値
 - [LIBC.md](../apps/c/LIBC.md)：Cライブラリとラッパー
-- [DEVICES.md](../../reference/devices/DEVICES.md)：デバイスノードと配線
+- [DEVICES.md](../../reference/devices/DEVICES.md)：デバイスノードとAPI， [PINS.md](../../reference/hardware/PINS.md)：ピン割当， [WIRING.md](../../reference/hardware/WIRING.md)：物理配線
 - [INTERNAL.md](../../reference/INTERNAL.md)：タスク，VFS，カーネル内部
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md)：ユーザ空間Cアプリ追加
-- [TRACE.md](../../literacy/TRACE.md)：SVCとタスク切替の観察
+- [TRACE.md](../../guides/TRACE.md)：SVCとタスク切替の観察
 
----
-
-## 学習ナビゲーション
-
-| ← 前へ | ↑ 目次へ | 次へ → |
-| :--- | :---: | ---: |
-| [ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md) | [上級コース](../../literacy/ADVANCED.md) | [学習コース一覧](../../literacy/LEARNING-PATH.md) |

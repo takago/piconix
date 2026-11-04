@@ -1,10 +1,14 @@
 # ソケットAPIとネットワークアプリケーション
 
-[English](../../../../en/development/apps/c/NETWORK-PROGRAMMING.md) | [ネットワーク接続](../../../reference/devices/NETWORK.md)
+> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md)．
+
+[English](../../../../en/development/apps/c/NETWORK-PROGRAMMING.md) | [ネットワーク接続](../../../reference/network/NETWORK.md)
 
 ## 構成
 
-Pico WではlwIPをカーネル側で利用し，ユーザプロセスに小さなIPv4ソケットAPIを公開します．`net_socket.c`はソケットバックエンド，`net.c`はWi-Fi管理，`net_service_telnet.c`と`net_service_remote_devctl.c`はカーネル標準サービスです．`nc`，`httpd`，`tcp_echod`，`udp_echod`はユーザプロセスとして動作します．通常のPicoではWi-Fi通信を利用できません．Pico Wでは`127.0.0.1`宛てのTCP/UDPもlwIPの`lo0`経由で利用できます．`/proc/net/memory`で通信メモリの使用状況を確認できます．詳しくは[ネットワーク接続](../../../reference/devices/NETWORK.md)と[メモリレイアウト](../../../reference/MEMORY-LAYOUT.md)を参照してください．
+このガイドは，**ユーザCアプリケーションから使う**IPv4ソケットAPIとプログラム例を扱います．Pico WではlwIPがカーネル側にあり，`nc`，`httpd`，`tcp_echod`，`udp_echod`はユーザプログラムとして動きます．通常のPicoではWi-Fiを利用できません．Pico Wでは`127.0.0.1`宛てのTCP/UDPも利用できます．
+
+カーネル側の`net.c`・`net_socket.c`・常駐Telnet/UDPサービスの読解や改造は[ネットワーク実装・拡張ガイド](../../network/NETWORK-DEVELOPMENT.md)に分離しました．接続条件やメモリ上限は[ネットワーク接続](../../../reference/network/NETWORK.md)と[メモリ配置](../../../reference/MEMORY-LAYOUT.md)を参照してください．
 
 ## 利用できるAPI
 
@@ -48,12 +52,3 @@ UDP 2000の例：`printf 'READ /dev/adc/temp\n' | nc -u -w 2 192.168.4.1 2000`�
 
 カーネルのネットワークサービスと，ソケットAPIを使う通常のユーザアプリケーションを区別しています．`trace`でシステムコールを，`lsof`でソケットのFDとポートを観察できます．開発の経緯を記録した`docs/en/NETWORK_STAGE*.md`などは履歴資料です．現在の仕様は本書を優先してください．
 
----
-
-## 学習ナビゲーション
-
-**補助教材**です．「前へ」は関連する本編，「次へ」は本編の次のテーマを示します．
-
-| ← 前へ | ↑ 目次へ | 次へ → |
-| :--- | :---: | ---: |
-| [ドライバ開発](../../drivers/DRIVER-DEVELOPMENT.md) | [上級コース](../../../literacy/ADVANCED.md) | [カーネル拡張](../../kernel/KERNEL-DEVELOPMENT.md) |

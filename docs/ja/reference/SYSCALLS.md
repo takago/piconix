@@ -1,5 +1,7 @@
 # システムコール・ABIリファレンス
 
+> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
+
 システムコール番号の一次資料は`include/piconix_syscall.h`の`PICONIX_SYSCALL_TABLE(X)`です．実装とAPIの説明は `kernel/kernel.c` の `os_svc_dispatch()`，`userland/lib/syscalls.c`，`userland/lib/unistd.h` に基づきます．Cアプリケーションでは通常ラッパー関数を使用します．一般的なPOSIX ABIとは異なります．
 
 ## 呼び出し規約
@@ -79,7 +81,7 @@
 - [LIBC.md](../development/apps/c/LIBC.md)：ユーザ向けCライブラリと関数群
 - [ASM.md](../development/apps/asm/ASM.md)：アセンブリからのSVC呼び出し
 - [PROGRAMMING.md](../development/apps/c/PROGRAMMING.md)：アプリ開発の手順
-- [TTY.md](../literacy/TTY.md)：TTY制御
+- [TTY.md](../guides/TTY.md)：TTY制御
 
 `getdents()` の結果に`device_id`を追加しました．デバイスIDがない場合は`0xffff`です．
 

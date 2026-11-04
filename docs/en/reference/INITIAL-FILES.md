@@ -1,5 +1,7 @@
 # Initial RAM Files and /etc/rc
 
+> **Document type: TECHNICAL REFERENCE.** Use this page to look up specifications. [Reference index](README.md) | [Textbook](../learn/README.md).
+
 Initial RAM files are ordinary files under `userland/fs/` on the build host. They are embedded in Flash during the build and copied into RAM files at boot; HTML and sample source code need not be embedded as C strings in the kernel.
 
 ## Host directory layout
@@ -50,4 +52,4 @@ httpd &
 echo "Welcome to PicoNIX!"
 ```
 
-See also [Filesystem](FILESYSTEM.md), [HTTP server](devices/HTTPD.md), and [Networking](devices/NETWORK.md).
+See also [Filesystem](FILESYSTEM.md), [HTTP server](network/HTTPD.md), and [Networking](network/NETWORK.md).

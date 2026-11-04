@@ -1,5 +1,7 @@
 # PicoNIX Tiny Python — User Guide
 
+> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
+
 ## Before you start
 
 Start with interactive calculations and printing, then save and run a short script in `/tmp`. Standard Python `import` and floating-point operations are unavailable.
@@ -13,7 +15,7 @@ PicoNIX provides a small Python-like interpreter, not CPython or MicroPython. Th
 
 Start the interactive interpreter with `python` and try `print(1 << 3)` or `print("hello", 123)`. For a script, create `/tmp/test.py` using `edit` and run `python /tmp/test.py`. There is **no `python3` command**. The preinstalled `/tmp/test.py` reads the RP2040 on-chip temperature sensor at `/dev/adc/temp` five times at one-second intervals, without networking. Since `read()` returns a byte sequence, it displays each reading with `write(1, temp)` and reopens the device for a fresh measurement.
 
-See [Devices](../../../reference/devices/DEVICES.md) for the LED matrix orientation and [I²C](../../../reference/devices/I2C.md) for BH1750 wiring. This is a deliberately limited Python-like interpreter, not CPython.
+See [hardware wiring](../../../reference/hardware/WIRING.md) for LED matrix orientation and BH1750 connections; see [Devices](../../../reference/devices/DEVICES.md) and [I²C](../../../reference/devices/I2C.md) for the interfaces. This is a deliberately limited Python-like interpreter, not CPython.
 
 ## REPL and scripts
 
@@ -67,7 +69,7 @@ Paths in `open()` and strings in `write()` must be literals. Use `data = read(fd
 
 ### Before drawing with Python
 
-Run `fbctl test` from the shell first and check the physical LEDs. `/proc/fb` reports framebuffer data, not whether the wiring is correct. Refer to [Devices](../../../reference/devices/DEVICES.md) for orientation, current limiting, and the pin connections.
+Run `fbctl test` from the shell first and check the physical LEDs. `/proc/fb` reports framebuffer data, not whether the wiring is correct. Refer to [hardware wiring](../../../reference/hardware/WIRING.md) for orientation, current limiting, and the pin connections; [Devices](../../../reference/devices/DEVICES.md) covers the framebuffer interface.
 
 For `write(fd, pattern)`, **each element is an 8-bit row and exactly eight elements are required**. For example, `bytes([0x80,0,0,0,0,0,0,0])` selects only the leftmost pixel of R0. A framebuffer 1 means lit, although the corresponding cathode GPIO is driven LOW.
 
@@ -147,7 +149,7 @@ An empty input line produces an empty string. The existing 16-variable limit rem
 
 A BH1750 illuminance sensor controls the speed of a wave on the 8×8 LED matrix: brighter light makes the wave move faster and darkness slows it down. This example combines I²C input, integer and bitwise operations, and framebuffer output. **Tested on hardware.**
 
-Connect the BH1750 to 3.3 V and GND, SDA to GP26, and SCL to GP27. Connect ADDR to GND to select I²C address `0x23`. See the [I²C guide](../../../reference/devices/I2C.md) for wiring and bus details.
+Connect the BH1750 to 3.3 V and GND, SDA to GP26, and SCL to GP27. Connect ADDR to GND to select I²C address `0x23`. See [hardware wiring](../../../reference/hardware/WIRING.md) for electrical connections and the [I²C guide](../../../reference/devices/I2C.md) for the bus interface.
 
 The sample source is [`userland/examples/python/wave.py`](../../../../../userland/examples/python/wave.py). It is preinstalled as `/tmp/wave.py` at boot. Run `python /tmp/wave.py`.
 
@@ -240,12 +242,3 @@ printf 'temp' | nc -u -w 2 <Pico W IP address> 9000
 
 TCP and UDP have separate port spaces. `accept()` and `recvfrom()` are nonblocking. TCP `send()` may be partial or temporarily unavailable; the TCP sample makes a single short send without retries. UDP `"peer"` with port `0` addresses only the most recently received sender. Each Python `while` loop is limited to 10,000 iterations, so these examples are not permanent services. Use only on a trusted test LAN.
 
----
-
-## Learning navigation
-
-**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
-
-| ← Previous | ↑ Contents | Next → |
-| :--- | :---: | ---: |
-| [C application development](../c/PROGRAMMING.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel reading](../../kernel/KERNEL-READING-GUIDE.md) |

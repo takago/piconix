@@ -1,6 +1,6 @@
 # Experimental socket API (stage 8)
 
-> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/literacy/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/literacy/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
+> **Historical development note (not current specifications).** This file records an intermediate implementation stage. For current behavior, consult [Overview](../../en/guides/README.md), [Internals](../../en/reference/INTERNAL.md), [Pipes](../../en/guides/PIPE.md), and [Network programming](../../en/development/apps/c/NETWORK-PROGRAMMING.md).
 
 
 This snapshot fixes duplicate Pico (non-Wi-Fi) socket stub definitions and exposes the existing TCP syscalls to freestanding userland code. It does **not** yet provide a complete `nc` command or a BSD-compatible socket API.

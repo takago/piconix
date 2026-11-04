@@ -1,5 +1,7 @@
 # PicoNIX C library and application APIs
 
+> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../../README.md) | [Part C textbook](../../../learn/C/README.md).
+
 [日本語](../../../../ja/development/apps/c/LIBC.md) | [C application development](PROGRAMMING.md) | [System calls](../../../reference/SYSCALLS.md)
 
 PicoNIX provides a **small, purpose-built C library** for its user-space programs. It is **not** a complete ISO C library or POSIX libc. Applications use the headers and runtime under `userland/`; do not assume that arbitrary host-library functions are available. The implementation consists principally of `userland/lib/libc.c` (string, conversion, and formatted I/O functions), `userland/lib/syscalls.c` (system-call wrappers), and `userland/lib/crt0.c` (startup and termination).
@@ -161,12 +163,3 @@ The `device_id` field returned by `getdents()` identifies the directory entry: d
 
 Interactive child programs can use `spawn_foreground(program, argc, argv)` or `spawn_tmp_foreground(path)` when the child needs TTY access immediately. These functions make the spawn and foreground ownership change atomic; after `waitpid()` the parent calls `set_foreground(0)` to reclaim the terminal. Use plain `spawn()` for background jobs.
 
----
-
-## Learning navigation
-
-**Supplementary page:** Previous returns to its related main lesson; Next resumes the core learning path.
-
-| ← Previous | ↑ Contents | Next → |
-| :--- | :---: | ---: |
-| [C application development](PROGRAMMING.md) | [Advanced course](../../../literacy/ADVANCED.md) | [Kernel reading](../../kernel/KERNEL-READING-GUIDE.md) |

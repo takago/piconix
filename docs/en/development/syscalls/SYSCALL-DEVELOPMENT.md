@@ -1,8 +1,10 @@
 # System Call Development
 
+> **Document type: DEVELOPMENT GUIDE (not a textbook chapter).** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md).
+
 ## Before you start
 
-**Prerequisites:** Call `write()` from a C app and observe the transition to the kernel using [Tracing](../../literacy/TRACE.md). This guide adds an interface to the kernel; it is not a guide to merely using existing APIs.
+**Prerequisites:** Call `write()` from a C app and observe the transition to the kernel using [Tracing](../../guides/TRACE.md). This guide adds an interface to the kernel; it is not a guide to merely using existing APIs.
 
 
 [Kernel development](../kernel/KERNEL-DEVELOPMENT.md) | [System call reference](../../reference/SYSCALLS.md) | [日本語](../../../ja/development/syscalls/SYSCALL-DEVELOPMENT.md)
@@ -42,10 +44,3 @@ case SYS_EXAMPLE:
 - Wrapper argument positions match the dispatcher
 - SVC events appear in `trace` where relevant
 
----
-
-## Learning navigation
-
-| ← Previous | ↑ Contents | Next → |
-| :--- | :---: | ---: |
-| [Kernel reading](../kernel/KERNEL-READING-GUIDE.md) | [Advanced course](../../literacy/ADVANCED.md) | [Driver development](../drivers/DRIVER-DEVELOPMENT.md) |

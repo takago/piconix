@@ -1,5 +1,7 @@
 # 初期RAMファイルと /etc/rc
 
+> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
+
 PicoNIXの起動時RAMファイルは，ホスト側の`userland/fs/`以下に置いた通常のファイルから生成します．ビルド時にFlashへ埋め込み，起動時にRAMファイルへ展開します．カーネルのCソースに初期HTMLやサンプルコードを書き込む必要はありません．
 
 ## ホスト側のディレクトリ
@@ -50,4 +52,4 @@ httpd &
 echo "Welcome to PicoNIX!"
 ```
 
-関連：[ファイルシステム](FILESYSTEM.md)・[HTTPサーバ](devices/HTTPD.md)・[ネットワーク](devices/NETWORK.md)．
+関連：[ファイルシステム](FILESYSTEM.md)・[HTTPサーバ](network/HTTPD.md)・[ネットワーク](network/NETWORK.md)．

@@ -1,12 +1,33 @@
-# ハードウェアと配線
+# ハードウェア概要
 
-[文書一覧](../../../DOCS.ja.md) | [デバイスの仕様と操作](../devices/DEVICES.md) | [English](../../../en/reference/hardware/HARDWARE.md)
+> **資料区分：技術リファレンス**．基板と外部回路の前提を説明します．[ハードウェア目次](README.md) ｜ [ピン割当](PINS.md) ｜ [配線](WIRING.md)．
 
-PicoNIXが想定する基板と回路の入口です．実際に配線する前に，`kernel/pins.h`と`CMakeLists.txt`のボード設定で**最新版のピン配置**を確認してください．
+[English](../../../en/reference/hardware/HARDWARE.md) ｜ [文書一覧](../../../DOCS.ja.md) ｜ [セットアップ](../../setup/SETUP.md)
 
-- [デバイスの概要，ピン配置と配線](../devices/DEVICES.md)
-- [I²Cの接続](../devices/I2C.md)
-- [UARTの配線](../devices/UART.md)
-- [Pico/Pico Wのビルド](../../setup/SETUP.md)
+## 使用する基板
 
-既存デバイスの使い方は`reference/devices/`，カーネル側へのドライバ追加方法は[ドライバ開発](../../development/drivers/DRIVER-DEVELOPMENT.md)を参照してください．
+PicoNIXはRP2040を搭載する**Raspberry Pi Pico / Pico W**を対象にしています．ボードの選択はビルド時に行います．起動とUSB CDCコンソールの操作だけなら，外付けのLEDマトリクスやセンサは必要ありません．
+
+- Pico：USB CDCとUART1などのローカルI/Oを使用します．
+- Pico W：上記に加えて無線ネットワーク機能を利用できます．端子位置はPicoと共通ですが，基板内のピン利用は異なります．
+
+## ハードウェアとOSの役割
+
+| 問題 | 正しく参照する場所 |
+|---|---|
+| GPnを何に割り当てたか | [ピン割当](PINS.md)．実装上の正本は`kernel/pins.h` |
+| どの部品をどこに接続するか | [配線と電気的注意](WIRING.md)．端子番号・極性は部品データシートでも確認 |
+| `/dev`をどう`open()`・`read()`・`write()`するか | [デバイスの仕様](../devices/DEVICES.md) |
+| ピンやドライバをどう実装・変更するか | [ドライバ開発](../../development/drivers/DRIVER-DEVELOPMENT.md) |
+
+同じGPIOをLED表示と汎用出力などに同時使用することはできません．[現在のピン割当](PINS.md)を確認し，表示中にGP0～15を解放する場合は`fbctl off`を実行してください．
+
+## 配線前の基本確認
+
+1. USBケーブルを抜き，通電していないことを確認します．
+2. [PINS.md](PINS.md)でRP2040のGPIO番号（GPn）と**物理端子番号**を区別します．
+3. [WIRING.md](WIRING.md)で接続，3.3 V系，GND，電流制限，プルアップなどを確認します．
+4. 実部品の型番・極性・データシートと照合してから通電します．
+5. まず最小構成で起動し，必要な周辺機器を一つずつ追加します．
+
+**注意：** LEDマトリクスの端子対応表は特定型番の接続例であり，その表だけで安全な駆動回路を構成できるわけではありません．

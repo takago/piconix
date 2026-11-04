@@ -1,5 +1,7 @@
 # PicoNIX 仕様書
 
+> **資料区分：技術リファレンス**．仕様を調べるためのページです．[リファレンス目次](README.md) ｜ [教科書総目次](../learn/README.md)．
+
 この文書は，PicoNIXの**現行実装の概要と固定上限**をまとめた開発者向け資料です．操作方法は[ドキュメント案内](../../DOCS.ja.md)を参照してください．本書はPOSIX準拠を宣言するものではありません．記述と動作が異なる場合は，対象リビジョンのソースコードを優先してください．
 
 [全体アーキテクチャ](ARCHITECTURE.md)ではソースファイルの役割を説明しています．
@@ -36,14 +38,14 @@ Linuxとの機能の違い，省略した仕組み，上限値の一覧は[Linux
 - タスクごとのFD番号は0〜15（16個）です．標準入力・出力・エラー出力は通常0，1，2を使用します．
 - パイプは最大2本で，各256バイトのリングバッファを使用します．
 - `pipe()`，`dup()`，`dup2()`を提供します．FDの複製・継承と参照の解放はカーネルが管理します．
-- パイプはバイトストリームです．読み手・書き手の終了，空／満杯，EOF，ブロック時の挙動は[パイプ](../literacy/PIPE.md)を参照してください．
-- シェルのパイプラインの構文制限は[パイプ](../literacy/PIPE.md)に記載します．POSIXシェルとの完全互換ではありません．
+- パイプはバイトストリームです．読み手・書き手の終了，空／満杯，EOF，ブロック時の挙動は[パイプ](../guides/PIPE.md)を参照してください．
+- シェルのパイプラインの構文制限は[パイプ](../guides/PIPE.md)に記載します．POSIXシェルとの完全互換ではありません．
 
 ## 4．TTY
 
 USBコンソール，UART1，Wi-Fi端末は別々のデバイスとして扱います（Wi-Fi端末は対応ビルド時）．TTYの行編集（canonical）とraw入力，echo，改行変換（ONLCR）はTTY側の設定です．FD単位の`O_NONBLOCK`は`fcntl()`で制御し，TTY入力モードとは独立しています．PicoNIXのTTY ioctlは独自の簡易インターフェースで，完全なPOSIX termiosではありません．
 
-コマンド番号は `include/piconix.h` の `OS_TTY_*` を，利用例は[TTY](../literacy/TTY.md)と[端末](../literacy/TERMINAL.md)を参照してください．
+コマンド番号は `include/piconix.h` の `OS_TTY_*` を，利用例は[TTY](../guides/TTY.md)と[端末](../guides/TERMINAL.md)を参照してください．
 
 ## 5．システムコールとABI
 
@@ -70,9 +72,9 @@ Pico WビルドではlwIPを使用します．Wi-FiモードはAPまたはSTAを
 | ユーザTCPソケット管理枠 | 4（`kernel/net_socket.h`の`NET_SOCKET_TCP_SLOTS`） |
 | UDPデータ転送上限の内部定数 | 512バイト（`NET_SOCKET_UDP_MAX`） |
 
-Pico WではlwIPの`lo0`を通じて`127.0.0.1`宛てにTCP/UDP通信できます（通常のPicoビルドでは非対応）．通信メモリは`/proc/net/memory`で確認できます．ネットワーク予約16 KiBにはlwIPヒープ10 KiB，管理情報を含む境界領域2 KiB，アイドルスタック4 KiBを配置します．pbufプール8個（各512バイト）などの静的プールはカーネルRAM側に残ります．詳細は[メモリレイアウト](MEMORY-LAYOUT.md)，[Wi-Fi](devices/WIFI-MODES.md)，[ネットワーク](devices/NETWORK.md)，[ソケットプログラミング](../development/apps/c/NETWORK-PROGRAMMING.md)を参照してください．TelnetとUDPデバイス制御は暗号化された認証付きサービスではないため，信頼できるネットワークで使用してください．
+Pico WではlwIPの`lo0`を通じて`127.0.0.1`宛てにTCP/UDP通信できます（通常のPicoビルドでは非対応）．通信メモリは`/proc/net/memory`で確認できます．ネットワーク予約16 KiBにはlwIPヒープ10 KiB，管理情報を含む境界領域2 KiB，アイドルスタック4 KiBを配置します．pbufプール8個（各512バイト）などの静的プールはカーネルRAM側に残ります．詳細は[メモリレイアウト](MEMORY-LAYOUT.md)，[Wi-Fi](network/WIFI-MODES.md)，[ネットワーク](network/NETWORK.md)，[ソケットプログラミング](../development/apps/c/NETWORK-PROGRAMMING.md)を参照してください．TelnetとUDPデバイス制御は暗号化された認証付きサービスではないため，信頼できるネットワークで使用してください．
 
-Pico Wでは`tcpdump`用の`/dev/net/packet`（16件のIPv4情報記録）と，`ping`用の`/dev/net/icmp`（ICMP Echo専用）を提供します．RAWソケットではありません．詳しくは[ネットワーク仕様](devices/NETWORK.md)を参照してください．
+Pico Wでは`tcpdump`用の`/dev/net/packet`（16件のIPv4情報記録）と，`ping`用の`/dev/net/icmp`（ICMP Echo専用）を提供します．RAWソケットではありません．詳しくは[ネットワーク仕様](network/NETWORK.md)を参照してください．
 
 ## 8．デバイスと疑似ファイル
 

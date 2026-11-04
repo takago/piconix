@@ -1,5 +1,7 @@
 # PicoNIXのCアプリケーション開発
 
+> **資料区分：開発ガイド（教科書の本編ではありません）**．[開発ガイド一覧](../../README.md) ｜ [Part C 教科書](../../../learn/C/README.md)．
+
 ## 読み始める前に
 
 C言語の関数，配列，コマンドライン引数を復習してから始めてください．最初は既存の`hello`を実行し，次に`greet.c`を追加します．編集するソースはPC側にあり，反映にはUF2の再書き込みが必要です．
@@ -50,10 +52,10 @@ int main(int argc, char *argv[])
 ファイル上部の`foreach(APP IN ITEMS ...)`に，拡張子`.c`を付けずに`greet`を加えます．
 
 ```cmake
-foreach(APP IN ITEMS net ip pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
+foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
 ```
 
-上記は現在の`CMakeLists.txt`に`greet`を末尾へ追加した例です．既存のアプリ名は削除せず，新しい版で一覧が変わっている場合はその版の末尾へ`greet`を追加してください．この共通ループによって，ソースのコンパイル，共通の`crt0.c`・`syscalls.c`・`libc.c`のリンク，PIC検査，サイズ検査，Flashへのイメージ埋め込みが行われます．個別のビルドルールは不要です．
+上記は添付された現行`CMakeLists.txt`に`greet`を末尾へ追加した例です．既存のアプリ名は削除せず，新しい版で一覧が変わっている場合はその版の末尾へ`greet`を追加してください．この共通ループによって，ソースのコンパイル，共通の`crt0.c`・`syscalls.c`・`libc.c`のリンク，PIC検査，サイズ検査，Flashへのイメージ埋め込みが行われます．個別のビルドルールは不要です．
 
 ### 3.2．`kernel/main.c`へ登録
 
@@ -66,10 +68,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 さらに`main()`内の既存の`register_image(...)`と並べて登録します．
 
 ```c
-register_image(45, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(49, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**45は，この版で未使用の登録IDの一例です（43は`net`，44は`fd`が使用）．** 今後アプリが増えた場合は，登録済みIDを確認して空いている番号に変更してください．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
+**49は，添付された現行ソースで未使用の登録IDの一例です（45は`ping`，46は`tcpdump`，47は`ip`，48は`cp`が使用）．** 今後アプリが増えた場合は，登録済みIDを確認して空いている番号に変更してください．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
 
 ## 4．ビルド・書き込み・実行
 
@@ -110,7 +112,7 @@ int main(int argc, char *argv[])
 }
 ```
 
-例えば`greet Alice > /tmp/message`とすると，出力先はRAMファイルになります．アプリは通常，リダイレクトやパイプを意識せず同じFDを使用できます．詳しくは[ファイルシステム](../../../reference/FILESYSTEM.md)，[パイプ](../../../literacy/PIPE.md)，[デバイス](../../../reference/devices/DEVICES.md)を参照してください．
+例えば`greet Alice > /tmp/message`とすると，出力先はRAMファイルになります．アプリは通常，リダイレクトやパイプを意識せず同じFDを使用できます．詳しくは[ファイルシステム](../../../reference/FILESYSTEM.md)，[パイプ](../../../guides/PIPE.md)，[デバイス](../../../reference/devices/DEVICES.md)を参照してください．
 
 ## 6．利用できるAPIと実行上の制約
 
@@ -126,7 +128,7 @@ int main(int argc, char *argv[])
 
 `userland/lib/`以下の`stdio.h`，`stdlib.h`，`string.h`，`unistd.h`，`fcntl.h`を使用します．関数の引数・戻り値・対応範囲は[LIBC.md](LIBC.md)，低水準の呼び出し規約は[SYSCALLS.md](../../../reference/SYSCALLS.md)を参照してください．通常の`errno`を前提とせず，PicoNIXのエラー戻り値を確認します．
 
-`fcntl()`による`O_NONBLOCK`だけでは，TTYのcanonical入力が文字単位にはなりません．対話的なプログラムについては[TTY](../../../literacy/TTY.md)と`userland/apps/mb.c`を参照してください．ネットワークプログラムには別の制約もあるため，[ネットワークプログラミング](NETWORK-PROGRAMMING.md)も参照してください．
+`fcntl()`による`O_NONBLOCK`だけでは，TTYのcanonical入力が文字単位にはなりません．対話的なプログラムについては[TTY](../../../guides/TTY.md)と`userland/apps/mb.c`を参照してください．ネットワークプログラムには別の制約もあるため，[ネットワークプログラミング](NETWORK-PROGRAMMING.md)も参照してください．
 
 ### 6.1．PicoNIX特有のPICとRAMの注意点
 
@@ -175,7 +177,7 @@ int main(void)
 | PIC・サイズ検査エラー | 位置依存コード，未対応の再配置，イメージ領域やスタック予約との重複 |
 | `/bin`にコマンドがない | CMakeへの追加，シンボル宣言，`register_image()`，最新UF2の書き込み |
 | 実行時に起動できない | タスクスロットの空きとプログラム登録 |
-| 端末の動作がおかしい | canonical・echo設定と復元処理．[TTY](../../../literacy/TTY.md)を参照 |
+| 端末の動作がおかしい | canonical・echo設定と復元処理．[TTY](../../../guides/TTY.md)を参照 |
 
 ホスト側の回帰テストは次のように実行します．
 
@@ -184,7 +186,7 @@ python3 tools/run_tests.py
 python3 tools/run_tests.py --all  # ARMツールチェーン依存テストも実行
 ```
 
-ソースレベルのテストだけでは，ファームウェアのビルドや実機動作までは保証できません．実行中の調査には`ps`，`cat /proc/tasks`，`trace on`，`trace off`，`trace show`などを使います．[トレース](../../../literacy/TRACE.md)ではシステムコールとコンテキストスイッチ，[メモリ参照](../../../literacy/MEM.md)ではRAM・Flashの読み取り専用観察を説明しています．
+ソースレベルのテストだけでは，ファームウェアのビルドや実機動作までは保証できません．実行中の調査には`ps`，`cat /proc/tasks`，`trace on`，`trace off`，`trace show`などを使います．[トレース](../../../guides/TRACE.md)ではシステムコールとコンテキストスイッチ，[メモリ参照](../../../guides/MEM.md)ではRAM・Flashの読み取り専用観察を説明しています．
 
 ## 8．リアルタイムキー入力（noncanonical + O_NONBLOCK）
 
@@ -250,7 +252,7 @@ restore:
 
 開始時にcanonical・echo・FDフラグを保存し，終了時と設定途中の失敗時に戻します．**Ctrl+Cや`kill`などでアプリが強制終了した場合，このCコードの復元処理は実行されません**．前景タスクのTTY設定はカーネル側の復元機構に依存します．FDフラグはタスク固有なので，通常終了時に明示的に戻します．
 
-この例は既存の`greet`と同様にCMakeへの追加とカーネル登録が必要です（上記の手順を`keypoll`に読み替えてください）．`stty raw`を事前に実行する必要はありません．TTYの規則は[TTY](../../../literacy/TTY.md)，実際のゲームでの利用は`userland/apps/mb.c`と`userland/apps/pong.c`を参照してください．
+この例は既存の`greet`と同様にCMakeへの追加とカーネル登録が必要です（上記の手順を`keypoll`に読み替えてください）．`stty raw`を事前に実行する必要はありません．TTYの規則は[TTY](../../../guides/TTY.md)，実際のゲームでの利用は`userland/apps/mb.c`と`userland/apps/pong.c`を参照してください．
 
 ## 9．関連文書
 
@@ -260,10 +262,3 @@ restore:
 - [全体構造](../../../reference/ARCHITECTURE.md)・[内部構造](../../../reference/INTERNAL.md)：PICロード，スケジューラ，カーネル実装
 - [ネットワークプログラミング](NETWORK-PROGRAMMING.md)：Pico W上のTCP/UDPアプリ開発
 
----
-
-## 学習ナビゲーション
-
-| ← 前へ | ↑ 目次へ | 次へ → |
-| :--- | :---: | ---: |
-| [上級コース](../../../literacy/ADVANCED.md) | [上級コース](../../../literacy/ADVANCED.md) | [カーネル読解](../../kernel/KERNEL-READING-GUIDE.md) |

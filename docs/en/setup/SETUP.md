@@ -1,6 +1,8 @@
 # Setup
 
-[日本語](../../ja/setup/SETUP.md) | [Overview](../literacy/README.md)
+> **Document type: SETUP GUIDE.** This is preparation, not a textbook chapter. Continue with [Chapter A1](../learn/A/A1.md).
+
+[日本語](../../ja/setup/SETUP.md) | [Overview](../guides/README.md)
 
 These instructions target Ubuntu/Debian-based Linux. Prepare a Raspberry Pi Pico or Pico W (RP2040) and a data-capable USB cable.
 
@@ -10,10 +12,10 @@ For initial boot and USB CDC console access, **a Pico or Pico W and a data-capab
 
 Before using GPIO or other peripherals, check the required components and wiring:
 
-- [Hardware and wiring](../reference/hardware/HARDWARE.md): board support, pin assignments, and links to circuit details
-- [Device guide](../reference/devices/DEVICES.md): 8×8 LED matrix, switches, PWM, and pin usage
-- [I²C](../reference/devices/I2C.md): GP26 (SDA) and GP27 (SCL)
-- [UART](../reference/devices/UART.md): GP20 (TX) and GP21 (RX)
+- [Hardware overview](../reference/hardware/HARDWARE.md): supported boards and safe starting assumptions
+- [Pin assignments and 40-pin diagram](../reference/hardware/PINS.md): GPIO roles and physical header numbers
+- [Wiring guide](../reference/hardware/WIRING.md): LED matrix, switches, PWM, I²C, UART, and ADC
+- [Device guide](../reference/devices/DEVICES.md): operations on GPIO, ADC, PWM, and framebuffer nodes
 
 **Before wiring:** GPIO uses 3.3 V logic. LEDs need current-limiting resistors and suitable driver circuitry. Disconnect USB power while wiring, and verify pin roles and polarity before powering the board. Treat `kernel/pins.h` as the authoritative pin configuration.
 
@@ -132,10 +134,10 @@ For a separate UART1 shell, run `getty /dev/ttyS1 sh &`. See [UART and terminals
 
 ## Pico W network access
 
-For Pico W builds, Wi-Fi settings, Telnet/socat access and disconnect instructions, see [Pico W Wi-Fi, Telnet and raw TCP](../reference/devices/NETWORK.md).
+For Pico W builds, Wi-Fi settings, Telnet/socat access and disconnect instructions, see [Pico W Wi-Fi, Telnet and raw TCP](../reference/network/NETWORK.md).
 
 PWM duty cycle files `/dev/pwm/1/a` and `/dev/pwm/1/b` accept values such as `7.5` in 0.1% increments and return one decimal place. `/dev/pwm/1/freq` remains integer Hz.
 
 ## Next steps
 
-After connecting, follow the short exercises in the [learning path](../literacy/LEARNING-PATH.md) to explore files, pipes, and tasks. Keep commands for the Linux build PC separate from commands typed at `piconix#`.
+After connecting, follow the numbered lessons beginning with [textbook A1](../learn/A/A1.md) to explore files, pipes, and tasks. Keep commands for the Linux build PC separate from commands typed at `piconix#`.
