@@ -39,7 +39,7 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Terminals | `getty`, `tty`, `stty`, `reset` |
 | Programming | `edit`, `vi`, `as`, `python` |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink` |
-| Networking | `ip`,　`net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod` |
+| Networking | `net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
 | Help | `help` |
 
@@ -165,6 +165,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 |---|---|
 | [C application development](docs/en/development/apps/c/PROGRAMMING.md) | [Cアプリ開発](docs/ja/development/apps/c/PROGRAMMING.md) |
 | [Kernel development](docs/en/development/kernel/KERNEL-DEVELOPMENT.md) | [カーネル拡張ガイド](docs/ja/development/kernel/KERNEL-DEVELOPMENT.md) |
+| [Kernel reading guide](docs/en/development/kernel/KERNEL-READING-GUIDE.md) | [カーネル読解ガイド](docs/ja/development/kernel/KERNEL-READING-GUIDE.md) |
 | [Function index (Japanese)](docs/FUNCTIONS.md) | [関数一覧（自動生成）](docs/FUNCTIONS.md) |
 | [Assembly programming](docs/en/development/apps/asm/ASM.md) | [アセンブリプログラミング](docs/ja/development/apps/asm/ASM.md) |
 | [C library and APIs](docs/en/development/apps/c/LIBC.md) | [CライブラリとAPI](docs/ja/development/apps/c/LIBC.md) |

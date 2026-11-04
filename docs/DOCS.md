@@ -16,6 +16,7 @@ Choose a section according to your goal. The **reference** contains current spec
 - **[Assembly programming](en/development/apps/asm/ASM.md)** — On-device Thumb assembler
 - **[System-call development](en/development/syscalls/SYSCALL-DEVELOPMENT.md)** — Adding an SVC interface
 - **[Driver development](en/development/drivers/DRIVER-DEVELOPMENT.md)** — Implementing device nodes
+- **[Kernel reading guide](en/development/kernel/KERNEL-READING-GUIDE.md)** — Read boot, scheduling, SVC, VFS, and drivers step by step
 - **[Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md)** — Kernel internals and modification
 - **[Function index](FUNCTIONS.md)** — Generated function definitions, line numbers, and summaries (Japanese)
 - **[Differences from Linux](en/reference/DIFFERENCES.md)** — Intentional omissions and fixed resource limits

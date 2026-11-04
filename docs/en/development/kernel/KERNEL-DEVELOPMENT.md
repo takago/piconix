@@ -1,5 +1,7 @@
 # Kernel Development Guide
 
+To study the kernel before modifying it, see the [kernel reading guide](KERNEL-READING-GUIDE.md).
+
 ## Before you start
 
 **Prerequisites:** Read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Tracing](../../literacy/TRACE.md). Begin by following task creation and termination in the existing source code.
