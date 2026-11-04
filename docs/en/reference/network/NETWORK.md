@@ -136,6 +136,15 @@ piconix# ping -c 2 192.168.4.2
 
 `tcpdump [-x] [-c COUNT]` runs on Pico W and the options may be combined. Start `tcpdump -x -c 10` on the USB console, then generate traffic using `curl http://192.168.4.1/` on a PC or `ping` on a second PicoNIX terminal. For step-by-step instructions and sample output, see the [Textbook B6](../../learn/B/B6.md). `LEN` is the IPv4 packet length; `DATA` is the transport payload length (for a first TCP/UDP fragment). `tcpdump` normally displays one summary line per packet. With `-x`, the first line includes `DATA=` (transport payload length); when data is present, an indented second line labelled `DATA:` shows the first 16 bytes in spaced hexadecimal with an aligned ASCII column (`|...|`), as in `hexdump`. Packets without payload (for example, TCP SYN/ACK) show `DATA=0` without a sample. ICMP uses TYPE to distinguish Echo Request (8) and Reply (0). Commands that wait for traffic can be stopped using the shell’s Ctrl+C mechanism. Packets arriving before capture starts are intentionally not stored. Traffic inspection can expose application data: use only a trusted lab network.
 
+### Practical command guides
+
+- [`ip`](IP.md): interfaces and IPv4 address
+- [`ping`](PING.md): ICMP reachability and failures
+- [`tcpdump`](TCPDUMP.md): TCP/UDP/ICMP packet summaries
+- [`net`](NET.md): Wi-Fi, AP clients and ARP
+- [C networking lab](../../development/apps/c/NETWORK-PROGRAMMING.md): complete code and build steps
+
+
 ---
 
 **Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/NETWORK.md) | [Setup](../../setup/SETUP.md)

@@ -101,4 +101,15 @@ Find documentation for **what you want to do**. Each task links to starting expl
 - **Find implementation guides:** [Development guides](development/README.md)
 - **Troubleshoot build or flashing:** [Setup and troubleshooting](setup/SETUP.md)
 
+## Hands-on networking and kernel extension
+
+| I want to... | Start with | Details |
+|---|---|---|
+| Inspect my IP | [`ip` lab](reference/network/IP.md) | [Network connection](reference/network/NETWORK.md) |
+| Check IP reachability | [`ping` lab](reference/network/PING.md) | [`net` diagnostics](reference/network/NET.md) |
+| Interpret TCP/UDP/ICMP traffic | [`tcpdump` lab](reference/network/TCPDUMP.md) | [Textbook B6](learn/B/B6.md) |
+| Write a TCP/UDP C program | [Complete client examples](development/apps/c/NETWORK-PROGRAMMING.md) | [Register an application](development/apps/c/PROGRAMMING.md) |
+| Add a syscall | [getuptime lab](development/syscalls/SYSCALL-DEVELOPMENT.md) | [SVC reference](reference/SYSCALLS.md) |
+| Add a node and driver | [/dev/uptime lab](development/drivers/DRIVER-DEVELOPMENT.md) | [Devices](reference/devices/DEVICES.md) |
+
 [日本語](../ja/TASKS.md) | [Documentation directory](../DOCS.md)

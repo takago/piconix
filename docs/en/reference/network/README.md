@@ -2,6 +2,18 @@
 
 This directory documents Pico W Wi-Fi, TCP/UDP networking and network services. Networking chapters are optional when using a standard Pico without Wi-Fi.
 
+## Network diagnostic commands (step-by-step)
+
+Use these in order, since each tool observes a **different layer**:
+
+1. [`ip`: address and network interfaces](IP.md)
+2. [`ping`: ICMP reachability](PING.md)
+3. [`tcpdump`: TCP/UDP/ICMP packet summaries](TCPDUMP.md)
+4. [`net`: Wi-Fi, AP stations and ARP](NET.md)
+
+Start with [Textbook B6](../../learn/B/B6.md). These diagnostics require a **Pico W**, not the regular Pico.
+
+
 ## Connection and diagnostics
 
 - [Pico W network access](NETWORK.md)

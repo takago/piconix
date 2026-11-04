@@ -35,6 +35,8 @@
 
 **ソース索引：** [関数一覧（日本語）](../../FUNCTIONS.md)．番号や行位置はコード変更で変わり得ます．
 
+**実際にコードを変更する演習：** [CでUDP/TCPクライアントを作る](apps/c/NETWORK-PROGRAMMING.md) ／ [新しいシステムコールを追加する](syscalls/SYSCALL-DEVELOPMENT.md) ／ [新しいデバイスノードとドライバを作る](drivers/DRIVER-DEVELOPMENT.md)．いずれも準備，ソース，ビルド，実行，確認まで記載しています．
+
 ---
 
 **関連リンク：** [教科書](../learn/README.md) ｜ [English](../../en/development/README.md)

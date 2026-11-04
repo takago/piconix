@@ -3,26 +3,21 @@
 この文書は `python3 tools/gen_functions.py` でソースから自動生成します．
 **手で編集せず，関数直前の日本語コメントを修正して再生成してください．**
 
-- **カーネル**：`kernel/` にあるOS本体の関数．
-- **アプリケーション（App）**：`userland/apps/` にあるコマンドやアプリの関数．
-- **ライブラリ（Lib）**：`userland/lib/` にある共通Cライブラリとシステムコール呼出しの関数．
-- **ホスト用ユーティリティ**：`host/` にあるPC側のPicoNIX操作プログラムの関数（OS本体とは別）．
-- **対象外**：`tools/`（ビルド・検証・索引生成），`userland/examples/`（実行例），`userland/fs/`（初期ファイル）．
-- C関数定義，Pythonトップレベル関数，アセンブリの関数ラベルを対象とし，ヘッダは**関数定義のみ**を掲載します（宣言・マクロ・型定義は対象外）．
-- 関数定義がないファイルは省略します．
+- 対象：`kernel/`，`include/`，`userland/`，`host/`，`tools/` のC関数定義，Pythonトップレベル関数，アセンブリの関数ラベル．
+- ヘッダは**関数定義のみ**を掲載します（関数宣言・マクロ・型定義は対象外）．
+- `tools/test_scripts/` の回帰テストは対象外です．関数定義がないファイルも省略します．
 - 行番号はこの文書を生成した時点の行番号です．変更後は再生成してください．
 - 概要の `—` は関数直前に説明コメントがないことを表します．関数名からの推測は行いません．
 - 範囲欄の `static` はCの内部結合，`外部` は外部結合，`モジュール` と `内部名` はPythonの名前付け，`大域` はアセンブリラベルを表します．外部結合は公開APIを意味しません．
 - C言語の解析は簡易的な構文走査で，プリプロセッサの条件分岐を評価しません．環境依存の定義は両方載る場合があります．
 
-**掲載関数：685件（概要コメントあり：685件）**
+**掲載関数：729件（概要コメントあり：729件）**
 
-## 分類別目次
+## ファイル一覧
 
 - [カーネル](#カーネル)：14ファイル
-- [アプリケーション](#アプリケーション)：50ファイル
-- [ライブラリ](#ライブラリ)：4ファイル
-- [ホスト用ユーティリティ](#ホスト用ユーティリティ)：2ファイル
+- [ユーザプログラムとライブラリ](#ユーザプログラムとライブラリ)：54ファイル
+- [開発・ホストツール](#開発・ホストツール)：10ファイル
 
 ## カーネル
 
@@ -374,7 +369,7 @@
 | [`pwm_driver_set()`](../kernel/pwm.c#L44) | 44 | 外部 | 周波数またはデューティ比を検証して設定する． |
 | [`pwm_parse_value()`](../kernel/pwm.c#L52) | 52 | 外部 | ローカルVFS書込みとUDPデバイス制御で共用する処理． |
 
-## アプリケーション
+## ユーザプログラムとライブラリ
 
 ### `userland/apps/asm.c`（12件）
 
@@ -916,8 +911,6 @@
 | [`capture_command()`](../userland/apps/watch.c#L97) | 97 | static | 256バイトのカーネルパイプは子が動いている間に排出する． |
 | [`main()`](../userland/apps/watch.c#L125) | 125 | 外部 | 指定コマンドを一定間隔で再実行し，結果を端末へ表示する． |
 
-## ライブラリ
-
 ### `userland/lib/libc.c`（59件）
 
 | 関数 | 行 | 範囲 | 概要 |
@@ -1051,7 +1044,7 @@
 |---|---:|---|---|
 | [`htons()`](../userland/lib/unistd.h#L45) | 45 | static | 16ビット整数のバイト順を入れ替える． |
 
-## ホスト用ユーティリティ
+## 開発・ホストツール
 
 ### `host/demo_udp.py`（2件）
 
@@ -1066,3 +1059,87 @@
 |---|---:|---|---|
 | [`request()`](../host/piconixctl.py#L9) | 9 | モジュール | PicoNIXのUDPデバイス制御サービスへコマンドを送り，応答を受け取る． |
 | [`main()`](../host/piconixctl.py#L22) | 22 | モジュール | 接続先・操作対象を解析し，PicoNIX向けのデバイス制御要求を実行する． |
+
+### `tools/audit_firmware.py`（7件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`run()`](../tools/audit_firmware.py#L15) | 15 | モジュール | 外部コマンドを実行し，標準出力を文字列で取得する． |
+| [`parse_nm()`](../tools/audit_firmware.py#L19) | 19 | モジュール | nm出力をシンボル名とアドレスの辞書に変換する． |
+| [`parse_symbol_sizes()`](../tools/audit_firmware.py#L27) | 27 | モジュール | Parse GNU nm -S output; sizes are from the linked ELF, not constants. |
+| [`parse_sections()`](../tools/audit_firmware.py#L39) | 39 | モジュール | objdumpのセクション一覧から名前・サイズ・VMA・LMAを解析する． |
+| [`audit()`](../tools/audit_firmware.py#L50) | 50 | モジュール | 実際にリンクしたELFのベクタ・Flash・RAM・ユーザスロット配置を検査する． |
+| [`memory_report()`](../tools/audit_firmware.py#L124) | 124 | モジュール | Kernel high-water mark from allocated ELF SRAM sections (includes heap/stack). |
+| [`main()`](../tools/audit_firmware.py#L158) | 158 | モジュール | ELF解析ツールを呼び出し，メモリ配置違反があれば失敗扱いにする． |
+
+### `tools/audit_wifi_elf.py`（3件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`parse_sections()`](../tools/audit_wifi_elf.py#L19) | 19 | モジュール | ELFのセクション位置とサイズを読み取り，Wi-Fi構成のRAM配置検査へ渡す． |
+| [`audit()`](../tools/audit_wifi_elf.py#L30) | 30 | モジュール | Wi-Fiの予約領域やカーネル境界が重なっていないか確認する． |
+| [`main()`](../tools/audit_wifi_elf.py#L45) | 45 | モジュール | Wi-Fi向けELFのメモリ配置検査を起動し，問題を報告する． |
+
+### `tools/gen_functions.py`（10件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`mask_source()`](../tools/gen_functions.py#L27) | 27 | モジュール | コメントと文字列を空白に置換し，行番号と括弧を保つ． |
+| [`comment_summary()`](../tools/gen_functions.py#L75) | 75 | モジュール | 直前のコメントから最初の説明文を取り出す． |
+| [`preceding_comment()`](../tools/gen_functions.py#L94) | 94 | モジュール | 関数宣言と空白だけを挟んで接するコメントを取得する． |
+| [`c_functions()`](../tools/gen_functions.py#L103) | 103 | モジュール | 波括弧の深さ0にあるC関数定義を列挙する．宣言は含めない． |
+| [`py_functions()`](../tools/gen_functions.py#L134) | 134 | モジュール | Pythonのトップレベル関数を抽出する（テスト・関数内の補助関数は対象外）． |
+| [`asm_functions()`](../tools/gen_functions.py#L153) | 153 | モジュール | .typeで関数と指定されたアセンブリの入口ラベルを抽出する． |
+| [`sources()`](../tools/gen_functions.py#L167) | 167 | モジュール | 実装ファイルをパス順に取得する．テストコードは索引を肥大化させるため除外． |
+| [`render()`](../tools/gen_functions.py#L179) | 179 | モジュール | 対象ファイルの関数定義と説明を集計し，Markdown形式の関数一覧を構築する． |
+| [`anchor()`](../tools/gen_functions.py#L232) | 232 | モジュール | GitHub Markdownにおける日本語見出しのアンカー文字列を返す． |
+| [`main()`](../tools/gen_functions.py#L237) | 237 | モジュール | --check指定時は再生成漏れを検出し，通常時は関数一覧ファイルを書き出す． |
+
+### `tools/generate_initial_fs.py`（1件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`generate()`](../tools/generate_initial_fs.py#L11) | 11 | モジュール | 初期RAMファイルの入力データからビルド用のイメージを生成する． |
+
+### `tools/limit_sdk_ram.py`（2件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`transform()`](../tools/limit_sdk_ram.py#L13) | 13 | モジュール | Pico SDKのリンカスクリプトを変換し，カーネルRAM範囲を制限する． |
+| [`main()`](../tools/limit_sdk_ram.py#L47) | 47 | モジュール | SDK用リンカスクリプトを読み，変換結果を書き出す． |
+
+### `tools/limit_sdk_xip.py`（2件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`transform()`](../tools/limit_sdk_xip.py#L13) | 13 | モジュール | XIP実行用リンク設定に必要なSDKリンカスクリプトの変更を行う． |
+| [`main()`](../tools/limit_sdk_xip.py#L51) | 51 | モジュール | 対象リンカスクリプトを変換し，Flash実行のメモリ配置を整える． |
+
+### `tools/size_ram.py`（17件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`fmt()`](../tools/size_ram.py#L33) | 33 | モジュール | バイト数をKiB単位の桁揃え表示文字列にする． |
+| [`command_output()`](../tools/size_ram.py#L37) | 37 | モジュール | 外部ツールを実行して出力を取得し，失敗時は例外を発生させる． |
+| [`tool()`](../tools/size_ram.py#L45) | 45 | モジュール | ARM用ツールを優先して探し，見つからなければホスト側コマンドを探す． |
+| [`elf_info()`](../tools/size_ram.py#L55) | 55 | モジュール | readelfからELFセクションとシンボル位置を読み取る． |
+| [`app_rows()`](../tools/size_ram.py#L71) | 71 | モジュール | 各ユーザイメージのELFを解析し，データ・スタック・空き容量を集計する． |
+| [`component()`](../tools/size_ram.py#L95) | 95 | モジュール | Classify *input* object paths; this is not a symbol-level classifier. |
+| [`overlap()`](../tools/size_ram.py#L126) | 126 | モジュール | 二つのアドレス区間が重複するか調べる． |
+| [`interval_union()`](../tools/size_ram.py#L129) | 129 | モジュール | Count only distinct addressed bytes, avoiding overlap/double counting. |
+| [`memory_kind()`](../tools/size_ram.py#L146) | 146 | モジュール | アドレス位置からFlash・SRAM等のメモリ種類を返す． |
+| [`allocated_ranges()`](../tools/size_ram.py#L154) | 154 | モジュール | ELFのセクションから実際の割当済みアドレス範囲を集める． |
+| [`embedded_ranges()`](../tools/size_ram.py#L158) | 158 | モジュール | Get real embedded PIC byte intervals from the firmware ELF symbol pairs. |
+| [`map_report()`](../tools/size_ram.py#L184) | 184 | モジュール | Attribute only bytes that fall inside an ELF allocated output section. |
+| [`sram_region_totals()`](../tools/size_ram.py#L249) | 249 | モジュール | Return unique allocated ELF SRAM bytes, partitioned by fixed regions. |
+| [`print_fixed_layout()`](../tools/size_ram.py#L270) | 270 | モジュール | PicoNIXの固定RAM領域の開始・終了と容量を表示する． |
+| [`kernel_stack_bounds()`](../tools/size_ram.py#L290) | 290 | モジュール | ELFのシンボル表からカーネルスタック領域の境界を調べる． |
+| [`print_kernel()`](../tools/size_ram.py#L301) | 301 | モジュール | カーネルのセクション別RAM使用量と上限を表示する． |
+| [`main()`](../tools/size_ram.py#L393) | 393 | モジュール | ビルド成果物のRAM割当てとユーザプログラムの使用量を集計表示する． |
+
+### `tools/verify_layout.py`（2件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`symbols()`](../tools/verify_layout.py#L16) | 16 | モジュール | ELFのシンボル名と位置を抽出する． |
+| [`main()`](../tools/verify_layout.py#L29) | 29 | モジュール | リンカが出力したイメージ配置を検査し，違反があれば停止する． |

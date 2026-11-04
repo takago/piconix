@@ -1,23 +1,29 @@
-# net：ネットワーク診断
+# `net`：Wi-Fi・AP・ARPの診断
 
-*技術リファレンス*
+`net`はPico Wのネットワーク**状態**を観察するコマンドです．`ip`がインターフェースのIPv4アドレスを要約するのに対し，`net`は`/proc/net/`以下の情報をそのまま表示します．**通信相手への疎通確認ではありません**．
 
-`net`はPico WのWi-Fi/IP/DHCP状態を表示するユーザコマンドです．Pico（Wi-Fi非搭載）では利用可能なネットワーク情報はありません．
+## 実行例（PicoNIX側）
 
-```sh
-net       # /proc/net/wifi の基本情報
-net -a    # /proc/net/ap のAP接続端末MAC一覧
-net -r    # /proc/net/arp のARPキャッシュ
+```text
+piconix# net
+piconix# net -a
+piconix# net -r
+piconix# net -h
 ```
 
-STAモードでは`DHCP: Client`，APモードではDHCPサーバの稼働状況を表示します．`net -a`はSTAモードで利用できません．`net -r`はAP/STA両方で利用できます．
+| コマンド | 読み取る情報 | 利用場面 |
+|---|---|---|
+| `net` | `/proc/net/wifi`：モード，接続状態，IP，MAC，エラー履歴等 | Wi-Fiが接続されているか |
+| `net -a` | `/proc/net/ap`：AP接続クライアント情報 | APへPCが接続したか |
+| `net -r` | `/proc/net/arp`：ARPのIP・MAC対応 | 最近通信した相手のIPv4とMAC |
+| `net -h` | コマンドの使い方 | オプション確認 |
 
-接続端末の一覧とARPは異なります．ARP表には通信した相手しか現れず，切断後もしばらく残る場合があります．PicoNIXのAP DHCPサーバは単一のリースに制限されているため，AP接続端末が複数あっても全端末にDHCPアドレスが払い出されるとは限りません．
+**観察手順：** (1) PicoNIX側で`net`を実行し`MODE`と`STATUS`を確認．(2) APモードならPC接続後に`net -a`を確認．(3) PCからPico WへHTTPアクセスして`net -r`を確認．(4) 取得したIPを使って[`ping`](PING.md)で疎通確認．
 
-カーネルはドライバの関連付け情報をネットワーク処理側で約1秒ごとに収集し，システムコール内ではWi-Fiドライバに直接問い合わせません．`/proc/net/ap`と`/proc/net/arp`は読み取り専用です．
+`net -r`に相手が表示されない場合も，ARPキャッシュが空である可能性があります．表示されるIP・MACは環境依存です．`net`自体はパケットを発生させないため，`tcpdump`の代わりにはなりません．通常のPicoではWi-Fi関連情報は利用できません．
 
-`ip addr`を使うと，Pico WのループバックとWi-Fiインターフェースも確認できます．
+**調べ分け：** Wi-Fiの接続は`net`，自分のIPv4は[`ip`](IP.md)，ICMP疎通は[`ping`](PING.md)，TCP/UDPパケットは[`tcpdump`](TCPDUMP.md)．
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [教科書総目次](../../learn/README.md) ｜ [English](../../../en/reference/network/NET.md)
+[ネットワーク目次](README.md) ｜ [Wi-Fi接続仕様](NETWORK.md) ｜ [English](../../../en/reference/network/NET.md)

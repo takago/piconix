@@ -35,6 +35,8 @@ These contain detailed implementation instructions and API information. Follow t
 
 **Source index:** [Function list (Japanese)](../../FUNCTIONS.md). Line locations change with code revisions.
 
+**Complete code labs:** [Build UDP/TCP clients](apps/c/NETWORK-PROGRAMMING.md) / [Add a system call](syscalls/SYSCALL-DEVELOPMENT.md) / [Add a device node and driver](drivers/DRIVER-DEVELOPMENT.md). Each includes preparation, source, build, execution and checks.
+
 ---
 
 **Related links:** [Textbook](../learn/README.md) | [日本語](../../ja/development/README.md)

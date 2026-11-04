@@ -1,64 +1,164 @@
-# デバイスドライバ開発ガイド
+# デバイスノードとドライバ開発：`/dev/uptime`を作る
 
-*開発ガイド*
+この実習では，**配線不要の仮想デバイス**`/dev/uptime`を新設します．パス名，内部デバイスID，open時のアクセス制御，FD位置，デバイス固有のread処理を**一通り自分で実装**するための題材です．外部GPIOを不用意に操作しないので，通常のPicoでも試せます．システムコールの追加実習と組み合わせると，同じ起動時間が異なる経路で提供される様子を比較できます．
 
-## 読み始める前に
+## 1．何を実装するのか
 
-**事前学習：** [デバイスの仕様](../../reference/devices/DEVICES.md)で`/dev`の意味を確認し，[Cアプリ開発](../apps/c/PROGRAMMING.md)で`open()`と`read()`に触れてから進んでください．この章のコード変更には再ビルドと実機検証が必要です．
+```text
+cat /dev/uptime
+  → open("/dev/uptime", O_RDONLY) → vfs_fixed_path_id() → DEV_UPTIME
+  → read(fd,buf,n) → vfs_rw() → uptime_device_read()
+  → 「12.345 s\n」などのテキスト → 標準出力
+```
 
+既存の`/proc/uptime`と機能的に重複しますが，ここでは**ドライバを独立したCファイルとして作る練習**が目的です．デバイスノードは物理部品を必要としません．パスがVFSから参照できることと，実際に`read()`が働くことは別々の実装段階です．
 
-[カーネル開発](../kernel/KERNEL-DEVELOPMENT.md) | [デバイスリファレンス](../../reference/devices/DEVICES.md) | [English](../../../en/development/drivers/DRIVER-DEVELOPMENT.md)
+**先に確認：** [VFSとFD](../../learn/B/B1.md)，[デバイス仕様](../../reference/devices/DEVICES.md)，[システムコール演習](../syscalls/SYSCALL-DEVELOPMENT.md)．ユーザアプリに使う`read()`や`open()`の使い方は[C開発](../apps/c/PROGRAMMING.md)を参照してください．
 
-この文書はデバイスノードとカーネル側の処理の追加方法を説明します．既存デバイスの操作方法とは区別します．
+## 2．デバイスIDとパスを登録する
 
-## 1．新しいデバイスノードを追加する
-
-### 1.1 既存のVFSを把握する
-
-固定の`/dev`パスは`include/device_names.h`の`PICONIX_FIXED_DEVICES(X)`で定義され，`kernel/kernel.c`が`dev_registry[]`を生成します．`/proc`などの固定特殊パスはカーネル内の`vfs_registry[]`で管理されます．`vfs_open()`がパスを解決し，タスクのFDに内部デバイスIDを対応付けます．`vfs_rw()`が読み書きを振り分け，`device_ioctl()`が対応する制御要求を扱います．`close()`はFD解放を通じて資源を後始末します．
-
-**パスを登録しただけでは`read()`や`write()`は動作しません．** 既存のGPIO，ADC，PWMは動的パス・条件付き公開を含むため，単純な固定ノードとは別に調べてください．`/proc/devices`や`/dev`ディレクトリ列挙にも反映されるか確認が必要です．
-
-### 1.2 読み取り専用ノードを追加する場合
-
-1. `DEV_*`識別子の未使用値を選び，既存のデバイスID・パイプ内部ID・ディレクトリID・プログラムシンボル用IDと重複しないことを確認します．
-2. 固定ノードなら`include/device_names.h`の`PICONIX_FIXED_DEVICES(X)`に`"/dev/example"`と識別子を追加します．`/proc`の情報ノードなら名前・列挙箇所が異なるので既存の`vfs_registry[]`を参照してください．
-3. `vfs_open()`で読み取り専用などのアクセスモード制限を追加します．現行の`OS_O_RDONLY`や`OS_O_NONBLOCK`制限を確認してください．
-4. `vfs_rw()`で対象IDを分岐し，`writing`時は`OS_EBADF`，読み取り時は処理結果のバイト数，失敗時は負の`OS_E*`値を返します．呼出し元にはユーザバッファの範囲検査がありますが，**バックエンド固有の長さと状態**も別途検査します．
-5. 継続読み取りが必要なら`tasks[current].fd_pos[fd]`を用いたオフセットとEOF（0バイト）を設計します．`lseek()`を必要とするならその対象FDの扱いも検討します．
-6. `device_ioctl()`が必要なら要求番号と許可するFDを追加します．不要なら未対応要求は既存どおりエラーにします．
-7. ピン・周辺機能を使う場合，`kernel/pins.h`・[ピン割当](../../reference/hardware/PINS.md)と既存ドライバの所有関係を確認し，USB／UART／Wi-Fi／FB／PWMの予約資源と衝突させないでください．
-8. `DEVICES.md`，`FILESYSTEM.md`，必要なら`LIBC.md`を更新し，日英両方に同じパスと動作を記載します．
-
-以下は利用側の**動作確認例**です．新ノードのカーネル実装そのものではありません．
+`include/device_names.h`のenumへ**265**を追加します．現行ソースの`200～263`はユーザシンボル領域で，パイプ内部IDは268以降です．265を他用途で使用している最新版にはそのまま適用しないでください．
 
 ```c
-#include "unistd.h"
-#include "fcntl.h"
+    DEV_NET_ICMP = 145,
+    DEV_UPTIME = 265,
+```
 
-int fd = open("/dev/example", O_RDONLY);
-if (fd >= 0) {
-    char buf[32];
-    int n = read(fd, buf, sizeof buf);
-    /* n > 0: データ，n == 0: EOF，n < 0: エラー */
-    close(fd);
+同じファイルの`PICONIX_FIXED_DEVICES(X)`末尾を変更します．前の行にはバックスラッシュが必要です．
+
+```c
+    X("/dev/i2c/1", DEV_I2C1) \
+    X("/dev/uptime", DEV_UPTIME)
+```
+
+`kernel/kernel.c`の`dev_registry[]`はこのマクロで作られるため，`ls /dev`や`/proc/devices`にも反映されます．**この段階ではread処理はまだありません**．
+
+## 3．独立したドライバのヘッダとソースを作る
+
+新しい`kernel/uptime_device.h`を作成します．
+
+```c
+/* Simple read-only virtual device used by the documentation exercise. */
+#ifndef PICONIX_UPTIME_DEVICE_H
+#define PICONIX_UPTIME_DEVICE_H
+#include <stdint.h>
+#include <stddef.h>
+int uptime_device_read(void *dst, size_t capacity, uint32_t *position, uint32_t ticks_ms);
+#endif
+```
+
+続いて`kernel/uptime_device.c`を作ります．`ticks_ms`を文字列に直し，FDごとの`position`に従って小分けに返します．`*position`が末尾に達したら0を返すことが**EOFの条件**です．
+
+```c
+/* Read-only virtual driver.  No hardware pins are used. */
+#include "uptime_device.h"
+#include "../include/piconix.h"
+#include <stdio.h>
+#include <string.h>
+
+int uptime_device_read(void *dst, size_t capacity, uint32_t *position, uint32_t ticks_ms) {
+    char text[32];
+    int len = snprintf(text, sizeof text, "%lu.%03lu s\n",
+                       (unsigned long)(ticks_ms / 1000u),
+                       (unsigned long)(ticks_ms % 1000u));
+    if (len < 0 || (size_t)len >= sizeof text) return OS_EINVAL;
+    if (*position >= (uint32_t)len || capacity == 0) return 0;
+    size_t count = (size_t)len - *position;
+    if (count > capacity) count = capacity;
+    memcpy(dst, text + *position, count);
+    *position += (uint32_t)count;
+    return (int)count;
 }
 ```
 
-公開ヘッダの実際のマクロ名や引数型は変更時に照合してください．
+`read()`が例えば8バイトしか要求しなくても，`position`を進めて次の`read()`に続けられます．`n==0`では0バイトを返します．現在のドライバは**readのたびに時刻を文字列へ変換するため，分割read中に時間が変化すると文字列が食い違う可能性があります**．厳密なスナップショットにするならopen時に値を保存する設計が必要です．
 
-### 1.3 デバイス追加時のテスト
+## 4．CMakeへ組み込む
 
-| 観点 | 確認内容 |
+`CMakeLists.txt`のカーネル用`add_executable(piconix ...)`のファイル列へ`kernel/uptime_device.c`を追加します．**アプリ用`foreach(APP IN ITEMS ...)`とは別**です．
+
+```cmake
+add_executable(piconix ... kernel/kernel.c kernel/uptime_device.c kernel/gpio.c ...)
+```
+
+上の行は変更位置を示す**抜粋**であり，`...`を実際のCMakeへ貼り付けてはいけません．既存の`add_executable`のリストにファイル名だけ追記してください．
+
+## 5．VFSの3か所を結ぶ
+
+`kernel/kernel.c`のinclude群へ追加します．
+
+```c
+#include "uptime_device.h"
+```
+
+次に`vfs_open()`の**読み取り専用デバイスを検査する条件**へ`dev==DEV_UPTIME`を追加します．次は既存条件の末尾の抜粋です．
+
+```c
+... || dev==DEV_TRACE || dev==DEV_UPTIME) &&
+    (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
+```
+
+`vfs_rw()`では`DEV_RAND`などの分岐の直後，未対応IDのフォールバックより前へ追加します．
+
+```c
+if (dev == DEV_UPTIME) {
+    if (writing) return OS_EBADF;
+    return uptime_device_read(p, n, &tasks[current].fd_pos[fd], ticks);
+}
+```
+
+`vfs_rw()`の共通入口にはユーザバッファの範囲検査があります．ドライバはそれに加えてバッファ長・読み取り位置・EOFを処理します．ここまで追加して初めて`cat /dev/uptime`が成立します．`ioctl`は今回は不要です．
+
+## 6．実行・検証
+
+[システムコール実習](../syscalls/SYSCALL-DEVELOPMENT.md)で追加した`labuptime`と同時に検証できます．全変更箇所と実行コマンドは同梱の[`uptime_lab.patch`](../../../examples/uptime_lab.patch)にもあります．別ブランチで`git apply --check`した後に適用し，[セットアップ](../../setup/SETUP.md)に従ってPico用UF2を作ります．
+
+```text
+piconix# ls /dev
+... uptime ...
+piconix# cat /proc/devices
+... uptime ...
+piconix# cat /dev/uptime
+12.345 s
+piconix# labuptime
+getuptime: 12399 ms
+12.399 s
+```
+
+上記は**想定表示**であり，実測ログではありません．数値が一致しないのは呼び出し時間が異なるからです．`echo 1 > /dev/uptime`のように書き込みで開こうとすると失敗することも確認してください．`cat /dev/uptime`が空や無限表示なら，FD位置更新，0バイトでのEOF，VFSの振り分けを調べます．
+
+SDKを使わずに**ドライバ単体の短いreadとEOF**をテストする場合は，パッチ適用後のLinux PCで次を実行します．
+
+```sh
+cc -std=c11 -Wall -Wextra -Werror -Ikernel -Iinclude \
+  docs/examples/test_uptime_device.c kernel/uptime_device.c -o /tmp/test_uptime_device
+/tmp/test_uptime_device
+```
+
+成功時は`PASS: uptime virtual device short reads and EOF`と表示します．これは**ホスト側のロジックテスト**であり，カーネルVFSの全動作や実機結果を保証するものではありません．
+
+**確認項目**：`open`の読み取り専用制限／`read`の短いバッファ・EOF／複数回open/close／未知パスの拒否／`ls /dev`での列挙．PicoとPico Wでビルドし，他のデバイス機能に影響がないかも確認します．
+
+## 7．物理デバイスへ発展させるには
+
+この演習は**仮想ドライバ**です．外部LEDやI²Cセンサーなどの実デバイスへ進むときは次の実装を照合します．
+
+| 読む対象 | 調べるポイント |
 |---|---|
-| パス解決 | 正しいパスでopenでき，誤ったパスでは失敗する |
-| 列挙 | `ls /dev`，必要なら`/proc/devices`から見える |
-| 権限 | 読み取り専用FDでのwriteを拒否する |
-| 入力検査 | 0バイト，境界値，不正ポインタを扱える |
-| FD寿命 | 複数回open／close，タスク終了時に不整合がない |
-| 排他 | 機器を同時利用するときの所有者・競合条件を定義する |
-| ハードウェア | Pico/Pico Wの両方で未搭載機能を安全に扱う |
+| `kernel/gpio.c` | `gpio_driver_rw()`：値，方向，プルアップ，読書きの判定 |
+| `kernel/pins.h` | ピンの予約と利用可能性の制限 |
+| `kernel/i2c.c` | I²C1のトランザクションと制御要求 |
+| `kernel/kernel.c` | FDから各ドライバへ処理を渡す分岐 |
+| `reference/hardware/PINS.md` | GP番号と実際の配線の対応 |
+
+例えば既存のGPIOをPicoNIXで操作するには`gpio`コマンドまたは`/dev/gpio/N`を使い，それらが`kernel/gpio.c`の`gpio_driver_rw()`を通ることを追ってください．物理ピンの割当は[ピン配置](../../reference/hardware/PINS.md)と[配線](../../reference/hardware/WIRING.md)を必ず参照し，LEDマトリクスやUART，I²C，PWMが使う予約ピンを別の周辺機器へ流用しないでください．**新規の物理ドライバを追加する場合は安全なGPIO所有権・初期化・競合管理・電気的制限も必要**であり，この仮想ドライバのコードをそのままハードウェア制御に流用しないでください．
+
+## 8．実験後に確認する文書
+
+APIの正式導入時は[デバイス仕様](../../reference/devices/DEVICES.md)・[ファイルシステム仕様](../../reference/FILESYSTEM.md)，[カーネル開発](../kernel/KERNEL-DEVELOPMENT.md)の日英を更新します．例の追加に必要なソース差分は[参考パッチ](../../../examples/uptime_lab.patch)に揃えています．
+
+**検証範囲：** ドライバ単体のC構文は確認済みですが，SDKでの完全ビルド・実機の読み書きは未検証です．
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../README.md) ｜ [Part C 教科書](../../learn/C/README.md)
+[開発ガイド一覧](../README.md) ｜ [システムコール演習](../syscalls/SYSCALL-DEVELOPMENT.md) ｜ [English](../../../en/development/drivers/DRIVER-DEVELOPMENT.md)

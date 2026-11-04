@@ -1,21 +1,27 @@
-# net: Network diagnostics
+# `net`: Wi-Fi, AP-client and ARP diagnostics
 
-*Technical reference*
+`net` reports **local network state** from `/proc/net/`. It does not itself test reachability or capture packets. `ip` shows a read-only interface summary; use `net` for the more detailed state.
 
-`net` is a user-space command to inspect Pico W network status.
+## Commands on PicoNIX
 
-```sh
-net       # Basic Wi-Fi/IP/DHCP information (/proc/net/wifi)
-net -a    # Associated AP stations (/proc/net/ap, MAC addresses)
-net -r    # ARP cache (/proc/net/arp, IP and MAC)
+```text
+piconix# net
+piconix# net -a
+piconix# net -r
+piconix# net -h
 ```
 
-STA mode shows `DHCP: Client`; AP mode reports whether the DHCP server started. `net -a` is AP-only, while `net -r` works in AP and STA. ARP entries represent recently resolved peers, not a definitive list of connected stations. The PicoNIX AP DHCP server supports one lease only.
+| Command | Data | Why use it? |
+|---|---|---|
+| `net` | `/proc/net/wifi` (mode/status/address/MAC/error history) | Check Wi-Fi connection state |
+| `net -a` | `/proc/net/ap` | Check associated AP clients |
+| `net -r` | `/proc/net/arp` | Read the current IP/MAC ARP cache |
+| `net -h` | Usage | Confirm command syntax |
 
-The kernel polls the CYW43 association list about once per second in the network polling context rather than making driver calls in system calls. Both new proc nodes are read-only.
+**Exercise:** Run `net` and check MODE/STATUS. In AP mode, associate the PC and run `net -a`. Make an HTTP request from the PC and then run `net -r`. Finally run [`ping`](PING.md) to test reachability. An empty ARP table is not proof of a network failure, and the values depend on the network.
 
-`ip addr` also displays Pico W loopback and Wi-Fi interfaces.
+Use [`ip`](IP.md) for your own IPv4 address, [`ping`](PING.md) for ICMP reachability and [`tcpdump`](TCPDUMP.md) for packet summaries. These features are for Pico W, not regular Pico.
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Textbook](../../learn/README.md) | [日本語](../../../ja/reference/network/NET.md)
+[Network index](README.md) | [Wi-Fi details](NETWORK.md) | [日本語](../../../ja/reference/network/NET.md)

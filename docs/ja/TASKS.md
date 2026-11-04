@@ -101,6 +101,17 @@
 - **ソースの改造手順を探したい** → [開発ガイド](development/README.md)
 - **ビルドや書き込みで困っている** → [セットアップ・トラブルシューティング](setup/SETUP.md)
 
+## 通信・カーネル拡張を実際に試したい
+
+| やりたいこと | まず読む | 詳しい実装・参考 |
+|---|---|---|
+| 自分のIPアドレスを調べる | [`ip`の実習](reference/network/IP.md) | [Wi-Fi接続](reference/network/NETWORK.md) |
+| 相手と通信できるか調べる | [`ping`の実習](reference/network/PING.md) | [`net`の状態](reference/network/NET.md) |
+| TCP/UDP/ICMPの通信を読み解く | [`tcpdump`の実習](reference/network/TCPDUMP.md) | [教科書B6](learn/B/B6.md) |
+| TCP/UDPのCプログラムを自作する | [ソケット実装と2つのCプログラム](development/apps/c/NETWORK-PROGRAMMING.md) | [Cアプリ登録](development/apps/c/PROGRAMMING.md) |
+| システムコールを1つ追加する | [getuptime演習](development/syscalls/SYSCALL-DEVELOPMENT.md) | [SVCの仕様](reference/SYSCALLS.md) |
+| デバイスノードとドライバを作る | [/dev/uptime演習](development/drivers/DRIVER-DEVELOPMENT.md) | [デバイスの仕様](reference/devices/DEVICES.md) |
+
 ---
 
 [English](../en/TASKS.md) ｜ [文書案内](../DOCS.ja.md)

@@ -1,49 +1,139 @@
-# System Call Development
+# System call development: add and test `getuptime()`
 
-*Development guide*
+This is a **source-level practical exercise**: add a new SVC that returns milliseconds since boot, expose it to a C application, build firmware and check the result. The existing `/proc/ticks` reports similar information; the new interface is intentional so you can learn the SVC path. First read the [Kernel Reading Guide](../kernel/KERNEL-READING-GUIDE.md) and [C application tutorial](../apps/c/PROGRAMMING.md).
 
-## Before you start
+## 1. Identify the data path and existing ABI
 
-**Prerequisites:** Call `write()` from a C app and observe the transition to the kernel using [Tracing](../../guides/TRACE.md). This guide adds an interface to the kernel; it is not a guide to merely using existing APIs.
+```text
+labuptime.c → getuptime() → userland/lib/syscalls.c: call()
+→ svc #0 → kernel/kernel.c: os_svc_dispatch() → ticks → r0
+```
 
+From the Linux PC in the repository root, inspect the current definitions:
 
-[Kernel development](../kernel/KERNEL-DEVELOPMENT.md) | [System call reference](../../reference/SYSCALLS.md) | [日本語](../../../ja/development/syscalls/SYSCALL-DEVELOPMENT.md)
+```sh
+grep -n 'SYS_SHUTDOWN_TCP\|SYS_GETUPTIME' include/piconix_syscall.h
+grep -n 'case SYS_FLASH_ID\|case SYS_GETPID' kernel/kernel.c
+```
 
-This guide explains how to **add** a system call. For using existing calls, refer to the C programming and system call reference guides.
+In the checked source, 1–39 are allocated; 11 and 15 are reserved. Choose unused number **40** for this exercise, but check conflicts again in a newer tree. The ABI passes the syscall number in r0, arguments in r1–r3, executes `svc #0`, and returns the result in r0.
 
-## 1. Adding a system call
+## 2. Extend the common syscall table
 
-### 1.1 Allocate a number and define the ABI
-
-`include/piconix_syscall.h` defines `PICONIX_SYSCALL_TABLE(X)` with numbers 1–39. **Numbers 11 and 15 are reserved.** Never reorder or reuse existing numbers. Append a new explicitly numbered entry rather than shifting existing values. The user wrappers in `userland/lib/syscalls.c` use the shared `SYS_*` constants from that header. Use the single common table for new numbers to preserve the ABI.
-
-The calling convention is `r0` = syscall number, `r1`–`r3` = arguments, `svc #0`, and return value in `r0`. Use a pointer to a validated structure if more argument fields are needed. Errors normally return negative `OS_E*` values rather than setting `errno`. See [SYSCALLS.md](../../reference/SYSCALLS.md).
-
-### 1.2 Implement the kernel handler
-
-`os_svc_dispatch(uint32_t *f)` in `kernel/kernel.c` dispatches on `switch(num)` and sets `result`. Follow simple existing cases such as `SYS_FLASH_ID` or `SYS_GETPID`.
+Append an entry in `include/piconix_syscall.h`; preserve the trailing backslash on the preceding entry:
 
 ```c
-/* Schematic placement only; do not paste without defining the symbols. */
-case SYS_EXAMPLE:
-    result = example_kernel_operation(a);
+    X(SYS_SHUTDOWN_TCP,  39, "shutdown") \
+    X(SYS_GETUPTIME,    40, "getuptime")
+```
+
+Do **not** renumber existing calls. This is the shared source of names and numbers.
+
+## 3. Implement the kernel handler
+
+In the `switch(num)` within `os_svc_dispatch(uint32_t *f)` in `kernel/kernel.c`, add:
+
+```c
+case SYS_GETUPTIME:
+    result = (int)ticks; /* 32-bit payload in r0 */
     break;
 ```
 
-`a`, `b` and `c` correspond to `r1`–`r3`. Before dereferencing user pointers, validate **length, address range, termination and integer overflow** using existing patterns such as `in_task_range()` and path validation. Never dereference an arbitrary user-supplied address. Review interrupt protection and scheduling rules when modifying shared state or blocking a task.
+`ticks` is the existing 1 ms `uint32_t` counter; it wraps after about 49.7 days. The C wrapper interprets its bits as `unsigned`. There is no separate error channel for this deliberately simple no-argument syscall. For syscalls that receive user pointers, use `in_task_range()` and validate lengths before dereferencing. That pointer validation is unnecessary here because this syscall has no pointer arguments.
 
-### 1.3 Export the C wrapper
+## 4. Publish a C wrapper and prototype
 
-`call(n, a, b, c)` in `userland/lib/syscalls.c` issues `svc #0`. Add a C wrapper and a matching prototype to the appropriate public header, such as `userland/lib/unistd.h`. Keep parameter types, register order and error results consistent with the kernel. Update both language versions of [SYSCALLS.md](../../reference/SYSCALLS.md) and [LIBC.md](../apps/c/LIBC.md).
+In `userland/lib/syscalls.c`:
 
-### 1.4 Test the ABI
+```c
+unsigned getuptime(void) {
+    return (unsigned)call(SYS_GETUPTIME, 0, 0, 0);
+}
+```
 
-- Existing numbers and reserved entries remain unchanged; the new number is unique
-- Zero, boundary, invalid-FD, invalid-pointer and oversized inputs return defined errors
-- Failures do not corrupt task state, FDs or buffers
-- Wrapper argument positions match the dispatcher
-- SVC events appear in `trace` where relevant
+In `userland/lib/unistd.h`:
+
+```c
+unsigned getuptime(void); /* ms since boot, wraps at 32 bits */
+```
+
+The handler, the shared number table and the wrapper must agree; adding only a header prototype does not create a syscall.
+
+## 5. Register a test program
+
+The example `labuptime` below compares the new syscall with a new `/dev/uptime` device. Apply the [driver exercise](../drivers/DRIVER-DEVELOPMENT.md) to enable the device. To test **only** the syscall, temporarily omit the `open()`/`read()` portion.
+
+```c
+/* Compare the new syscall with the new read-only device node. */
+#include "unistd.h"
+#include "fcntl.h"
+#include "stdio.h"
+
+int main(void) {
+    printf("getuptime: %u ms\n", getuptime());
+    int fd = open("/dev/uptime", O_RDONLY);
+    if (fd < 0) { printf("open: %d\n", fd); return 1; }
+    char bytes[8];
+    int n;
+    while ((n = read(fd, bytes, sizeof bytes)) > 0) {
+        if (write(1, bytes, (unsigned)n) < 0) break;
+    }
+    close(fd);
+    return n < 0 ? 1 : 0;
+}
+```
+
+Add `labuptime` to the existing `foreach(APP IN ITEMS ...)` in `CMakeLists.txt`. Add declarations and registration to `kernel/main.c`:
+
+```c
+extern const unsigned char piconix_labuptime_image_start[], piconix_labuptime_image_end[];
+/* within main(), after existing registrations */
+register_image(51,"labuptime",piconix_labuptime_image_start,piconix_labuptime_image_end);
+```
+
+51 was unused in the checked source. Check again if you have added other programs. The full app installation process is explained in [Programming](../apps/c/PROGRAMMING.md).
+
+## 6. Apply the optional tested-to-apply exercise patch
+
+The included [`docs/examples/uptime_lab.patch`](../../../examples/uptime_lab.patch) contains the **whole source change**: syscall, independent virtual driver, new node and test application. Apply it only in a separate exercise branch, after checking it:
+
+```sh
+git switch -c exercise/uptime-lab
+git apply --check docs/examples/uptime_lab.patch
+git apply docs/examples/uptime_lab.patch
+git diff --check
+python3 tools/run_tests.py
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
+```
+
+**Stop if** `git apply --check` fails: the patch targets the checked source version; newer versions may differ. Optionally build for Pico W as well.
+
+## 7. Observe and explain
+
+After writing the UF2, in the PicoNIX shell:
+
+```text
+piconix# cat /proc/ticks
+15327
+piconix# labuptime
+getuptime: 15410 ms
+15.410 s
+piconix# trace run labuptime
+...
+```
+
+These are **illustrative outputs**, not captured hardware results. The values change. Use the [Trace guide](../../guides/TRACE.md) to find the new `getuptime` SVC. If the new program is missing, recheck CMake, image registration and flashing; if the firmware is old, the new syscall may return `OS_ENOSYS`.
+
+**Questions:** Why is the number defined centrally? What happens after 32-bit wrap? What does `trace` show at the user/kernel boundary? Why does `/proc/ticks` require no new syscall?
+
+## 8. Keep the references up to date
+
+If this becomes a supported API, update [SYSCALLS](../../reference/SYSCALLS.md) and [LIBC](../apps/c/LIBC.md) in both languages, including signature, number, return semantics and wrap. Keep the exercise separate from normal development; switch back to your original branch afterward.
+
+**Validation note:** The example patch was checked for application and its standalone C files for syntax. SDK firmware compilation and real-device execution were **not** performed here.
 
 ---
 
-**Related links:** [Development guide index](../README.md) | [Part C textbook](../../learn/C/README.md)
+[Kernel development](../kernel/KERNEL-DEVELOPMENT.md) | [Device driver exercise](../drivers/DRIVER-DEVELOPMENT.md) | [日本語](../../../ja/development/syscalls/SYSCALL-DEVELOPMENT.md)
