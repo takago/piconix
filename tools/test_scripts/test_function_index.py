@@ -56,6 +56,24 @@ other:
 '''
 assert generator.asm_functions(asm) == [("handler", 4, "大域", "例外ハンドラの役割を説明．")]
 
+# 関数索引の範囲をOS本体とホスト側操作ツールに限定し，分類を確認する．
+source_paths = {path.relative_to(ROOT).as_posix() for path in generator.sources()}
+assert {
+    "kernel/kernel.c", "userland/apps/shell.c", "userland/lib/libc.c",
+    "host/piconixctl.py",
+}.issubset(source_paths), source_paths
+assert not any(path.startswith(("tools/", "userland/examples/", "userland/fs/"))
+               for path in source_paths), source_paths
+rendered = generator.render()
+headings = ["## カーネル", "## アプリケーション", "## ライブラリ", "## ホスト用ユーティリティ"]
+assert all(heading in rendered for heading in headings), headings
+assert [rendered.index(heading + "\n") for heading in headings] == sorted(
+    rendered.index(heading + "\n") for heading in headings
+)
+assert "### `tools/" not in rendered
+assert "### `userland/examples/" not in rendered
+assert "### `userland/fs/" not in rendered
+
 # すべての掲載関数にソース由来の概要があることをチェックする．
 # 新たな関数を追加した際は，ソース側の説明コメントを付けてから再生成する．
 for path in generator.sources():

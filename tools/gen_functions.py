@@ -16,11 +16,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "docs/FUNCTIONS.md"
+# PicoNIXの実装関数を用途別に分類する．
+# tools/ はビルド・テスト用であり，userland/examples/ と userland/fs/ は
+# 実行例・初期ファイルなので，関数索引には含めない．
 GROUPS = (
     ("カーネル", ("kernel",)),
-    ("共有ヘッダ", ("include",)),
-    ("ユーザプログラムとライブラリ", ("userland",)),
-    ("開発・ホストツール", ("host", "tools")),
+    ("アプリケーション", ("userland/apps",)),
+    ("ライブラリ", ("userland/lib",)),
+    ("ホスト用ユーティリティ", ("host",)),
 )
 
 
@@ -165,15 +168,12 @@ def asm_functions(source):
     return found
 
 def sources():
-    """実装ファイルをパス順に取得する．テストコードは索引を肥大化させるため除外．"""
+    """OS本体・ホスト操作プログラムの実装ファイルのみ取得する．"""
     for _, directories in GROUPS:
         for dirname in directories:
             for path in sorted((ROOT / dirname).rglob("*")):
-                if not path.is_file() or path.suffix not in {".c", ".h", ".py", ".S"}:
-                    continue
-                if "test_scripts" in path.parts:
-                    continue
-                yield path
+                if path.is_file() and path.suffix in {".c", ".h", ".py", ".S"}:
+                    yield path
 
 # 対象ファイルの関数定義と説明を集計し，Markdown形式の関数一覧を構築する．
 def render():
@@ -191,7 +191,8 @@ def render():
         if not entries:
             continue
         relative = path.relative_to(ROOT).as_posix()
-        heading = next(title for title, dirs in GROUPS if relative.split("/")[0] in dirs)
+        heading = next(title for title, dirs in GROUPS
+                       if any(relative.startswith(dirname + "/") for dirname in dirs))
         grouped[heading].append((relative, entries))
         count += len(entries)
         documented += sum(bool(entry[3]) for entry in entries)
@@ -200,15 +201,19 @@ def render():
         "# 関数一覧（自動生成）", "",
         "この文書は `python3 tools/gen_functions.py` でソースから自動生成します．",
         "**手で編集せず，関数直前の日本語コメントを修正して再生成してください．**", "",
-        "- 対象：`kernel/`，`include/`，`userland/`，`host/`，`tools/` のC関数定義，Pythonトップレベル関数，アセンブリの関数ラベル．",
-        "- ヘッダは**関数定義のみ**を掲載します（関数宣言・マクロ・型定義は対象外）．",
-        "- `tools/test_scripts/` の回帰テストは対象外です．関数定義がないファイルも省略します．",
+        "- **カーネル**：`kernel/` にあるOS本体の関数．",
+        "- **アプリケーション（App）**：`userland/apps/` にあるコマンドやアプリの関数．",
+        "- **ライブラリ（Lib）**：`userland/lib/` にある共通Cライブラリとシステムコール呼出しの関数．",
+        "- **ホスト用ユーティリティ**：`host/` にあるPC側のPicoNIX操作プログラムの関数（OS本体とは別）．",
+        "- **対象外**：`tools/`（ビルド・検証・索引生成），`userland/examples/`（実行例），`userland/fs/`（初期ファイル）．",
+        "- C関数定義，Pythonトップレベル関数，アセンブリの関数ラベルを対象とし，ヘッダは**関数定義のみ**を掲載します（宣言・マクロ・型定義は対象外）．",
+        "- 関数定義がないファイルは省略します．",
         "- 行番号はこの文書を生成した時点の行番号です．変更後は再生成してください．",
         "- 概要の `—` は関数直前に説明コメントがないことを表します．関数名からの推測は行いません．",
         "- 範囲欄の `static` はCの内部結合，`外部` は外部結合，`モジュール` と `内部名` はPythonの名前付け，`大域` はアセンブリラベルを表します．外部結合は公開APIを意味しません．",
         "- C言語の解析は簡易的な構文走査で，プリプロセッサの条件分岐を評価しません．環境依存の定義は両方載る場合があります．", "",
         f"**掲載関数：{count}件（概要コメントあり：{documented}件）**", "",
-        "## ファイル一覧", "",
+        "## 分類別目次", "",
     ]
     for title, _ in GROUPS:
         if grouped[title]:
