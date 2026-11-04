@@ -50,7 +50,7 @@ There are **two required changes** in the current build system.
 Find `foreach(APP IN ITEMS ...)` near the top of `CMakeLists.txt` and append `greet` **without the `.c` suffix**:
 
 ```cmake
-foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
+foreach(APP IN ITEMS net ip pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
 ```
 
 The line above shows the current `CMakeLists.txt` with `greet` appended. Keep all existing application names; if the list changes in a newer version, append `greet` to that version instead. The common loop automatically compiles `userland/apps/greet.c` with `crt0.c`, `syscalls.c`, and `libc.c`, links the RAM image, validates its PIC behavior and size, and embeds the binary in firmware Flash. No separate custom build rule is needed.
@@ -160,7 +160,7 @@ If no pointer is necessary, `static const char message[] = "Hello";` defines the
 
 - Each user slot is 24 KiB, including a reserved 4 KiB stack. Code, static data and BSS must fit in the remaining region.
 - Avoid large local arrays, deep recursion and unbounded buffers. Successful linking does not prove stack use is safe.
-- **All user applications are compiled with Clang `-Oz`**; size/PIC tests should use matching optimization.
+- **All user applications are compiled with `-Oz` and `-fPIC`** using the ARM compiler selected by CMake. Match these options in size/PIC checks.
 - `ld.lld: task image overlaps reserved stack` indicates that the program image exceeds the non-stack portion. Reduce code or static storage rather than increasing the slot limit.
 - `PIC image changes with link address` indicates an address-dependent binary. Inspect static pointer initializers, absolute references and relocation requirements.
 

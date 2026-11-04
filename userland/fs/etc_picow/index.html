@@ -12,5 +12,9 @@
 <li><a href="/fbcheck.html">LED Matrix (8x8)</a></li>
 <li><a href="/pwm.html">PWM: Servo / Buzzer</a></li>
 </ul>
-<p>Edit /etc/index.html on PicoNIX to change this page.</p>
+<p>To change this page, copy it to /tmp, edit it, then copy it back to /etc:</p>
+<pre>dd if=/etc/index.html of=/tmp/index.html
+edit /tmp/index.html
+dd if=/tmp/index.html of=/etc/index.html</pre>
+<p>The editor only opens /tmp files. Changes are lost when the device reboots.</p>
 </html>

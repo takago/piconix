@@ -19,7 +19,9 @@ static void draw(const uint8_t p[8],int pos) {
     }
     printf("\033[K\r\nContents persist after exit.\033[K");
 }
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argv;
+    if(argc!=1) {puts("usage: fbed");return 1;}
     int fb=open("/dev/gpio/fb",O_RDWR);
     if(fb<0){puts("fbed: cannot open /dev/gpio/fb");return 1;}
     uint8_t pixels[8];

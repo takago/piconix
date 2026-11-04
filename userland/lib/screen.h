@@ -10,14 +10,14 @@
 #include "stdio.h"
 
 typedef struct { int rows, cols; } screen_size_t;
-static void screen_enter(void){printf("\033[?1049h\033[?25l\033[2J\033[H");}
-static void screen_leave(void){printf("\033[0m\033[?1049l\033[?25h");}
+static void screen_enter(void){setvbuf(stdout,0,_IONBF,0);printf("\033[?1049h\033[?25l\033[2J\033[H");}
+static void screen_leave(void){printf("\033[0m\033[?1049l\033[?25h");setvbuf(stdout,0,_IOLBF,0);}
 static void screen_move(int row,int col){printf("\033[%d;%dH",row,col);}
 static void screen_measure(screen_size_t *size){
  int flags=fcntl(0,F_GETFL,0);
  if(flags<0||fcntl(0,F_SETFL,flags|O_NONBLOCK)<0)return;
  /* Clamping prevents a malformed response from overflowing coordinates. */
- printf("\033[999;999H\033[6n");
+ printf("\033[999;999H\033[6n");fflush(stdout);
  int state=0,row=0,col=0;
  for(int t=0;t<20&&state!=6;t++){
   char c;

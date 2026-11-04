@@ -13,7 +13,7 @@ src = (ROOT / 'userland/apps/httpd.c').read_text()
 # Replace PicoNIX-only includes with host libc and a minimal syscall double.
 src = '\n'.join(line for line in src.splitlines()
                 if not line.startswith('#include '))
-src = src.replace('int main(void){', 'int pico_main(void){')
+src = src.replace('int main(int argc, char **argv){', 'int pico_main(int argc, char **argv){')
 
 prefix = r'''
 #include <assert.h>

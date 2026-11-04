@@ -4,6 +4,8 @@ This document summarizes the **current implementation and fixed resource limits*
 
 [Architecture](ARCHITECTURE.md) maps the responsibilities to source files.
 
+For a side-by-side explanation of missing or simplified Linux features and a consolidated capacity table, see [How PicoNIX differs from Linux](DIFFERENCES.md).
+
 ## 1. Platform and architecture
 
 - Targets: Raspberry Pi Pico (RP2040) and Pico W.
@@ -51,7 +53,7 @@ See [System calls](SYSCALLS.md). The number definitions are centralized in `PICO
 
 ## 6. Programs and assembler
 
-C user programs use the PicoNIX-specific build and placement pipeline. The bundled `as` is a small Cortex-M0+ Thumb assembler, not a replacement for GNU assembler. The immediate `0` in `svc #0` is not the syscall number. See [Assembler](../development/apps/asm/ASM.md) for supported syntax, directives, limits, and output.
+C user programs use the PicoNIX-specific build and placement pipeline. Each user application is compiled with `-Oz` and `-fPIC` for a fixed 24 KiB slot, with 4 KiB reserved for its stack; PIC equivalence at a second slot address is checked during the full build. The bundled `as` is a small Cortex-M0+ Thumb assembler, not a replacement for GNU assembler. The immediate `0` in `svc #0` is not the syscall number. See [Assembler](../development/apps/asm/ASM.md) for supported syntax, directives, limits, and output.
 
 ## 7. Networking
 
@@ -69,6 +71,8 @@ Pico W builds use lwIP. AP or STA mode is selected at build time. STA mode requi
 | Internal UDP transfer size constant | 512 bytes (`NET_SOCKET_UDP_MAX`) |
 
 Pico W supports TCP/UDP loopback to `127.0.0.1` through lwIP `lo0` in both AP and STA modes (not available on ordinary Pico builds). Inspect network usage with `/proc/net/memory`. The 16 KiB network reservation contains a 10 KiB lwIP heap, a 2 KiB boundary area including allocator overhead, and a 4 KiB idle stack. Static pbuf pools (eight 512-byte buffers) remain in kernel SRAM. See [Memory layout](MEMORY-LAYOUT.md), [Wi-Fi modes](devices/WIFI-MODES.md), [Networking](devices/NETWORK.md), and [Socket programming](../development/apps/c/NETWORK-PROGRAMMING.md). Telnet and UDP device control do not provide encrypted authenticated access; use trusted networks.
+
+Pico W also provides `/dev/net/packet` (16-record IPv4 capture ring) and `/dev/net/icmp` (single ICMP Echo endpoint) for `tcpdump` and `ping`; these are not raw sockets. See [Network reference](devices/NETWORK.md).
 
 ## 8. Devices and pseudo-files
 

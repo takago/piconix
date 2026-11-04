@@ -152,14 +152,7 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     int id=program_id(name);
     if(id<0) return 0;
     args[0]=(char *)name;
-    char path[128];
-    if(eq(name,"omikuji") && background && argc==1) {
-        args[argc++]="31"; /* Original noninteractive Omikuji default. */
-    }
-    if((eq(name,"python") || eq(name,"hexdump") || eq(name,"cat")) && argc>1) {
-        if(resolve(cwd,args[1],path)<0) {put("invalid path\r\n");return 1;}
-        args[1]=path;
-    }
+    /* Pass arguments unchanged; commands and the VFS interpret their paths. */
     unsigned total=0;
     for(int i=0;i<argc;i++) total+=(unsigned)strlen(args[i])+1;
     if(total>128) {put("arguments too long (max 128 bytes)\r\n");return 1;}
@@ -199,11 +192,7 @@ static int pipeline_spawn(char *cmd, const char *cwd) {
     int id=program_id(name);
     if(id<0) return -1;
     args[0]=(char *)name;
-    char path[128];
-    if((eq(name,"python") || eq(name,"hexdump") || eq(name,"cat")) && argc>1) {
-        if(resolve(cwd,args[1],path)<0) return -1;
-        args[1]=path;
-    }
+    /* Pipeline stages receive the same argv as ordinary commands. */
     unsigned total=0;
     for(int i=0;i<argc;i++) total+=(unsigned)strlen(args[i])+1;
     if(total>128) return -1;
@@ -582,6 +571,8 @@ static void run_boot_rc(char *cwd) {
     close(fd);
 }
 int main(int argc, char *argv[]) {
+    (void)argv;
+    if(argc!=1) {put("usage: sh\r\n");return 1;}
     char line[128];
     char cwd[128];
     if(chdir("/tmp")<0) {

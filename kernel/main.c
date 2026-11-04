@@ -17,6 +17,9 @@ static void idle_task(void) {
 }
 extern const unsigned char piconix_fd_image_start[], piconix_fd_image_end[];
 extern const unsigned char piconix_net_image_start[], piconix_net_image_end[];
+extern const unsigned char piconix_ip_image_start[], piconix_ip_image_end[];
+extern const unsigned char piconix_ping_image_start[], piconix_ping_image_end[];
+extern const unsigned char piconix_tcpdump_image_start[], piconix_tcpdump_image_end[];
 extern const unsigned char piconix_shell_image_start[], piconix_shell_image_end[];
 extern const unsigned char piconix_blink_image_start[], piconix_blink_image_end[];
 extern const unsigned char piconix_omikuji_image_start[], piconix_omikuji_image_end[];
@@ -73,6 +76,9 @@ int main(void) {
     os_init();
     register_image(44,"fd",piconix_fd_image_start,piconix_fd_image_end);
     register_image(43,"net",piconix_net_image_start,piconix_net_image_end);
+    register_image(47,"ip",piconix_ip_image_start,piconix_ip_image_end);
+    register_image(45,"ping",piconix_ping_image_start,piconix_ping_image_end);
+    register_image(46,"tcpdump",piconix_tcpdump_image_start,piconix_tcpdump_image_end);
     register_image(2,"sh",piconix_shell_image_start,piconix_shell_image_end);
     register_image(1,"blink",piconix_blink_image_start,piconix_blink_image_end);
     register_image(3,"omikuji",piconix_omikuji_image_start,piconix_omikuji_image_end);

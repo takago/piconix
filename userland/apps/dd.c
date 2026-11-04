@@ -13,7 +13,7 @@ static int number(const char *p,uint32_t *out){
   if(d>=base||x>(0xffffffffu-d)/base)return -1;x=x*base+d;}
  *out=x;return 0;
 }
-static void usage(void){puts("usage: dd [if=FILE|-] [of=FILE|-] [bs=1..256] [count=N] [skip=N] [seek=N]");puts("  /dev/mem uses absolute address as byte offset; values can be hex (0x...)");}
+static void usage(void){puts("usage: dd [if=FILE] [of=FILE] [bs=1..256] [count=N] [skip=N] [seek=N]");puts("  if=-: stdin; of=-: stdout (also the defaults)");puts("  /dev/mem uses absolute address as byte offset; values can be hex (0x...)");}
 int main(int argc,char **argv){
  const char *in=0,*out=0;uint32_t bs=128,count=0,skip=0,seek=0;int limited=0;
  for(int i=1;i<argc;i++){

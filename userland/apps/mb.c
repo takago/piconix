@@ -50,7 +50,9 @@ static void draw(int obstacle, int crater_width, int jump, int score, int frame,
     printf("SCORE: %-6d",score);
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argv;
+    if(argc!=1) {puts("usage: mb");return 1;}
     int canon=ioctl(0,OS_TTY_GET_CANON,0);
     int echo=ioctl(0,OS_TTY_GET_ECHO,0);
     int flags=fcntl(0,F_GETFL,0);

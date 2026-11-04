@@ -45,11 +45,11 @@ If you already have this checkout, update its submodules rather than cloning a s
 
 ## 3. Extract PicoNIX
 
-Run the following in the directory where you downloaded the archive. The filename is the one used for this distribution.
+Run the following in the directory where you downloaded the archive. Replace the quoted placeholders with the actual archive name and extracted folder name before running the commands.
 
 ```sh
-unzip PicoNIX-<version>.zip
-cd <extracted-directory>
+unzip "PicoNIX-<version>.zip"
+cd "<extracted-directory>"
 chmod +x ./tools/build_sdk.sh
 ```
 
@@ -86,7 +86,7 @@ LC_ALL=C LANG=C \
 
 Hardware testing has confirmed that **the current Pico W firmware also boots and runs on a regular Pico**. However, the regular Pico has no Wi-Fi hardware, so networking is unavailable. This observed compatibility is not a guarantee for future versions; use the board-specific options above for supported builds.
 
-Always specify `MinSizeRel` (normally `-Os`). The build script also runs host-side audits and PIC checks. If switching toolchains, delete the corresponding `build-pico/` or `build-pico_w/` directory first to avoid stale CMake configuration.
+Use `MinSizeRel` for the firmware (kernel normally optimized with `-Os`). All user applications are compiled separately with `-Oz` and `-fPIC` using the ARM compiler selected by CMake. Clang/LLD are used for the independent host-side PIC regression tests. The build script also runs host-side audits and PIC checks. If switching toolchains, delete the corresponding `build-pico/` or `build-pico_w/` directory first to avoid stale CMake configuration.
 
 Outputs are `build-pico/piconix.uf2` and `build-pico/piconix.elf` for Pico, or `build-pico_w/piconix.uf2` and `build-pico_w/piconix.elf` for Pico W.
 

@@ -71,7 +71,7 @@ static void save_fd(unsigned pid, unsigned fd, const uint8_t *name) {
     fd_names[i].name[16]=0;
 }
 /* Data is a binary preview, not a NUL-terminated C string. */
-/* Fixed columns without printf width modifiers (not supported by PicoNIX libc). */
+/* Fixed columns: keep the trace display small and predictable. */
 static void col(const char *s, unsigned width) {
     unsigned i=0;
     while(i<width && s[i]) {putchar(s[i]); i++;}
@@ -154,11 +154,6 @@ static void reset_view_state(void) {
     pending_next=0;
     close_pid=0;
     close_fd=0;
-}
-static void print_lost_notice(int lost) {
-    if(lost<=0) return;
-    printf("trace: %d events overwritten\n",lost);
-    header();
 }
 static void print_event(const trace_event_t *e) {
     char time[20],pid[16],target[64]="",ret[16]="";

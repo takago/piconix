@@ -22,6 +22,7 @@ stub = r'''
 #include <stdio.h>
 #include <string.h>
 #define CYW43_ITF_AP 1
+#define CYW43_ITF_STA 0
 #define CYW43_AUTH_WPA2_AES_PSK 1
 #define ERR_OK 0
 #define PICONIX_STA_SSID "test-ssid"
@@ -34,6 +35,8 @@ static int wifi_ready;
 static char wifi_ssid[33];
 static struct netif *loop_iface;
 struct netif *netif_find(const char *);
+void net_capture_init(void);
+void net_capture_attach(struct netif *);
 int cyw43_arch_init(void);
 void cyw43_arch_enable_sta_mode(void);
 void mdns_resp_init(void);

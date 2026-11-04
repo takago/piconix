@@ -6,6 +6,8 @@
 #include "../../include/piconix.h"  /* OS_GPIO_OUTPUT */
 
 int main(int argc, char *argv[]) {
+    (void)argv;
+    if(argc!=1) {puts("usage: blink");return 1;}
     int fd = open("/dev/gpio/25", O_WRONLY);
     if (fd < 0) return 0;
     ioctl(fd, OS_GPIO_OUTPUT, 0);

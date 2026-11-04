@@ -379,6 +379,7 @@ static int fd_is_socket(int dev) {
     return dev==DEV_SOCKET_UDP || dev==DEV_SOCKET_TCP ||
            dev==DEV_SOCKET_TCP_ACCEPTED;
 }
+static unsigned icmp_fd_refs;
 static void fd_release(task_t *t,int fd) {
     int dev=t->fd[fd];
     if(dev<0) return;
@@ -395,12 +396,16 @@ static void fd_release(task_t *t,int fd) {
             }
         }
     }
+    if(dev==DEV_NET_PACKET) net_packet_reader(-1);
+    if(dev==DEV_NET_ICMP && --icmp_fd_refs==0) net_echo_close();
     pipe_ref(dev,-1);
     fd_set(t,fd,-1,0,0,0);
 }
 /* Copy an open descriptor, retaining a pipe endpoint exactly once. */
 static void fd_inherit(task_t *dst, int to, const task_t *src, int from) {
     pipe_ref(src->fd[from],1);
+    if(src->fd[from]==DEV_NET_PACKET) net_packet_reader(1);
+    if(src->fd[from]==DEV_NET_ICMP) icmp_fd_refs++;
     fd_set(dst,to,src->fd[from],src->fd_pos[from],src->fd_flags[from],src->fd_task_pid[from]);
 }
 static void fd_copy(task_t *t, int dst, int src) {
@@ -1282,7 +1287,7 @@ static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
         break;
     case VDIR_DEV_NET:
 #if PICONIX_WIFI
-        EMIT("wifi",0);
+        EMIT("wifi",0); EMIT("packet",0); EMIT("icmp",0);
 #endif
         break;
     case VDIR_GPIO:
@@ -1417,13 +1422,22 @@ static int vfs_open(const char *p, int flags) {
                    (dev>DEV_SYMS_USER_BASE && dev<DEV_SYMS_USER_BASE+PROGRAM_CAPACITY) || dev==DEV_TRACE) &&
                   (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
     if(dev==DEV_WIFI_CTRL && (flags & 3)!=OS_O_WRONLY) return OS_EINVAL;
+    if(dev==DEV_NET_PACKET && (flags & 3)!=OS_O_RDONLY) return OS_EINVAL;
+    if(dev==DEV_NET_ICMP && (flags & 3)!=OS_O_RDWR) return OS_EINVAL;
+    if(dev==DEV_NET_ICMP) {
+        for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].state!=UNUSED && tasks[i].state!=DEAD)
+            for(int j=0;j<OS_FD_MAX;j++) if(tasks[i].fd[j]==DEV_NET_ICMP) return OS_EBUSY;
+    }
     if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE) return OS_EINVAL;
     int fd=free_fd();
     if(fd<0) return OS_EMFILE;
     fd_set(&tasks[current],fd,dev,
-           dev==DEV_TRACE ? trace_serial-trace_count : 0,flags,
+           dev==DEV_TRACE ? trace_serial-trace_count :
+           dev==DEV_NET_PACKET ? net_packet_serial() : 0,flags,
            (dev>=DEV_PROC_TASK_BASE && dev<DEV_PROC_TASK_BASE+OS_MAX_TASKS)
            ? tasks[dev-DEV_PROC_TASK_BASE].pid : 0);
+    if(dev==DEV_NET_PACKET) net_packet_reader(1);
+    if(dev==DEV_NET_ICMP) icmp_fd_refs++;
     return fd;
 }
 static int device_rw_rand(void *p, size_t n, int writing) {
@@ -1764,6 +1778,18 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
     }
     if(dev>=VDIR_ROOT && dev<=VDIR_I2C) return OS_EBADF;
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES) return tmp_rw(fd,p,n,writing);
+    if(dev==DEV_NET_PACKET) {
+        if(writing) return OS_EBADF;
+        if(n<sizeof(piconix_packet_t)) return OS_EINVAL;
+        int ret=net_packet_read(&tasks[current].fd_pos[fd],(piconix_packet_t *)p);
+        return ret==0 ? OS_EAGAIN : ret;
+    }
+    if(dev==DEV_NET_ICMP) {
+        if(n!=sizeof(piconix_echo_t)) return OS_EINVAL;
+        int ret=writing ? net_echo_write((const piconix_echo_t *)p)
+                       : net_echo_read((piconix_echo_t *)p);
+        return ret<0 ? OS_EIO : ret==0 ? OS_EAGAIN : ret;
+    }
     if(dev==DEV_TRACE) {
         if(writing) return OS_EBADF;
         if(n < sizeof(trace_event_t)) return n ? OS_EINVAL : 0;

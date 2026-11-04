@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
 ファイル上部の`foreach(APP IN ITEMS ...)`に，拡張子`.c`を付けずに`greet`を加えます．
 
 ```cmake
-foreach(APP IN ITEMS net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
+foreach(APP IN ITEMS net ip pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
 ```
 
 上記は現在の`CMakeLists.txt`に`greet`を末尾へ追加した例です．既存のアプリ名は削除せず，新しい版で一覧が変わっている場合はその版の末尾へ`greet`を追加してください．この共通ループによって，ソースのコンパイル，共通の`crt0.c`・`syscalls.c`・`libc.c`のリンク，PIC検査，サイズ検査，Flashへのイメージ埋め込みが行われます．個別のビルドルールは不要です．
@@ -160,7 +160,7 @@ int main(void)
 
 - ユーザスロットは24 KiBで，末尾4 KiBはスタック用です．コード・静的データ・BSSを含むイメージは残りの領域に収めます．
 - 大きなローカル配列，深い再帰，無制限のバッファを避けます．スタック使用量の安全性はリンク成功だけでは保証されません．
-- **全ユーザアプリをClangの`-Oz`でビルド**します．検査用コンパイルも同じ最適化条件に揃えます．
+- **全ユーザアプリをCMakeが選択したARMコンパイラで`-Oz`と`-fPIC`を指定してビルド**します．サイズ・PIC検査でもこの条件に揃えます．
 - `ld.lld: task image overlaps reserved stack`は，イメージがスタック予約領域に食い込んだことを意味します．スロットを広げる前に，静的データやコードを減らします．
 - `PIC image changes with link address`は，2つの配置アドレスでバイナリが一致しなかったことを意味します．静的ポインタ初期化，絶対アドレス参照，リンク時再配置などを確認します．
 

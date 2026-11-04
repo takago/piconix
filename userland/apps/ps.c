@@ -5,7 +5,8 @@
 #include "stdio.h"
 
 int main(int argc, char *argv[]) {
-    (void)argc; (void)argv;
+    (void)argv;
+    if(argc!=1) {puts("usage: ps");return 1;}
     int fd=open("/proc/tasks",O_RDONLY);
     if(fd<0) { puts("ps: cannot open /proc/tasks"); return 1; }
     char buf[64]; int n;

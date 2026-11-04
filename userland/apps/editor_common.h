@@ -90,6 +90,29 @@ static void draw(const char *name,const char *notice,int mode){
  printf("\033[%d;%dH\033[?25h",y,x);
 }
 
+/* Normalize . and .. before checking the editor's /tmp-only restriction. */
+static void editor_normalize_path(char path[128]){
+ char normalized[128];unsigned out=0;
+ for(const char *p=path;*p;){
+  while(*p=='/')p++;
+  if(!*p)break;
+  const char *part=p;
+  while(*p&&*p!='/')p++;
+  unsigned n=(unsigned)(p-part);
+  if(n==1&&part[0]=='.')continue;
+  if(n==2&&part[0]=='.'&&part[1]=='.'){
+   while(out&&normalized[out-1]!='/')out--;
+   if(out)out--;
+   continue;
+  }
+  normalized[out++]='/';
+  for(unsigned i=0;i<n;i++)normalized[out++]=part[i];
+ }
+ if(!out)normalized[out++]='/';
+ normalized[out]=0;
+ strcpy(path,normalized);
+}
+
 /* Path resolution, strict 2-KiB read, and TTY setup are identical for both.
  * The kernel restores foreground TTY modes after process termination. */
 static int editor_start(const char *arg, char path[128]){
@@ -105,6 +128,7 @@ static int editor_start(const char *arg, char path[128]){
   if(a&&path[a-1]!='/'){path[a++]='/';path[a]=0;}
   strcpy(path+a,arg);
  }
+ editor_normalize_path(path);
  if(strncmp(path,"/tmp/",5)!=0||!path[5]||strchr(path+5,'/')){
   puts(EDITOR_NAME ": only files in /tmp supported");return -1;
  }

@@ -31,6 +31,15 @@ source = r'''
 #define EDITOR_HINT "test"
 #include "editor_common.h"
 int main(void){
+    char path[128];
+    strcpy(path,"/tmp/./test.py");editor_normalize_path(path);
+    if(strcmp(path,"/tmp/test.py"))return 6;
+    strcpy(path,"/tmp/sub/../test.py");editor_normalize_path(path);
+    if(strcmp(path,"/tmp/test.py"))return 7;
+    strcpy(path,"/tmp/../other.py");editor_normalize_path(path);
+    if(strcmp(path,"/other.py"))return 8;
+    strcpy(path,"/tmp/../../test.py");editor_normalize_path(path);
+    if(strcmp(path,"/test.py"))return 9;
     insert('A');insert('\t');insert('B');insert('\n');insert('Z');
     if(len!=5 || pos!=5 || line_no(pos)!=1 || col_no(3)!=5)return 1;
     if(position_col(0,4)!=2 || line_start(pos)!=4 || line_end(0)!=3)return 2;

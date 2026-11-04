@@ -1,47 +1,40 @@
 <!doctype html>
 <html><meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
-button{padding:12px;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-input{width:100%}#value{width:5em}
+button{padding:12px;touch-action:none;user-select:none;-webkit-user-select:none}
+input[type=range]{width:100%;touch-action:none}
 </style>
 <h3>PicoNIX PWM</h3><a href="/">Home</a>
 <h4>Servo GP19</h4>
 50 Hz <input id="pulse" type="range" min="0.7" max="2.3" step="0.02" value="1.5">
-<span id="value">1.50 ms</span> <button id="servo">Start</button>
+<span id="value">1.50 ms</span> <label><input id="servo" type="checkbox"> Servo enabled</label>
 <h4>Buzzer GP18</h4>
 <div id="keys"></div><p id="status"></p>
 <script>
 const $=s=>document.getElementById(s),hz=[262,294,330,349,392,440,494,523];
-let on=0,note=-1,queue=Promise.resolve(),tick=0,tone=0,active=false,dirty=false;
+let on=0,note=-1,queue=Promise.resolve(),tick=0;
 async function post(p,v){let r=await fetch('/api/'+p,{method:'POST',body:''+v});if(!r.ok)throw Error(r.status)}
 function send(p,v){queue=queue.then(()=>post(p,v)).catch(e=>{$('status').textContent=e.message})}
 function pwm(p,v){send('pwm/'+p,v)}
-function off(){pwm('a',0);pwm('b',0)}
-function servoStop(){on=0;$('servo').textContent='Start';pwm('b',0)}
 function width(){pwm('b',(+$('pulse').value*5).toFixed(1))}
-function toneSend(v){tone=v;dirty=true;pump()}
-async function pump(){if(active||!dirty)return;active=true;dirty=false;let v=tone;
-try{await post('tone',v);$('status').textContent=''}
-catch(e){$('status').textContent=e.message}
-active=false;if(dirty)pump()}
+function tone(v){send('tone',v)}
+function start(){if(on)return;on=1;$('servo').checked=true;note=-1;tone(0);pwm('b',0);pwm('freq',50);width()}
+function stop(){if(!on)return;on=0;$('servo').checked=false;pwm('b',0)}
+$('servo').onchange=()=>{if($('servo').checked)start();else stop()};
 $('pulse').oninput=()=>{
 $('value').textContent=(+$('pulse').value).toFixed(2)+' ms';
-if(on&&Date.now()-tick>100){tick=Date.now();width()}
+if(!on){start();return}
+if(Date.now()-tick>100){tick=Date.now();width()}
 };
 $('pulse').onchange=()=>{if(on)width()};
-$('servo').onclick=()=>{
-if(on){servoStop();return}
-note=-1;toneSend(0);on=1;$('servo').textContent='Stop';
-off();pwm('freq',50);width()
-};
 'C D E F G A B C'.split(' ').forEach((s,i)=>{
 let b=document.createElement('button');b.textContent=s;
 b.onpointerdown=e=>{
 e.preventDefault();b.setPointerCapture(e.pointerId);
-if(on)servoStop();note=i;toneSend(hz[i])
+stop();note=i;tone(hz[i])
 };
 b.onpointerup=b.onpointercancel=b.onlostpointercapture=()=>{
-if(note===i){note=-1;toneSend(0)}
+if(note===i){note=-1;tone(0)}
 };
 $('keys').append(b)
 });

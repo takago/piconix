@@ -17,6 +17,7 @@ Choose a section according to your goal. The **reference** contains current spec
 - **[System-call development](en/development/syscalls/SYSCALL-DEVELOPMENT.md)** — Adding an SVC interface
 - **[Driver development](en/development/drivers/DRIVER-DEVELOPMENT.md)** — Implementing device nodes
 - **[Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md)** — Kernel internals and modification
+- **[Differences from Linux](en/reference/DIFFERENCES.md)** — Intentional omissions and fixed resource limits
 - **[Reference](en/reference/SPECIFICATION.md)** — Current system specification
 - **[Device reference](en/reference/devices/DEVICES.md)** — GPIO, I²C, UART, networking
 - **[Hardware](en/reference/hardware/HARDWARE.md)** — Board connections and wiring

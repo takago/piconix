@@ -12,6 +12,8 @@ enum {
     DEV_SHM = 140,
     DEV_TRACE = 99,
     DEV_I2C1 = 139,
+    DEV_NET_PACKET = 144,
+    DEV_NET_ICMP = 145,
 };
 /* X(path, id): fixed entries, excluding build-specific guards. */
 #define PICONIX_FIXED_DEVICES(X) \
@@ -25,5 +27,7 @@ enum {
     X("/dev/i2c/1", DEV_I2C1)
 #define PICONIX_WIFI_DEVICES(X) \
     X("/dev/ttyN0", DEV_WIFI_TTY) \
-    X("/dev/net/wifi", DEV_WIFI_CTRL)
+    X("/dev/net/wifi", DEV_WIFI_CTRL) \
+    X("/dev/net/packet", DEV_NET_PACKET) \
+    X("/dev/net/icmp", DEV_NET_ICMP)
 #endif

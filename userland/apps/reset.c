@@ -3,7 +3,9 @@
 #include "unistd.h"
 #include "stdio.h"
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argv;
+    if(argc!=1) {puts("usage: reset");return 1;}
     if (ioctl(0, OS_TTY_SET_CANON, 1) < 0 ||
         ioctl(0, OS_TTY_SET_ECHO, 1) < 0 ||
         ioctl(0, OS_TTY_PERSIST, 0) < 0) {

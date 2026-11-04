@@ -14,6 +14,8 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 | `/dev/ttyS1` | UART1 terminal |
 | `/dev/ttyN0` | Network terminal in Wi-Fi builds (see [NETWORK.md](NETWORK.md)) |
 | `/dev/net/wifi` | STA control (`echo restart > /dev/net/wifi`); not available in non-Wi-Fi builds, AP mode rejects restart |
+| `/dev/net/packet` | Read-only IPv4 packet summaries (TCP/UDP/ICMP); 16-byte payload preview, Pico W only |
+| `/dev/net/icmp` | Exclusive ICMP Echo read/write endpoint used by `ping`, Pico W only |
 | `/dev/rand` | Non-cryptographic pseudorandom bytes (read-only; at most 4 bytes per `read()` call) |
 | `/dev/gpio/fb` | 64-bit framebuffer for an 8×8 LED matrix |
 | `/dev/gpio/` | Pins configured for GPIO in `pins.h` |

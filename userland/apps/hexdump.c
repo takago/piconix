@@ -7,13 +7,6 @@
 #include "string.h"
 #include <stdint.h>
 
-static void hex(unsigned value, int digits)
-{
-    const char chars[] = "0123456789abcdef";
-    for (int shift = (digits - 1) * 4; shift >= 0; shift -= 4)
-        putchar(chars[(value >> shift) & 15u]);
-}
-
 static int number(const char *s, unsigned *value)
 {
     char *end;
@@ -60,10 +53,10 @@ int main(int argc, char *argv[])
         if(limited && remaining<want) want=remaining;
         n=read(fd,data,want);
         if(n<=0) break;
-        hex(offset,8);
+        printf("%08x",offset);
         printf("  ");
         for(int i=0;i<16;i++) {
-            if(i<n) hex(data[i],2);
+            if(i<n) printf("%02x",(unsigned)data[i]);
             else printf("  ");
             putchar(' ');
             if(i==7) putchar(' ');

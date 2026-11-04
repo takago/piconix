@@ -4,6 +4,7 @@
 
 int main(int argc, char *argv[])
 {
+    if(argc>2) {puts("usage: hello [name]");return 1;}
     if (argc > 1)
         printf("Hello, %s!\n", argv[1]);
     else

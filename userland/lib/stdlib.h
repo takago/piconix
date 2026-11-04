@@ -6,6 +6,7 @@
 #endif
 int atoi(const char *s);
 long strtol(const char *s, char **endptr, int base);
+unsigned long strtoul(const char *s, char **endptr, int base);
 int abs(int value);
 #ifndef PICONIX_HOST_TEST
 #pragma GCC visibility pop

@@ -11,11 +11,12 @@ The following entries match the headers and the implementation in this repositor
 | Header | Functions and definitions | Purpose |
 |---|---|---|
 | `stdio.h` | `putchar`, `getchar`, `puts`, `fgets` | Character and line input/output |
-| `stdio.h` | `printf`, `sprintf`, `snprintf` | Limited formatted output |
-| `stdio.h` | `FILE`, `stdin`, `stdout`, `stderr`, `EOF` | Minimal stream definitions; `FILE` holds an FD |
+| `stdio.h` | `printf`, `sprintf`, `snprintf`, `scanf`, `sscanf`, `fprintf`, `fscanf` | Limited formatted input/output |
+| `stdio.h` | `FILE`, `stdin`, `stdout`, `stderr`, `EOF` | Small streams with an FD and shared 64-byte buffer |
+| `stdio.h` | `fopen`, `fclose`, `fread`, `fwrite`, `fflush`, `setvbuf`, `feof`, `ferror` | Basic file streams |
 | `string.h` | `strlen`, `strcpy`, `strncpy`, `strcat`, `strcmp`, `strncmp`, `strchr`, `strstr` | String operations |
-| `string.h` | `memcpy`, `memmove`, `memset`, `memcmp` | Memory operations |
-| `stdlib.h` | `atoi`, `strtol`, `abs` | Integer conversion and absolute value |
+| `string.h` | `memcpy`, `memmove`, `memset`, `memcmp`, `memchr` | Memory operations |
+| `stdlib.h` | `atoi`, `strtol`, `strtoul`, `abs` | Integer conversion and absolute value |
 | `unistd.h` | `read`, `write`, `open`, `close`, `unlink`, `lseek`, `getdents` | File and descriptor operations |
 | `unistd.h` | `pipe`, `dup`, `dup2` | Pipes and descriptor duplication |
 | `unistd.h` | `getpid`, `kill`, `waitpid`, `spawn`, `spawn_tmp`, `tty_spawn`, `program_id`, `set_foreground`, `_exit` | Tasks and process lifecycle |
@@ -38,6 +39,9 @@ The following entries match the headers and the implementation in this repositor
 | `putchar(c)` | Character value | Written byte value or `EOF` |
 | `getchar()` | None | Input byte or `EOF` if one byte was not read |
 | `fgets(s, size, stream)` | Destination, buffer capacity, stream | `s` on success; null pointer if no character was read; limited stream support |
+| `scanf(fmt, ...)` | Format and destination pointers | Number of assigned fields; `EOF` for input end before conversion |
+| `sscanf(src, fmt, ...)` | Input string, format, destinations | Same limited conversions as `scanf()` on a string |
+| `strtoul(s, endptr, base)` | Text, optional end pointer, base | Unsigned integer; overflow clamps to `ULONG_MAX` (no `errno`) |
 | `strlen(s)` | NUL-terminated string | Number of bytes preceding NUL |
 | `strtol(s, endptr, base)` | Numeric string, optional end pointer, base | Parsed `long`; overflow clamps to `LONG_MIN` or `LONG_MAX` (no `errno`) |
 | `read(fd, buf, count)` | FD, buffer, byte capacity | Byte count, zero for EOF where applicable, or negative OS error |
@@ -56,16 +60,73 @@ For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboar
 ## Important limitations
 
 - Formatted output supports `%s`, `%c`, `%d`, `%i`, `%u`, `%x`, `%X`, `%%`, integer width/precision/padding and selected integer length modifiers. **Floating-point conversions are not supported**. Check `userland/lib/libc.c` before using unfamiliar format features.
-- Only the declared input/output stream functions are available; for example, **`fopen`, `fclose`, `fprintf`, `scanf`, `malloc`, `free`, `realloc`, and `exit` are not provided by these headers**.
+- This is not a full C library: **`malloc`, `free`, `realloc`, and `exit` are not provided**.
 - `sprintf()` has no destination length parameter: prefer `snprintf()` to avoid overflow.
-- `fgets()` reads from `stream->fd`; its behavior is simpler than a fully buffered standard C stream.
+- `fgets()`, `scanf()`, `fscanf()`, and `fread()` share the `FILE` input buffer. Bytes already prefetched are not visible to direct `read()` calls.
 - Most OS wrapper functions use **negative `OS_*` error codes directly**, without POSIX `errno`. Do not write code that assumes a host `errno` implementation.
 - PicoNIX `O_*` and `F_*` flag values are **not host POSIX constants**. `lseek()` supports `SEEK_SET`, `SEEK_CUR`, and `SEEK_END` for `/tmp` and `/dev/shm`, but only `SEEK_SET` for `/dev/mem`.
 - Socket operations are a deliberately reduced IPv4 API, not full BSD sockets; `listen()` is a compatibility no-op after TCP `bind()` starts listening.
 
+## Small 64-byte streams
+
+Each `FILE` contains an FD and **one 64-byte buffer**, used for either reading or writing; it does not allocate separate 64-byte input and output buffers. No heap is used. Up to four `fopen()` streams can be open simultaneously, in addition to the three standard streams.
+
+| Stream | Buffering |
+|---|---|
+| `stdin`, `fopen("...", "r")` | 64-byte input buffer |
+| `stdout` | Line buffered (flush on newline) |
+| `stderr` | Unbuffered |
+| `fopen("...", "w")`, `fopen("...", "a")` | 64-byte output buffer |
+
+`fopen()` supports `r`, `w`, `a` and their `b` variants; update modes containing `+` are not supported. `fclose()` flushes output and closes the FD, while `fflush(NULL)` flushes all output streams. Returning normally from `main()` flushes pending output; `_exit()` or forced termination does not guarantee this.
+
+`setvbuf()` allows `_IOFBF`, `_IOLBF`, and `_IONBF` using the internal buffer only (pass NULL as its second argument). Common full-screen helpers switch to unbuffered output to prevent delayed display. Call `fflush(stdout)` before a direct `read()` when a prompt has no newline.
+
+```c
+#include "stdio.h"
+
+int main(void) {
+    FILE *fp = fopen("/tmp/example.txt", "w");
+    if (!fp) return 1;
+    fprintf(fp, "Hello, PicoNIX!\n");
+    if (fclose(fp) == EOF) return 1;
+
+    fp = fopen("/tmp/example.txt", "r");
+    if (!fp) return 1;
+    char line[64];
+    while (fgets(line, sizeof(line), fp)) printf("%s", line);
+    fclose(fp);
+    return 0;
+}
+```
+
+`fread()` and `fwrite()` return **item counts, not byte counts**. `feof()` reports EOF and `ferror()` reports an I/O error. Mixing buffered `FILE` operations with direct `read()` or `write()` on the same FD can disrupt the expected data position and order.
+
+## Formatted input (`scanf()` and `sscanf()`)
+
+`scanf()` reads standard input; `sscanf()` reads a string. Supported conversions are `%d`, `%i` (automatic base), `%u`, `%x`, `%X`, `%s`, `%c`, and `%%`. Field widths and assignment suppression (`%*d`) are supported. **Floating-point input, `%n`, and length modifiers such as `%ld` are not implemented.** This is a deliberately limited subset, not a full ISO C `scanf` implementation.
+
+```c
+int first, second;
+if (sscanf("3 4", "%d %d", &first, &second) == 2)
+    printf("%d and %d\n", first, second);
+```
+
+For standard input, use `scanf("%d", &first)`. Repeated numeric conversions consume successive tokens, so `3 4` can be read with two calls. `getchar()` and `fgets(stdin)` share the input buffer with `scanf()`. Do not mix these functions with direct `read(0, ...)` when unread lookahead may be pending.
+
+**Always specify a field width for `%s`**, leaving room for the terminating NUL byte: use `%7s` for `char name[8]`. `%c` does not terminate a string. When a conversion cannot parse input, the offending character remains unread and the function normally returns zero assignments. Repeating that call without consuming invalid input can loop forever.
+
+For teaching and predictable error handling, reading a line with `fgets()` and parsing it with `sscanf()` is often simpler.
+
+## Learning standard input with `omikuji -i`
+
+`omikuji` runs once with a 10-second default, while `omikuji 3` runs once with three seconds. With `omikuji -i`, `scanf("%d", &seconds)` repeatedly reads integers from standard input. `echo "3 4" | omikuji -i` runs twice and ends at EOF. Blank lines are skipped by `scanf()`; invalid tokens are discarded through `getchar()` until a separator. **A failed conversion leaves unread input behind and may cause an infinite loop if the program does not consume it.**
+
+The countdown uses `fflush(stdout)` before sleeping, so text does not remain in the 64-byte output buffer. Without `-i`, no standard input is read, and `omikuji &` uses the default 10 seconds.
+
 ## `fgets()` edge cases
 
-In the current `userland/lib/libc.c`, `fgets(s, size, stream)` returns NULL when `size <= 0` or an argument is NULL. When `size == 1`, it stores only the terminating NUL, returns `s`, and consumes no input. When `size > 1` and no initial character can be read, it returns NULL. This is a minimal FD-backed implementation, not a general buffered stream API; account for terminal settings and FD state.
+In the current `userland/lib/libc.c`, `fgets(s, size, stream)` returns NULL when `size <= 0` or an argument is NULL. When `size == 1`, it stores only the terminating NUL, returns `s`, and consumes no input. When `size > 1` and no initial character can be read, it returns NULL. Account for terminal settings and the EOF return convention.
 
 ## Example
 

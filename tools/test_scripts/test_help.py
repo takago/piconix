@@ -18,4 +18,10 @@ for name in names + ['cd','getty','exit','logout']:
     assert f'  {name}' in help_src, name
 assert 'if(eq(s,"help"))' not in shell
 assert 'gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod)' in cmake
+# Help text must describe real options and the documented user-space build flags.
+for syntax in ('cat [-n] [file]', 'ls [-la] [path]', 'edit /tmp/FILE',
+               'dd [if=FILE] [of=FILE]', 'grep PATTERN [file]'):
+    assert syntax in help_src, f'missing command usage: {syntax}'
+assert 'set(APP_OPT -Oz)' in cmake
+assert '-fPIC' in cmake
 print('PASS: help coverage, shell delegation, and CMake registration')

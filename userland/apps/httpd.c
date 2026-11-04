@@ -192,7 +192,9 @@ static void handle(int fd){
         while((n=read(file,content,sizeof content))>0)if(sendall(fd,content,(unsigned)n)<0)break;
     }close(file);
 }
-int main(void){
+int main(int argc, char **argv){
+    (void)argv;
+    if(argc!=1) {puts("usage: httpd");return 1;}
     int server=socket(AF_INET,SOCK_STREAM,0);
     if(server<0){puts("httpd: socket failed");return 1;}
     struct sockaddr_in addr={0};addr.sin_family=AF_INET;addr.sin_port=htons(80);

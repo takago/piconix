@@ -51,7 +51,9 @@ static int pwm_value(int fd, const char *value) {
     return write(fd, value, (size_t)n) == n ? 0 : -1;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argv;
+    if(argc!=1) {puts("usage: kitesys");return 1;}
     int fb = open("/dev/gpio/fb", O_RDWR);
     int left = open("/dev/gpio/16", O_RDONLY);
     int right = open("/dev/gpio/17", O_RDONLY);

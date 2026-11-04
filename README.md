@@ -6,6 +6,10 @@ PicoNIX is an experimental UNIX-like OS for RP2040 microcontrollers. It combines
 
 Unlike firmware that exposes only a built-in network service, PicoNIX lets user applications create TCP and UDP clients and servers through familiar socket APIs.
 
+**Development and authorship.** The design principles and specifications of PicoNIX are determined by its creator based on their knowledge and experience. The source code and documentation are generated and refined using ChatGPT in accordance with these decisions. The creator reviews the results and carries out build and hardware verification as development proceeds. See the [development diary](docs/DEVELOPMENT_DIARY.md) ([日本語](docs/DEVELOPMENT_DIARY.ja.md)) for the development process.
+
+**開発体制について．** PicoNIXの設計方針と仕様は，作成者の知識と経験に基づいて決定しています．ソースコードとドキュメントは，これらの方針に従ってChatGPTを用いて生成・改良したものです．開発の経緯は[開発日誌](docs/DEVELOPMENT_DIARY.ja.md)をご覧ください．
+
 ## Highlights
 
 - **XIP kernel** — Kernel instructions execute directly from external Flash through the RP2040 XIP (Execute in Place) mechanism, leaving more SRAM available for runtime data and user processes.
@@ -26,7 +30,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 
 ## Commands
 
-PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting the OS, programming the RP2040, and experimenting with networking. Run `help` in the PicoNIX shell for command descriptions.
+PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting the OS, programming the RP2040, and experimenting with networking. Run `help` for the command list or `help NAME` for usage. For example, `cat -n /tmp/test.py` displays line numbers.
 
 | Category | Commands |
 |---|---|
@@ -35,7 +39,7 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Terminals | `getty`, `tty`, `stty`, `reset` |
 | Programming | `edit`, `vi`, `as`, `python` |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink` |
-| Networking | `net`, `nc`, `httpd`, `tcp_echod`, `udp_echod` |
+| Networking | `net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
 | Help | `help` |
 
@@ -97,7 +101,7 @@ To send a one-shot UDP message in the other direction, run `nc -u -l 12345` on L
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-The Pico SDK and an ARM toolchain are required. See the setup guide linked below for installation details. The firmware has not been verified on hardware by this documentation review.
+The Pico SDK and an ARM toolchain are required. See the setup guide linked below for installation details.
 
 ## Architecture
 
@@ -115,13 +119,14 @@ This approach saves scarce SRAM by keeping kernel instructions in Flash while al
 | `kernel/net.c` | Wi-Fi and lwIP initialization and management |
 | `kernel/net_socket.c` | Socket backend for user processes |
 | `kernel/net_service_telnet.c` | Built-in Telnet service (TCP 23) |
+| `kernel/net_capture.c` | IPv4 packet summaries and ICMP Echo for Pico W |
 | `kernel/net_service_remote_devctl.c` | Remote device-control service (UDP 2000) |
 | `userland/apps/nc.c`, `userland/apps/httpd.c` | User-space networking applications |
 | `userland/apps/tcp_echod.c`, `userland/apps/udp_echod.c` | User-space echo servers |
 
 The socket API is intentionally small rather than fully POSIX-compatible. `send()` and `recv()` currently support `flags = 0` only.
 
-The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM files, each limited to 2 KiB. A separate 2 KiB region is exposed as `/dev/shm`; on Pico W, lwIP has a 10 KiB heap inside the 16 KiB network reservation and supports loopback to `127.0.0.1`. Use `cat /proc/net/memory` to inspect network allocation statistics. PicoNIX does not provide `ping` or `curl` commands (the examples in the HTTP guide run `curl` on a host PC). Initial files come from `userland/fs/` at build time; the PID 1 shell runs `/etc/rc` once on boot.
+The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM files, each limited to 2 KiB. A separate 2 KiB region is exposed as `/dev/shm`; on Pico W, lwIP has a 10 KiB heap inside the 16 KiB network reservation and supports loopback to `127.0.0.1`. Use `cat /proc/net/memory` to inspect network allocation statistics. PicoNIX provides `ping` and `tcpdump` on Pico W, but does not provide a `curl` command (the examples in the HTTP guide run `curl` on a host PC). Initial files come from `userland/fs/` at build time; the PID 1 shell runs `/etc/rc` once on boot.
 
 ## Documentation / ドキュメント
 
@@ -143,6 +148,7 @@ The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM file
 | [Overview and guides](docs/en/literacy/README.md) | [概要・文書一覧](docs/ja/literacy/README.md) |
 | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
 | [Architecture](docs/en/reference/ARCHITECTURE.md) | [全体構造](docs/ja/reference/ARCHITECTURE.md) |
+| [Differences from Linux and limits](docs/en/reference/DIFFERENCES.md) | [Linuxとの違い・実装上の上限](docs/ja/reference/DIFFERENCES.md) |
 | [Internals](docs/en/reference/INTERNAL.md) | [内部構造](docs/ja/reference/INTERNAL.md) |
 | [Pipes and standard I/O](docs/en/literacy/PIPE.md) | [パイプと標準入出力](docs/ja/literacy/PIPE.md) |
 | [Terminal and screen](docs/en/literacy/TERMINAL.md) | [端末と画面制御](docs/ja/literacy/TERMINAL.md) |

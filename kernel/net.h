@@ -2,6 +2,18 @@
 #pragma once
 void net_init(void);
 void net_poll(void);
+/* A fixed record interface: no raw socket syscall or dynamic allocation. */
+#include "../include/piconix_net_capture.h"
+uint32_t net_packet_serial(void);
+int net_packet_read(uint32_t *serial, piconix_packet_t *record);
+int net_echo_write(const piconix_echo_t *request);
+int net_echo_read(piconix_echo_t *reply);
+void net_echo_close(void);
+void net_packet_reader(int delta);
+struct netif;
+void net_capture_attach(struct netif *iface);
+void net_capture_init(void);
+void net_capture_poll(void);
 /* True while the idle task is running lwIP callbacks and raw operations. */
 int net_poll_in_progress(void);
 

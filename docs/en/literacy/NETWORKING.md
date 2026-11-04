@@ -12,6 +12,7 @@ Follow [Setup](../setup/SETUP.md) to build and flash the Pico W firmware using t
 
 ```text
 piconix# net
+piconix# ip addr
 piconix# cat /proc/net/wifi
 ```
 
@@ -58,7 +59,23 @@ On Pico W, `127.0.0.1` addresses the same PicoNIX instance. If `httpd` is runnin
 piconix# nc 127.0.0.1 80
 ```
 
-You can try typing `GET / HTTP/1.0` followed by a blank line to request a page. Terminal newline behavior differs, so this is an optional exercise rather than a guaranteed one-line test. PicoNIX has `nc` but no `ping` command.
+You can try typing `GET / HTTP/1.0` followed by a blank line to request a page. Terminal newline behavior differs, so this is an optional exercise rather than a guaranteed one-line test. PicoNIX provides both `nc` and a small ICMP `ping` command.
+
+## 6. Observe packets and check reachability
+
+On the **PicoNIX USB console**, start a short capture:
+
+```text
+piconix# tcpdump -x -c 10
+```
+
+On a **second PicoNIX terminal** (Telnet), try:
+
+```text
+piconix# ping -c 2 192.168.4.2
+```
+
+`192.168.4.2` is normally the PC connected to the PicoNIX AP. If the PC blocks ICMP Echo, try the Pico W’s own address `192.168.4.1` instead; responses depend on the network configuration. **Check:** Compare TX/RX, IP addresses, ICMP TYPE=8/0, `LEN` and `DATA`. Use `-x` to inspect up to 16 payload bytes, in HEX and ASCII. Open only on your own isolated lab network. Capture records can be lost if packets arrive faster than they are read. `ping` sends four probes by default; `-c` changes the count. See [Network reference](../reference/devices/NETWORK.md).
 
 ## Review
 

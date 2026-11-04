@@ -15,6 +15,7 @@ PicoNIXは，**Raspberry Pi Pico（RP2040）向けの小型UNIX風OS**です．L
 ## できること
 
 - **Pico WのユーザプロセスでTCP/UDP通信**：`socket()`，`send()`，`recv()`，`sendto()`，`recvfrom()`などを提供し，`nc`，`httpd`，`tcp_echod`，`udp_echod`を実行できます．詳細は[ソケットAPIとネットワークアプリケーション](../development/apps/c/NETWORK-PROGRAMMING.md)を参照してください．
+- **パケット観察と到達確認**：Pico Wでは`tcpdump`と`ping`を利用できます．[ネットワーク実習](NETWORKING.md)を参照してください．
 
 - SysTick／PendSVによるプリエンプティブなタスク切り替え
 - SVCによるカーネルとRAMアプリケーションの呼び出し境界
@@ -32,13 +33,12 @@ PicoNIXは，**Raspberry Pi Pico（RP2040）向けの小型UNIX風OS**です．L
 Pico SDK 2.1.1とARM GCCを導入したLinux環境で，次のようにビルドします．パスは環境に合わせて変更してください．
 
 ```sh
-PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
-LC_ALL=C LANG=C \
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
-./tools/build_sdk.sh -DCMAKE_BUILD_TYPE=MinSizeRel
+LC_ALL=C LANG=C \
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-生成した`build-pico/piconix.uf2`をBOOTSELモードのPicoへコピーし，USB CDC端末に接続します．詳細は[セットアップ](../setup/SETUP.md)を参照してください．
+Pico Wでは`-DPICO_BOARD=pico`を`-DPICO_BOARD=pico_w`に変更します．生成した`build-pico/piconix.uf2`（Pico）または`build-pico_w/piconix.uf2`（Pico W）をBOOTSELモードのPicoへコピーし，USB CDC端末に接続します．詳細は[セットアップ](../setup/SETUP.md)を参照してください．
 
 ```text
 piconix# help
@@ -48,6 +48,7 @@ piconix# blink &
 piconix# cat /proc/uptime
 piconix# echo hello > /tmp/hello.txt
 piconix# cat /tmp/hello.txt
+piconix# cat -n /tmp/hello.txt
 piconix# python
 ```
 
@@ -62,6 +63,8 @@ USBコンソールのShellから`getty /dev/ttyS1 sh &`を実行すると，UART
 ## 設計の特徴と制限
 
 RP2040のRAMのうち，カーネルに56 KiB，アプリケーション用に24 KiBスロット6個を割り当てます．アプリケーションはPICとしてFlashに埋め込まれ，起動時に空きスロットで動作します．同時実行は最大6タスクです．
+
+`cat -n`は空行を含む各行の先頭に番号を表示しますが，ファイルの内容は変更しません．
 
 PicoNIXは完全なUNIX互換OSではありません．汎用シグナル配送，シグナルハンドラ，プロセスごとのメモリ保護，ELF実行ファイルの動的読み込みは実装していません．`Ctrl+C`と`kill`は，UNIXのシグナル送信ではなく，カーネルによるタスクの直接終了です．`/tmp`と`/etc`は同じRAMファイル領域（最大11ファイル，各最大2 KiB）を共有し，再起動すると内容は消えます．
 

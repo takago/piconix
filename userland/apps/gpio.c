@@ -94,7 +94,9 @@ static int navigate(int pin,char key) {
         if(available(candidate))return candidate;
     }
 }
-int main(void) {
+int main(int argc, char **argv) {
+    (void)argv;
+    if(argc!=1) {puts("usage: gpio");return 1;}
     int status_fd=open("/dev/gpio/0",O_RDONLY);
     if(status_fd<0){puts("gpio: cannot inspect GPIO");return 1;}
     int canon=ioctl(0,OS_TTY_GET_CANON,0),echo=ioctl(0,OS_TTY_GET_ECHO,0);

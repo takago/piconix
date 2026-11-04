@@ -31,10 +31,11 @@ piconix# pwd
 piconix# ls /bin
 piconix# echo hello > /tmp/hello.txt
 piconix# cat /tmp/hello.txt
+piconix# cat -n /tmp/hello.txt
 piconix# ps
 ```
 
-この実習で，どの操作がファイルに作用し，どの操作が現在のOSの状態を示したかを説明してみてください．
+この実習で，どの操作がファイルに作用し，どの操作が現在のOSの状態を示したかを説明してみてください．`cat -n`で表示した行番号がファイルの内容を変えない理由も考えてください．
 
 ## 9．プログラミングの選択
 

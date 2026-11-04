@@ -52,8 +52,10 @@ The web page has `Clear` and `All` buttons. There is no manual `Read` button bec
 - `/fbcheck.html`: LED matrix drawing (50 ms minimum write interval, 50 ms reads).
 - `/pwm.html`: select servo on GP19/PWM1 B or passive buzzer on GP18/PWM1 A.
 
-PWM output starts disabled. Start enables the selected mode; Stop sets its PWM channel duty to zero. Servo: 50 Hz, pulse width 0.7–2.3 ms in 0.02 ms steps (3.5–11.5% duty). Buzzer: fixed 50% duty, adjustable 100–5000 Hz. Mode changes stop both channels. Both channels share PWM slice 1 and cannot run at independent frequencies. Use a suitable external supply for the servo, common GND, and verify its permitted pulse-width range.
+PWM output starts disabled. Moving the servo slider automatically enables GP19 (50 Hz); the **Servo enabled** checkbox can also enable or stop it. Pressing a buzzer key automatically stops GP19 and activates GP18; releasing the key stops the buzzer. The two outputs share PWM slice 1 and cannot operate at independent frequencies. Servo pulse width is 0.7–2.3 ms in 0.02 ms steps (3.5–11.5% duty). Buzzer uses 50% duty at 262–523 Hz. Use an appropriate external servo supply and common GND.
 
 When a smartphone cannot reach the PicoNIX AP web page, try disabling mobile data/VPN temporarily and use `http://192.168.4.1/` directly.
 
 The LED grid suppresses touch scrolling and text selection; gestures outside remain available.
+
+The browser serializes all servo and buzzer control requests because GP18 and GP19 share PWM slice 1. The servo requires 50 Hz; an outstanding buzzer request could otherwise restore an audio frequency after moving the servo slider. Check external servo power, ground sharing, and duty/frequency with `pwmctl status` if it still does not move.

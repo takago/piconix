@@ -45,11 +45,11 @@ git submodule update --init --recursive
 
 ## 3．PicoNIXの展開
 
-PicoNIXのZIPをダウンロードしたディレクトリで実行します．以下のファイル名は今回の配布物の例です．
+PicoNIXのZIPをダウンロードしたディレクトリで実行します．次の`<version>`と`<extracted-directory>`は説明用の仮名です．実際のZIP名と展開先ディレクトリ名に置き換えて実行してください．
 
 ```sh
-unzip PicoNIX-<version>.zip
-cd <extracted-directory>
+unzip "PicoNIX-<version>.zip"
+cd "<extracted-directory>"
 chmod +x ./tools/build_sdk.sh
 ```
 
@@ -86,7 +86,7 @@ LC_ALL=C LANG=C \
 
 実機では，**Pico W向けにビルドしたファームウェアが通常のPicoでも起動・動作することを確認しています**．ただし通常のPicoにはWi-Fiチップがないため，Wi-Fi機能は利用できません．この互換動作は現在の実装で確認されたものであり，すべての将来の版で保証されるものではありません．ボードごとの正式なビルド指定は上記のとおりです．
 
-`MinSizeRel`（通常`-Os`）を明示してください．ビルドスクリプトはホスト側の監査とPIC検証も実行します．別のツールチェーンに切り替えた場合は，CMakeのキャッシュを避けるため該当する`build-pico/`または`build-pico_w/`を削除してから再ビルドしてください．
+`MinSizeRel`を指定してください．ファームウェアのカーネル部分は通常`-Os`で最適化されます．全ユーザアプリケーションはCMakeが選択したARMコンパイラで別途`-Oz`と`-fPIC`を付けてビルドします．Clang／LLDは独立したPIC回帰テストで使用します．ビルドスクリプトはホスト側の監査とPIC検証も実行します．別のツールチェーンに切り替えた場合は，CMakeのキャッシュを避けるため該当する`build-pico/`または`build-pico_w/`を削除してから再ビルドしてください．
 
 ビルド成果物は，Pico向けでは`build-pico/piconix.uf2`と`build-pico/piconix.elf`，Pico W向けでは`build-pico_w/piconix.uf2`と`build-pico_w/piconix.elf`です．
 

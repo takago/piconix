@@ -12,16 +12,23 @@
 piconix# echo hello
 piconix# echo hello > /tmp/hello.txt
 piconix# cat /tmp/hello.txt
+piconix# cat -n /tmp/hello.txt
+piconix# echo >> /tmp/hello.txt
+piconix# cat -n /tmp/hello.txt
 piconix# echo hello | cat
+piconix# echo hello | cat -n
 piconix# echo hello | grep hello | cat
 piconix# lsof
 ```
+
+`cat`は指定したファイルを表示します．ファイルを省略すると標準入力から読み込みます．`cat -n`は空行も含めて各行に1から始まる番号とタブを付けて表示します．`echo >> /tmp/hello.txt`は空行をファイルの末尾に追加します．その前後の`cat -n`を比べてください．行番号は表示時に付けるだけで，ファイルの内容は変更しません．パイプから入力しても番号は付けられます．
 
 `>`はコマンドの標準出力をファイルに向けます．`|`はコマンド間でバイト列を受け渡します．PicoNIXのシェルではパイプは最大3段で，パイプとリダイレクトの併用には制約があります．Linuxの一般的なシェルと完全に同じではありません．
 
 ## 観察・考察
 
 - `cat /tmp/hello.txt`と`echo hello | cat`では，`cat`の入力元はどのように異なりますか．
+- `cat -n`で空行にも番号が付く理由を説明できますか．
 - ファイルは後から読めますが，パイプの内容はどうなりますか．
 - `lsof`で見えるFDは実行時点のものです．終了済みの`echo`が表示されない理由を考えてください．
 

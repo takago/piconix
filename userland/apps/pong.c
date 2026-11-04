@@ -4,6 +4,7 @@
 #include "fcntl.h"
 #include "stdio.h"
 #include "string.h"
+#include "../lib/screen.h"
 
 #define W 48
 #define H 16
@@ -23,12 +24,12 @@ static void message(int a,int b,const char *s) {
     int n=(int)strlen(s);
     sendall(a,s,n);sendall(b,s,n);
 }
-static void row(int fd,int y,const char *s) {
+static void row(int fd,int y,int top,int left,const char *s) {
     char out[W+24];
-    int n=snprintf(out,sizeof out,"\033[%d;1H%s",y+1,s);
+    int n=snprintf(out,sizeof out,"\033[%d;%dH%s",top+y,left,s);
     if(n>0 && n<(int)sizeof out)sendall(fd,out,n);
 }
-static void render(int a,int b,int left,int right,int bx,int by,int score0,int score1,int reset,char old[H][W+1]) {
+static void render(int a,int b,int left,int right,int bx,int by,int score0,int score1,int reset,char old[H][W+1],int top,int left_col) {
     char grid[H][W+1];
     for(int y=0;y<H;y++) {
         for(int x=0;x<W;x++)grid[y][x]=' ';
@@ -37,13 +38,13 @@ static void render(int a,int b,int left,int right,int bx,int by,int score0,int s
     /* Headers are viewer-specific; only the playing field is mirrored. */
     char title[W+1],score[W+1];
     snprintf(title,sizeof title,"PicoNIX PONG   UP/DOWN: MOVE   Q: QUIT");
-    if(reset) { row(a,0,title); row(b,0,title); }
+    if(reset) { row(a,0,top,left_col,title); row(b,0,top,left_col,title); }
     snprintf(score,sizeof score,"YOU: %d    OPPONENT: %d",score0,score1);
     if(reset || strcmp(old[1],score)) {
-        row(a,1,score);
+        row(a,1,top,left_col,score);
         snprintf(old[1],W+1,"%s",score);
         snprintf(score,sizeof score,"YOU: %d    OPPONENT: %d",score1,score0);
-        row(b,1,score);
+        row(b,1,top,left_col,score);
     }
     for(int x=0;x<W;x++)grid[3][x]=grid[H-2][x]='-';
     for(int y=4;y<H-2;y++) {
@@ -59,8 +60,8 @@ static void render(int a,int b,int left,int right,int bx,int by,int score0,int s
         char mirror[W+1];
         for(int x=0;x<W;x++)mirror[x]=grid[y][W-1-x];
         mirror[W]=0;
-        row(a,y,grid[y]);
-        row(b,y,mirror);
+        row(a,y,top,left_col,grid[y]);
+        row(b,y,top,left_col,mirror);
         memcpy(old[y],grid[y],W+1);
     }
 }
@@ -115,7 +116,12 @@ int main(int argc,char **argv) {
         if(two){ioctl(other,OS_TTY_RELEASE,0);close(other);}
         puts("pong: cannot configure terminals");return 1;
     }
-    message(1,other,"\033[?1049h\033[?25l\033[2J\033[H");
+    screen_size_t terminal={24,80};
+    screen_enter();
+    if(two)message(-1,other,"\033[?1049h\033[?25l\033[2J\033[H");
+    screen_measure(&terminal);
+    int top=terminal.rows>H?(terminal.rows-H)/2+1:1;
+    int left_col=terminal.cols>W?(terminal.cols-W)/2+1:1;
     int left=3,right=3,bx=W/2,by=8,dx=1,dy=1,score0=0,score1=0,live=1;
     char old[H][W+1]; /* Local RAM, no writable PIC globals. */
     int initial=1,ticks=0;
@@ -151,12 +157,13 @@ int main(int argc,char **argv) {
             if(bx<=1)score1++;else score0++;
             bx=W/2;by=8;dx=-dx;dy=-dy;
         }
-        if(side==0) render(1,other,left,right,bx,by,score0,score1,initial,old);
-        else render(other,1,left,right,bx,by,score0,score1,initial,old);
+        if(side==0) render(1,other,left,right,bx,by,score0,score1,initial,old,top,left_col);
+        else render(other,1,left,right,bx,by,score0,score1,initial,old,top,left_col);
         initial=0;
         msleep(90);
     }
-    message(1,other,"\033[0m\033[?1049l\033[?25h");
+    screen_leave();
+    if(two)message(-1,other,"\033[0m\033[?1049l\033[?25h");
     fcntl(0,F_SETFL,flags);
     if(two){ioctl(other,OS_TTY_RELEASE,0);close(other);}
     printf("\r\nPong finished: %d - %d\r\n",score0,score1);

@@ -806,6 +806,7 @@ static void repl(void){
     }
 }
 int main(int argc, char *argv[]){
+    if(argc>2) {outs("usage: python [file]\r\n");_exit(1);}
     if(argc<2 || !argv[1]){repl();goto done;}
     const char *path=argv[1];
     int fd=open(path, 0);

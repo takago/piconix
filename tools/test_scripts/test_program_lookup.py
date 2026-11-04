@@ -16,5 +16,6 @@ assert 'call(SYS_PROGRAM_ID,(uintptr_t)name,0,0)' in u
 assert 'static int program_id(' not in s+w+t
 assert 'program_id(name)' in s+w+t
 assert 'int actual_id=program_id(ent.name)' in t
-assert 'eq(name,"python")' in s and 'eq(name,"hexdump")' in s and 'eq(name,"cat")' in s
+assert 'path_arg=' not in s and 'args[path_arg]' not in s
+assert 'absolute_path(' in k
 print('PASS: kernel registry lookup, callers and sparse ID mapping')

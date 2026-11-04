@@ -44,7 +44,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PICONIX_FS_INPU
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
-foreach(APP IN ITEMS fd net pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod)
+foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod)
   # Compile each application once for the same canonical address.
   # Every image must also link identically at the next 24-KiB slot address.
   set(APP_ORIGIN 0x2000E000)
@@ -211,7 +211,7 @@ else()
   endif()
   message(STATUS "PicoNIX XIP linker: ${PICONIX_CUSTOM_LD}")
 endif()
-add_executable(piconix kernel/net.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
+add_executable(piconix kernel/net.c kernel/net_capture.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 set_source_files_properties(kernel/kernel.c PROPERTIES OBJECT_DEPENDS "${PICONIX_INITIAL_FS_HEADER}")
 if(PICONIX_USE_MODULAR_XIP)

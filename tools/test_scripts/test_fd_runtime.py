@@ -55,6 +55,8 @@ prefix = r'''
 #define DEV_SOCKET_TCP_ACCEPTED 402
 #define DEV_CONSOLE 0
 #define DEV_UART1 30
+#define DEV_NET_PACKET 500
+#define DEV_NET_ICMP 501
 #define TCP_USER_SLOTS 4
 typedef struct {uint8_t data[PIPE_BYTES];uint16_t head,used;uint8_t readers,writers;} pipe_t;
 typedef struct {int fd[OS_FD_MAX];uint32_t fd_pos[OS_FD_MAX];int fd_task_pid[OS_FD_MAX];uint8_t fd_flags[OS_FD_MAX];int pid;} task_t;
@@ -64,6 +66,9 @@ static int current;
 static int udp_owner_pid;
 static int tcp_owner_pid[TCP_USER_SLOTS];
 static int udp_closes, tcp_closes, listener_closes, client_closes;
+static unsigned icmp_fd_refs;
+static void net_packet_reader(int delta) {(void)delta;}
+static void net_echo_close(void) {}
 static void net_socket_udp_close(void) {udp_closes++;}
 static void net_socket_tcp_close(int id) {(void)id; tcp_closes++;}
 static void net_socket_tcp_close_listener(int id) {(void)id;listener_closes++;}

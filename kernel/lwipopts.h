@@ -2,6 +2,10 @@
 #pragma once
 #define NO_SYS 1
 #define LWIP_SOCKET 0
+/* Observe IPv4 RX without consuming or modifying lwIP packets. */
+#include "net_capture_hook.h"
+#define LWIP_HOOK_IP4_INPUT(p,n) piconix_packet_input((p),(n))
+#define LWIP_RAW 1
 /* Allow immediate listener rebind after previous TCP connections close. */
 #define SO_REUSE 1
 #define LWIP_NETCONN 0

@@ -430,7 +430,10 @@ void net_init(void) {
         puts("PicoNIX: CYW43 initialization failed");
         return;
     }
+    net_capture_init();
     loop_iface = netif_find("lo0");
+    net_capture_attach(loop_iface);
+    net_capture_attach(&cyw43_state.netif[PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP]);
     if (!loop_iface)
         puts("PicoNIX: loopback interface unavailable");
 #if PICONIX_WIFI_STA
@@ -526,10 +529,13 @@ void net_poll(void) {
     ++net_poll_count;
     net_poll_active = 1;
     cyw43_arch_poll();
+    net_capture_poll();
     wifi_cache_mac(now);
     /* Drain 127.0.0.1 packets without calling lwIP input recursively.
      * A response queued by a callback is handled on the next idle poll. */
     if (loop_iface) netif_poll(loop_iface);
+    /* Also drain traffic addressed to this Wi-Fi interface itself. */
+    netif_poll(&cyw43_state.netif[PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP]);
 #if PICONIX_WIFI_STA
     sta_poll();
 #endif
@@ -604,7 +610,7 @@ int net_wifi_info(char *out, unsigned size) {
     ip4addr_ntoa_r(netif_ip4_gw(iface), gw, sizeof(gw));
 #if PICONIX_WIFI_STA
     int len = snprintf(out, size,
-        "MODE: STA\nSTATUS: %s\nSSID: %s\nDHCP: Client\n"
+        "MODE: STA\nIFACE: %c%c%u\nSTATUS: %s\nSSID: %s\nDHCP: Client\n"
         "ATTEMPTS: %u\nCONNECT_ERROR: %d\nLINK_CODE: %d\n"
         "WIFI_LINK: %d\nTCPIP_LINK: %d\nDHCP_BOUND: %d\n"
         "LAST_RESET: %c\nIP: %s\nNETMASK: %s\nGATEWAY: %s\nMAC: %s\nRSSI: %s\n"
@@ -612,6 +618,7 @@ int net_wifi_info(char *out, unsigned size) {
         "GARP_INTERVAL_S: 60\nGARP_OK: %lu\nGARP_ERROR: %lu\n"
         "MDNS_NAME: %s.local\nMDNS_ACTIVE: %d\nMDNS_ERROR: %d\n"
         "IDLE_STACK: %u/%u\n",
+        iface->name[0],iface->name[1],iface->num,
         sta_link_name(sta_tcpip_link), wifi_ssid, sta_attempts, sta_error,
         sta_link, sta_link, sta_tcpip_link, sta_dhcp_bound,
         sta_last_reset, ip, mask, gw, mac, rssi,
@@ -625,9 +632,10 @@ int net_wifi_info(char *out, unsigned size) {
     return len;
 #else
     return snprintf(out,size,
-        "MODE: AP\nSSID: %s\nDHCP: %s\nCLIENTS: %d\nMAC: %s\n"
+        "MODE: AP\nIFACE: %c%c%u\nSSID: %s\nDHCP: %s\nCLIENTS: %d\nMAC: %s\n"
         "IP: %s\nNETMASK: %s\nGATEWAY: %s\nRSSI: %s\n"
         "MDNS_NAME: piconix.local\nMDNS_ACTIVE: %d\nMDNS_ERROR: %d\n",
+        iface->name[0],iface->name[1],iface->num,
         wifi_ssid, ap_dhcp_active ? "Server" : "Inactive", ap_sta_count, mac,
         ip, mask, gw, rssi,
         ap_mdns_registered, ap_mdns_error);

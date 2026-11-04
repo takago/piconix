@@ -13,6 +13,8 @@ piconix# pong -2    # Two players on two terminals
 
 **Two-player mode** temporarily claims the other terminal via `OS_TTY_CLAIM`. It refuses to start if that terminal is in use. Each terminal displays its own paddle on the right and the opponent's paddle on the left.
 
+The game screen is centered using the launching terminal’s detected size. In two-player mode, both terminals use the same coordinates; a differently sized second terminal may not appear centered. Resize during a game is not supported.
+
 ## Controls
 
 - **Up arrow**: move up

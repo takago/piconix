@@ -11,11 +11,12 @@ PicoNIXは，ユーザプログラム向けに**独自の小規模なCライブ�
 | ヘッダ | 関数・定義 | 機能 |
 |---|---|---|
 | `stdio.h` | `putchar`, `getchar`, `puts`, `fgets` | 文字・行の入出力 |
-| `stdio.h` | `printf`, `sprintf`, `snprintf` | 簡易書式付き出力 |
-| `stdio.h` | `FILE`, `stdin`, `stdout`, `stderr`, `EOF` | 最小限のストリーム定義．`FILE`はFDを保持 |
+| `stdio.h` | `printf`, `sprintf`, `snprintf`, `scanf`, `sscanf`, `fprintf`, `fscanf` | 簡易書式付き入出力 |
+| `stdio.h` | `FILE`, `stdin`, `stdout`, `stderr`, `EOF` | FDと64バイト共用バッファを持つ簡易ストリーム |
+| `stdio.h` | `fopen`, `fclose`, `fread`, `fwrite`, `fflush`, `setvbuf`, `feof`, `ferror` | 簡易ファイルストリーム操作 |
 | `string.h` | `strlen`, `strcpy`, `strncpy`, `strcat`, `strcmp`, `strncmp`, `strchr`, `strstr` | 文字列操作 |
-| `string.h` | `memcpy`, `memmove`, `memset`, `memcmp` | メモリ操作 |
-| `stdlib.h` | `atoi`, `strtol`, `abs` | 整数変換・絶対値 |
+| `string.h` | `memcpy`, `memmove`, `memset`, `memcmp`, `memchr` | メモリ操作 |
+| `stdlib.h` | `atoi`, `strtol`, `strtoul`, `abs` | 整数変換・絶対値 |
 | `unistd.h` | `read`, `write`, `open`, `close`, `unlink`, `lseek`, `getdents` | ファイル・FDの操作 |
 | `unistd.h` | `pipe`, `dup`, `dup2` | パイプ・FD複製 |
 | `unistd.h` | `getpid`, `kill`, `waitpid`, `spawn`, `spawn_tmp`, `tty_spawn`, `program_id`, `set_foreground`, `_exit` | タスクの起動・終了・待機 |
@@ -38,6 +39,9 @@ PicoNIXは，ユーザプログラム向けに**独自の小規模なCライブ�
 | `putchar(c)` | 文字コード | 書き込んだバイト値または`EOF` |
 | `getchar()` | なし | 入力した1バイト，読めなければ`EOF` |
 | `fgets(s, size, stream)` | 出力先，容量，ストリーム | 成功時は`s`．1文字も読めなければNULLポインタ．簡易実装 |
+| `scanf(fmt, ...)` | 書式文字列と格納先へのポインタ | 代入件数．最初の変換前に入力終端なら`EOF` |
+| `sscanf(src, fmt, ...)` | 入力文字列，書式文字列，格納先 | `scanf()`と同じ書式を文字列に適用 |
+| `strtoul(s, endptr, base)` | 文字列，終端位置，基数 | 符号なし整数へ変換．範囲外は`ULONG_MAX`へ制限（`errno`なし） |
 | `strlen(s)` | NUL終端文字列 | 終端NULを含まないバイト数 |
 | `strtol(s, endptr, base)` | 文字列，終端位置の格納先，基数 | `long`値．オーバーフロー時は`LONG_MIN`または`LONG_MAX`に制限（`errno`なし） |
 | `read(fd, buf, count)` | FD，バッファ，最大バイト数 | 読み取り数，対象によりEOF時は0，エラー時は負のOSエラー値 |
@@ -56,16 +60,73 @@ PicoNIXは，ユーザプログラム向けに**独自の小規模なCライブ�
 ## 重要な制限
 
 - 書式付き出力は`%s`，`%c`，`%d`，`%i`，`%u`，`%x`，`%X`，`%%`に対応します．整数の桁幅・精度・パディングと一部の長さ修飾子にも対応しますが，**浮動小数点の書式には対応しません**．詳細は`userland/lib/libc.c`を参照してください．
-- 一般的なCライブラリの全関数が存在するわけではありません．例えば，このライブラリのヘッダには**`fopen`，`fclose`，`fprintf`，`scanf`，`malloc`，`free`，`realloc`，`exit`は宣言されていません**．
+- 一般的なCライブラリの全関数が存在するわけではありません．例えば，**`malloc`，`free`，`realloc`，`exit`は未提供**です．
 - `sprintf()`は出力先のサイズを指定できません．バッファ破壊を防ぐため，通常は`snprintf()`を使用してください．
-- `fgets()`は`stream->fd`から直接読み取ります．一般的なバッファ付き標準入出力とは異なる簡易実装です．
+- `fgets()`，`scanf()`，`fscanf()`，`fread()`は同じ`FILE`入力バッファを使います．読み取り済みの文字は直接の`read()`からは見えません．
 - OS APIの多くは**負の`OS_*`エラー値を直接返し**，POSIXの`errno`を使用しません．
 - `O_*`や`F_*`の数値はホストPOSIXと同一ではありません．`lseek()`は`/tmp`と`/dev/shm`で`SEEK_SET`，`SEEK_CUR`，`SEEK_END`をサポートし，`/dev/mem`では`SEEK_SET`のみです．
 - ソケットはIPv4用の限定的なAPIです．TCPでは`bind()`で待ち受けが始まり，`listen()`は互換性のための空操作です．
 
+## 64バイトの簡易ストリーム
+
+`FILE`はFDと**共用64バイトバッファ**を持ちます．読み取りストリームでは先読み用，書き込みストリームでは未書き込みデータの保持に利用します．バッファを各方向に64バイトずつ確保するわけではありません．ヒープは使用せず，`fopen()`で同時に開けるストリームは最大4個です（標準入力・出力・エラー出力を除く）．
+
+| 対象 | バッファリング |
+|---|---|
+| `stdin`，`fopen("...", "r")` | 64バイト入力バッファ |
+| `stdout` | 行バッファ（改行でフラッシュ） |
+| `stderr` | バッファなし |
+| `fopen("...", "w")`，`fopen("...", "a")` | 64バイト出力バッファ |
+
+`fopen()`のモードは`r`，`w`，`a`と各`b`付きのみを扱います．`+`付きの読み書き両用モードは未対応です．`fclose()`は出力をフラッシュしてFDを閉じます．`fflush(NULL)`は全出力ストリームをフラッシュします．`main()`から正常に戻ったときもフラッシュしますが，`_exit()`や強制終了では保証しません．
+
+`setvbuf()`は内部バッファを使う`_IOFBF`，`_IOLBF`，`_IONBF`のみ対応します（第2引数にはNULLを指定）．画面制御用の共通ヘルパーは表示遅延を避けるためバッファなしに切り替えます．プロンプトの直後に直接`read()`する場合は，明示的に`fflush(stdout)`してください．
+
+```c
+#include "stdio.h"
+
+int main(void) {
+    FILE *fp = fopen("/tmp/example.txt", "w");
+    if (!fp) return 1;
+    fprintf(fp, "Hello, PicoNIX!\n");
+    if (fclose(fp) == EOF) return 1;
+
+    fp = fopen("/tmp/example.txt", "r");
+    if (!fp) return 1;
+    char line[64];
+    while (fgets(line, sizeof(line), fp)) printf("%s", line);
+    fclose(fp);
+    return 0;
+}
+```
+
+`fread()`と`fwrite()`の戻り値は**バイト数ではなく要素数**です．簡易版ではエラー状態の詳細は`ferror()`，EOF状態は`feof()`で確認します．`FILE`と同じFDに対して低水準の`read()`・`write()`を混在させると，先読みや書き込み遅延で位置・順序がずれることがあります．
+
+## 書式付き入力（`scanf()`と`sscanf()`）
+
+`scanf()`は標準入力，`sscanf()`は文字列を読み取ります．対応する変換は`%d`，`%i`（基数自動判定），`%u`，`%x`，`%X`，`%s`，`%c`，`%%`です．整数と文字列には入力幅を指定でき，`%*d`のような代入抑制にも対応します．**浮動小数点，`%n`，長さ修飾子（`%ld`など）は非対応**です．この小規模な実装を一般的なISO Cの`scanf()`全機能と同一視しないでください．
+
+```c
+int first, second;
+if (sscanf("3 4", "%d %d", &first, &second) == 2)
+    printf("%d and %d\n", first, second);
+```
+
+標準入力からなら，`scanf("%d", &first)`を使用できます．書式付き入力は必要な文字だけを消費するため，`scanf("%d", ...)`を繰り返すと`3 4`を順番に取得できます．`getchar()`や`fgets(stdin)`とも入力バッファを共有します．ただし，直接`read(0, ...)`を呼ぶとライブラリ内部の先読み文字は参照されないため，混在させないでください．
+
+`%s`では**格納先のサイズに合わせて幅を必ず指定**してください．例えば`char name[8]`なら`%7s`です．`%c`はNUL終端せず，`%s`は終端します．変換できない文字列は基本的に入力に残り，0件を返します．そのまま同じ`scanf()`を繰り返すと進まないので，`getchar()`などで読み飛ばす必要があります．
+
+`fgets()`と`sscanf()`を組み合わせ，1行ずつ検査する方式は初学者にも理解しやすく，入力を扱いやすい方法です．
+
+## `omikuji -i`で学ぶ標準入力
+
+`omikuji`は引数がなければ10秒，`omikuji 3`なら3秒で一度だけ実行します．一方，`omikuji -i`では`scanf("%d", &seconds)`で標準入力を繰り返し読み取ります．`echo "3 4" | omikuji -i`は2回処理し，EOFで終了します．空行は`scanf()`が読み飛ばし，不正な入力は`getchar()`で次の区切りまで読み捨てます．**変換失敗時の入力を消費しないと，同じ入力で無限ループすることがあります**．
+
+カウントダウンでは`printf()`の未出力文字が64バイトバッファに残らないよう，`fflush(stdout)`を呼んでから待機します．通常実行では標準入力を使わないため，`omikuji &`も既定の10秒で動作します．
+
 ## `fgets()`の境界条件
 
-現行の`userland/lib/libc.c`では，`fgets(s, size, stream)`は`size <= 0`またはNULL引数ではNULLを返します．`size == 1`では1バイトの出力領域に終端NULだけを書いて`s`を返し，実際の入力は読み取りません．`size > 1`で最初の1文字を取得できなかった場合はNULLを返します．通常のファイルストリーム機能を想定せず，端末の入力条件とFDの状態を確認してください．
+現行の`userland/lib/libc.c`では，`fgets(s, size, stream)`は`size <= 0`またはNULL引数ではNULLを返します．`size == 1`では1バイトの出力領域に終端NULだけを書いて`s`を返し，実際の入力は読み取りません．`size > 1`で最初の1文字を取得できなかった場合はNULLを返します．EOF時の返値と端末の入力条件に注意してください．
 
 ## プログラム例
 

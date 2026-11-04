@@ -17,7 +17,7 @@ The `mem` viewer labels the relocated regions, and the `trace` ring is at the ne
 
 **Validation status:** Pico W ELF layout audit passed. Hardware checks confirmed `/proc/memory`, `/proc/ramfiles`, `/dev/shm`, `/dev/mem`, `mem`, and `trace`. Network communication has also been reported working, but exhaustive AP/STA stability testing is not established.
 
-## Pico W network bank (stage 9)
+## Pico W network bank
 
 The 16-KiB network reserve is divided into the 10-KiB lwIP heap
 (`0x2003C000..0x2003E7FF`), a 2-KiB boundary gap

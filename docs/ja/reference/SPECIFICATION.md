@@ -4,6 +4,8 @@
 
 [全体アーキテクチャ](ARCHITECTURE.md)ではソースファイルの役割を説明しています．
 
+Linuxとの機能の違い，省略した仕組み，上限値の一覧は[Linuxとの違い](DIFFERENCES.md)を参照してください．
+
 ## 1．対象と構成
 
 - 対象：Raspberry Pi Pico（RP2040）およびPico W．
@@ -51,7 +53,7 @@ USBコンソール，UART1，Wi-Fi端末は別々のデバイスとして扱い�
 
 ## 6．プログラム実行とアセンブラ
 
-Cユーザプログラムは専用のビルド・配置方式で生成します．組込みの`as`はCortex-M0+向けの簡易Thumbアセンブラであり，GNU assemblerの代替ではありません．`svc #0`の即値0はシステムコール番号ではありません．`as`の命令，ディレクティブ，入力制限，生成物については[アセンブラ](../development/apps/asm/ASM.md)を参照してください．
+Cユーザプログラムは専用のビルド・配置方式で生成します．全ユーザアプリケーションを`-Oz`と`-fPIC`でコンパイルし，24 KiBスロットのうち4 KiBをスタック用に予約します．完全なビルドでは，別のスロットアドレスでも同一のPICイメージになることを検査します．組込みの`as`はCortex-M0+向けの簡易Thumbアセンブラであり，GNU assemblerの代替ではありません．`svc #0`の即値0はシステムコール番号ではありません．`as`の命令，ディレクティブ，入力制限，生成物については[アセンブラ](../development/apps/asm/ASM.md)を参照してください．
 
 ## 7．ネットワーク
 
@@ -69,6 +71,8 @@ Pico WビルドではlwIPを使用します．Wi-FiモードはAPまたはSTAを
 | UDPデータ転送上限の内部定数 | 512バイト（`NET_SOCKET_UDP_MAX`） |
 
 Pico WではlwIPの`lo0`を通じて`127.0.0.1`宛てにTCP/UDP通信できます（通常のPicoビルドでは非対応）．通信メモリは`/proc/net/memory`で確認できます．ネットワーク予約16 KiBにはlwIPヒープ10 KiB，管理情報を含む境界領域2 KiB，アイドルスタック4 KiBを配置します．pbufプール8個（各512バイト）などの静的プールはカーネルRAM側に残ります．詳細は[メモリレイアウト](MEMORY-LAYOUT.md)，[Wi-Fi](devices/WIFI-MODES.md)，[ネットワーク](devices/NETWORK.md)，[ソケットプログラミング](../development/apps/c/NETWORK-PROGRAMMING.md)を参照してください．TelnetとUDPデバイス制御は暗号化された認証付きサービスではないため，信頼できるネットワークで使用してください．
+
+Pico Wでは`tcpdump`用の`/dev/net/packet`（16件のIPv4情報記録）と，`ping`用の`/dev/net/icmp`（ICMP Echo専用）を提供します．RAWソケットではありません．詳しくは[ネットワーク仕様](devices/NETWORK.md)を参照してください．
 
 ## 8．デバイスと疑似ファイル
 

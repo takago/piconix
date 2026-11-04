@@ -66,6 +66,12 @@ responses may be processed during the next poll. The regular Pico build does
 not link lwIP and does not provide loopback. The loopback queue is limited to
 8 pbufs; inspect `cat /proc/net/memory` during load testing.
 
+Packets addressed to the Wi-Fi interface’s own IPv4 address are also queued
+for local delivery instead of being sent over the wireless link. Thus, in AP
+mode, `ping -c 2 192.168.4.1` can test the device itself, and the same local
+routing applies to TCP and UDP. In STA mode, use the interface’s assigned
+address. This does not create a second network interface or a new syscall.
+
 ## TCP receive and connection cleanup
 
 The user TCP socket backend has four fixed slots. Each receive buffer is sized to
@@ -105,7 +111,7 @@ For STA, PicoNIX explicitly disables CYW43 Wi-Fi power saving using `CYW43_NONE_
 
 To request a manual STA reconnect, use `echo restart > /dev/net/wifi`. This does not restart the OS or reset the network poll counter; an existing Telnet session may disconnect.
 
-## Network memory diagnostics (stage 9)
+## Network memory diagnostics
 
 On Pico W, `cat /proc/net/memory` reports `LWIP_HEAP` (current / peak /
 capacity in bytes), `LWIP_HEAP_ERRORS` (cumulative allocation failures),
@@ -116,3 +122,16 @@ still allocated in kernel SRAM. This is **not** a measure of all CYW43 memory.
 The 10-KiB dynamic heap and the 4-KiB idle stack reside in the 16-KiB network
 bank with a 2-KiB safety gap. Counters reset at boot and a zero-error count
 does not guarantee a stable TCP connection. Stress-test AP and STA builds.
+
+## Packet observation and ICMP Echo
+
+Pico W provides two small educational network devices. `/dev/net/packet` is a read-only stream of **fixed-size packet records**, not raw Ethernet frames. The kernel records IPv4 TCP/UDP/ICMP header summaries and at most 16 initial payload bytes; an internal 16-record ring buffer overwrites old records. Each reader starts with new traffic; `read()` returns `OS_EAGAIN` when nothing is available. It does not capture ARP, other clients’ traffic, or packets bypassing the local IPv4 stack. `tcpdump` prints records as text; it does not create pcap files.
+
+`/dev/net/icmp` is an **exclusive** read/write interface for ICMP Echo Request/Reply. The user `ping` command sends an Echo Request, polls for its reply, and reports elapsed time or a timeout. It is not a generic RAW socket and accepts numeric IPv4 addresses only. Both devices are available on **Pico W only**. The record layouts are documented in [`include/piconix_net_capture.h`](../../../../include/piconix_net_capture.h) in the repository. All other network applications continue using existing TCP/UDP sockets.
+
+```text
+piconix# tcpdump -c 10
+piconix# ping -c 2 192.168.4.2
+```
+
+Run `tcpdump` from the USB terminal, and create traffic from the PC or a second PicoNIX terminal. `LEN` is the IPv4 packet length; `DATA` is the transport payload length (for a first TCP/UDP fragment). `tcpdump` normally displays one summary line per packet. With `-x`, the first line includes `DATA=` (transport payload length); when data is present, an indented second line labelled `DATA:` shows the first 16 bytes in spaced hexadecimal with an aligned ASCII column (`|...|`), as in `hexdump`. Packets without payload (for example, TCP SYN/ACK) show `DATA=0` without a sample. ICMP uses TYPE to distinguish Echo Request (8) and Reply (0). Commands that wait for traffic can be stopped using the shell’s Ctrl+C mechanism. Packets arriving before capture starts are intentionally not stored. Traffic inspection can expose application data: use only a trusted lab network.

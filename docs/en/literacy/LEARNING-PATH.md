@@ -31,10 +31,11 @@ piconix# pwd
 piconix# ls /bin
 piconix# echo hello > /tmp/hello.txt
 piconix# cat /tmp/hello.txt
+piconix# cat -n /tmp/hello.txt
 piconix# ps
 ```
 
-Which operations work on files and which reveal the current OS state?
+Which operations work on files and which reveal the current OS state? Explain why `cat -n` adds a number without changing the saved file.
 
 ## 9. Choose a programming language
 
