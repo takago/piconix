@@ -152,13 +152,42 @@ static void print_preview(const uint8_t *data, unsigned len, int shortened) {
 
 /* トレース表示の列名と区切り線を出力する． */
 static void header(void) {
-    puts("Time   PID Command TTY     Event    Call     Target           Ret Data");
-    puts("--------------------------------------------------------------------------");
+    puts("Time   PID Command TTY     Type     Function                           Arg              Ret Info");
+    puts("------------------------------------------------------------------------------------------------");
 }
 static unsigned close_pid, close_fd;
 static struct { unsigned pid, call; char target[64]; } pending[8];
 static unsigned pending_next;
-/* 入口イベントに対応する未完了システムコールを探す． */
+/* PIDごとに表示上の呼び出し深さを保持する．実行時のカーネルスタックは変更しない． */
+#define TRACE_DEPTH_SLOTS 16
+static struct { unsigned pid; unsigned depth; int used; } trace_depths[TRACE_DEPTH_SLOTS];
+static unsigned trace_depth_next;
+/* 最大表示階層．省略時は制限なし． */
+static unsigned trace_max_depth=255;
+/* PIDが同じイベントだけが同一の深さを共有する． */
+static unsigned *trace_depth(unsigned pid) {
+    for(unsigned i=0;i<TRACE_DEPTH_SLOTS;i++)
+        if(trace_depths[i].used && trace_depths[i].pid==pid) return &trace_depths[i].depth;
+    for(unsigned i=0;i<TRACE_DEPTH_SLOTS;i++)
+        if(!trace_depths[i].used) {
+            trace_depths[i].used=1; trace_depths[i].pid=pid;
+            trace_depths[i].depth=0;
+            return &trace_depths[i].depth;
+        }
+    unsigned i=trace_depth_next++ % TRACE_DEPTH_SLOTS;
+    trace_depths[i].pid=pid; trace_depths[i].depth=0;
+    return &trace_depths[i].depth;
+}
+/* 入口をname，復帰をname/で表す．記録形式は変更しない． */
+static void function_label(char *out, const char *name, unsigned depth, int entering) {
+    unsigned pos=0;
+    if(depth>8) depth=8;
+    for(unsigned i=0;i<depth*2;i++) out[pos++]=' ';
+    while(*name && pos<(entering ? 39u : 38u)) out[pos++]=*name++;
+    if(!entering) out[pos++]='/';
+    out[pos]=0;
+}
+/* 未完了システムコールの対象を取得する．同じPID・番号の古い履歴は残さない． */
 static const char *pending_find(unsigned pid, unsigned call) {
     for(unsigned i=0;i<8;i++)
         if(pending[i].pid==pid && pending[i].call==call)
@@ -166,8 +195,20 @@ static const char *pending_find(unsigned pid, unsigned call) {
     return NULL;
 }
 
-/* 入口イベントを保存し，後続の終了イベントと対応付ける． */
+/* システムコール終了時に対応付けを消し，次回の同一呼び出しへ持ち越さない． */
+static void pending_forget(unsigned pid, unsigned call) {
+    for(unsigned i=0;i<8;i++)
+        if(pending[i].pid==pid && pending[i].call==call)
+            pending[i].pid=0;
+}
+
+/* 同一PID・同一システムコールの入口は上書きする． */
 static void pending_save(unsigned pid, unsigned call, const char *target) {
+    for(unsigned i=0;i<8;i++)
+        if(pending[i].pid==pid && pending[i].call==call) {
+            strcpy(pending[i].target,target);
+            return;
+        }
     unsigned i=pending_next++ & 7u;
     pending[i].pid=pid; pending[i].call=call;
     strcpy(pending[i].target,target);
@@ -179,63 +220,88 @@ static void reset_view_state(void) {
     memset(pending,0,sizeof pending);
     fd_next=0;
     pending_next=0;
+    memset(trace_depths,0,sizeof trace_depths);
+    trace_depth_next=0;
     close_pid=0;
     close_fd=0;
 }
 
-/* リングから取得した1イベントを表示する．入口・終了やタスク切替の違いを明示する． */
+/* 表示は Function（入口name／復帰name/の階層），Arg，Ret，Info に統一する． */
 static void print_event(const trace_event_t *e) {
-    char time[20],pid[16],target[64]="",ret[16]="";
-    unsigned shown_pid=(e->kind&TRACE_KIND_MASK)==TRACE_SWITCH ? e->value : e->pid;
+    char time[20],pid[16],arg[64]="",ret[16]="--",label[48];
+    unsigned kind=e->kind&TRACE_KIND_MASK;
+    unsigned shown_pid=kind==TRACE_SWITCH ? e->value : e->pid;
     format_short_time(time,e->tick);
     numeric(pid,(int)shown_pid);
     const char *tty=shown_pid==0 ? "-" :
         (TRACE_TTY(e->kind)==1 ? "ttyS1" : TRACE_TTY(e->kind)==2 ? "ttyN0" : "console");
     const char *name=e->program_id==0 && shown_pid!=0 ? "a.out" : program_name(e->program_id);
+    unsigned func_depth=0;
+    int func_enter=kind==TRACE_FUNC_ENTER;
+    if(kind==TRACE_FUNC_ENTER || kind==TRACE_FUNC_EXIT) {
+        unsigned *depth=trace_depth(e->pid);
+        if(!func_enter && *depth) --*depth;
+        func_depth=*depth;
+        if(func_enter && *depth<255) ++*depth;
+        /* 非表示の関数も深さを更新するが，行頭を含めて何も出力しない． */
+        if(func_depth>trace_max_depth) return;
+    }
     col(time,7);col(pid,3);col(name,7);col(tty,7);
-    if((e->kind&TRACE_KIND_MASK)==TRACE_SWITCH) {
-        col("SWITCH",8);col("",8);
-        sprintf(target,"%u -> %u",e->pid,e->value);
-        col(target,16);putchar('\n');return;
+    if(kind==TRACE_SWITCH) {
+        col("SWITCH",9);col("SWITCH",34);col("--",16);col("--",3);
+        printf("%u -> %u\n",e->pid,e->value);
+        return;
     }
-    if((e->kind&TRACE_KIND_MASK)==TRACE_TICK1K) {
-        col("TICKx1K",8);col("",8);col("SysTick",16);putchar('\n');return;
+    if(kind==TRACE_TICK1K) {
+        col("TIMER",9);col("TICKx1K",34);col("--",16);col("--",3);
+        puts("SysTick");return;
     }
-    if((e->kind&TRACE_KIND_MASK)!=TRACE_SVC_ENTER && (e->kind&TRACE_KIND_MASK)!=TRACE_SVC_EXIT) {puts("UNKNOWN");return;}
-    int enter=(e->kind&TRACE_KIND_MASK)==TRACE_SVC_ENTER;
+    if(kind==TRACE_FUNC_ENTER || kind==TRACE_FUNC_EXIT) {
+        char func[17];
+        memcpy(func,e->data,16);func[16]=0;
+        function_label(label,func,func_depth,func_enter);
+        col("KERNEL",9);col(label,34);col("--",16);col("--",3);puts("--");
+        return;
+    }
+    if(kind!=TRACE_SVC_ENTER && kind!=TRACE_SVC_EXIT) {
+        col("OTHER",9);col("UNKNOWN",34);col("--",16);col("--",3);puts("--");return;
+    }
+    int enter=kind==TRACE_SVC_ENTER;
+    unsigned *depth=trace_depth(e->pid);
+    if(enter) *depth=1; /* システムコールの内側は深さ1から始める． */
     unsigned call=e->value;
     if(!enter) {
         numeric(ret,(int)e->detail);
         if(call==SYS_OPEN && (int)e->detail>=0) {
             save_fd(e->pid,e->detail,e->data);
-            format_target(target,e->pid,e->detail,e->file_id);
+            format_target(arg,e->pid,e->detail,e->file_id);
         } else {
             const char *prior=pending_find(e->pid,call);
-            if(prior) strcpy(target,prior);
+            if(prior) strcpy(arg,prior);
         }
     } else {
         if(call==SYS_CLOSE || call==SYS_READ || call==SYS_WRITE || call==SYS_IOCTL ||
            call==SYS_LSEEK || call==SYS_GETDENTS || call==SYS_BIND ||
            call==SYS_SENDTO || call==SYS_RECVFROM || call==SYS_LISTEN_TCP ||
            call==SYS_CONNECT_TCP || call==SYS_TCP_STATUS || call==SYS_ACCEPT_TCP)
-            format_target(target,e->pid,e->detail,e->file_id);
-        else if(call==SYS_OPEN) strcpy(target,"path");
-        else if(call==SYS_WAITPID) numeric(target,(int32_t)e->detail);
-        else if(call==SYS_SPAWN) {const char *name=program_name(e->detail);strcpy(target,name);}
-        else numeric(target,(int32_t)e->detail);
-        pending_save(e->pid,call,target);
+            format_target(arg,e->pid,e->detail,e->file_id);
+        else if(call==SYS_OPEN) strcpy(arg,"path");
+        else if(call==SYS_WAITPID) numeric(arg,(int32_t)e->detail);
+        else if(call==SYS_SPAWN) {const char *prog=program_name(e->detail);strcpy(arg,prog);}
+        else numeric(arg,(int32_t)e->detail);
+        pending_save(e->pid,call,arg);
         if(call==SYS_CLOSE) {close_pid=e->pid;close_fd=e->detail;}
     }
-    col(enter?"ENTER":"EXIT",8);col(syscall_name(call),8);
-    col(target,16);col(ret,3);
-    if(!enter && call==SYS_OPEN && (int)e->detail>=0) {
-        /* openのパス文字列はイベント記録から取得できる． */
-    } else if(!enter && (call==SYS_READ || call==SYS_WRITE) && (int)e->detail>0 && e->file_id!=99) {
+    function_label(label,syscall_name(call),0,enter);
+    col("SYSCALL",9);col(label,34);col(arg[0]?arg:"--",16);col(ret,3);
+    if(!enter && (call==SYS_READ || call==SYS_WRITE) && (int)e->detail>0 && e->file_id!=99) {
         unsigned length=(unsigned)e->detail;
         if(length>16) length=16;
         print_preview(e->data,length,(unsigned)e->detail>16);
-    }
+    } else printf("--");
     putchar('\n');
+    if(!enter) pending_forget(e->pid,call);
+    if(!enter) *depth=0; /* システムコール終了後は階層を初期化する． */
     if(!enter && call==SYS_CLOSE && (int)e->detail==0 && close_pid==e->pid)
         forget_fd(close_pid,close_fd);
 }
@@ -249,15 +315,35 @@ static int trace_drain(int fd) {
 }
 
 /* 指定コマンドをトレースし，待機と表示処理を行う． */
-static int trace_run(int fd, int argc, char *argv[]) {
-    if(argc<3 || argc>10) {
-        puts("usage: trace run command [args...]");return 1;
+static int parse_depth(const char *s, unsigned *out) {
+    if(!s || !*s) return 0;
+    unsigned n=0;
+    for(;*s;s++) {
+        if(*s<'0' || *s>'9') return 0;
+        n=n*10u+(unsigned)(*s-'0');
+        if(n>8) return 0;
+    }
+    *out=n;
+    return 1;
+}
+
+static int trace_run(int fd, int argc, char *argv[], int kernel_mode) {
+    int command_index=2;
+    trace_max_depth=255;
+    if(kernel_mode && argc>2 && !strcmp(argv[2],"-d")) {
+        if(argc<5 || !parse_depth(argv[3],&trace_max_depth)) {
+            puts("usage: trace kernel [-d 0..8] command [args...]");return 1;
+        }
+        command_index=4;
+    }
+    if(argc<command_index+1 || argc-command_index>8) {
+        puts("usage: trace run command [args...] | trace kernel [-d 0..8] command [args...]");return 1;
     }
     load_program_names();
     reset_view_state();
     /* 現在ディレクトリ内の./image実行はシェルと同じ形式で解釈する． */
     char image_path[128];
-    const char *name=argv[2];
+    const char *name=argv[command_index];
     const char *image=name;
     int is_tmp=!strncmp(name,"/tmp/",5) || !strncmp(name,"./",2);
     if(!strncmp(name,"./",2)) {
@@ -271,25 +357,33 @@ static int trace_run(int fd, int argc, char *argv[]) {
         image=image_path;
     }
     int id=is_tmp ? -1 : program_id(name);
-    if(is_tmp && argc!=3) {puts("trace: /tmp programs do not accept arguments");return 1;}
+    if(is_tmp && argc!=command_index+1) {puts("trace: /tmp programs do not accept arguments");return 1;}
     if(!is_tmp && id<0) {puts("trace: unknown command");return 1;}
     unsigned bytes=0;
-    for(int i=2;i<argc;i++) bytes+=(unsigned)strlen(argv[i])+1;
+    for(int i=command_index;i<argc;i++) bytes+=(unsigned)strlen(argv[i])+1;
     if(bytes>128) {puts("trace: arguments too long");return 1;}
     int enabled=ioctl(fd,TRACE_STATUS,0);
     if(enabled<0) {puts("trace: cannot query tracing status");return 1;}
     if(!enabled && ioctl(fd,TRACE_ON,0)<0) {
         puts("trace: cannot enable tracing");return 1;
     }
-    /* 既に記録中なら取得済みデータを維持する． */
-    if(trace_drain(fd)<0) {
-        puts("trace: cannot seek to latest event");
+    if(kernel_mode && ioctl(fd,TRACE_FUNC_ON,0)<0) {
+        puts("trace: kernel function tracing is not built in");
+        puts("rebuild with -DPICONIX_KERNEL_FUNCTION_TRACE=ON");
         if(!enabled) ioctl(fd,TRACE_OFF,0);
         return 1;
     }
-    int pid=is_tmp ? spawn_tmp(image) : spawn(id,argc-2,(const char *const *)(argv+2));
+    /* 既に記録中なら取得済みデータを維持する． */
+    if(trace_drain(fd)<0) {
+        puts("trace: cannot seek to latest event");
+        if(kernel_mode) ioctl(fd,TRACE_FUNC_OFF,0);
+        if(!enabled) ioctl(fd,TRACE_OFF,0);
+        return 1;
+    }
+    int pid=is_tmp ? spawn_tmp(image) : spawn(id,argc-command_index,(const char *const *)(argv+command_index));
     if(pid<0) {
         puts("trace: cannot start command");
+        if(kernel_mode) ioctl(fd,TRACE_FUNC_OFF,0);
         if(!enabled) ioctl(fd,TRACE_OFF,0);
         return 1;
     }
@@ -298,8 +392,9 @@ static int trace_run(int fd, int argc, char *argv[]) {
     int status=0;
     int waited=waitpid(pid,&status,0);
     set_foreground(0);
+    if(kernel_mode) ioctl(fd,TRACE_FUNC_OFF,0);
     if(!enabled) ioctl(fd,TRACE_OFF,0);
-    printf("\n--- trace: %s (PID %d) ---\n",argv[2],pid);
+    printf("\n--- trace: %s (PID %d) ---\n",argv[command_index],pid);
     header();
     trace_event_t e;
     int count=0,n;
@@ -319,18 +414,18 @@ static int trace_run(int fd, int argc, char *argv[]) {
 /* トレース表示・起動操作をコマンド引数に基づいて選ぶ． */
 int main(int argc, char *argv[]) {
     if(argc<2) {
-        puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]");return 1;
+        puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]|kernel [-d 0..8] command [args...]");return 1;
     }
-    if(!strcmp(argv[1],"run")) {
+    if(!strcmp(argv[1],"run") || !strcmp(argv[1],"kernel")) {
         int fd=open("/dev/trace",O_RDONLY);
         if(fd<0) {puts("trace: cannot open /dev/trace");return 1;}
-        int rc=trace_run(fd,argc,argv);
+        int rc=trace_run(fd,argc,argv,!strcmp(argv[1],"kernel"));
         close(fd);
         return rc;
     }
     if(argc>3 || (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
                    strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) {
-        puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]");return 1;
+        puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]|kernel [-d 0..8] command [args...]");return 1;
     }
     int filter_pid=-1;
     if(argc==3) {

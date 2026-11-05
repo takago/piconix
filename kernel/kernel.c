@@ -292,10 +292,13 @@ static uint32_t trace_head;
 static uint32_t trace_count;
 static uint32_t trace_serial;
 static uint8_t trace_enabled;
+#if PICONIX_KERNEL_FUNCTION_TRACE
+static uint8_t trace_func_enabled;
+#endif
 static uint16_t tick_sample;
 static uint8_t slice_ticks;
 /* 32バイトのトレースイベントを16 KiBリングへ記録する．割込み・SVC・スケジューラが競合しないよう更新全体を割込み禁止区間に置く． */
-static void trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t detail,
+static void __attribute__((no_instrument_function)) trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t detail,
                          uint8_t program_id, int8_t file_id, const void *data, unsigned len) {
     if(!trace_enabled || (program_id & 0x7fu)==7u) return;
     /* trace自身のタスク切替は記録せず，表示内容の自己増殖を防ぐ． */
@@ -2128,9 +2131,35 @@ static int device_ioctl(int fd,int cmd,int arg) {
         uint32_t irq=save_and_disable_interrupts();
         if(cmd==TRACE_ON) {
             trace_enabled=0;
+#if PICONIX_KERNEL_FUNCTION_TRACE
+            trace_func_enabled=0;
+#endif
             trace_head=trace_count=trace_serial=0;
             trace_enabled=1;
-        } else if(cmd==TRACE_OFF) trace_enabled=0;
+        } else if(cmd==TRACE_OFF) {
+            trace_enabled=0;
+#if PICONIX_KERNEL_FUNCTION_TRACE
+            trace_func_enabled=0;
+#endif
+        }
+        else if(cmd==TRACE_FUNC_ON) {
+#if PICONIX_KERNEL_FUNCTION_TRACE
+            trace_func_enabled=1;
+#else
+            restore_interrupts(irq); return OS_EINVAL;
+#endif
+        } else if(cmd==TRACE_FUNC_OFF) {
+#if PICONIX_KERNEL_FUNCTION_TRACE
+            trace_func_enabled=0;
+#endif
+        } else if(cmd==TRACE_FUNC_STATUS) {
+#if PICONIX_KERNEL_FUNCTION_TRACE
+            int enabled=trace_func_enabled;
+#else
+            int enabled=-1;
+#endif
+            restore_interrupts(irq); return enabled;
+        }
         else if(cmd==TRACE_STATUS) { int enabled=trace_enabled; restore_interrupts(irq); return enabled; }
         else if(cmd==TRACE_LOST) {
             uint32_t oldest=trace_serial-trace_count, pos=tasks[current].fd_pos[fd];
@@ -2663,3 +2692,69 @@ int os_tcp_status(int fd) { return call(SYS_TCP_STATUS,fd,0,0); }
 
 /* SVCで待受FDから確立済みの接続を受け取り，新しいFDを得る． */
 int os_tcp_accept(int fd) { return call(SYS_ACCEPT_TCP,fd,0,0); }
+
+#if PICONIX_KERNEL_FUNCTION_TRACE
+/* GCC/Clang関数フック．SVC中の指定関数だけを記録し，IRQや通常の
+ * カーネル常駐処理は記録しない．カーネル全体の呼出しを記録するものではない． */
+static void __attribute__((no_instrument_function))
+trace_kernel_func(void *func, uint8_t kind) {
+    if(!trace_enabled || !trace_func_enabled || current<0 || current>=OS_MAX_TASKS) return;
+    uint32_t ipsr;
+    __asm volatile("mrs %0, ipsr" : "=r"(ipsr));
+    if(ipsr!=11u) return; /* SVC内の同期処理だけ対象にする． */
+    const char *name=NULL;
+#define TRACE_MATCH(fn) if(func==(void *)(uintptr_t)(fn)) name=#fn
+    TRACE_MATCH(vfs_open);
+    else TRACE_MATCH(vfs_rw);
+    else TRACE_MATCH(tmp_open);
+    else TRACE_MATCH(tmp_rw);
+    else TRACE_MATCH(tmp_unlink);
+    else TRACE_MATCH(vfs_getdents);
+    else TRACE_MATCH(device_rw_tty);
+    else TRACE_MATCH(tty_rx_read);
+    else TRACE_MATCH(device_ioctl);
+    else TRACE_MATCH(fd_release);
+    else TRACE_MATCH(fd_copy);
+    else TRACE_MATCH(pipe_transfer);
+    /* パス解決とFD管理． */
+    else TRACE_MATCH(vfs_fixed_path_id);
+    else TRACE_MATCH(vfs_directory_id);
+    else TRACE_MATCH(free_fd);
+    else TRACE_MATCH(fd_set);
+    else TRACE_MATCH(in_task_range);
+    /* RAMファイルの名前解決・管理． */
+    else TRACE_MATCH(tmp_init);
+    else TRACE_MATCH(tmp_name);
+    else TRACE_MATCH(tmp_lookup);
+    /* /dev/randの読出しから擬似乱数生成まで． */
+    else TRACE_MATCH(device_rw_rand);
+    else TRACE_MATCH(rand32);
+    /* TTYのバッファ管理と入力．1文字ごとの出力は記録しない． */
+    else TRACE_MATCH(tty_rx_ready);
+    else TRACE_MATCH(tty_dequeue);
+    /* /procとioctlの内部振り分け． */
+    else TRACE_MATCH(proc_device);
+    else TRACE_MATCH(device_rw_proc);
+    else TRACE_MATCH(device_ioctl_tty);
+#undef TRACE_MATCH
+    if(!name) return;
+    task_t *t=&tasks[current];
+    if(t->state==UNUSED || t->program_id==7u) return;
+    unsigned len=0;
+    while(name[len] && len<16u) len++;
+    trace_record(kind,(uint8_t)t->pid,(uint32_t)(uintptr_t)func,0,
+                 t->program_id,-1,name,len);
+}
+
+void __attribute__((no_instrument_function))
+__cyg_profile_func_enter(void *func, void *caller) {
+    (void)caller;
+    trace_kernel_func(func,TRACE_FUNC_ENTER);
+}
+
+void __attribute__((no_instrument_function))
+__cyg_profile_func_exit(void *func, void *caller) {
+    (void)caller;
+    trace_kernel_func(func,TRACE_FUNC_EXIT);
+}
+#endif

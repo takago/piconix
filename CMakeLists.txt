@@ -213,6 +213,14 @@ endif()
 add_executable(piconix kernel/net.c kernel/net_capture.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 set_source_files_properties(kernel/kernel.c PROPERTIES OBJECT_DEPENDS "${PICONIX_INITIAL_FS_HEADER}")
+# 実験的なカーネル内部関数トレース．通常ビルドでは計測コードを入れない．
+option(PICONIX_KERNEL_FUNCTION_TRACE "Instrument selected kernel calls for trace kernel" OFF)
+if(PICONIX_KERNEL_FUNCTION_TRACE)
+  set_property(SOURCE kernel/kernel.c APPEND PROPERTY COMPILE_OPTIONS -finstrument-functions)
+  target_compile_definitions(piconix PRIVATE PICONIX_KERNEL_FUNCTION_TRACE=1)
+else()
+  target_compile_definitions(piconix PRIVATE PICONIX_KERNEL_FUNCTION_TRACE=0)
+endif()
 if(PICONIX_USE_MODULAR_XIP)
   pico_set_linker_script_var(piconix RAM_LENGTH 0xE000)
   pico_add_linker_script_override_path(piconix "${PICONIX_LD_OVERRIDES}"

@@ -9,10 +9,15 @@
 #define TRACE_OFF 2
 #define TRACE_STATUS 3
 #define TRACE_LOST 4
+#define TRACE_FUNC_ON 5
+#define TRACE_FUNC_OFF 6
+#define TRACE_FUNC_STATUS 7
 #define TRACE_SWITCH 1
 #define TRACE_SVC_ENTER 2
 #define TRACE_SVC_EXIT 3
 #define TRACE_TICK1K 4
+#define TRACE_FUNC_ENTER 5
+#define TRACE_FUNC_EXIT 6
 typedef struct {
     uint32_t tick;
     uint32_t value;

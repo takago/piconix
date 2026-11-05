@@ -26,6 +26,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/reference/SYSCALLS.md) ([日本語](docs/ja/reference/SYSCALLS.md)).
 - **Programming on the device** — Editors (`edit`, `vi`), an interactive file manager (`fd`), a binary-copy utility (`dd`), an assembler (`as`), and a small Python-like interpreter (`python`).
 - **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call and context-switch tracing, and open-descriptor reporting, including socket ports.
+- **Experimental kernel function tracing (opt-in)** — Enable `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` at build time to inspect selected kernel function entry/return events and call nesting with `trace kernel -d 2 hello`. Disabled by default to avoid instrumentation overhead. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) and [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)).
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
 ## Commands

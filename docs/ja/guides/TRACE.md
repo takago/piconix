@@ -15,6 +15,7 @@ trace follow     # 実行した時点以降の新しいイベントを表示
 trace follow 3   # 実行した時点以降のPID 3のイベントを表示
 trace run hello  # helloを起動し，終了後にそのPIDのイベントを表示
 trace run python test.py  # Pythonスクリプトの実行を記録
+trace kernel cat /tmp/test.txt  # カーネル内部の関数呼び出しも記録（専用ビルド）
 ```
 
 **`trace show`や`trace follow`はトレースの表示操作であり，対象プログラムを起動しません．** 1つの端末しか使えない場合は，`trace run hello`のように`run`を使用すると，起動から終了までを簡単に観察できます．
@@ -39,15 +40,43 @@ trace run ./a.out
 
 トレースは16 KiB（512件）リングバッファ（`0x20038000`〜`0x2003BFFF`の専用RAM領域）に保存されます．実行が長い場合は古いイベントが上書きされ，起動直後のイベントも失われる可能性があります．`trace run` は直接起動したプロセスだけを絞り込み，孫プロセスを自動追跡しません．ゲームやREPLなど，終了しないプログラムでは終了するまで一覧は出ません．
 
+## カーネル内部関数の呼び出し（実験機能）
+
+`trace kernel command [args...]`は，従来のシステムコールに加えて，指定した**一部のカーネル関数**の入口と出口を`関数名`／`関数名/`として表示します．これは**実験的機能で，ビルド時の既定値はOFF**です．`trace run`による従来のシステムコールトレースはOFFのまま利用できます．カーネル関数トレースを使うときだけ，PicoまたはPico Wを次のように**再ビルド**します．
+
+```bash
+./tools/build_sdk.sh -DPICO_BOARD=pico -DPICONIX_KERNEL_FUNCTION_TRACE=ON
+# Pico Wなら -DPICO_BOARD=pico_w とする
+```
+
+
+無効に戻す場合は，`-DPICONIX_KERNEL_FUNCTION_TRACE=OFF`を指定して再ビルドしてください．CMakeの設定はビルドディレクトリにキャッシュされるため，過去に`ON`を指定した場合は，オプションを省略するだけでは`OFF`に戻らないことがあります．**明示的に`OFF`を指定**するか，対象ボードのビルドディレクトリを消して構成し直してください．セットアップ時の指定例は[セットアップガイド](../setup/SETUP.md)にあります．
+
+```text
+piconix# echo hello > /tmp/test.txt
+piconix# trace kernel cat /tmp/test.txt
+```
+
+VFS／FD管理（`vfs_open`，`vfs_rw`，`vfs_fixed_path_id`，`vfs_directory_id`，`free_fd`，`fd_set`，`fd_release`，`fd_copy`，`in_task_range`），RAMファイル（`tmp_open`，`tmp_rw`，`tmp_unlink`，`tmp_init`，`tmp_name`，`tmp_lookup`），デバイス（`device_rw_tty`，`tty_rx_read`，`tty_rx_ready`，`tty_dequeue`，`device_rw_rand`，`rand32`，`device_rw_proc`，`proc_device`，`device_ioctl`，`device_ioctl_tty`），その他（`vfs_getdents`，`pipe_transfer`）を計測対象にしています．これらの関数が**SVC例外中に実行されたとき**に限って記録します．したがって，割込みやスケジューラを含む全カーネル関数の完全な呼び出し履歴ではありません．関数の最適化やインライン展開によって表示が変わる場合もあります．
+
+`trace kernel omikuji`では`/dev/rand`の`read`から`vfs_rw`→`device_rw_rand`→`rand32`まで，`trace kernel cat /tmp/test.txt`では`open`時のFD割当や`read`時のRAMファイル操作まで観察できます．ただし，最適化により一部の呼出しが表示されないことがあります．TTY出力の1文字ごとの下位関数は記録量を抑えるため対象外です．
+
+記録形式は従来どおり32バイトで，`value`は関数アドレス，`data[16]`は関数名です．`trace kernel`は対象コマンド終了時に関数トレースを解除します．通常の`trace run`は従来どおりです．
+
+**注意：** このモードでは`kernel/kernel.c`全体にコンパイラの関数計測フックが入るため，Flash使用量・スタック使用量・実行時間が増えます．フックは指定関数だけを保存しますが，その他の関数でも入口・出口フックが実行されます．リリース用の標準構成では`OFF`のままとしてください．16 KiBのリングバッファは既存イベントと共用で，記録が上書きされることがあります．Pico／Pico Wでの実機動作は別途確認が必要です．
+
+`trace kernel`は関数の入口を`関数名`，復帰を`関数名/`で表し，カーネル関数を呼び出しの深さに応じて2文字ずつ字下げします．システムコールを深さ0，直下のカーネル関数を深さ1として表示し，システムコール終了後に階層を初期化します．これは**表示上の階層**であり，カーネルスタックを解析するものではありません．`trace show`／`trace follow`ではPIDごとに深さを管理します．記録の上書きなどで対応するイベントが失われた場合，字下げは実際の呼び出し階層を完全には反映しません．
+
 ## 記録される内容
 
 | イベント | 意味 |
 |---|---|
 | `SWITCH` | タスク切り替え |
-| `ENTER` / `EXIT` | システムコールの入口・出口 |
+| `read` / `read/` など | システムコールの入口・出口（実際のコール名で表示） |
 | `TICKx1K` | 1ms周期のSysTickを1,000回数えるごとの記録 |
+| `vfs_rw` / `vfs_rw/` など | 対象カーネル関数への入退場（実験機能） |
 
-表示には時刻，PID，コマンド名，TTY（`console` / `ttyS1` / `-`），イベント，システムコール名，対象，戻り値，データの列があります．トレース表示コマンド自身のシステムコールと関連するタスク切り替えは記録対象から除外されます．
+表示には時刻，PID，コマンド名，TTY，Function，Arg，Ret，Infoの列があります．トレース表示コマンド自身のシステムコールと関連するタスク切り替えは記録対象から除外されます．
 
 ## 試してみよう：システムコールとタスク切り替え
 
@@ -56,7 +85,7 @@ trace run hello
 trace run ls
 ```
 
-各コマンドが終了すると，そのプロセスのイベントが表示されます．`ENTER`と`EXIT`を対にして，どのシステムコールが呼び出されたかを観察してください．`SWITCH`はタスク切り替えを表し，表示対象PIDは切り替え先です．
+各コマンドが終了すると，そのプロセスのイベントが表示されます．`関数名`と`関数名/`を対にして，どのシステムコールが呼び出されたかを観察してください．`SWITCH`はタスク切り替えを表し，表示対象PIDは切り替え先です．
 
 継続的な記録を調べる場合は，`trace on`で開始し，別のコマンドを動かしてから`trace show`で確認します．`trace show`は記録を停止します．長時間の実行では古いイベントがリングバッファから失われることがあります．
 
@@ -84,3 +113,19 @@ SysTickは1ms周期，通常のタイムスライスは10msです．sleepでの�
 ---
 
 **関連リンク：** [trace操作](TRACE.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TRACE.md) ｜ [内部構造](../reference/INTERNAL.md)
+
+表示列は `Time | PID | Command | TTY | Type | Function | Arg | Ret | Info` です．`Function`は関数入口の`name`と復帰の`name/`を表示します．`Arg`は従来の対象FD・パス・終了ステータスなどの記録済み情報であり，全引数を列挙するものではありません．`Ret`はシステムコール復帰時の記録値で，カーネル内部関数の戻り値は記録していません．`Info`は入出力プレビューや切替先などの補助情報です．取得されない項目は`--`と表示します．`Type`は`SYSCALL`，`KERNEL`，`SWITCH`，`TIMER`，`OTHER`を区別します．`exit`の`Ret`に表示される値は通常の関数戻り値ではなく，トレースレコードの終了処理結果です．
+
+### 表示する関数階層を制限する
+
+`trace kernel -d N command [args...]`で，カーネル関数の表示深さを`0`〜`8`で指定できます．システムコールは深さ0，その直下のカーネル関数は深さ1です．省略時は深さを制限しません．
+
+```text
+piconix# trace kernel -d 0 hello       # システムコールのみ
+piconix# trace kernel -d 1 hello       # 直下のカーネル関数まで
+piconix# trace kernel -d 2 hello       # 2段階まで
+piconix# trace kernel -d 8 omikuji     # 8段階まで
+```
+
+この指定は**表示時のフィルタ**であり，計測する関数や16 KiBのリングバッファ使用量は変わりません．深い関数のイベントを非表示にしても内部の深さは更新するため，表示対象に戻ったときの字下げは維持されます．`-d`は`trace kernel`のコマンド名より前に指定します．
+

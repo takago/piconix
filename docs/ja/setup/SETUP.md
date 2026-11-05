@@ -88,6 +88,20 @@ LC_ALL=C LANG=C \
 
 ビルド成果物は，Pico向けでは`build-pico/piconix.uf2`と`build-pico/piconix.elf`，Pico W向けでは`build-pico_w/piconix.uf2`と`build-pico_w/piconix.elf`です．
 
+### 実験的なカーネル関数トレース（通常はOFF）
+
+`trace run`によるシステムコールの記録は，通常ビルドで利用できます．内部のカーネル関数の呼び出し階層も調べる`trace kernel`は**実験的機能**で，ビルド時の既定値は**OFF**です．必要なときだけ明示的に有効化してください．
+
+```sh
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel \
+    -DPICONIX_KERNEL_FUNCTION_TRACE=ON
+```
+
+Pico Wの場合は`-DPICO_BOARD=pico_w`に変更します．ビルド・書き込み後は`trace kernel -d 2 hello`などで呼び出し階層を確認できます．通常の軽量な構成に戻す場合は，`-DPICONIX_KERNEL_FUNCTION_TRACE=OFF`を明示して再ビルドしてください．**CMakeキャッシュに以前のON設定が残ることがあるため，オプションの省略だけではOFFに戻らない場合があります．**
+
+ONでは`kernel/kernel.c`内の計測対象外の関数にも入口・出口フックが挿入され，Flash・スタック使用量および実行時間が増える可能性があります．詳細と制約は[トレースガイド](../guides/TRACE.md)を参照してください．
+
 ## 5．Pico／Pico Wへの書き込み
 
 1. BOOTSELボタンを押しながらPicoまたはPico WをUSB接続します．

@@ -88,6 +88,20 @@ Use `MinSizeRel` for the firmware (kernel normally optimized with `-Os`). All us
 
 Outputs are `build-pico/piconix.uf2` and `build-pico/piconix.elf` for Pico, or `build-pico_w/piconix.uf2` and `build-pico_w/piconix.elf` for Pico W.
 
+### Experimental kernel function tracing (OFF by default)
+
+Syscall tracing with `trace run` works in the normal build. The `trace kernel` command can additionally show nested internal kernel function calls, but it is **experimental** and **OFF by default at build time**. Enable it only when needed:
+
+```sh
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel \
+    -DPICONIX_KERNEL_FUNCTION_TRACE=ON
+```
+
+Use `-DPICO_BOARD=pico_w` for Pico W. After building and flashing, try `trace kernel -d 2 hello`. To return to the lightweight default configuration, rebuild with `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF` explicitly. **CMake may retain a previous ON setting in its cache; omitting the option does not necessarily turn it off.**
+
+When enabled, function entry/exit hooks are inserted even into functions in `kernel/kernel.c` that are not recorded. Flash usage, stack usage, and execution time may increase. See the [trace guide](../guides/TRACE.md) for details and limitations.
+
 ## 5. Flash the Pico or Pico W
 
 1. Hold BOOTSEL while connecting the Pico or Pico W over USB.
