@@ -25,7 +25,10 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Device files** — Access GPIO, ADC, PWM, I²C1, UART, and an LED-matrix framebuffer through file-like interfaces. Supported devices can also be controlled remotely over UDP.
 - **System call interface** — A compact SVC-based ABI exposes process control, file and device I/O, pipes, and TCP/UDP networking. See the [system call reference](docs/en/reference/SYSCALLS.md) ([日本語](docs/ja/reference/SYSCALLS.md)).
 - **Programming on the device** — Editors (`edit`, `vi`), an interactive file manager (`fd`), a binary-copy utility (`dd`), an assembler (`as`), and a small Python-like interpreter (`python`).
-- **Inspect the OS** — `mem`, `trace`, and `lsof` provide memory inspection, system-call and context-switch tracing, and open-descriptor reporting, including socket ports.
+- **Inspect memory live (`mem`)** — Explore RAM contents and task memory while PicoNIX is running. See the [memory inspection guide](docs/en/guides/MEM.md) ([日本語](docs/ja/guides/MEM.md)).
+- **Follow system activity (`trace`)** — Observe system calls, return values, I/O previews, and task switches to understand how user programs interact with the kernel. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)).
+- **Inspect open descriptors (`lsof`)** — See which files, devices, and sockets are held open by processes, including socket-port information.
+- **Inspect network packets (`tcpdump`, Pico W)** — Capture and examine network traffic directly on the device, alongside `ip`, `ping`, and the user-space networking tools. See the [tcpdump reference](docs/en/reference/network/TCPDUMP.md) ([日本語](docs/ja/reference/network/TCPDUMP.md)).
 - **Experimental kernel function tracing (opt-in)** — Enable `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` at build time to inspect selected kernel function entry/return events and call nesting with `trace kernel -d 2 hello`. Disabled by default to avoid instrumentation overhead. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) and [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)).
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
@@ -45,6 +48,67 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Help | `help` |
 
 Shell features include redirection (`<`, `>`) and pipelines (`|`); these are shell operators rather than separate commands. On Pico W, network applications use the user-space socket API. See the [programming guide](docs/en/development/apps/c/PROGRAMMING.md) and [日本語の開発ガイド](docs/ja/development/apps/c/PROGRAMMING.md) for more details.
+
+## Explore the running OS
+
+PicoNIX is designed not only to run programs but also to let you inspect what happens inside the OS. Try these commands on the device:
+
+```sh
+mem                # Inspect RAM and task memory
+lsof               # List open file descriptors
+trace run hello    # Observe the system calls made by hello
+```
+
+### Trace system calls
+
+`trace run` is available in normal builds. The following excerpt is from an actual PicoNIX run:
+
+```text
+piconix# trace run hello
+Hello, PicoNIX!
+
+--- trace: hello (PID 14) ---
+Type     Function    Arg              Ret Info
+----------------------------------------------------
+SYSCALL  write       1:/dev/console   --  --
+SYSCALL  write/      1:/dev/console   16  "Hello, P"...
+SYSCALL  exit        0                --  --
+SYSCALL  exit/       0                0   --
+--- end of trace ---
+```
+
+The trace shows the `write` system call, its return value and an output preview, followed by process exit. Time, PID, Command, and TTY columns are omitted from this excerpt to keep it readable.
+
+### Trace kernel function calls (experimental)
+
+Build with `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` to enable `trace kernel`. It is **OFF by default** because function instrumentation can add runtime overhead. The same `hello` program then reveals the nested calls inside `write`:
+
+```text
+piconix# trace kernel hello
+Hello, PicoNIX!
+
+--- trace: hello (PID 16) ---
+Type     Function             Arg              Ret Info
+-----------------------------------------------------------
+SYSCALL  write                1:/dev/console   --  --
+KERNEL     vfs_rw             --               --  --
+KERNEL       in_task_range    --               --  --
+KERNEL       in_task_range/   --               --  --
+KERNEL       proc_device      --               --  --
+KERNEL       proc_device/     --               --  --
+KERNEL       device_rw_tty    --               --  --
+KERNEL       device_rw_tty/   --               --  --
+KERNEL     vfs_rw/            --               --  --
+KERNEL     in_task_range      --               --  --
+KERNEL     in_task_range/     --               --  --
+SYSCALL  write/               1:/dev/console   16  "Hello, P"...
+... process-exit events omitted ...
+--- end of trace ---
+```
+
+These excerpts reproduce observed call names, order, and return values, but omit the repeated time/process columns and, in the kernel example, repetitive `fd_release` events on exit. A trailing `/` indicates a function return; indentation indicates call nesting. `--` means that an argument, return value, or supplemental information is not recorded or is not applicable. For `trace kernel -d 2 hello`, `-d 2` limits **displayed** call depth; it does not reduce event recording.
+
+See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) for details, and the [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)) to enable experimental kernel tracing. On **Pico W**, `tcpdump` can also inspect network traffic; run `help tcpdump` for supported options.
 
 ## Network demo
 
