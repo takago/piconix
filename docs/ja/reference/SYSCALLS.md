@@ -53,7 +53,6 @@
 | 37 | `SYS_DUP` | `dup(oldfd)` | `oldfd` | 新FD / 負のエラー | 空き番号にFDを複製 |
 | 38 | `SYS_PROGRAM_ID` | `program_id(name)` | `name` | ID / 負のエラー | 登録プログラム名をIDに変換 |
 | 39 | `SYS_SHUTDOWN_TCP` | `shutdown(fd, SHUT_WR)` | `fd` | 0 / 負のエラー | TCP送信側だけを終了する |
-
 | 40 | `SYS_SELECT` | `select(nfds, readfds, writefds, NULL, timeout)` | `nfds`, `piconix_select_request_t *`, — | 準備済FD数 / 負のエラー | 最大16FDの読み書き準備を待機 |
 
 ## 引数の意味と重要な制約
