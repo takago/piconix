@@ -13,6 +13,8 @@ These contain detailed implementation instructions and API information. Follow t
 ## Python and assembly
 
 - [PicoNIX Tiny Python — User Guide](apps/python/PYTHON.md)
+- [Device Programming with Tiny Python](apps/python/DEVICE-PROGRAMMING.md)
+- [TCP/UDP Socket Programming with Tiny Python (Pico W)](apps/python/SOCKET-PROGRAMMING.md)
 - [PicoNIX Tiny Thumb Assembler](apps/asm/ASM.md)
 
 ## Reading and extending the kernel

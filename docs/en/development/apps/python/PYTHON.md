@@ -11,6 +11,8 @@ Start with interactive calculations and printing, then save and run a short scri
 
 PicoNIX provides a small Python-like interpreter, not CPython or MicroPython. This guide describes the current `userland/apps/python.c`, including I²C, sequences, and generic file I/O; full Python compatibility is not intended.
 
+**Hands-on guides:** [Device files, GPIO, ADC, PWM, LED and I²C](DEVICE-PROGRAMMING.md) / [TCP/UDP sockets (Pico W)](SOCKET-PROGRAMMING.md). This page covers the syntax and API overview; the linked guides contain step-by-step exercises.
+
 ## First steps
 
 Start the interactive interpreter with `python` and try `print(1 << 3)` or `print("hello", 123)`. For a script, create `/tmp/test.py` using `edit` and run `python /tmp/test.py`. There is **no `python3` command**. The preinstalled `/tmp/test.py` reads the RP2040 on-chip temperature sensor at `/dev/adc/temp` five times at one-second intervals, without networking. Since `read()` returns a byte sequence, it displays each reading with `write(1, temp)` and reopens the device for a fresh measurement.

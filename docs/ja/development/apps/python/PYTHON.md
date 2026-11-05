@@ -11,6 +11,8 @@
 
 PicoNIXの小型Python風インタプリタです．CPythonやMicroPythonとは異なり，標準Pythonとの完全な互換性はありません．本書は現在の`userland/apps/python.c`を基準とした利用ガイドです．
 
+**実習ガイド：** [デバイスファイル・GPIO・ADC・PWM・LED・I²C](DEVICE-PROGRAMMING.md) ／ [TCP/UDPソケット（Pico W）](SOCKET-PROGRAMMING.md)．このページは構文とAPIの概要を説明し，実習手順はリンク先にまとめています．
+
 ## 初めて使う場合
 
 まず`python`で対話入力を始め，`print(1 << 3)`や`print("hello", 123)`を試します．スクリプトを書く場合は`edit /tmp/test.py`などでファイルを作り，`python /tmp/test.py`で実行します．**`python3`コマンドはありません**．

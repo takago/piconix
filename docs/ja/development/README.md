@@ -13,6 +13,8 @@
 ## Pythonとアセンブラ
 
 - [PicoNIX Tiny Python — 利用ガイド](apps/python/PYTHON.md)
+- [Tiny Pythonによるデバイスプログラミング](apps/python/DEVICE-PROGRAMMING.md)
+- [Tiny PythonによるTCP/UDPソケットプログラミング（Pico W）](apps/python/SOCKET-PROGRAMMING.md)
 - [PicoNIX 簡易Thumbアセンブラ](apps/asm/ASM.md)
 
 ## カーネルの読解と拡張
