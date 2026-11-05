@@ -53,7 +53,6 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 | 37 | `SYS_DUP` | `dup(oldfd)` | `oldfd` | new FD / negative error | Duplicate FD to free slot |
 | 38 | `SYS_PROGRAM_ID` | `program_id(name)` | `name` | ID / negative error | Resolve program name to ID |
 | 39 | `SYS_SHUTDOWN_TCP` | `shutdown(fd, SHUT_WR)` | `fd` | 0 / negative error | Half-close TCP sending side |
-
 | 40 | `SYS_SELECT` | `select(nfds, readfds, writefds, NULL, timeout)` | `nfds`, `piconix_select_request_t *`, — | ready FD count / negative error | Wait for readiness among up to 16 FDs |
 
 ## Parameter meanings and important limitations
