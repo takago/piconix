@@ -8,7 +8,7 @@ The design principles and specifications of PicoNIX are determined by its creato
 
 PicoNIX grew into a small UNIX-like operating system for Raspberry Pi Pico (RP2040), intended to make operating-system mechanisms observable and understandable. This diary records **the development process through conversations between the developer and ChatGPT**: design choices, experiments, failures, revisions, and lessons learned. It is not a substitute for the current technical documentation.
 
-The primary period is **October 24 through November 4, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
+The primary period is **October 24 through November 5, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
 
 ## October 24–25: Starting from a small operating system
 
@@ -321,11 +321,33 @@ The added comments made some function boundaries harder to see, so spacing was s
 
 The work was intended to leave **program behavior, APIs, and memory layout unchanged**. Checks compared non-comment C content, Python syntax trees, and generated index output, and **all 86 existing regression tests passed**. However, **a full ARM firmware rebuild and on-device verification were not performed**. Comments and generated navigation aid code review and teaching; they are not substitutes for verifying the implementation itself.
 
+## November 5: Experimental kernel-function tracing and readable call nesting
+
+The existing `trace run hello` exposed system-call entries and exits, but not **which kernel functions were called between them**, such as `vfs_rw()` and `device_rw_tty()`. To make this path observable for teaching, an experimental `trace kernel command [args...]` mode was added. It supplements, rather than replaces, the existing system-call tracing in `trace run`.
+
+`CMakeLists.txt` now defines `PICONIX_KERNEL_FUNCTION_TRACE`, **disabled by default**. When enabled, `-finstrument-functions` is applied primarily to `kernel/kernel.c`, and `__cyg_profile_func_enter()` / `__cyg_profile_func_exit()` provide function-entry and -exit hooks. Only selected functions relating to VFS, file descriptors, RAM files, TTY, devices, and pipes are recorded, and **only while executing an SVC handler**. It is not a complete trace of all kernel calls, interrupts, or scheduling. The feature shares the existing 16 KiB trace ring without enlarging the event record.
+
+The trace display in `userland/apps/trace.c` was refined through several iterations. The `Type` column distinguishes `SYSCALL`, `KERNEL`, and other event categories; the `Function` column renders an entry as `vfs_rw` and its exit as `vfs_rw/`. Kernel calls are indented by two spaces per level under their system call, helping students follow the call hierarchy. `Arg`, `Ret`, and `Info` were clarified, with `--` for values **not actually recorded**, rather than invented kernel-function arguments or return values. `trace kernel -d 0..8 command` limits **display depth only**; it does not reduce instrumentation or ring-buffer usage. Compiler optimization and overwritten records can make the displayed hierarchy incomplete.
+
+Examples include `trace kernel cat /tmp/test.txt`, connecting `open` and `read` to VFS and RAM-file operations, and `trace kernel omikuji`, following `/dev/rand` reads through `vfs_rw`, `device_rw_rand`, and `rand32`. Relevant sources include the hooks and recording logic in `kernel/kernel.c`, command execution and presentation in `userland/apps/trace.c`, and the event declarations in `include/piconix_trace.h`. Usage and limitations are described in the [tracing guide](en/guides/TRACE.md).
+
+Because compiler instrumentation affects even functions that are not ultimately recorded, enabling the feature increases Flash use, execution overhead, and stack use. The ordinary build therefore retains `OFF`; teaching or debugging builds can explicitly enable `-DPICONIX_KERNEL_FUNCTION_TRACE=ON`. The conversation included revisions and tests of output formatting and depth filtering, but **this diary does not claim exhaustive on-device verification across boards and code paths**. The displayed call hierarchy is generated from events; it is not a dump of raw MSP stack frames.
+
+## November 5: Documenting CPU modes, stacks, and task switching
+
+A discussion between the developer and ChatGPT examined the Cortex-M0+ **Thread and Handler modes**, **PSP and MSP**, and **SVC and PendSV** to make PicoNIX's kernel design easier to understand. Thread versus Handler describes normal execution versus exception handling, not simply privilege level. PicoNIX user tasks execute in privileged Thread mode with task-specific PSP stacks; SVC, PendSV, and SysTick handlers execute using the shared MSP. PSP and MSP are CPU stack-pointer registers, not memory regions themselves.
+
+The task-switching path was mapped to `isr_pendsv` in `kernel/context.S` and `os_schedule()` in `kernel/kernel.c`, connecting automatic exception-frame stacking with software preservation of remaining registers, saved PSP values, `pend()` requests, and `isr_systick()` timekeeping. **SVC is the system-call entry mechanism; PendSV is the exception used for scheduling.** Requesting PendSV does not guarantee switching to a different task. Handler mode also does not universally disable interrupts: exception priorities govern nesting.
+
+A central question was **how blocking I/O works without a separate kernel stack per process**. For TTY input, `device_rw_tty()` records the wait buffer and conditions in task state, blocks the task, and lets the kernel call return without retaining its call frames. When input arrives, `wake_readers()` and `task_unblock()` deliver data and update the return value in the saved SVC exception frame. `wait_frame_ready` helps prevent wake-up processing before the saved frame is ready. This does **not** establish that every device operation is asynchronous or free of short polling waits.
+
+The discussion contrasted this approach with Research UNIX V5/V6 and Linux, where a process may sleep within a kernel function and later resume the same kernel call chain using its own kernel stack. **The need for per-process kernel stacks is not solely about kernel preemption; it also depends on whether blocked kernel execution must be preserved.** The explanation and source-reading exercises were added to the Japanese and English [kernel reading guides](en/development/kernel/KERNEL-READING-GUIDE.md). This was a documentation update only; it did not modify the kernel or include new on-device verification.
+
 ## Historical accuracy and references
 
 This is a narrative reconstruction from conversations, not an exhaustive Git audit. A code change proposed or produced by ChatGPT is not, by itself, evidence of a successful hardware test. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.
 
-For the current behavior and usage, consult [Internal architecture](en/reference/INTERNAL.md), [Networking](en/reference/network/NETWORK.md), [TTY](en/guides/TTY.md), [Pipes](en/guides/PIPE.md), [Tracing](en/guides/TRACE.md), and [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md).
+For the current behavior and usage, consult [Internal architecture](en/reference/INTERNAL.md), [Networking](en/reference/network/NETWORK.md), [TTY](en/guides/TTY.md), [Pipes](en/guides/PIPE.md), [Tracing](en/guides/TRACE.md), and [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md), and the [Kernel reading guide](en/development/kernel/KERNEL-READING-GUIDE.md).
 
 ---
 
