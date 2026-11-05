@@ -1,5 +1,8 @@
 # PicoNIX Tiny Python — User Guide
 
+**I/O convention (2026-11-05):** `open()`, `socket()` and `accept()` return an FD or `-1`. `read()`, `recv()`, `recvfrom()`, `i2c_read()` and `i2c_xfer()` return byte arrays on success or integer `-1` on failure. Failed `write()`, `send()`, `sendto()`, `i2c_write()`, `close()`, `ioctl()`, `connect()`, `bind()`, `listen()` and `lseek()` return `-1`. Nonblocking `EAGAIN` is `-1`, whereas TCP EOF or a successful zero-byte result is `[]`. Check `data == -1` before calling `len(data)`. Successful `status()` values are preserved.
+
+
 *Development guide*
 
 ## Before you start
@@ -62,12 +65,12 @@ This is bounded string support in a tiny interpreter, not full Python string sem
 | Function | Behavior |
 |---|---|
 | `open("/path", flags)` | Returns an integer FD. Flags: 0=read, 1=write, 2=read/write in this environment |
-| `read(fd, n)` | Reads up to 64 bytes into an immutable byte sequence; use in assignment |
+| `read(fd, n)` | Returns up to 64 bytes as an immutable sequence, or `-1` on failure; use in assignment |
 | `write(fd, data)` | Writes a string literal or sequence variable; returns bytes written |
 | `close(fd)` | Closes an FD |
 | `ioctl(fd, cmd, arg)` | Integer-argument ioctl; cannot directly construct pointer-based structures |
 
-Paths in `open()` and strings in `write()` must be literals. Use `data = read(fd, 8)` for reads. Syntax and runtime failures share an error message such as `python: syntax/runtime error at statement N`. `N` is a statement index, not a physical source line number; blank lines and comments are omitted and continued lines are merged.
+Paths in `open()` and strings in `write()` must be literals. Use `data = read(fd, 8)` for reads. Operation failures return `-1`; syntax and invalid arguments share an error message such as `python: syntax/runtime error at statement N`. `N` is a statement index, not a physical source line number; blank lines and comments are omitted and continued lines are merged.
 
 ### Before drawing with Python
 
@@ -102,25 +105,29 @@ Frequency is 8–100000 Hz and duty is an integer percentage 0–100, both as te
 
 ## I²C1
 
-Use `i2c_write(addr, sequence)`, `data = i2c_read(addr, count)`, or `data = i2c_xfer(addr, sequence, count)`. Valid addresses are 0x08–0x77, and each phase is limited to 32 bytes. `i2c_xfer()` uses repeated START. Inline payloads such as `i2c_write(0x23, bytes([0x10]))` are supported. Use these helpers for the pointer-based transfer request.
+Use `i2c_write(fd, addr, sequence)`, `data = i2c_read(fd, addr, count)`, or `data = i2c_xfer(fd, addr, sequence, count)`. Valid addresses are 0x08–0x77, and each phase is limited to 32 bytes. `i2c_xfer()` uses repeated START. `i2c_write()` returns the number of bytes written, or `-1` on transfer failure. `i2c_read()` and `i2c_xfer()` return a byte list, or the integer `-1` on failure. Use `if data != -1:` to test the result. `open()` also returns `-1` if opening fails. `read()`, `recv()`, and `recvfrom()` return a byte sequence on success or `-1` on operation failure. An empty sequence represents a zero-length result. `EAGAIN` also becomes `-1`, so pending data cannot be distinguished from other failures. Invalid syntax or arguments still cause an error. Inline payloads such as `i2c_write(i2c, 0x23, bytes([0x10]))` are supported. Use these helpers for the pointer-based transfer request. Open the bus once with `fd = open("/dev/i2c/1", 2)`, reuse that FD for transfers, and `close(fd)` when finished. The FD argument is required; the previous two-argument `i2c_write()` form is no longer supported.
 
 ### BH1750 (address 0x23)
 
 ```python
+i2c = open("/dev/i2c/1", 2)
 power = bytes([0x01])
-i2c_write(0x23, power)
+i2c_write(i2c, 0x23, power)
 msleep(100)
 mode = bytes([0x10])
-i2c_write(0x23, mode)
+i2c_write(i2c, 0x23, mode)
 msleep(200)
 for i in range(10):
-    data = i2c_read(0x23, 2)
+    data = i2c_read(i2c, 0x23, 2)
+    if data == -1:
+        break
     raw = data[0] * 256 + data[1]
     lux1000 = raw * 1000 * 5 / 6
     print(lux1000)
     msleep(200)
 off = bytes([0x00])
-i2c_write(0x23, off)
+i2c_write(i2c, 0x23, off)
+close(i2c)
 ```
 
 Output is **lux multiplied by 1000** (for example, 125833 means about 125.833 lx). Beware of 32-bit integer overflow.
@@ -149,42 +156,62 @@ An empty input line produces an empty string. The existing 16-variable limit rem
 
 ## Example: light-controlled LED wave
 
-A BH1750 illuminance sensor controls the speed of a wave on the 8×8 LED matrix: brighter light makes the wave move faster and darkness slows it down. This example combines I²C input, integer and bitwise operations, and framebuffer output. **Tested on hardware.**
+A BH1750 illuminance sensor controls the speed of a wave on the 8×8 LED matrix: brighter light makes the wave move faster and darkness slows it down. This example combines I²C input, integer and bitwise operations, and framebuffer output. The previous sensor-driven version was tested on hardware; this fallback variant has not yet been tested on a device.
 
 Connect the BH1750 to 3.3 V and GND, SDA to GP26, and SCL to GP27. Connect ADDR to GND to select I²C address `0x23`. See [hardware wiring](../../../reference/hardware/WIRING.md) for electrical connections and the [I²C guide](../../../reference/devices/I2C.md) for the bus interface.
 
-The sample source is [`userland/examples/python/wave.py`](../../../../../userland/examples/python/wave.py). The preinstalled copy is `userland/fs/tmp_common/bh1750_fbwave.py`, exposed as `/tmp/bh1750_fbwave.py` at boot. Run `python /tmp/bh1750_fbwave.py`.
+The sample source is [`userland/examples/python/fbwave.py`](../../../../../userland/examples/python/fbwave.py). The preinstalled copy is `userland/fs/tmp_common/fbwave.py`, exposed as `/tmp/fbwave.py` at boot. Run `python /tmp/fbwave.py`.
 
 ```python
-# PicoNIX: light-controlled wave
+# PicoNIX: light-controlled wave (fixed speed without BH1750)
 wave = [3,4,5,6,5,4,3,2]
 fb = [0,0,0,0,0,0,0,0]
 fd = open("/dev/gpio/fb", 2)
-ioctl(fd, FB_ENABLE, 0)
-i2c_write(0x23, bytes([1]))
-msleep(100)
-i2c_write(0x23, bytes([0x10]))
-msleep(200)
+if fd >= 0:
+    ioctl(fd, FB_ENABLE, 0)
+i2c = open("/dev/i2c/1", 2)
+ready = 0
+if i2c >= 0:
+    ready = i2c_write(i2c, 0x23, bytes([1]))
+    if ready >= 0:
+        ready = 1
+    if ready > 0:
+        msleep(100)
+        ready = i2c_write(i2c, 0x23, bytes([0x10]))
+        if ready >= 0:
+            ready = 1
+        if ready > 0:
+            msleep(200)
 
 phase = 0
 for n in range(10000):
-    data = i2c_read(0x23, 2)
-    lux = (data[0]*256+data[1])*5/6
-    delay = 350 - lux/3
-    if delay < 35:
-        delay = 35
+    delay = 150
+    if ready > 0:
+        data = i2c_read(i2c, 0x23, 2)
+        if data != -1:
+            lux = (data[0]*256+data[1])*5/6
+            delay = 350 - lux/3
+            if delay < 35:
+                delay = 35
+        else:
+            ready = 0
     for y in range(8):
         x = wave[(y+phase)%8]
         fb[y] = 1 << (7-x)
-    write(fd, fb)
+    if fd >= 0:
+        write(fd, fb)
     phase = (phase+1)%8
     msleep(delay)
 
-i2c_write(0x23, bytes([0]))
-close(fd)
+if i2c >= 0:
+    if ready > 0:
+        off = i2c_write(i2c, 0x23, bytes([0]))
+    close(i2c)
+if fd >= 0:
+    close(fd)
 ```
 
-The `wave` array specifies the lit column in each row, and `phase` advances the pattern. The delay is computed as `350 - lux/3` milliseconds, clamped to a minimum of 35 ms. After about 10,000 frames, the script powers down the BH1750 and exits. Division in PicoNIX Tiny Python is integer division. This requires an external sensor and does not show numeric lux values on the display.
+The `wave` array specifies the lit column in each row, and `phase` advances the pattern. The delay is computed as `350 - lux/3` milliseconds, clamped to a minimum of 35 ms. If the I²C device cannot be opened, initialization writes fail, or a sensor read fails, the wave continues at a fixed 150 ms per frame. After a read failure, it does not retry sensor access. After about 10,000 frames, the script powers down the BH1750 if available and exits. Division in PicoNIX Tiny Python is integer division. The wave also runs without a sensor, at fixed speed, and does not show numeric lux values on the display.
 
 
 ## Socket communication (Pico W)
@@ -198,9 +225,9 @@ This is a PicoNIX-specific integer-FD API, not CPython's `import socket`. It use
 | `listen(fd, port)`, `accept(fd)` | TCP listener / accept (-11 when no client) |
 | `bind(fd, port)` | Bind UDP receive port |
 | `send(fd, data)`, `write(fd, data)` | TCP send; may be partial |
-| `data = recv(fd, n)` | TCP receive, up to 64 bytes; pending and EOF both return empty sequences |
+| `data = recv(fd, n)` | TCP receive, up to 64 bytes; pending/errors return `-1`; EOF returns `[]` |
 | `sendto(fd, data, "192.168.4.2", port)` | UDP send |
-| `data = recvfrom(fd, n)` | UDP receive, up to 64 bytes; empty sequence if pending |
+| `data = recvfrom(fd, n)` | UDP receive, up to 64 bytes; `-1` if pending/error |
 | `peerport()` | Source port of the most recent `recvfrom()` |
 | `sendto(fd, data, "peer", 0)` | Reply to the most recent UDP sender (`peer` / 0 are special syntax) |
 

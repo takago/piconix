@@ -29,14 +29,14 @@ assert 'trace_record(TRACE_SVC_EXIT' in source
 assert 'trace_serial++' in source
 assert 'TRACE_STATUS' in source and 'TRACE_LOST' in source
 trace_app=(ROOT/'userland/apps/trace.c').read_text()
-assert 'trace on|off|show [PID]|follow [PID]' in trace_app
+assert 'trace on [-a]|off|show [PID]|follow [PID]' in trace_app
 assert 'TICKx1K' in trace_app
 assert 'is_tmp ? spawn_tmp(image) : spawn(' in trace_app
 assert 'getcwd(cwd,sizeof cwd)' in trace_app
 assert '#include "../../include/piconix_syscall.h"' in trace_app
 assert 'PICONIX_SYSCALL_TABLE(PICONIX_TRACE_SYSCALL_CASE)' in trace_app
 assert 'console' in trace_app and 'ttyS1' in trace_app and 'ttyN0' in trace_app
-assert 'print_event(&event)' in trace_app
+assert 'display_event(&event,filter_pid)' in trace_app
 assert 'register_image(7,' in (ROOT/'kernel/main.c').read_text()
 # Trace is launched via the shared /bin lookup and bounded argv SVC.
 assert 'run_external(s,cwd,requested_bg' in (ROOT/'userland/apps/shell.c').read_text()

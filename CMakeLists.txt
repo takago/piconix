@@ -214,9 +214,12 @@ add_executable(piconix kernel/net.c kernel/net_capture.c kernel/net_service_teln
                    ${PICONIX_EMBED_SOURCES})
 set_source_files_properties(kernel/kernel.c PROPERTIES OBJECT_DEPENDS "${PICONIX_INITIAL_FS_HEADER}")
 # 実験的なカーネル内部関数トレース．通常ビルドでは計測コードを入れない．
-option(PICONIX_KERNEL_FUNCTION_TRACE "Instrument selected kernel calls for trace kernel" OFF)
+option(PICONIX_KERNEL_FUNCTION_TRACE "Instrument selected kernel functions for trace" OFF)
 if(PICONIX_KERNEL_FUNCTION_TRACE)
-  set_property(SOURCE kernel/kernel.c APPEND PROPERTY COMPILE_OPTIONS -finstrument-functions)
+  set_property(SOURCE
+    kernel/kernel.c kernel/adc.c kernel/i2c.c kernel/pwm.c
+    kernel/gpio.c kernel/fb.c kernel/net_socket.c kernel/net_capture.c
+    APPEND PROPERTY COMPILE_OPTIONS -finstrument-functions)
   target_compile_definitions(piconix PRIVATE PICONIX_KERNEL_FUNCTION_TRACE=1)
 else()
   target_compile_definitions(piconix PRIVATE PICONIX_KERNEL_FUNCTION_TRACE=0)

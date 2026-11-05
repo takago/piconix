@@ -21,7 +21,7 @@ On PicoNIX, run `ip addr` and `net` to confirm its IP state. On the **PC**, run 
 | `socket(AF_INET, ..., 0)` | `SOCK_STREAM` | `SOCK_DGRAM` | Numeric IPv4 only |
 | `bind()` | Starts listening | Sets UDP local port | Only `INADDR_ANY` |
 | `listen()` | Compatibility check | — | Does not actually start listening |
-| `accept(fd,NULL,NULL)` | Accepts | — | `OS_EAGAIN` if no client |
+| `accept(fd,NULL,NULL)` | Accepts | — | Blocks by default; `OS_EAGAIN` with `O_NONBLOCK` |
 | `connect()` | Begins asynchronous connection | — | Check `tcp_status()` |
 | `send()` / `recv()` | Byte stream | — | Partial transfers and `OS_EAGAIN` |
 | `sendto()` / `recvfrom()` | — | Datagrams | `flags` must be 0 |
@@ -31,10 +31,10 @@ The implementation is **not** a full BSD/POSIX stack. Errors are returned as neg
 
 ## Socket polling, errors, and resource lifetime
 
-- User TCP/UDP sockets are **polled regardless of `O_NONBLOCK`**. Although `fcntl(F_SETFL)` accepts the flag, socket `read()`/`write()` never wait inside the kernel for a connection, receive data, or available transmit capacity. An unavailable operation returns `OS_EAGAIN`; retry after a short `msleep()`. This differs from blocking TTY and pipe operations.
-- `connect()` returning 0 means that asynchronous connection setup started, not that the connection is established. Use `tcp_status()` (1 connected, 0 pending, -2 peer closed after buffered data drains, -1 fault). `accept()` returns `OS_EAGAIN` instead of waiting; `read()`/`write()` on a listening TCP FD return `OS_EBADF`.
+- **`accept()`, TCP `recv()`/`read()`, and UDP `recvfrom()` block by default**. If no connection or data is available, the task enters `BLOCKED` until the kernel scheduler detects readiness. Set `fcntl(fd,F_SETFL,O_NONBLOCK)` to return `OS_EAGAIN` instead. Sending and `connect()` retain their previous asynchronous behavior.
+- `connect()` returning 0 means that asynchronous connection setup started, not that the connection is established. Use `tcp_status()` (1 connected, 0 pending, -2 peer closed after buffered data drains, -1 fault). `accept()` waits by default and returns `OS_EAGAIN` only with `O_NONBLOCK`; `read()`/`write()` on a listening TCP FD return `OS_EBADF`.
 - TCP `send()` may accept fewer bytes than requested, limited by `TCP_MSS` and the transmit queue; `recv()` returns only currently buffered bytes. After a normal peer close and drain, `recv()` returns 0 (EOF). Sending after `shutdown(SHUT_WR)` returns `OS_EIO`.
-- UDP supports one user socket globally and stores at most one incoming datagram. An undersized receive buffer produces `OS_EINVAL` **without consuming** the datagram. A valid zero-length datagram returns 0, distinct from `OS_EAGAIN` for no datagram. Sending before `bind()` assigns an ephemeral local port; a later `bind()` fails. Bind first if a fixed receive port is required.
+- UDP supports one user socket globally and stores at most one incoming datagram. An undersized receive buffer produces `OS_EINVAL` **without consuming** the datagram. A valid zero-length datagram returns 0, distinct from `OS_EAGAIN` when `O_NONBLOCK` is used. Sending before `bind()` assigns an ephemeral local port; a later `bind()` fails. Bind first if a fixed receive port is required.
 - Socket descriptors cannot be passed to `dup()`/`dup2()`. `close()` releases their resources and task termination also reclaims owned sockets. A TCP listening FD and its accepted FD share one management slot, so serve connections sequentially.
 
 ## 3. Install and register both programs
@@ -175,7 +175,7 @@ piconix# udp_once 192.168.4.2 12345
 received 18 bytes: hello from PicoNIX
 ```
 
-This output is illustrative, **not a hardware test transcript**. `sendto()` returns the number of bytes sent; `recvfrom()` returns the number of bytes received. `OS_EAGAIN` means no datagram is ready, so the program sleeps briefly and retries. Stop the PC server and retry: a UDP send can succeed even with **no echo reply**. Use `lsof` to inspect descriptors or `tcpdump` to observe packets.
+This output is illustrative, **not a hardware test transcript**. `sendto()` returns the number of bytes sent; `recvfrom()` returns the number of bytes received. For the timed polling example, set the socket FD to `O_NONBLOCK` first. `OS_EAGAIN` then means no datagram is ready; the program sleeps briefly and retries. Stop the PC server and retry: a UDP send can succeed even with **no echo reply**. Use `lsof` to inspect descriptors or `tcpdump` to observe packets.
 
 ## 5. TCP HTTP client
 
@@ -298,3 +298,18 @@ The response is illustrative. Note that `connect()` initiating a TCP connection 
 ---
 
 [Development index](../../README.md) | [Network reference](../../../reference/network/README.md) | [日本語](../../../../ja/development/apps/c/NETWORK-PROGRAMMING.md)
+
+## Reducing periodic polling with `select()`
+
+Use `select()` with `O_NONBLOCK` when multiplexing sockets and TTY input. Readiness is checked in the kernel and the task blocks until an FD becomes ready. `nc` uses it to wait for socket or standard input; `httpd` uses it for receive timeouts.
+
+```c
+fd_set rd = 0;
+FD_SET(0, &rd);
+FD_SET(fd, &rd);
+int rc = select(fd + 1, &rd, NULL, NULL, NULL);
+if (rc < 0) { /* error */ }
+if (rc > 0 && FD_ISSET(fd, &rd)) { /* recv() */ }
+```
+
+Supported FD types are TCP/UDP, TTY and pipes. Blocking `accept()` and `recv()` remain available for simple single-connection servers.

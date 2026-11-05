@@ -1,5 +1,6 @@
 /* Pico W: send one UDP datagram to an echo server on the PC and read the reply. */
 #include "unistd.h"
+#include "fcntl.h"
 #include "stdio.h"
 #include <stdint.h>
 
@@ -37,6 +38,8 @@ int main(int argc, char **argv) {
     }
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) { printf("socket: %d\n", fd); return 1; }
+    /* 受信期限を維持するため，ソケット受信は非ブロッキング． */
+    fcntl(fd, F_SETFL, O_NONBLOCK);
     struct sockaddr_in peer = {0};
     peer.sin_family = AF_INET;
     peer.sin_port = htons((uint16_t)port);

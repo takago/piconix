@@ -1,5 +1,6 @@
 /* Pico W: minimal TCP client for an HTTP server on the host PC. */
 #include "unistd.h"
+#include "fcntl.h"
 #include "stdio.h"
 #include <stdint.h>
 
@@ -59,6 +60,8 @@ int main(int argc, char **argv) {
         off += (unsigned)r;
     }
     shutdown(fd, SHUT_WR);
+    /* タイムアウト付きポーリング用．既定のrecv()はブロッキング． */
+    fcntl(fd, F_SETFL, O_NONBLOCK);
     char buf[128];
     int idle = 0;
     for (;;) {

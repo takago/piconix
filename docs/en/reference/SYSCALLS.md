@@ -54,6 +54,8 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 | 38 | `SYS_PROGRAM_ID` | `program_id(name)` | `name` | ID / negative error | Resolve program name to ID |
 | 39 | `SYS_SHUTDOWN_TCP` | `shutdown(fd, SHUT_WR)` | `fd` | 0 / negative error | Half-close TCP sending side |
 
+| 40 | `SYS_SELECT` | `select(nfds, readfds, writefds, NULL, timeout)` | `nfds`, `piconix_select_request_t *`, — | ready FD count / negative error | Wait for readiness among up to 16 FDs |
+
 ## Parameter meanings and important limitations
 
 - `read(fd, buf, count)` / `write(fd, buf, count)`: `fd` identifies a descriptor, `buf` a user buffer, and `count` a byte limit. Zero bytes read may indicate EOF. For TTYs, a nonblocking `read()` also returns 0 when input is not ready, in either canonical or noncanonical mode. TTY `write()` can be partial; a full USB CDC transmit queue can return 0, while Wi-Fi TTY can return `OS_EAGAIN` or `OS_EIO`. See the [TTY guide](../guides/TTY.md).
@@ -112,3 +114,19 @@ The `spawn_foreground()` and `spawn_tmp_foreground()` C wrappers are not extra s
 ---
 
 **Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/SYSCALLS.md)
+
+## I/O multiplexing with `select()`
+
+`select()` checks readiness for TCP/UDP sockets, TTYs and pipes in the kernel, blocking the task when necessary. A `NULL` timeout waits indefinitely and `{0,0}` polls immediately. FDs are limited to 0–15; `exceptfds` is unsupported. `fd_set` is a 16-bit mask. Existing blocking `accept()`, `recv()`, and `recvfrom()` remain available.
+
+```c
+fd_set rd;
+FD_ZERO(&rd);
+FD_SET(server, &rd);
+int n = select(server + 1, &rd, NULL, NULL, NULL);
+if (n > 0 && FD_ISSET(server, &rd)) {
+    int client = accept(server, NULL, NULL);
+}
+```
+
+TCP write readiness reflects available send-buffer space, not a guarantee that the full write succeeds. Always check the result of the subsequent I/O call. Monitoring unsupported FD types, such as regular RAM files, currently returns `OS_EINVAL`. Timeout accuracy depends on scheduler ticks.

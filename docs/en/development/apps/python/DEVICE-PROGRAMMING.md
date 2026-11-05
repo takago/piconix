@@ -90,17 +90,22 @@ Bit 1 means illuminated and 0 means off. The display remains enabled after `clos
 GP26 is SDA and GP27 is SCL. With ADDR connected to ground, a BH1750 normally uses address `0x23`. Check the wiring and run `i2cctl scan` before testing.
 
 ```python
-i2c_write(0x23, bytes([0x01]))
-msleep(100)
-i2c_write(0x23, bytes([0x10]))
-msleep(200)
-data = i2c_read(0x23, 2)
-raw = data[0] * 256 + data[1]
-print(raw * 5 / 6)
-i2c_write(0x23, bytes([0x00]))
+fd = open("/dev/i2c/1", 2)
+if fd >= 0:
+    ok = i2c_write(fd, 0x23, bytes([0x01]))
+    if ok >= 0:
+        msleep(100)
+        ok = i2c_write(fd, 0x23, bytes([0x10]))
+        if ok >= 0:
+            msleep(200)
+            data = i2c_read(fd, 0x23, 2)
+            if data != -1:
+                raw = data[0] * 256 + data[1]
+                print(raw * 5 / 6)
+    close(fd)
 ```
 
-This displays an integer approximation of illuminance in lux. Address range: `0x08`–`0x77`; maximum transfer size: 32 bytes per direction. Use `i2c_xfer(addr, sequence, count)` for combined writes and reads with repeated START. See the [I²C reference](../../../reference/devices/I2C.md).
+This displays an integer approximation of illuminance in lux. Address range: `0x08`–`0x77`; maximum transfer size: 32 bytes per direction. Use `i2c_xfer(fd, addr, sequence, count)` for combined writes and reads with repeated START. See the [I²C reference](../../../reference/devices/I2C.md).
 
 ## 6. Runtime cautions
 

@@ -32,6 +32,9 @@ static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     pbuf_free(p);
 }
 
+/* 受信済みデータグラムの有無を調べる（消費しない）． */
+int net_socket_udp_read_ready(void) { return rx_ready!=0; }
+
 /* UDP待受ポートをlwIPへ登録する．不正ポート・既存状態などの失敗時は負値を返す． */
 int net_socket_udp_bind(uint16_t port) {
     if (udp_socket || !port) return -1;
@@ -211,6 +214,21 @@ int net_socket_tcp_connect(int id,uint32_t ip,uint16_t port) {
     return 0;
 }
 
+/* selectは受付フラグを消さず，accept()に引き継ぐ． */
+int net_socket_tcp_accept_peek(int id) {
+    tcp_slot_t *s=slot_at(id);
+    return s && s->listener && s->pending_accept && s->client;
+}
+int net_socket_tcp_recv_ready(int id) {
+    tcp_slot_t *s=slot_at(id);
+    return s && (s->rx_len || s->peer_closed || s->fault);
+}
+int net_socket_tcp_write_ready(int id) {
+    tcp_slot_t *s=slot_at(id);
+    return s && s->client && s->established && !s->fault &&
+           !s->peer_closed && !s->write_shutdown && tcp_sndbuf(s->client)>0;
+}
+
 /* 待受スロットに受け取り可能な接続があるか確認する． */
 int net_socket_tcp_accept_ready(int id) {
     tcp_slot_t *s=slot_at(id);
@@ -341,6 +359,7 @@ uint16_t net_socket_local_port(int kind,int id) {
 #else
 /* UDP待受ポートをlwIPへ登録する．不正ポート・既存状態などの失敗時は負値を返す． */
 int net_socket_udp_bind(uint16_t port) { (void)port; return -1; }
+int net_socket_udp_read_ready(void) { return 0; }
 
 /* 保持中の一つのデータグラムを取り出す．データがなければ再試行可能な状態を返す． */
 int net_socket_udp_recv(void *b, unsigned n, uint32_t *a, uint16_t *p) {
@@ -363,6 +382,9 @@ int net_socket_tcp_listen(int id,uint16_t port) { (void)id; (void)port; return -
 
 /* 待受スロットに受け取り可能な接続があるか確認する． */
 int net_socket_tcp_accept_ready(int id) { (void)id; return 0; }
+int net_socket_tcp_accept_peek(int id) { (void)id; return 0; }
+int net_socket_tcp_recv_ready(int id) { (void)id; return 0; }
+int net_socket_tcp_write_ready(int id) { (void)id; return 0; }
 
 /* 指定TCPスロットが待受状態なら真を返す． */
 int net_socket_tcp_listening(int id) { (void)id; return 0; }

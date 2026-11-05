@@ -59,6 +59,8 @@ int main(int argc,char **argv) {
     fd=socket(AF_INET,udp?SOCK_DGRAM:SOCK_STREAM,0);
     if(fd<0){puts("nc: socket unavailable");return 1;}
     if(udp) {
+        /* stdinとソケットを交互に調べるため，両方を非ブロッキングにする． */
+        fcntl(fd,F_SETFL,O_NONBLOCK);
         struct sockaddr_in remote={0};
         remote.sin_family=AF_INET;
         remote.sin_port=htons((uint16_t)number);
@@ -82,7 +84,10 @@ int main(int argc,char **argv) {
                 if(sendto(fd,data,(size_t)r,0,(const struct sockaddr *)&remote,sizeof(remote))<0)break;
             } else if(r==0&&exit_on_eof)break;
             else if(r<0&&r!=OS_EAGAIN)break;
-            msleep(2);
+            /* データがない間はカーネルでFDを監視し，短周期ポーリングを避ける． */
+            fd_set rd=0;
+            FD_SET(fd,&rd); FD_SET(0,&rd);
+            if(select(fd+1,&rd,0,0,0)<0)break;
         }
     } else {
         if(listening) {
@@ -103,6 +108,7 @@ int main(int argc,char **argv) {
             peer=fd;
         }
         fcntl(0,F_SETFL,O_NONBLOCK);
+        fcntl(peer,F_SETFL,O_NONBLOCK);
         int stdin_finished=0;
         for(;;) {
             int r=recv(peer,data,sizeof(data),0);
@@ -117,7 +123,10 @@ int main(int argc,char **argv) {
                     stdin_finished=1;
                 } else if(r<0&&r!=OS_EAGAIN)break;
             }
-            msleep(2);
+            fd_set rd=0;
+            FD_SET(peer,&rd);
+            if(!stdin_finished) FD_SET(0,&rd);
+            if(select(peer+1,&rd,0,0,0)<0)break;
         }
     }
     if(peer>=0&&peer!=fd)close(peer);

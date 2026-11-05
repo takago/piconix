@@ -1,4 +1,37 @@
+### Extended opt-in kernel function tracing (2026-11-05)
+
+### 2026-11-05 — Unified trace and Python I/O conventions
+
+- Function-instrumented builds now include selected kernel function events in `trace on` and `trace run`; removed the dedicated `trace kernel` command. `-a` includes functions outside SVC. Interrupt/asynchronous function records have no PID.
+- Preserved the 16 KiB ring and 32-byte event ABI; added selected ICMP device entry points from `net_capture.c`.
+- Python file, socket and I2C operations use `-1` for operation failures; successful reads return byte arrays, EOF returns an empty array. `EAGAIN` is indistinguishable from other errors.
+
+
+Extended `-finstrument-functions` to ADC, I2C, PWM, GPIO, framebuffer, and socket implementation files. Only selected public entry points running during synchronous SVC processing are recorded. The option remains disabled by default. Python read/recv/recvfrom now return `-1` on I/O failure, preserving byte arrays on success and `[]` for zero-length results. EAGAIN is also mapped to `-1`, which cannot distinguish retryable pending reads from other failures.
+
 # PicoNIX Development Diary
+
+### 2026-11-05 — `select()`-based FD readiness wait (validation build)
+
+- Added syscall 40, `select()`, using compact 16-FD masks for read/write readiness with immediate, finite, and infinite waits. Supports TCP/UDP, TTYs, and pipes.
+- Added non-consuming TCP accept/receive and UDP receive readiness checks. Checking a pending TCP accept must not consume it.
+- Replaced short-interval polling in `nc` and HTTP receive timeouts with `select()`. Existing blocking `accept()` and `recv()` remain available.
+- Updated bilingual guides and contract tests. Final build, RAM layout, PIC, and hardware behavior are not yet validated.
+
+
+### 2026-11-05 — Blocking TCP/UDP receives (validation build)
+
+- `accept()`, TCP `read()`/`recv()`, and UDP `recvfrom()` now block by default; `O_NONBLOCK` retains immediate `OS_EAGAIN` returns.
+- The scheduler checks socket readiness for `BLOCKED` tasks, avoiding lwIP poll reentrancy and using the existing saved-SVC-return mechanism.
+- `nc`, `httpd` and timeout-based C examples explicitly request nonblocking sockets where needed. Hardware, final layout and PIC tests remain outstanding.
+
+#### Unified error values for Python I/O (2026-11-05)
+
+`read()`, `recv()`, and `recvfrom()` now return byte arrays on success or integer `-1` on failure. Socket `OS_EAGAIN` also returns `-1` instead of `[]`; the latter represents zero-byte results only. Negative results from `write()`, `send()`, and `sendto()` are normalized to `-1`, as are failed `close()` and `ioctl()` operations. Syntax errors and invalid arguments still stop execution. Temperature and networking examples and both language guides were updated. Note that `-1` alone cannot distinguish transient `EAGAIN` from another error. Review of kernel function tracing confirmed that instrumentation currently targets `kernel.c` only and records selected functions during SVC; tracing was not changed here.
+
+## 2026-11-05: Unify Python I2C errors and rename fbwave.py
+
+Tiny Python now uses only `i2c_write()`, `i2c_read()` and `i2c_xfer()`; the `i2c_try_*` functions are removed. Failed transfers return `-1`; successful writes return a byte count and successful reads return a byte list. List-vs-integer equality comparisons permit `data != -1` checks. `open()` returns `-1` on failure so callers can recover. Both earlier wave sample names were consolidated into `fbwave.py`, with a 150 ms fixed-speed fallback on I2C failure. ARM compilation and hardware validation remain separate checks.
 
 ## Purpose and scope
 
@@ -352,3 +385,7 @@ For the current behavior and usage, consult [Internal architecture](en/reference
 ---
 
 **Related links:** [Documentation index](DOCS.md) | [Project overview](../README.md) | [日本語](DEVELOPMENT_DIARY.ja.md)
+
+## November 5: Explicit I²C file descriptors in Python
+
+The BH1750 Python helpers previously opened and closed `/dev/i2c/1` for every transfer. The C applications `bh1750` and `i2cctl` already open the bus once and use `ioctl(OS_I2C_TRANSFER)` on that descriptor. The Python helpers now take the descriptor explicitly: `i2c_write(fd, addr, data)`, `i2c_read(fd, addr, count)`, and `i2c_xfer(fd, addr, data, count)`. The caller owns the descriptor and closes it when finished. No changes were made to the kernel or C applications. The old Python call signatures are incompatible. ARM-target syntax checking passed; hardware validation remains outstanding.

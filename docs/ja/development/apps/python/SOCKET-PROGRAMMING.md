@@ -18,7 +18,7 @@ Pico WのWi-Fi接続を確認し，`cat /proc/net/wifi`でIPアドレスを調�
 | `connect(fd, "127.0.0.1", 80)` | TCP接続開始．接続完了は別途確認 |
 | `state = status(fd)` | TCP状態．0=接続処理中，1=確立，負値=失敗など |
 | `listen(fd, 9000)` | TCP待受開始 |
-| `client = accept(fd)` | TCP接続を受入れ．未到着は負値（通常-11） |
+| `client = accept(fd)` | TCP接続を受入れ．既定では接続まで待機 |
 | `bind(fd, 9000)` | UDP受信ポートを設定 |
 | `n = send(fd, data)` | TCP送信．0や部分送信に注意 |
 | `data = recv(fd, 64)` | TCP受信．最大64バイト |
@@ -31,9 +31,9 @@ Pico WのWi-Fi接続を確認し，`cat /proc/net/wifi`でIPアドレスを調�
 
 ### 戻り値を読むときの注意
 
-PicoNIXのユーザソケットは`O_NONBLOCK`の設定に関係なく**ポーリング方式**です．C APIでは未到着を`OS_EAGAIN`として返しますが，Pythonの`data = recv(...)`と`data = recvfrom(...)`はこの値を**空のバイト列**へ変換します．したがって，`len(data) == 0`だけでは未到着・TCP EOF・ゼロ長UDPデータグラムを区別できません．TCPの接続状態は`status(fd)`で別途調べます．
+PicoNIXの`accept()`，`recv()`，`recvfrom()`は**既定でブロッキング動作**です．データ未到着時はPythonタスクを待機させます．`fcntl`でソケットFDを非ブロッキングに変更した場合は，未到着時にC APIが`OS_EAGAIN`，Pythonの受信関数が整数`-1`を返します．成功時はバイト配列で，`[]`はTCPのEOFやゼロ長UDPデータグラムを表します．`len()`や`write()`より先に`data != -1`で判定してください．TCPの状態は`status(fd)`でも確認できます．
 
-`accept()`は接続未到着時に負値を返すため，`client >= 0`を確認します．`send()`は部分送信または一時的な送信不可になる可能性があります．1回の送受信は最大64バイトで，`send()`・`sendto()`の`data`にはリテラル，文字列変数，`bytes`/リスト変数，`str(整数式)`を渡せます．`recv()`と`recvfrom()`は**代入文**で使います．
+`accept()`は接続を待機し，接続時に新しいFDを返します．`client >= 0`で実際の失敗を検査してください．`send()`は部分送信または一時的な送信不可になる可能性があります．1回の送受信は最大64バイトで，`send()`・`sendto()`の`data`にはリテラル，文字列変数，`bytes`/リスト変数，`str(整数式)`を渡せます．`recv()`と`recvfrom()`は**代入文**で使います．
 
 ## 1．TCPクライアント：同一Pico WのHTTPサーバ
 
@@ -51,7 +51,8 @@ if rc == 0:
         send(fd, "GET / HTTP/1.0\r\n\r\n")
         msleep(100)
         data = recv(fd, 64)
-        write(1, data)
+        if data != -1:
+            write(1, data)
 close(fd)
 ```
 
@@ -83,8 +84,9 @@ rc = bind(fd, 9000)
 if rc == 0:
     while True:
         data = recvfrom(fd, 64)
-        if len(data) > 0:
-            sendto(fd, "OK\n", "peer", 0)
+        if data != -1:
+            if len(data) > 0:
+                sendto(fd, "OK\n", "peer", 0)
         msleep(20)
 close(fd)
 ```
@@ -101,7 +103,7 @@ printf 'hello' | nc -u -w 2 PICO_IP 9000
 
 - Pythonの`while`は1ループ最大10,000回で終了します．常駐サーバとしては設計されていません．
 - TCPには管理スロット数の上限，UDPにはシステム全体で1つのユーザソケットという制限があります．詳しくは[ネットワーク仕様](../../../reference/network/NETWORK.md)を参照してください．
-- `recv()`と`recvfrom()`の空配列はエラーコードではありません．通信状態を別途観察してください．
+- `recv()`と`recvfrom()`は非ブロッキングで未到着の場合や通信失敗時に`-1`，0バイトの結果を`[]`として返します．`-1`だけでは未到着と致命的な通信エラーを区別できないため，必要に応じて`status(fd)`を確認してください．
 - 長いメッセージの分割，TCP部分送信の再試行，切断検知，タイムアウト管理はアプリ側の責任です．
 - `socket()`や`connect()`などの呼出しは標準Pythonの構文と互換ではありません．`import socket`も使えません．
 

@@ -47,6 +47,25 @@ int close(int fd) { return call(SYS_CLOSE,(uintptr_t)fd,0,0); }
 /* SVCでFDのファイル位置を変更する．対応する仮想ファイルは限定される． */
 long lseek(int fd,long offset,int whence) { return call(SYS_LSEEK,(uintptr_t)fd,(uintptr_t)offset,(uintptr_t)whence); }
 
+/* FDマスクと待機時間を一つの要求にまとめてSVCへ渡す． */
+int select(int nfds, fd_set *readfds, fd_set *writefds,
+           fd_set *exceptfds, const struct timeval *timeout) {
+    if (nfds<0 || nfds>PICONIX_FD_SETSIZE || exceptfds) return OS_EINVAL;
+    int32_t ms=-1;
+    if(timeout) {
+        if(timeout->tv_sec<0 || timeout->tv_usec<0 || timeout->tv_usec>=1000000L ||
+           timeout->tv_sec>2147482L) return OS_EINVAL;
+        ms=(int32_t)(timeout->tv_sec*1000L+(timeout->tv_usec+999L)/1000L);
+    }
+    piconix_select_request_t r={readfds?*readfds:0,writefds?*writefds:0,0,0,ms};
+    int n=call(SYS_SELECT,(uintptr_t)nfds,(uintptr_t)&r,0);
+    if(n>=0) {
+        if(readfds) *readfds=r.ready_read;
+        if(writefds) *writefds=r.ready_write;
+    }
+    return n;
+}
+
 /* SVCで指定FDから最大nバイトを読み込む． */
 int read(int fd,void *p,size_t n) { return call(SYS_READ,(uintptr_t)fd,(uintptr_t)p,n); }
 

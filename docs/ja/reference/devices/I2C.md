@@ -57,6 +57,19 @@ int main(void) {
 }
 ```
 
+## Pythonからの操作
+
+PythonでもC言語版と同様に，`/dev/i2c/1`を明示的に開いてから利用します．
+
+```python
+i2c = open("/dev/i2c/1", 2)
+i2c_write(i2c, 0x23, bytes([0x10]))
+data = i2c_read(i2c, 0x23, 2)
+close(i2c)
+```
+
+`i2c_xfer(i2c, addr, sequence, count)`も同じFDを使います． 転送結果は`i2c_write()`が成功時に書込みバイト数，失敗時に`-1`，`i2c_read()`と`i2c_xfer()`が成功時にバイト配列，失敗時に`-1`を返します．いずれも内部では`ioctl(OS_I2C_TRANSFER)`を使用し，`read()`や`write()`そのものではありません．
+
 ## 注意事項
 
 - `scan`はデバイスへ実際にアクセスします．特殊なデバイスでは副作用があり得ます．

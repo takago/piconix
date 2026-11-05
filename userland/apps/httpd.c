@@ -140,9 +140,13 @@ static int content_length(const char *req,unsigned header,unsigned *length,int *
 
 /* ノンブロッキング通信ではOS_EAGAINは一時的な状態，0はTCP EOFである． */
 static int recv_timed(int fd,char *buf,unsigned size,unsigned *elapsed){
-    int n=recv(fd,buf,size,0);
-    if(n==OS_EAGAIN){msleep(5);*elapsed+=5;}
-    return n;
+    fd_set rd=0;
+    FD_SET(fd,&rd);
+    struct timeval timeout={0,5000};
+    int ready=select(fd+1,&rd,0,0,&timeout);
+    if(ready<0)return ready;
+    if(!ready){*elapsed+=5;return OS_EAGAIN;}
+    return recv(fd,buf,size,0);
 }
 
 /* 固定長要求バッファでGETと小さなPOSTだけを扱い，chunked転送は実装しない．2 KiBの静的領域により4 KiBスタックの圧迫を避け，接続は一度に一つ処理する． */
@@ -222,6 +226,8 @@ int main(int argc, char **argv){
     for(;;){int client=accept(server,0,0);
         if(client==OS_EAGAIN){msleep(10);continue;}
         if(client<0)break;
+        /* 要求受信の3秒タイムアウトを維持するため，クライアントFDだけ非ブロッキング． */
+        fcntl(client,F_SETFL,O_NONBLOCK);
         handle(client);close(client);
     }close(server);return 0;
 }

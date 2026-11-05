@@ -4,6 +4,7 @@ if sensor >= 0:
     print("RP2040 temperature (C):")
     for i in range(5):
         temp = read(sensor, 32)
-        write(1, temp)
+        if temp != -1:
+            write(1, temp)
         msleep(1000)
     close(sensor)

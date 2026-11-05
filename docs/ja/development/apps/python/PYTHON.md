@@ -1,5 +1,8 @@
 # PicoNIX Tiny Python — 利用ガイド
 
+**入出力API共通規約（2026-11-05）：** `open()`，`socket()`，`accept()` は成功時にFDを返し，失敗時は`-1`．`read()`，`recv()`，`recvfrom()`，`i2c_read()`，`i2c_xfer()`は成功時にバイト配列，失敗時は整数`-1`．`write()`，`send()`，`sendto()`，`i2c_write()`，`close()`，`ioctl()`などの失敗も`-1`．`connect()`，`bind()`，`listen()`，`lseek()`も負の操作結果を`-1`に統一します．非ブロッキング受信の`EAGAIN`は`-1`，TCP EOFや正常な0バイト結果は`[]`です．`data == -1`で判定してから`len(data)`を使ってください．`status()`の正常な状態値は変更しません．
+
+
 *開発ガイド*
 
 ## 読み始める前に
@@ -70,9 +73,9 @@ PicoNIX独自の整数FD型APIです．CPythonの`import socket`とは互換で�
 | `listen(fd, port)`，`accept(fd)` | TCP待受・接続受入（未到着=-11） |
 | `bind(fd, port)` | UDP受信ポートを割り当て |
 | `send(fd, data)`，`write(fd, data)` | TCP送信．部分送信に注意 |
-| `data = recv(fd, n)` | TCP受信．最大64バイト．未到着とEOFはいずれも空配列 |
+| `data = recv(fd, n)` | TCP受信．最大64バイト．未到着・失敗は`-1`，EOFは空配列 |
 | `sendto(fd, data, "192.168.4.2", port)` | UDP送信 |
-| `data = recvfrom(fd, n)` | UDP受信．最大64バイト，未到着は空配列 |
+| `data = recvfrom(fd, n)` | UDP受信．最大64バイト，未到着・失敗は`-1` |
 | `peerport()` | 直近の`recvfrom()`の送信元ポート |
 | `sendto(fd, data, "peer", 0)` | 直近の`recvfrom()`の送信元へ返信（`peer`，0は専用表記） |
 
@@ -121,12 +124,12 @@ TCPとUDPは同じ9000番でも別のポート空間です．`accept()`と`recvf
 | 関数 | 動作 |
 |---|---|
 | `open("/path", flags)` | FDを整数で返す．0=読取，1=書込，2=読書き（この環境のフラグ値） |
-| `read(fd, n)` | 最大64バイトを読み，変更不可のバイト列を返す．代入文で使用 |
+| `read(fd, n)` | 最大64バイトを読み，成功時は変更不可のバイト列，失敗時は`-1`を返す．代入文で使用 |
 | `write(fd, data)` | 文字列リテラルまたは配列変数を書き込む．書込バイト数を返す |
 | `close(fd)` | FDを閉じる |
 | `ioctl(fd, cmd, arg)` | 整数引数のioctlを実行．ポインタ引数の構造体を直接構築する機能はない |
 
-`open()`のパスは文字列リテラルで指定します．`write()`に渡す文字列もリテラルに限定されます．`read()`は`data = read(fd, 8)`の形で使います．失敗時は構文エラーと実行時エラーをまとめて`python: syntax/runtime error at statement N`のように表示します．`N`は物理行番号ではなく，空行・コメントを除いて継続行を結合した文番号です．
+`open()`のパスは文字列リテラルで指定します．`write()`に渡す文字列もリテラルに限定されます．`read()`は`data = read(fd, 8)`の形で使います．操作失敗時は`-1`を返します．構文エラーと不正引数の実行時エラーはまとめて`python: syntax/runtime error at statement N`のように表示します．`N`は物理行番号ではなく，空行・コメントを除いて継続行を結合した文番号です．
 
 ### Pythonで表示を始める前に
 
@@ -161,25 +164,29 @@ PWM周波数は8〜100000 Hz，Dutyは0〜100%の整数テキストです．
 
 ## I²C1
 
-`i2c_write(addr, sequence)`，`data = i2c_read(addr, count)`，`data = i2c_xfer(addr, sequence, count)`を提供します．アドレスは0x08〜0x77，送受信は各最大32バイトです．`i2c_xfer()`はRepeated STARTを使用します．`i2c_write(0x23, bytes([0x10]))`のような直接指定にも対応します．I²Cの構造体転送には専用関数を使ってください．
+`i2c_write(fd, addr, sequence)`，`data = i2c_read(fd, addr, count)`，`data = i2c_xfer(fd, addr, sequence, count)`を提供します．アドレスは0x08〜0x77，送受信は各最大32バイトです．`i2c_xfer()`はRepeated STARTを使用します．`i2c_write()`は成功時に送信バイト数，失敗時に`-1`を返します．`i2c_read()`と`i2c_xfer()`は成功時にバイト配列，失敗時に整数`-1`を返します．読み取り結果と`-1`は`if data != -1:`で比較できます．`open()`も失敗時は`-1`を返します．`read()`，`recv()`，`recvfrom()`も成功時はバイト配列，操作失敗時は`-1`です．空配列は長さ0の結果を表します．`EAGAIN`も`-1`に統一されるため，一時的な未到着とそれ以外の失敗は区別できません．引数の構文や値が不正な場合は従来どおりエラーになります．`i2c_write(i2c, 0x23, bytes([0x10]))`のような直接指定にも対応します．I²Cの構造体転送には専用関数を使ってください．`fd = open("/dev/i2c/1", 2)`で一度開いたFDを全転送で再利用し，終了時に`close(fd)`します．FDの指定は必須で，旧形式の2引数`i2c_write()`などは利用できません．
 
 ### BH1750（アドレス0x23）
 
 ```python
+i2c = open("/dev/i2c/1", 2)
 power = bytes([0x01])
-i2c_write(0x23, power)
+i2c_write(i2c, 0x23, power)
 msleep(100)
 mode = bytes([0x10])
-i2c_write(0x23, mode)
+i2c_write(i2c, 0x23, mode)
 msleep(200)
 for i in range(10):
-    data = i2c_read(0x23, 2)
+    data = i2c_read(i2c, 0x23, 2)
+    if data == -1:
+        break
     raw = data[0] * 256 + data[1]
     lux1000 = raw * 1000 * 5 / 6
     print(lux1000)
     msleep(200)
 off = bytes([0x00])
-i2c_write(0x23, off)
+i2c_write(i2c, 0x23, off)
+close(i2c)
 ```
 
 表示値は**1000倍した照度値**です（例：125833は約125.833 lx）．32ビット整数の範囲に注意してください．
@@ -208,42 +215,62 @@ print(text, len(name))
 
 ## サンプル：照度で速度が変わるLEDウェーブ
 
-BH1750で測定した照度が高いほど，8×8 LEDマトリクス上の波が速く流れます．暗いとゆっくり動きます．I²C入力，整数演算，ビット演算，フレームバッファ出力を組み合わせたサンプルです．**実機で動作確認済み**です．
+BH1750で測定した照度が高いほど，8×8 LEDマトリクス上の波が速く流れます．暗いとゆっくり動きます．I²C入力，整数演算，ビット演算，フレームバッファ出力を組み合わせたサンプルです．以前のセンサ連動版は実機動作確認済みですが，今回のフォールバック対応版は実機未確認です．
 
 BH1750を3.3 VとGNDに接続し，SDAをGP26，SCLをGP27へ接続します．ADDRはGND側（I²Cアドレス`0x23`）にしてください．配線は[ハードウェア配線](../../../reference/hardware/WIRING.md)，通信手順は[I²Cガイド](../../../reference/devices/I2C.md)を参照してください．
 
-サンプルのソースは[`userland/examples/python/wave.py`](../../../../../userland/examples/python/wave.py)にあります．初期ファイルは`userland/fs/tmp_common/bh1750_fbwave.py`に置かれ，PicoNIX上では`/tmp/bh1750_fbwave.py`として配置されます．`python /tmp/bh1750_fbwave.py`で実行できます．ソース上限2048バイトとRAMファイル上限2 KiBに注意してください．
+サンプルのソースは[`userland/examples/python/fbwave.py`](../../../../../userland/examples/python/fbwave.py)にあります．初期ファイルは`userland/fs/tmp_common/fbwave.py`に置かれ，PicoNIX上では`/tmp/fbwave.py`として配置されます．`python /tmp/fbwave.py`で実行できます．ソース上限2048バイトとRAMファイル上限2 KiBに注意してください．
 
 ```python
-# PicoNIX: light-controlled wave
+# PicoNIX: light-controlled wave (fixed speed without BH1750)
 wave = [3,4,5,6,5,4,3,2]
 fb = [0,0,0,0,0,0,0,0]
 fd = open("/dev/gpio/fb", 2)
-ioctl(fd, FB_ENABLE, 0)
-i2c_write(0x23, bytes([1]))
-msleep(100)
-i2c_write(0x23, bytes([0x10]))
-msleep(200)
+if fd >= 0:
+    ioctl(fd, FB_ENABLE, 0)
+i2c = open("/dev/i2c/1", 2)
+ready = 0
+if i2c >= 0:
+    ready = i2c_write(i2c, 0x23, bytes([1]))
+    if ready >= 0:
+        ready = 1
+    if ready > 0:
+        msleep(100)
+        ready = i2c_write(i2c, 0x23, bytes([0x10]))
+        if ready >= 0:
+            ready = 1
+        if ready > 0:
+            msleep(200)
 
 phase = 0
 for n in range(10000):
-    data = i2c_read(0x23, 2)
-    lux = (data[0]*256+data[1])*5/6
-    delay = 350 - lux/3
-    if delay < 35:
-        delay = 35
+    delay = 150
+    if ready > 0:
+        data = i2c_read(i2c, 0x23, 2)
+        if data != -1:
+            lux = (data[0]*256+data[1])*5/6
+            delay = 350 - lux/3
+            if delay < 35:
+                delay = 35
+        else:
+            ready = 0
     for y in range(8):
         x = wave[(y+phase)%8]
         fb[y] = 1 << (7-x)
-    write(fd, fb)
+    if fd >= 0:
+        write(fd, fb)
     phase = (phase+1)%8
     msleep(delay)
 
-i2c_write(0x23, bytes([0]))
-close(fd)
+if i2c >= 0:
+    if ready > 0:
+        off = i2c_write(i2c, 0x23, bytes([0]))
+    close(i2c)
+if fd >= 0:
+    close(fd)
 ```
 
-`wave`配列は各行の点灯位置，`phase`は波の位相を表します．照度から待機時間を `350 - lux/3` ミリ秒として計算し，最短35ミリ秒に制限します．約1万フレーム表示した後，BH1750をパワーダウンして終了します．この小型Pythonでは除算は整数除算です．外部センサが必要で，照度の数値を画面に表示するものではありません．
+`wave`配列は各行の点灯位置，`phase`は波の位相を表します．照度から待機時間を `350 - lux/3` ミリ秒として計算し，最短35ミリ秒に制限します．I²Cデバイスが開けない場合，初期化の書込みが失敗した場合，または読取りが失敗した場合には，150 msの固定速度で描画を続けます．読取りに失敗した後はセンサへのアクセスを再試行しません．約1万フレーム表示した後，使用可能なBH1750をパワーダウンして終了します．この小型Pythonでは除算は整数除算です．外部センサがない場合も固定速度で描画します．照度の数値は画面に表示しません．
 
 ---
 

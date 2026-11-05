@@ -7,7 +7,8 @@ PicoNIX records task switches, system-call entry/exit, and periodic timer events
 ## Commands
 
 ```text
-trace on         # clear the buffer and start recording
+trace on         # clear the buffer and start recording (SVC functions)
+trace on -a      # record selected functions outside SVC too
 trace off        # stop recording
 trace show       # stop recording and display all retained events
 trace show 3     # stop recording and show events for PID 3
@@ -15,7 +16,8 @@ trace follow     # display events occurring after invocation
 trace follow 3   # display new events for PID 3 after invocation
 trace run hello  # start hello and show its trace after exit
 trace run python test.py  # trace a Python script
-trace kernel cat /tmp/test.txt  # also trace selected kernel functions (special build)
+trace run -a ping 127.0.0.1 # include selected asynchronous functions
+trace run cat /tmp/test.txt  # include selected functions when built with instrumentation
 ```
 
 **`trace show` and `trace follow` display events; they do not start a target program.** With only one terminal, `trace run hello` is a convenient first exercise because it starts the program and displays its trace after exit.
@@ -40,46 +42,36 @@ The reader advances its `/dev/trace` cursor past existing events before launchin
 
 The 16 KiB (512-event) ring buffer is still used, located in dedicated RAM at `0x20038000`–`0x2003BFFF`. Long-running programs may overwrite their earliest records, including startup events. Only the directly spawned process is filtered; descendants are not automatically followed. Interactive programs must exit before the trace report is printed.
 
-## Kernel function calls (experimental)
+## Selected kernel function tracing
 
-`trace kernel command [args...]` records selected internal kernel function entries and exits as `function` / `function/` in addition to the usual system calls. This is an **experimental feature, disabled by default at build time**. Ordinary syscall tracing with `trace run` remains available when it is OFF. To enable kernel function tracing, build firmware for Pico or Pico W with:
-
-```bash
-./tools/build_sdk.sh -DPICO_BOARD=pico -DPICONIX_KERNEL_FUNCTION_TRACE=ON
-# Use -DPICO_BOARD=pico_w for Pico W
-```
-
-
-To disable instrumentation again, rebuild with `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF`. CMake caches options in the build directory: if a previous build used `ON`, simply omitting the option may leave it enabled. **Pass `OFF` explicitly** or recreate the relevant board's build directory. See the [setup guide](../setup/SETUP.md) for build commands.
+The default build records system calls, scheduling and periodic SysTick events. Build with
+`-DPICONIX_KERNEL_FUNCTION_TRACE=ON` to include entry/exit events for selected kernel functions.
+The default is OFF; CMake may cache a previous ON value.
 
 ```text
-piconix# echo hello > /tmp/test.txt
-piconix# trace kernel cat /tmp/test.txt
+trace on              # record ordinary events + selected functions in SVC
+trace on -a           # include selected functions outside SVC
+trace show            # stop and display the recorded events
+trace follow          # display new events as they arrive
+trace run hello       # run a command; capture functions called inside SVC
+trace run -a hello    # capture selected functions in all contexts
 ```
 
-The monitored functions cover VFS and FDs (`vfs_open`, `vfs_rw`, `vfs_fixed_path_id`, `vfs_directory_id`, `free_fd`, `fd_set`, `fd_release`, `fd_copy`, `in_task_range`), RAM files (`tmp_open`, `tmp_rw`, `tmp_unlink`, `tmp_init`, `tmp_name`, `tmp_lookup`), devices (`device_rw_tty`, `tty_rx_read`, `tty_rx_ready`, `tty_dequeue`, `device_rw_rand`, `rand32`, `device_rw_proc`, `proc_device`, `device_ioctl`, `device_ioctl_tty`), and `vfs_getdents` and `pipe_transfer`. Events are retained **only while handling a synchronous SVC exception**, not for arbitrary interrupts, scheduler activity, or every kernel function. Compiler optimizations and inlining may affect the results.
+The `-a` switch changes the context filter only for selected kernel function events.
+SVC function records use their calling process PID. Interrupt and asynchronous kernel records
+have no PID and display a dash. `show PID` and `follow PID` exclude PID-less events.
+`run -a` records all contexts but displays only the launched PID after the command exits;
+use `on -a` and `follow` to inspect asynchronous records.
 
-With `trace kernel omikuji`, the `/dev/rand` read may show `vfs_rw` → `device_rw_rand` → `rand32`; `trace kernel cat /tmp/test.txt` can show deeper path/FD allocation and RAM-file operations. Compiler optimizations can suppress some calls. Per-character TTY output helpers remain excluded to limit trace volume.
-
-The existing 32-byte event ABI is preserved: `value` contains the function address and `data[16]` its name. `trace kernel` disables function tracing when its child exits; ordinary `trace run` is unchanged.
-
-**Caution:** Enabling this option adds compiler instrumentation to **all functions in `kernel/kernel.c`** even though only the selected names are stored. This increases Flash size, stack usage, and runtime overhead. Keep the default `OFF` for normal releases. Function and syscall records share the existing 16 KiB ring buffer, so older events can be overwritten. Hardware verification on Pico and Pico W remains necessary.
-
-`trace kernel` shows entry as `function` and return as `function/`, indenting nested kernel functions by two spaces per level. The display depth resets at syscall entry and exit, and is maintained separately per PID for `trace show` and `trace follow`. This is **display-only indentation**, not kernel stack unwinding. If trace records are overwritten or an entry/return event is missing, indentation may not reflect the exact call stack.
-
-
-### Limit the displayed function depth
-
-Use `trace kernel -d N command [args...]` with a depth from `0` to `8`. System calls are depth 0, directly nested kernel functions are depth 1, and omitting `-d` preserves the original, unlimited depth display.
-
-```text
-piconix# trace kernel -d 0 hello       # system calls only
-piconix# trace kernel -d 1 hello       # directly called kernel functions
-piconix# trace kernel -d 2 hello       # two kernel levels
-piconix# trace kernel -d 8 omikuji     # up to eight levels
-```
-
-This is a **display filter only**: it does not reduce instrumentation or the number of events stored in the 16 KiB ring buffer. Hidden function events still update the depth counter, keeping indentation consistent. Place `-d` before the program name.
+Coverage includes selected VFS, file-descriptor, RAM-file, TTY, ADC, I2C, PWM, GPIO,
+framebuffer and TCP/UDP functions. ICMP device calls `net_echo_write`, `net_echo_read`,
+and `net_echo_close` are included, but `net_capture_poll` and `echo_received` are not.
+The existing record ABI is 32 bytes, with at most 16 bytes for function names, and the
+shared 16 KiB ring stores 512 events. Function entries/exits normally appear as `name` / `name/`. **An immediately adjacent entry/exit for the same function, PID, and recorded millisecond** is condensed to a single `(name)` row at display time. A nested call, intervening event, or differing timestamp prevents condensation. The underlying records and buffer usage are unchanged. `trace follow` briefly holds at most one entry record for matching, then prints it separately when no further records are available.
+Display indentation is approximate, especially across interrupts or overwritten events.
+Compiler optimizations may inline calls. All-context recording increases runtime overhead.
+The ring buffer is protected against interrupt-time re-entry, but real-device timing and
+capacity must still be validated. The old `trace kernel` command has been removed.
 
 ## Event types and display
 
@@ -102,6 +94,144 @@ trace run ls
 After each program exits, its trace is displayed. Compare `function` and `function/` records to see which system calls it made. `SWITCH` marks a context switch; filtering uses the destination PID.
 
 For a longer capture, start with `trace on`, run another command, then inspect the result using `trace show` (which stops capture). On long runs, older events may be overwritten in the ring buffer.
+
+## Hands-on exercises: SVC and asynchronous execution
+
+These exercises assume a build with `PICONIX_KERNEL_FUNCTION_TRACE=ON`. An ordinary build still records system calls, SysTick events and task switches, but does not show `KERNEL` function records. Actual timestamps, PIDs and call sequences vary.
+
+### Exercise 1: system calls and selected kernel functions
+
+```text
+piconix# trace run hello
+piconix# trace run ls
+piconix# trace run python test.py
+```
+
+Compare `SYSCALL` and `KERNEL` records to follow calls from a system call into selected VFS or driver functions. An entry is shown as the function name and an exit with a trailing `/`. Adjacent entry/exit records may be shown as one `(name)` row. Without `-a`, function records are limited to SVC execution. `trace run` displays only records associated with the launched PID.
+
+### Exercise 2: ICMP device activity during ping
+
+```text
+piconix# trace run ping 127.0.0.1
+```
+
+Look for `open`, `write` and `read` calls involving `/dev/net/icmp`. In instrumented builds, `net_echo_write`, `net_echo_read` and `net_echo_close` may appear if actually called in SVC context. This does not trace every asynchronous stage of ICMP reception.
+
+### Exercise 3: observe other contexts using two terminals
+
+Use **two terminals**, such as USB CDC plus UART1 or Telnet.
+
+Terminal A:
+
+```text
+piconix# trace on -a
+piconix# trace follow
+```
+
+Terminal B:
+
+```text
+piconix# ping 127.0.0.1
+piconix# ls
+```
+
+Look for `SYSCALL`, `SWITCH`, `TIMER` and `KERNEL` records in terminal A. The `-a` option widens capture of **selected instrumented kernel functions** beyond SVC. Asynchronous and interrupt-context function events have no PID and appear as `-`. Functions not selected or instrumented, such as `net_capture_poll` and `echo_received`, are not recorded. The periodic SysTick `TICKx1K` record is an ordinary event and does not depend on `-a`.
+
+From another terminal, stop capture:
+
+```text
+piconix# trace off
+```
+
+`trace follow` drains the remaining records and exits. Note that `trace show` also stops capture before displaying history.
+
+### Exercise 4: compare with `trace run -a`
+
+```text
+piconix# trace run -a ping 127.0.0.1
+```
+
+The `-a` option **records** selected functions in all contexts, but the resulting output **displays** records for the launched ping PID only. To inspect PID-less asynchronous functions, use `trace on -a` with `trace follow` as in exercise 3. Keep captures short: the 512-event ring buffer overwrites old records when full.
+
+## Labs: files, devices, networking, and scheduling
+
+Use `trace run` for short-lived programs and `trace on` plus `trace follow` from another terminal for long-running servers. `trace run` prints its report only after the target terminates. Stop a live capture using `trace off` from another terminal.
+
+### Exercise 5: RAM files and VFS
+
+Prepare a small RAM file first:
+
+```text
+piconix# echo hello > /tmp/test.txt
+piconix# trace run cat /tmp/test.txt
+```
+
+Look for `open`, `read`, `write`, and `close`, and compare them to selected `KERNEL` calls such as `vfs_rw`. A compact `(in_task_range)` row represents consecutive entry and exit records at the same recorded time. The two underlying events remain in the buffer.
+
+### Exercise 6: Python file operations and ADC
+
+```text
+piconix# trace run python test.py
+```
+
+The bundled `test.py` reads the on-chip temperature sensor five times. Python assignments and integer arithmetic run in user space and do not themselves generate `SYSCALL` events. Observe device-file `open`, `read`, `write`, and `close`, together with any waiting syscalls. Check the contents of `/tmp/test.py` when interpreting the result.
+
+### Exercise 7: BH1750 and I2C ioctl
+
+With a BH1750 connected, limit the program to one measurement:
+
+```text
+piconix# trace run bh1750 1
+```
+
+Observe `open` for `/dev/i2c/1`, `ioctl` for the transfer, and `close` during cleanup. In an instrumented build, look for `i2c_driver_transfer` when the corresponding SVC path runs. A sensor-free board cannot be expected to return a valid measurement. Without a count argument, `bh1750` measures continuously, so supply a count when using `trace run`.
+
+### Exercise 8: HTTP server, select, accept, and read
+
+Start the server on terminal A:
+
+```text
+piconix# httpd
+```
+
+On terminal B:
+
+```text
+piconix# trace on
+piconix# trace follow
+```
+
+Access the Pico W HTTP server from a PC browser. Look for `select`, `accept`, `read`, and `write`. Relate the count of ready descriptors returned by `select` to subsequent `accept` and `read` operations. Because `httpd` normally continues running, do not use `trace run httpd` in this exercise.
+
+### Exercise 9: blocking accept versus I/O multiplexing
+
+On terminal A:
+
+```text
+piconix# tcp_echod 7000
+```
+
+Capture events using `trace on` and `trace follow` on another terminal, and connect with an external TCP client on port 7000 to exchange data. Compare events during idle waiting and after connections or data arrive. Next, compare with communication through `nc` to study blocking on one socket versus using `select` for multiple descriptors. Confirm the precise wait states in the user-space and kernel sources; the trace alone may not identify every internal state transition.
+
+### Exercise 10: PID filtering and SysTick
+
+```text
+piconix# ps
+piconix# trace on
+piconix# trace follow
+```
+
+Find periodic `TIMER TICKx1K` events and `SWITCH` records. `TICKx1K` reports every 1,000 ticks of the 1 ms SysTick; it does not report every interrupt.
+
+To focus on one program, obtain its PID using `ps`, then use `trace follow PID` or `trace show PID`. A PID argument is a **display filter**, not a capture filter, and does not reduce ring-buffer usage. `SWITCH` records are filtered by destination PID. To inspect PID-less asynchronous function events, use `trace on -a` with unfiltered `trace follow`.
+
+### Lab caveats
+
+- A build with `PICONIX_KERNEL_FUNCTION_TRACE=OFF` produces no `KERNEL` function rows.
+- `-a` does **not** enable every kernel function. It admits non-SVC contexts only for selected and instrumented functions.
+- The ring buffer holds 512 events and overwrites old entries. Start with short captures.
+- `Ret` for function events is not the internal function's return value; distinguish it from syscall return values.
+- Tracing adds runtime overhead, so displayed timestamps are not a precise performance benchmark.
 
 ## `/dev/trace` binary format
 

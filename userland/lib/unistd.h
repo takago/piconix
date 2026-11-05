@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include "../../include/piconix.h"
 #include "../../include/piconix_dirent.h"
+#include "../../include/piconix_select.h"
 /* ユーザランタイムの全シンボルは各PICイメージ内にリンクする． */
 #ifndef PICONIX_HOST_TEST
 #pragma GCC visibility push(hidden)
@@ -22,10 +23,20 @@
 #define OS_TTY_RELEASE 0x208
 #define FB_DISABLE 0x101
 #define FB_STATUS  0x102
+/* 小型fd_set: PicoNIXではFDは0〜15．例外FD集合は未対応． */
+typedef uint16_t fd_set;
+#define FD_ZERO(p) (*(p)=0)
+#define FD_SET(fd,p) (*(p)=(uint16_t)(*(p)|(uint16_t)(1u<<(fd))))
+#define FD_CLR(fd,p) (*(p)=(uint16_t)(*(p)&(uint16_t)~(1u<<(fd))))
+#define FD_ISSET(fd,p) ((*(p)&(uint16_t)(1u<<(fd)))!=0)
+struct timeval { long tv_sec; long tv_usec; };
+/* timeout=NULL: 無期限．FDはソケット・TTY・パイプだけを監視する． */
+int select(int nfds, fd_set *readfds, fd_set *writefds,
+           fd_set *exceptfds, const struct timeval *timeout);
 int read(int fd, void *buf, size_t count);
 int write(int fd, const void *buf, size_t count);
 int close(int fd);
-/* BSD風IPv4ソケット機能の一部を提供する．ポート・アドレスはネットワークバイト順で，errnoはなく負のOS_*を直接返す．acceptとrecvfromは未準備時にOS_EAGAIN，connectは非同期でtcp_statusにより確認する． */
+/* BSD風IPv4ソケット機能の一部を提供する．ポート・アドレスはネットワークバイト順で，errnoはなく負のOS_*を直接返す．accept・recv・recvfromは既定で待機し，O_NONBLOCK時だけ未準備でOS_EAGAIN．connectは非同期でtcp_statusにより確認する． */
 #define AF_INET 2
 #define SOCK_STREAM 1
 #define SOCK_DGRAM 2

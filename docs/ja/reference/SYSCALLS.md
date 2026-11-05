@@ -54,6 +54,8 @@
 | 38 | `SYS_PROGRAM_ID` | `program_id(name)` | `name` | ID / 負のエラー | 登録プログラム名をIDに変換 |
 | 39 | `SYS_SHUTDOWN_TCP` | `shutdown(fd, SHUT_WR)` | `fd` | 0 / 負のエラー | TCP送信側だけを終了する |
 
+| 40 | `SYS_SELECT` | `select(nfds, readfds, writefds, NULL, timeout)` | `nfds`, `piconix_select_request_t *`, — | 準備済FD数 / 負のエラー | 最大16FDの読み書き準備を待機 |
+
 ## 引数の意味と重要な制約
 
 - `read(fd, buf, count)` / `write(fd, buf, count)`：`fd` はファイル記述子，`buf` はデータ領域，`count` は最大バイト数です．読取時の0はEOFを表す場合があります． TTYでは非ブロッキング入力が未準備のときも`read()`は0を返します（canonical・非canonical共通）．TTYへの`write()`は部分書込みになる場合があり，USB CDCの送信キュー満杯時は0，Wi-Fi TTYでは`OS_EAGAIN`や`OS_EIO`を返す場合があります．詳細は[TTYガイド](../guides/TTY.md)を参照してください．
@@ -111,3 +113,19 @@
 ---
 
 **関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/SYSCALLS.md)
+
+## `select()`によるI/O多重化
+
+`select()`はTCP/UDPソケット，TTY，パイプの準備状態をカーネルで確認し，必要なら`BLOCKED`にして待機します．タイムアウトは`struct timeval`を使用し，`NULL`は無期限，`{0,0}`は即時確認です．FDは0〜15に限定され，`exceptfds`は非対応です．`fd_set`は16ビットのビット集合です．既存のブロッキング`accept()`・`recv()`・`recvfrom()`も維持します．
+
+```c
+fd_set rd;
+FD_ZERO(&rd);
+FD_SET(server, &rd);
+int n = select(server + 1, &rd, NULL, NULL, NULL);
+if (n > 0 && FD_ISSET(server, &rd)) {
+    int client = accept(server, NULL, NULL);
+}
+```
+
+書込み準備確認はTCPの送信バッファ空きに基づきますが，送信操作が必ず全データを受け取る保証ではありません．`select()`直後の操作でも`OS_EAGAIN`等の確認が必要です．現時点では通常のRAMファイルなどを`select()`で監視すると`OS_EINVAL`を返します．タイムアウト精度はスケジューラ周期に依存します．

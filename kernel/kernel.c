@@ -23,6 +23,7 @@
 #include "../include/piconix_trace.h"
 #include "../include/piconix_dirent.h"
 #include "../include/piconix_syscall.h"
+#include "../include/piconix_select.h"
 #include "pico/stdio_usb.h"
 #include "tusb.h"
 
@@ -167,6 +168,11 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define TOTAL_SLOTS (OS_MAX_TASKS + 1)
 /* タスクごとのFD表．GPIO数とは無関係に定義する． */
 #define OS_FD_MAX 16
+/* 負の待機IDはデバイスID・waitpid(-2)と衝突させない． */
+#define WAIT_TCP_ACCEPT (-3)
+#define WAIT_TCP_READ   (-4)
+#define WAIT_UDP_READ   (-5)
+#define WAIT_SELECT     (-6)
 /* 無名パイプの端点IDとデータ領域は固定のSRAM予算で管理する． */
 #define PIPE_COUNT 2
 #define PIPE_BYTES 256
@@ -293,7 +299,7 @@ static uint32_t trace_count;
 static uint32_t trace_serial;
 static uint8_t trace_enabled;
 #if PICONIX_KERNEL_FUNCTION_TRACE
-static uint8_t trace_func_enabled;
+static uint8_t trace_all_contexts;
 #endif
 static uint16_t tick_sample;
 static uint8_t slice_ticks;
@@ -518,6 +524,8 @@ static void finish_task(int slot, int status) {
     }
 }
 
+static int tty_rx_ready(int tty);
+
 /* 中断中のSVCの保存フレームへ戻り値を書き込み，待機情報を消してREADYにする．通常の関数returnでは再開できない点に注意． */
 static void task_unblock(task_t *t, int result) {
     t->sp[8]=(uint32_t)result;
@@ -547,6 +555,111 @@ static void wake_pipes(void) {
             result=pipe_transfer(p,t->wait_buf,t->wait_size,writing);
         }
         task_unblock(t,result);
+    }
+}
+
+/* lwIPの受信状態をスケジューラから確認してソケット待機を解除する．
+ * コールバックはIDLEタスク側で実行するため，その途中ではPCBに触れない． */
+static void wake_sockets(void) {
+    if(net_poll_in_progress()) return;
+    for(int i=0;i<OS_MAX_TASKS;i++) {
+        task_t *t=&tasks[i];
+        if(t->state!=BLOCKED || !t->wait_frame_ready ||
+           t->wait_dev>WAIT_TCP_ACCEPT || t->wait_dev<WAIT_UDP_READ) continue;
+        int fd=t->wait_fd, result=OS_EBADF;
+        if(fd>=0 && fd<OS_FD_MAX) {
+            if(t->wait_dev==WAIT_TCP_ACCEPT && t->fd[fd]==DEV_SOCKET_TCP) {
+                int id=(int)t->fd_pos[fd];
+                if(id<TCP_USER_SLOTS && tcp_owner_pid[id]==t->pid && net_socket_tcp_listening(id)) {
+                    int newfd=-1;
+                    for(int j=3;j<OS_FD_MAX;j++) if(t->fd[j]<0) { newfd=j; break; }
+                    if(newfd<0) result=OS_EMFILE;
+                    else if(!net_socket_tcp_accept_ready(id)) continue;
+                    else {
+                        fd_set(t,newfd,DEV_SOCKET_TCP_ACCEPTED,(uint32_t)id,OS_O_RDWR,0);
+                        result=newfd;
+                    }
+                }
+            } else if(t->wait_dev==WAIT_TCP_READ &&
+                      (t->fd[fd]==DEV_SOCKET_TCP || t->fd[fd]==DEV_SOCKET_TCP_ACCEPTED)) {
+                int id=(int)t->fd_pos[fd];
+                if(id<TCP_USER_SLOTS && tcp_owner_pid[id]==t->pid) {
+                    int status=net_socket_tcp_status(id);
+                    if(status==-2) result=0;
+                    else if(status<0) result=OS_EIO;
+                    else if(status==0) continue;
+                    else {
+                        int n=net_socket_tcp_read(id,t->wait_buf,(unsigned)t->wait_size);
+                        if(n>0) result=n;
+                        else if(n==-2) result=0;
+                        else if(n<0) result=OS_EIO;
+                        else continue;
+                    }
+                }
+            } else if(t->wait_dev==WAIT_UDP_READ && t->fd[fd]==DEV_SOCKET_UDP &&
+                      udp_owner_pid==t->pid) {
+                piconix_udp_packet_t *pkt=(piconix_udp_packet_t *)t->wait_buf;
+                int n=net_socket_udp_recv((void *)pkt->data,pkt->length,&pkt->peer_ip,&pkt->peer_port);
+                if(n==-3) continue;
+                result=n==-2 ? OS_EINVAL : n<0 ? OS_EIO : n;
+            }
+        }
+        trace_record(TRACE_SVC_EXIT,(uint8_t)t->pid,
+                     t->wait_dev==WAIT_TCP_ACCEPT ? SYS_ACCEPT_TCP :
+                     t->wait_dev==WAIT_UDP_READ ? SYS_RECVFROM : SYS_READ,
+                     (uint32_t)result,t->program_id,-1,NULL,0);
+        task_unblock(t,result);
+    }
+}
+
+/* 選択したFDの読書き可能性を調べる．要求マスクを変更せず，返却用マスクだけ更新する．
+ * 今回はTCP/UDP，TTY，パイプを対象とし，その他のFDはEINVALとする． */
+static int select_ready(task_t *t,int nfds,piconix_select_request_t *r) {
+    uint16_t reads=0,writes=0;
+    unsigned wanted=(unsigned)(r->read_mask | r->write_mask);
+    if(nfds<0 || nfds>OS_FD_MAX || (wanted >> nfds)) return OS_EINVAL;
+    for(int fd=0;fd<nfds;fd++) {
+        unsigned bit=1u<<fd;
+        if(!(wanted&bit)) continue;
+        int dev=t->fd[fd], rd=0, wr=0;
+        if(dev<0) return OS_EBADF;
+        if(dev==DEV_SOCKET_UDP) {
+            if(udp_owner_pid!=t->pid) return OS_EBADF;
+            rd=net_socket_udp_read_ready(); wr=1;
+        } else if(dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
+            int id=(int)t->fd_pos[fd];
+            if(id<0 || id>=TCP_USER_SLOTS || tcp_owner_pid[id]!=t->pid) return OS_EBADF;
+            int listening=(dev==DEV_SOCKET_TCP && net_socket_tcp_listening(id));
+            rd=listening ? net_socket_tcp_accept_peek(id) : net_socket_tcp_recv_ready(id);
+            wr=listening ? 0 : net_socket_tcp_write_ready(id);
+        } else if(dev==DEV_CONSOLE || dev==DEV_UART1 || dev==DEV_WIFI_TTY) {
+            int tty=dev==DEV_CONSOLE?0:dev==DEV_UART1?1:2;
+            rd=tty_rx_ready(tty); wr=1;
+        } else if(pipe_end(dev)) {
+            pipe_t *pipe=pipe_for_dev(dev);
+            if(pipe_is_writer(dev)) wr=pipe->used<PIPE_BYTES || !pipe->readers;
+            else rd=pipe->used>0 || !pipe->writers;
+        } else return OS_EINVAL;
+        if(rd && (r->read_mask&bit)) reads|=(uint16_t)bit;
+        if(wr && (r->write_mask&bit)) writes|=(uint16_t)bit;
+    }
+    r->ready_read=reads; r->ready_write=writes;
+    unsigned bits=(unsigned)(reads|writes), count=0;
+    while(bits) { count+=bits&1u; bits>>=1; }
+    return (int)count;
+}
+
+/* SVCで停止したselectをスケジューラから再検査する．時間切れは0を返す． */
+static void wake_selects(void) {
+    if(net_poll_in_progress()) return;
+    for(int i=0;i<OS_MAX_TASKS;i++) {
+        task_t *t=&tasks[i];
+        if(t->state!=BLOCKED || t->wait_dev!=WAIT_SELECT || !t->wait_frame_ready) continue;
+        piconix_select_request_t *r=(piconix_select_request_t *)t->wait_buf;
+        int n=select_ready(t,(int)t->wait_size,r);
+        if(n==0 && (r->timeout_ms<0 || (int32_t)(ticks-t->wake)<0)) continue;
+        trace_record(TRACE_SVC_EXIT,(uint8_t)t->pid,SYS_SELECT,(uint32_t)n,t->program_id,-1,NULL,0);
+        task_unblock(t,n);
     }
 }
 
@@ -1107,6 +1220,8 @@ uint32_t *os_schedule(uint32_t *oldsp) {
     wake_readers(1);
     wake_waiters();
     wake_pipes();
+    wake_sockets();
+    wake_selects();
     pendsv_count++;
     int previous=current;
     int next=-1;
@@ -2132,31 +2247,22 @@ static int device_ioctl(int fd,int cmd,int arg) {
         if(cmd==TRACE_ON) {
             trace_enabled=0;
 #if PICONIX_KERNEL_FUNCTION_TRACE
-            trace_func_enabled=0;
+            trace_all_contexts=(arg!=0);
 #endif
             trace_head=trace_count=trace_serial=0;
             trace_enabled=1;
         } else if(cmd==TRACE_OFF) {
             trace_enabled=0;
-#if PICONIX_KERNEL_FUNCTION_TRACE
-            trace_func_enabled=0;
-#endif
         }
-        else if(cmd==TRACE_FUNC_ON) {
+        else if(cmd==TRACE_CONTEXT_SET) {
 #if PICONIX_KERNEL_FUNCTION_TRACE
-            trace_func_enabled=1;
-#else
-            restore_interrupts(irq); return OS_EINVAL;
+            trace_all_contexts=(arg!=0);
 #endif
-        } else if(cmd==TRACE_FUNC_OFF) {
+        } else if(cmd==TRACE_CONTEXT_GET) {
 #if PICONIX_KERNEL_FUNCTION_TRACE
-            trace_func_enabled=0;
-#endif
-        } else if(cmd==TRACE_FUNC_STATUS) {
-#if PICONIX_KERNEL_FUNCTION_TRACE
-            int enabled=trace_func_enabled;
+            int enabled=trace_all_contexts;
 #else
-            int enabled=-1;
+            int enabled=0;
 #endif
             restore_interrupts(irq); return enabled;
         }
@@ -2196,6 +2302,20 @@ void os_svc_dispatch(uint32_t *f) {
     trace_record(TRACE_SVC_ENTER, (uint8_t)tasks[current].pid, (uint32_t)num,
                  (uint32_t)a, tasks[current].program_id, file_id, NULL, 0);
     switch(num) {
+        case SYS_SELECT: {
+            piconix_select_request_t *r=(piconix_select_request_t *)(uintptr_t)b;
+            if(a<0 || a>OS_FD_MAX || !r || !in_task_range(r,sizeof(*r)) || r->timeout_ms < -1) {
+                result=OS_EINVAL; break;
+            }
+            /* lwIPの処理中に触れないという既存のSVC/IDLE排他条件を利用する． */
+            result=select_ready(&tasks[current],a,r);
+            if(result || r->timeout_ms==0) break;
+            task_t *t=&tasks[current];
+            t->wait_dev=WAIT_SELECT; t->wait_buf=r; t->wait_size=(size_t)a;
+            t->wake=ticks+(uint32_t)(r->timeout_ms<0?0:r->timeout_ms);
+            t->wait_frame_ready=0; t->state=BLOCKED;
+            pend(); result=0; break;
+        }
         case SYS_SOCKET: {
             if(a!=2 || (b!=1 && b!=2) || c!=0) { result=OS_EINVAL; break; }
             if(b==2 && udp_owner_pid) { result=OS_EBUSY; break; }
@@ -2225,7 +2345,13 @@ void os_svc_dispatch(uint32_t *f) {
             }
             int fd=free_fd();
             if(fd<0) { result=OS_EMFILE; break; }
-            if(!net_socket_tcp_accept_ready(id)) { result=OS_EAGAIN; break; }
+            if(!net_socket_tcp_accept_ready(id)) {
+                task_t *t=&tasks[current];
+                if(t->fd_flags[a] & OS_O_NONBLOCK) { result=OS_EAGAIN; break; }
+                t->wait_dev=WAIT_TCP_ACCEPT; t->wait_fd=a;
+                t->wait_frame_ready=0; t->state=BLOCKED;
+                pend(); result=0; break;
+            }
             fd_set(&tasks[current],fd,DEV_SOCKET_TCP_ACCEPTED,(uint32_t)id,OS_O_RDWR,0);
             result=fd;
             break;
@@ -2274,6 +2400,12 @@ void os_svc_dispatch(uint32_t *f) {
             if(!pkt || !in_task_range(pkt,sizeof(*pkt)) || !pkt->data ||
                pkt->length>NET_SOCKET_UDP_MAX || !in_task_range(pkt->data,pkt->length)) { result=OS_EINVAL; break; }
             int n=net_socket_udp_recv((void *)pkt->data,pkt->length,&pkt->peer_ip,&pkt->peer_port);
+            if(n==-3 && !(tasks[current].fd_flags[a] & OS_O_NONBLOCK)) {
+                task_t *t=&tasks[current];
+                t->wait_dev=WAIT_UDP_READ; t->wait_fd=a; t->wait_buf=pkt;
+                t->wait_frame_ready=0; t->state=BLOCKED;
+                pend(); result=0; break;
+            }
             result=n==-2 ? OS_EINVAL : n==-3 ? OS_EAGAIN : n<0 ? OS_EIO : n;
             break;
         }
@@ -2507,7 +2639,16 @@ void os_svc_dispatch(uint32_t *f) {
             int writing=(num==SYS_WRITE);
             task_t *t=&tasks[current];
             if(a<0 || a>=OS_FD_MAX || t->fd[a]<0 || !pipe_end(t->fd[a])) {
-                result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,writing); break;
+                result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,writing);
+                if(!writing && result==OS_EAGAIN && a>=0 && a<OS_FD_MAX &&
+                   (t->fd[a]==DEV_SOCKET_TCP || t->fd[a]==DEV_SOCKET_TCP_ACCEPTED) &&
+                   !(t->fd_flags[a] & OS_O_NONBLOCK)) {
+                    t->wait_dev=WAIT_TCP_READ; t->wait_fd=a;
+                    t->wait_buf=(void *)(uintptr_t)b; t->wait_size=(size_t)c;
+                    t->wait_frame_ready=0; t->state=BLOCKED;
+                    pend(); result=0;
+                }
+                break;
             }
             int dev=t->fd[a];
             if(((dev-PIPE_DEV_BASE)&1)!=writing) { result=OS_EBADF; break; }
@@ -2601,9 +2742,7 @@ void os_svc_dispatch(uint32_t *f) {
         preview_len=(unsigned)result;
     }
     /* ブロッキング端末readの結果はwake_readersで非同期に確定する． */
-    if(!(num==SYS_READ && tasks[current].state==BLOCKED) &&
-       !(num==SYS_WAITPID && tasks[current].state==BLOCKED) &&
-       !((num==SYS_READ || num==SYS_WRITE) && tasks[current].state==BLOCKED))
+    if(tasks[current].state!=BLOCKED)
         trace_record(TRACE_SVC_EXIT, (uint8_t)tasks[current].pid, (uint32_t)num,
                      (uint32_t)result, tasks[current].program_id, file_id, preview, preview_len);
     f[0]=(uint32_t)result;
@@ -2694,14 +2833,16 @@ int os_tcp_status(int fd) { return call(SYS_TCP_STATUS,fd,0,0); }
 int os_tcp_accept(int fd) { return call(SYS_ACCEPT_TCP,fd,0,0); }
 
 #if PICONIX_KERNEL_FUNCTION_TRACE
-/* GCC/Clang関数フック．SVC中の指定関数だけを記録し，IRQや通常の
- * カーネル常駐処理は記録しない．カーネル全体の呼出しを記録するものではない． */
+/* GCC/Clang関数フック．選抜関数のみ記録する．通常はSVC限定，
+ * trace on -a / trace run -a では割込みや非同期処理も対象にする． */
 static void __attribute__((no_instrument_function))
 trace_kernel_func(void *func, uint8_t kind) {
-    if(!trace_enabled || !trace_func_enabled || current<0 || current>=OS_MAX_TASKS) return;
+    if(!trace_enabled) return;
     uint32_t ipsr;
     __asm volatile("mrs %0, ipsr" : "=r"(ipsr));
-    if(ipsr!=11u) return; /* SVC内の同期処理だけ対象にする． */
+    if(!trace_all_contexts && ipsr!=11u) return;
+    /* SVCのみ呼出元PIDを持つ．IRQ・通常カーネル処理はPIDなし． */
+    int svc=ipsr==11u && current>=0 && current<OS_MAX_TASKS;
     const char *name=NULL;
 #define TRACE_MATCH(fn) if(func==(void *)(uintptr_t)(fn)) name=#fn
     TRACE_MATCH(vfs_open);
@@ -2736,14 +2877,41 @@ trace_kernel_func(void *func, uint8_t kind) {
     else TRACE_MATCH(proc_device);
     else TRACE_MATCH(device_rw_proc);
     else TRACE_MATCH(device_ioctl_tty);
+    /* SVCから呼ばれる各デバイスドライバの公開入口． */
+    else TRACE_MATCH(adc_driver_read);
+    else TRACE_MATCH(adc_driver_format);
+    else TRACE_MATCH(i2c_driver_transfer);
+    else TRACE_MATCH(pwm_driver_get);
+    else TRACE_MATCH(pwm_driver_set);
+    else TRACE_MATCH(pwm_parse_value);
+    else TRACE_MATCH(gpio_driver_rw);
+    else TRACE_MATCH(gpio_driver_ioctl);
+    else TRACE_MATCH(fb_ioctl);
+    else TRACE_MATCH(fb_rw);
+    /* ソケットの公開操作．lwIPの非同期コールバックはSVC外なので保存しない． */
+    else TRACE_MATCH(net_socket_udp_bind);
+    else TRACE_MATCH(net_socket_udp_recv);
+    else TRACE_MATCH(net_socket_udp_send);
+    else TRACE_MATCH(net_socket_tcp_alloc);
+    else TRACE_MATCH(net_socket_tcp_listen);
+    else TRACE_MATCH(net_socket_tcp_connect);
+    else TRACE_MATCH(net_socket_tcp_status);
+    else TRACE_MATCH(net_socket_tcp_read);
+    else TRACE_MATCH(net_socket_tcp_write);
+    else TRACE_MATCH(net_socket_tcp_accept_ready);
+    else TRACE_MATCH(net_socket_tcp_close);
+    /* pingのICMPデバイス経路．pollと受信コールバックは除外． */
+    else TRACE_MATCH(net_echo_write);
+    else TRACE_MATCH(net_echo_read);
+    else TRACE_MATCH(net_echo_close);
 #undef TRACE_MATCH
     if(!name) return;
-    task_t *t=&tasks[current];
-    if(t->state==UNUSED || t->program_id==7u) return;
+    task_t *t=svc ? &tasks[current] : NULL;
+    if(t && (t->state==UNUSED || t->program_id==7u)) return;
     unsigned len=0;
     while(name[len] && len<16u) len++;
-    trace_record(kind,(uint8_t)t->pid,(uint32_t)(uintptr_t)func,0,
-                 t->program_id,-1,name,len);
+    trace_record(kind,t?(uint8_t)t->pid:0,(uint32_t)(uintptr_t)func,0,
+                 t?t->program_id:0,-1,name,len);
 }
 
 void __attribute__((no_instrument_function))

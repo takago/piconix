@@ -57,6 +57,19 @@ int main(void) {
 }
 ```
 
+## Python access
+
+Like the C examples, Python must explicitly open `/dev/i2c/1` and reuse its descriptor.
+
+```python
+i2c = open("/dev/i2c/1", 2)
+i2c_write(i2c, 0x23, bytes([0x10]))
+data = i2c_read(i2c, 0x23, 2)
+close(i2c)
+```
+
+`i2c_xfer(i2c, addr, sequence, count)` also takes that FD. `i2c_write()` returns the number of bytes written, or `-1` on failure. `i2c_read()` and `i2c_xfer()` return a byte list, or `-1` on transfer failure. All three helpers issue `ioctl(OS_I2C_TRANSFER)` internally rather than calling plain `read()` or `write()`.
+
 ## Notes
 
 - `scan` actively probes devices and can have side effects on unusual peripherals.

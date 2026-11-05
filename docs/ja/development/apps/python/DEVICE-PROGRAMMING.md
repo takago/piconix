@@ -21,7 +21,7 @@ PicoNIXのデバイスは`/dev`のファイルとして公開されます．Pyth
 | `value = ioctl(fd, FB_STATUS, 0)` | 整数引数のデバイス制御 |
 | `pos = lseek(fd, 0, SEEK_SET)` | シーク可能なFDのみ．`SEEK_SET`，`SEEK_CUR`，`SEEK_END`に対応 |
 
-`open()`のパスは文字列**リテラル**に限定されます．`read()`と`write()`は1回最大64バイトです．`write()`に渡せるのは文字列リテラル・文字列変数・整数リスト・`bytes`変数・`str(整数式)`などです．データはバイト列であり，通常のPythonのファイルオブジェクトや`decode()`はありません．`read()`の結果を`print()`するとバイト値の配列表示になるため，テキストを表示するには`write(1, data)`が便利です．エラーは操作により負の整数が返る場合と，インタプリタの実行時エラーで停止する場合があります．
+`open()`のパスは文字列**リテラル**に限定されます．`read()`と`write()`は1回最大64バイトです．`write()`に渡せるのは文字列リテラル・文字列変数・整数リスト・`bytes`変数・`str(整数式)`などです．データはバイト列であり，通常のPythonのファイルオブジェクトや`decode()`はありません．`read()`の結果を`print()`するとバイト値の配列表示になるため，テキストを表示するには`write(1, data)`が便利です．ファイル入出力の失敗は整数`-1`を返し，不正な引数・構文は実行時エラーになります．`read()`の結果は`-1`か配列なので，使用前に確認してください．
 
 ## 1．ADC・内蔵温度センサー
 
@@ -30,9 +30,11 @@ PicoNIXのデバイスは`/dev`のファイルとして公開されます．Pyth
 ```python
 for i in range(5):
     sensor = open("/dev/adc/temp", 0)
-    data = read(sensor, 32)
-    close(sensor)
-    write(1, data)
+    if sensor >= 0:
+        data = read(sensor, 32)
+        close(sensor)
+        if data != -1:
+            write(1, data)
     msleep(1000)
 ```
 
@@ -90,22 +92,27 @@ close(fd)
 GP26がSDA，GP27がSCLです．BH1750のADDRをGNDへ接続すると通常は`0x23`です．配線を確認し，シェルで`i2cctl scan`を実行してから試します．
 
 ```python
-i2c_write(0x23, bytes([0x01]))
-msleep(100)
-i2c_write(0x23, bytes([0x10]))
-msleep(200)
-data = i2c_read(0x23, 2)
-raw = data[0] * 256 + data[1]
-print(raw * 5 / 6)
-i2c_write(0x23, bytes([0x00]))
+fd = open("/dev/i2c/1", 2)
+if fd >= 0:
+    ok = i2c_write(fd, 0x23, bytes([0x01]))
+    if ok >= 0:
+        msleep(100)
+        ok = i2c_write(fd, 0x23, bytes([0x10]))
+        if ok >= 0:
+            msleep(200)
+            data = i2c_read(fd, 0x23, 2)
+            if data != -1:
+                raw = data[0] * 256 + data[1]
+                print(raw * 5 / 6)
+    close(fd)
 ```
 
-これは照度の整数近似値を表示します．I²Cアドレスは`0x08`～`0x77`，送受信は各32バイトまでです．書込みと読取りをRepeated STARTでまとめる場合は`i2c_xfer(addr, sequence, count)`を使用します．詳細は[I²Cリファレンス](../../../reference/devices/I2C.md)を参照してください．
+これは照度の整数近似値を表示します．I²Cアドレスは`0x08`～`0x77`，送受信は各32バイトまでです．書込みと読取りをRepeated STARTでまとめる場合は`i2c_xfer(fd, addr, sequence, count)`を使用します．詳細は[I²Cリファレンス](../../../reference/devices/I2C.md)を参照してください．
 
 ## 6．実行時の注意
 
 - スクリプト上限は2048バイト，有効行は最大64，変数は最大16個です．配列・受信バイト列は各64要素までです．
-- `open()`や`ioctl()`が失敗するとPythonの実行が中断される場合があります．実習では先に`ls`，`cat`，`fbctl`などでデバイスの有無を確認してください．
+- `open()`や`ioctl()`は操作失敗時に`-1`を返します．実習では先に`ls`，`cat`，`fbctl`などでデバイスの有無を確認してください．
 - 長時間のデバイス制御では，終了前にPWM出力を0にするなど，安全な状態へ戻してください．
 - `/dev/mem`や`/dev/trace`のような特殊なバイナリデバイスは，一般的な文字列の読書きとは制約が異なります．仕様を確認してから利用してください．
 - Pythonからデバイスを直接操作する場合も，GPIOとPWM・ADC・I²Cのピンの競合は解消されません．

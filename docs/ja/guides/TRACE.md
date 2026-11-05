@@ -7,7 +7,8 @@ PicoNIXは，タスク切り替え，システムコールの開始・終了，�
 ## 基本操作
 
 ```text
-trace on         # 記録を消去して開始
+trace on         # 記録を消去して開始（関数はSVC内）
+trace on -a      # SVC外の選抜関数も記録
 trace off        # 記録を停止
 trace show       # 記録を停止して全履歴を表示
 trace show 3     # 記録を停止してPID 3のイベントを表示
@@ -15,7 +16,8 @@ trace follow     # 実行した時点以降の新しいイベントを表示
 trace follow 3   # 実行した時点以降のPID 3のイベントを表示
 trace run hello  # helloを起動し，終了後にそのPIDのイベントを表示
 trace run python test.py  # Pythonスクリプトの実行を記録
-trace kernel cat /tmp/test.txt  # カーネル内部の関数呼び出しも記録（専用ビルド）
+trace run -a ping 127.0.0.1 # SVC外の選抜関数も記録
+trace run cat /tmp/test.txt  # 関数計測ビルドでは選抜関数も記録
 ```
 
 **`trace show`や`trace follow`はトレースの表示操作であり，対象プログラムを起動しません．** 1つの端末しか使えない場合は，`trace run hello`のように`run`を使用すると，起動から終了までを簡単に観察できます．
@@ -40,32 +42,38 @@ trace run ./a.out
 
 トレースは16 KiB（512件）リングバッファ（`0x20038000`〜`0x2003BFFF`の専用RAM領域）に保存されます．実行が長い場合は古いイベントが上書きされ，起動直後のイベントも失われる可能性があります．`trace run` は直接起動したプロセスだけを絞り込み，孫プロセスを自動追跡しません．ゲームやREPLなど，終了しないプログラムでは終了するまで一覧は出ません．
 
-## カーネル内部関数の呼び出し（実験機能）
+## 選択カーネル関数の自動トレース
 
-`trace kernel command [args...]`は，従来のシステムコールに加えて，指定した**一部のカーネル関数**の入口と出口を`関数名`／`関数名/`として表示します．これは**実験的機能で，ビルド時の既定値はOFF**です．`trace run`による従来のシステムコールトレースはOFFのまま利用できます．カーネル関数トレースを使うときだけ，PicoまたはPico Wを次のように**再ビルド**します．
+通常ビルドではシステムコール，タスク切替，SysTickの周期イベントだけを記録します．
+次のビルドオプションをONにすると，選抜したカーネル関数の入口と出口も記録対象になります．
 
 ```bash
-./tools/build_sdk.sh -DPICO_BOARD=pico -DPICONIX_KERNEL_FUNCTION_TRACE=ON
-# Pico Wなら -DPICO_BOARD=pico_w とする
+./tools/build_sdk.sh --no-flash -DPICO_BOARD=pico -DPICONIX_KERNEL_FUNCTION_TRACE=ON
 ```
 
-
-無効に戻す場合は，`-DPICONIX_KERNEL_FUNCTION_TRACE=OFF`を指定して再ビルドしてください．CMakeの設定はビルドディレクトリにキャッシュされるため，過去に`ON`を指定した場合は，オプションを省略するだけでは`OFF`に戻らないことがあります．**明示的に`OFF`を指定**するか，対象ボードのビルドディレクトリを消して構成し直してください．セットアップ時の指定例は[セットアップガイド](../setup/SETUP.md)にあります．
+ビルド時の既定値はOFFです．CMakeキャッシュが残る場合は明示的に`OFF`を指定してください．
 
 ```text
-piconix# echo hello > /tmp/test.txt
-piconix# trace kernel cat /tmp/test.txt
+trace on             # 通常イベント + SVC内の選抜関数
+trace on -a          # 通常イベント + 全コンテキストの選抜関数
+trace follow         # 以降の記録を表示（表示用コマンド）
+trace show           # 停止して記録を表示
+trace run hello      # コマンドを起動してSVC内の関数も記録
+trace run -a hello   # 全コンテキストの関数を記録
 ```
 
-VFS／FD管理（`vfs_open`，`vfs_rw`，`vfs_fixed_path_id`，`vfs_directory_id`，`free_fd`，`fd_set`，`fd_release`，`fd_copy`，`in_task_range`），RAMファイル（`tmp_open`，`tmp_rw`，`tmp_unlink`，`tmp_init`，`tmp_name`，`tmp_lookup`），デバイス（`device_rw_tty`，`tty_rx_read`，`tty_rx_ready`，`tty_dequeue`，`device_rw_rand`，`rand32`，`device_rw_proc`，`proc_device`，`device_ioctl`，`device_ioctl_tty`），その他（`vfs_getdents`，`pipe_transfer`）を計測対象にしています．これらの関数が**SVC例外中に実行されたとき**に限って記録します．したがって，割込みやスケジューラを含む全カーネル関数の完全な呼び出し履歴ではありません．関数の最適化やインライン展開によって表示が変わる場合もあります．
+`-a`は**選抜されたカーネル関数**の記録コンテキストだけを拡張します．通常イベントの種類は変えません．
+SVCで呼び出された関数には呼出元PIDを付け，割込み・非同期カーネル処理にはPIDを付けず「-」と表示します．
+`trace follow PID`と`trace show PID`はPIDなしのイベントを表示しません．
+`trace run -a`でも記録は全コンテキストですが，終了後の表示は起動したPIDに限定するため，非同期処理は`trace on -a`と`trace follow`で観察してください．
 
-`trace kernel omikuji`では`/dev/rand`の`read`から`vfs_rw`→`device_rw_rand`→`rand32`まで，`trace kernel cat /tmp/test.txt`では`open`時のFD割当や`read`時のRAMファイル操作まで観察できます．ただし，最適化により一部の呼出しが表示されないことがあります．TTY出力の1文字ごとの下位関数は記録量を抑えるため対象外です．
+対象関数はVFS・FD管理，RAMファイル，TTY，GPIO，ADC，I²C，PWM，フレームバッファ，TCP/UDP操作と，ICMPデバイスの`net_echo_write`，`net_echo_read`，`net_echo_close`です．`net_capture_poll`と`echo_received`は対象外です．
+コンパイラの最適化により一部の呼び出しがインライン化される場合があります．また，計測対象外の関数は記録されません．
 
-記録形式は従来どおり32バイトで，`value`は関数アドレス，`data[16]`は関数名です．`trace kernel`は対象コマンド終了時に関数トレースを解除します．通常の`trace run`は従来どおりです．
-
-**注意：** このモードでは`kernel/kernel.c`全体にコンパイラの関数計測フックが入るため，Flash使用量・スタック使用量・実行時間が増えます．フックは指定関数だけを保存しますが，その他の関数でも入口・出口フックが実行されます．リリース用の標準構成では`OFF`のままとしてください．16 KiBのリングバッファは既存イベントと共用で，記録が上書きされることがあります．Pico／Pico Wでの実機動作は別途確認が必要です．
-
-`trace kernel`は関数の入口を`関数名`，復帰を`関数名/`で表し，カーネル関数を呼び出しの深さに応じて2文字ずつ字下げします．システムコールを深さ0，直下のカーネル関数を深さ1として表示し，システムコール終了後に階層を初期化します．これは**表示上の階層**であり，カーネルスタックを解析するものではありません．`trace show`／`trace follow`ではPIDごとに深さを管理します．記録の上書きなどで対応するイベントが失われた場合，字下げは実際の呼び出し階層を完全には反映しません．
+記録形式は32バイト固定，共通リングバッファは16 KiB（512イベント）です．関数名は最大16バイトで切り詰められます．
+関数の入口・出口は通常`関数名`／`関数名/`と表示します．**同一時刻・同一PID・同一関数で，入口と出口が連続した場合**だけ，表示時に`(関数名)`の1行にまとめます．入れ子の呼び出しや途中に別イベントがある場合，時刻が異なる場合はまとめません．記録内容とバッファ消費量は従来どおりです．`trace follow`では表示のために最大1件の入口イベントを一時保留し，新しいイベントが途切れたら単独行として表示します．PID別に表示用の字下げを行います．ただし，割込みイベントはPIDなしの共通表示となり，割込みによる入れ子やバッファ上書きが起きた場合は字下げが正確な呼出スタックを表さないことがあります．
+`-a`は記録量と処理負荷を増やします．トレースバッファは割込み禁止区間で保護しますが，実機での負荷・タイミングは確認してください．
+従来の`trace kernel`は廃止しました．
 
 ## 記録される内容
 
@@ -88,6 +96,144 @@ trace run ls
 各コマンドが終了すると，そのプロセスのイベントが表示されます．`関数名`と`関数名/`を対にして，どのシステムコールが呼び出されたかを観察してください．`SWITCH`はタスク切り替えを表し，表示対象PIDは切り替え先です．
 
 継続的な記録を調べる場合は，`trace on`で開始し，別のコマンドを動かしてから`trace show`で確認します．`trace show`は記録を停止します．長時間の実行では古いイベントがリングバッファから失われることがあります．
+
+## 実習：SVC内と非同期処理の違いを観察する
+
+この実習は，関数計測を有効にしたビルド（`PICONIX_KERNEL_FUNCTION_TRACE=ON`）を想定します．通常ビルドでもシステムコールやSysTickなどのイベントは観察できますが，`KERNEL`行は表示されません．以下の出力は説明用であり，実行時刻，PID，関数の並びは環境によって異なります．
+
+### 実習1：プログラムのシステムコールとカーネル関数
+
+```text
+piconix# trace run hello
+piconix# trace run ls
+piconix# trace run python test.py
+```
+
+`SYSCALL`行と`KERNEL`行を比べ，システムコールからVFSやデバイスドライバの選抜関数に処理が移る様子を探します．入口は関数名，出口は末尾に`/`を付けて表示されます．直ちに戻る関数は`(関数名)`と1行で表示される場合があります．関数イベントは通常モードではSVC処理中に限られます．`trace run`の表示は起動したPIDのイベントに絞られます．
+
+### 実習2：pingによるICMPデバイス操作
+
+```text
+piconix# trace run ping 127.0.0.1
+```
+
+`/dev/net/icmp`に関係する`open`，`write`，`read`などのシステムコールを観察します．関数計測ビルドでは，SVC中に呼ばれる`net_echo_write`，`net_echo_read`，`net_echo_close`も記録候補になります．これらは呼び出された場合に限り表示されます．ICMPの非同期受信処理そのものをすべて追跡する機能ではありません．
+
+### 実習3：別端末で非同期処理も観察する
+
+USB CDCとUART1またはTelnetなど，**2つの端末**で試します．
+
+端末A：
+
+```text
+piconix# trace on -a
+piconix# trace follow
+```
+
+端末B：
+
+```text
+piconix# ping 127.0.0.1
+piconix# ls
+```
+
+端末Aで`SYSCALL`，`SWITCH`，`TIMER`，`KERNEL`の各行を探します．`-a`は**選抜されたカーネル関数**の記録条件をSVC外にも広げます．非同期処理や割込み中の関数イベントにはPIDを付けず`-`と表示します．ただし，対象として登録・計測されていない関数（`net_capture_poll`や`echo_received`など）は記録されません．SysTickの`TICKx1K`は関数イベントとは別の通常イベントなので，`-a`なしでも記録されます．
+
+終了するときは，端末Bなど別端末から次を実行します．
+
+```text
+piconix# trace off
+```
+
+`trace follow`は残りのイベントを表示して終了します．`trace show`は履歴表示と同時に記録を停止する点にも注意してください．
+
+### 実習4：`trace run -a`との違い
+
+```text
+piconix# trace run -a ping 127.0.0.1
+```
+
+この指定も全コンテキストの選抜関数を**記録**しますが，実行後の一覧は起動した`ping`のPIDだけを**表示**します．PIDなしの非同期関数イベントまで観察するには，実習3の`trace on -a`と`trace follow`を使います．記録量が増えると512件のリングバッファの古いイベントが上書きされるため，長時間の記録は避けてください．
+
+## 実習：ファイル・デバイス・ネットワーク・スケジューリング
+
+以下の実習は，単独で終了するプログラムには `trace run` を，サーバなど継続して動作するプログラムには別端末から `trace on` と `trace follow` を使います．`trace run` は対象プログラムが終了するまで結果を表示しません．記録を停止するときは別端末から `trace off` を実行してください．
+
+### 実習5：RAMファイルとVFS
+
+まず `/tmp/test.txt` にファイルを用意します．
+
+```text
+piconix# echo hello > /tmp/test.txt
+piconix# trace run cat /tmp/test.txt
+```
+
+`open`，`read`，`write`，`close` を探し，`KERNEL` 行の `vfs_rw` などと見比べます．`(in_task_range)` のような1行表示は，同じ時刻に連続して記録された関数入口・出口を表示時にまとめたものです．記録自体は2件残っています．
+
+### 実習6：Pythonからのファイル操作とADC
+
+```text
+piconix# trace run python test.py
+```
+
+`test.py` は内蔵温度センサを5回読み取るサンプルです．Pythonの代入や整数演算はユーザ空間の処理なので，それ自体は `SYSCALL` として現れません．一方，デバイスファイルの `open`，`read`，`write`，`close` や，待機に用いるシステムコールを観察できます．実際の処理は `/tmp/test.py` の内容も確認してください．
+
+### 実習7：BH1750とI²Cのioctl
+
+BH1750を接続した場合，1回だけ計測するコマンドを使います．
+
+```text
+piconix# trace run bh1750 1
+```
+
+`/dev/i2c/1` を開く `open`，転送を依頼する `ioctl`，終了時の `close` を確認します．関数計測ビルドでは，該当するSVC経路が呼ばれた場合に `i2c_driver_transfer` の記録も探します．センサ未接続では正常な測定を期待できません．`bh1750` を引数なしで実行すると連続測定になるため，`trace run` では回数を指定してください．
+
+### 実習8：HTTPサーバでselect・accept・readを調べる
+
+端末AでHTTPサーバを起動します．
+
+```text
+piconix# httpd
+```
+
+端末Bでは次を実行します．
+
+```text
+piconix# trace on
+piconix# trace follow
+```
+
+PCのブラウザからPico WのHTTPサーバに接続し，`select`，`accept`，`read`，`write` などを探します．`select` の戻り値が準備できたFDの数を表すことと，後続の `accept`／`read` の関係に注目してください．`httpd` は通常継続動作するため，`trace run httpd` はここでは使いません．
+
+### 実習9：ブロッキングacceptとI/O多重化の比較
+
+端末Aで次を実行します．
+
+```text
+piconix# tcp_echod 7000
+```
+
+別端末で `trace on`／`trace follow` を実行し，外部TCPクライアントからポート7000に接続してデータを送ります．待機中と接続・データ到着後のイベントを観察します．さらに `nc` を使った通信と比較すると，単一ソケットのブロッキング待機と，複数FDを監視する `select` の使い分けを学べます．記録だけから各待機状態を断定せず，対応するユーザアプリとカーネルのソースを併せて確認してください．
+
+### 実習10：PIDフィルタとSysTick
+
+```text
+piconix# ps
+piconix# trace on
+piconix# trace follow
+```
+
+一定間隔で現れる `TIMER TICKx1K` と `SWITCH` を探します．`TICKx1K` は1 msごとのSysTickを1,000回数えたときのイベントであり，すべての割込みを表示しているわけではありません．
+
+特定のプロセスに絞る場合は，別途 `ps` で確認したPIDを用いて `trace follow PID` や `trace show PID` を実行します．PID指定は**表示フィルタ**であり，リングバッファの記録件数は減りません．`SWITCH` は切替先PIDで絞り込みます．割込み・非同期処理に由来するPIDなしの関数イベントを見たい場合は，PIDを付けずに `trace on -a` と `trace follow` を組み合わせます．
+
+### 実習時の注意
+
+- `PICONIX_KERNEL_FUNCTION_TRACE=OFF` のビルドでは，`KERNEL` 行は表示されません．
+- `-a` はすべての関数を記録する指定ではなく，**コンパイル時に計測し，かつ選抜した関数**についてSVC外も許可する指定です．
+- 記録領域は512イベントなので，負荷の高いプログラムでは古いイベントが上書きされます．短時間の観察から始めてください．
+- 関数イベントの `Ret` は関数の戻り値ではありません．システムコールの戻り値と混同しないでください．
+- トレースによる実行時間の増加があるため，表示時刻だけで厳密な性能測定はできません．
 
 ## `/dev/trace` のバイナリ形式
 
@@ -115,17 +261,4 @@ SysTickは1ms周期，通常のタイムスライスは10msです．sleepでの�
 **関連リンク：** [trace操作](TRACE.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../en/guides/TRACE.md) ｜ [内部構造](../reference/INTERNAL.md)
 
 表示列は `Time | PID | Command | TTY | Type | Function | Arg | Ret | Info` です．`Function`は関数入口の`name`と復帰の`name/`を表示します．`Arg`は従来の対象FD・パス・終了ステータスなどの記録済み情報であり，全引数を列挙するものではありません．`Ret`はシステムコール復帰時の記録値で，カーネル内部関数の戻り値は記録していません．`Info`は入出力プレビューや切替先などの補助情報です．取得されない項目は`--`と表示します．`Type`は`SYSCALL`，`KERNEL`，`SWITCH`，`TIMER`，`OTHER`を区別します．`exit`の`Ret`に表示される値は通常の関数戻り値ではなく，トレースレコードの終了処理結果です．
-
-### 表示する関数階層を制限する
-
-`trace kernel -d N command [args...]`で，カーネル関数の表示深さを`0`〜`8`で指定できます．システムコールは深さ0，その直下のカーネル関数は深さ1です．省略時は深さを制限しません．
-
-```text
-piconix# trace kernel -d 0 hello       # システムコールのみ
-piconix# trace kernel -d 1 hello       # 直下のカーネル関数まで
-piconix# trace kernel -d 2 hello       # 2段階まで
-piconix# trace kernel -d 8 omikuji     # 8段階まで
-```
-
-この指定は**表示時のフィルタ**であり，計測する関数や16 KiBのリングバッファ使用量は変わりません．深い関数のイベントを非表示にしても内部の深さは更新するため，表示対象に戻ったときの字下げは維持されます．`-d`は`trace kernel`のコマンド名より前に指定します．
 

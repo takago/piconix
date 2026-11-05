@@ -48,12 +48,12 @@ spec.loader.exec_module(module)
 with tempfile.TemporaryDirectory() as temp:
     pico = module.generate(root / 'userland/fs', 'pico', Path(temp) / 'pico.inc')
     picow = module.generate(root / 'userland/fs', 'pico_w', Path(temp) / 'picow.inc')
-assert 'tmp/bh1750_fbwave.py' in pico and 'tmp/bh1750_fbwave.py' in picow
-assert pico['tmp/bh1750_fbwave.py'] == (root / 'userland/examples/python/wave.py').read_bytes()
+assert 'tmp/fbwave.py' in pico and 'tmp/fbwave.py' in picow
+assert pico['tmp/fbwave.py'] == (root / 'userland/examples/python/fbwave.py').read_bytes()
 for language in ('ja', 'en'):
     for relative in ('reference/INITIAL-FILES.md', 'reference/FILESYSTEM.md',
                      'development/apps/python/PYTHON.md'):
         content = (docs / language / relative).read_text(encoding='utf-8')
-        assert '/tmp/bh1750_fbwave.py' in content, f'initial sample missing: {language}/{relative}'
-        assert '/tmp/wave.py' not in content, f'obsolete initial sample name: {language}/{relative}'
+        assert '/tmp/fbwave.py' in content, f'initial sample missing: {language}/{relative}'
+        assert '/tmp/wave.py' not in content and '/tmp/bh1750_fbwave.py' not in content, f'obsolete initial sample name: {language}/{relative}'
 print(f'PASS: {len(ja)} bilingual document pairs; {links} local Markdown links; initial files for Pico/Pico W')

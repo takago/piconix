@@ -6,6 +6,7 @@
 /* UDP内部通信API．システムコールまたはアイドル側から呼ぶが，割込み内では呼ばない．lwIPポーリングとユーザソケットSVCを同時実行させない． */
 #define NET_SOCKET_UDP_MAX 512u
 int net_socket_udp_bind(uint16_t port);
+int net_socket_udp_read_ready(void);
 /* データグラムなしは-3を返し，長さ0は正当なUDPデータグラムと区別する． */
 int net_socket_udp_recv(void *buf, unsigned capacity, uint32_t *peer_ip, uint16_t *peer_port);
 int net_socket_udp_send(const void *buf, unsigned length, uint32_t peer_ip, uint16_t peer_port);
@@ -29,6 +30,10 @@ int net_socket_tcp_write(int id, const void *src, unsigned length);
 int net_socket_tcp_shutdown_write(int id);
 void net_socket_tcp_close(int id);
 int net_socket_tcp_accept_ready(int id);
+/* select専用: 受信キューやaccept受付フラグを消費しない． */
+int net_socket_tcp_accept_peek(int id);
+int net_socket_tcp_recv_ready(int id);
+int net_socket_tcp_write_ready(int id);
 int net_socket_tcp_listening(int id);
 void net_socket_tcp_close_listener(int id);
 void net_socket_tcp_close_client(int id);

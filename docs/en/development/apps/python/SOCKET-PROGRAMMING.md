@@ -18,7 +18,7 @@ Confirm the Pico W Wi-Fi connection. Use `cat /proc/net/wifi` to find its IP add
 | `connect(fd, "127.0.0.1", 80)` | Initiate a TCP connection; completion requires a separate check |
 | `state = status(fd)` | TCP state: 0=in progress, 1=established, negative=failed, etc. |
 | `listen(fd, 9000)` | Start a TCP listener |
-| `client = accept(fd)` | Accept an incoming TCP connection; usually -11 if none is pending |
+| `client = accept(fd)` | Accept an incoming TCP connection; blocks by default |
 | `bind(fd, 9000)` | Bind the UDP receive port |
 | `n = send(fd, data)` | TCP send, which can be partial or temporarily unavailable |
 | `data = recv(fd, 64)` | TCP receive, maximum 64 bytes |
@@ -31,9 +31,9 @@ Confirm the Pico W Wi-Fi connection. Use `cat /proc/net/wifi` to find its IP add
 
 ### Interpreting return values
 
-PicoNIX user sockets are **polling-oriented**, independent of `O_NONBLOCK`. The C API returns `OS_EAGAIN` for no pending data, but Tiny Python turns it into an **empty byte sequence** for `data = recv(...)` and `data = recvfrom(...)`. Therefore `len(data) == 0` cannot by itself distinguish no data, TCP EOF or a zero-length UDP datagram. Check `status(fd)` for TCP state.
+`accept()`, `recv()` and `recvfrom()` **block by default** until a connection or data arrives. When the socket FD is explicitly marked `O_NONBLOCK` via `fcntl`, C returns `OS_EAGAIN` and Tiny Python converts receive failures to integer `-1`. Successful receives return byte sequences; `[]` represents TCP EOF or a zero-length UDP datagram. Check `data != -1` before `len()` or `write()`. Use `status(fd)` to inspect TCP state.
 
-`accept()` returns a negative value when no connection has arrived: check `client >= 0`. `send()` may transmit only part of the payload or be temporarily unable to send. Each call is limited to 64 bytes. Payloads can be literals, string variables, list/`bytes` variables, or `str(integer_expression)`. `recv()` and `recvfrom()` **must be used in assignment statements**.
+`accept()` waits for a connection by default; check `client >= 0` for actual errors. `send()` may transmit only part of the payload or be temporarily unable to send. Each call is limited to 64 bytes. Payloads can be literals, string variables, list/`bytes` variables, or `str(integer_expression)`. `recv()` and `recvfrom()` **must be used in assignment statements**.
 
 ## 1. TCP client: HTTP server on the same Pico W
 
@@ -51,7 +51,8 @@ if rc == 0:
         send(fd, "GET / HTTP/1.0\r\n\r\n")
         msleep(100)
         data = recv(fd, 64)
-        write(1, data)
+        if data != -1:
+            write(1, data)
 close(fd)
 ```
 
@@ -83,8 +84,9 @@ rc = bind(fd, 9000)
 if rc == 0:
     while True:
         data = recvfrom(fd, 64)
-        if len(data) > 0:
-            sendto(fd, "OK\n", "peer", 0)
+        if data != -1:
+            if len(data) > 0:
+                sendto(fd, "OK\n", "peer", 0)
         msleep(20)
 close(fd)
 ```
@@ -101,7 +103,7 @@ The expected response is `OK`. UDP has a one-datagram receive buffer. If a read 
 
 - Each Python `while` loop is limited to 10,000 iterations, so these examples are not designed as permanent background services.
 - TCP has a limited number of management slots; UDP permits only one user socket system-wide. See the [network reference](../../../reference/network/NETWORK.md).
-- An empty result from `recv()` or `recvfrom()` is not an error code; observe connection state separately.
+- `recv()` and `recvfrom()` return `-1` for non-blocking unavailability or failures, and `[]` for a zero-byte result. `-1` does not distinguish temporary unavailability from a fatal error; check `status(fd)` where applicable.
 - Splitting larger messages, retrying partial TCP sends, recognizing disconnections and enforcing timeouts are application responsibilities.
 - These functions are not compatible with the standard Python `socket` module. `import socket` is not supported.
 

@@ -43,7 +43,8 @@
     X(SYS_PIPE,          36, "pipe") \
     X(SYS_DUP,           37, "dup") \
     X(SYS_PROGRAM_ID,    38, "program_id") \
-    X(SYS_SHUTDOWN_TCP,  39, "shutdown")
+    X(SYS_SHUTDOWN_TCP,  39, "shutdown") \
+    X(SYS_SELECT,        40, "select")
 
 enum {
 #define PICONIX_SYSCALL_ENUM(name, number, label) name = number,

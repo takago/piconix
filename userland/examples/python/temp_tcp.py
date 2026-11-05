@@ -12,7 +12,8 @@ if server >= 0:
                 if sensor >= 0:
                     temp = read(sensor, 32)
                     close(sensor)
-                    send(client, temp)
+                    if temp != -1:
+                        send(client, temp)
                 close(client)
             msleep(20)
     close(server)

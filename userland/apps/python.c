@@ -108,17 +108,16 @@ static void setstring(const char *name,const char *value){
     is_string[k]=1;seq[k].used=0;seq[k].len=(uint8_t)n;
 }
 
-/* プール内のオブジェクトを詰め直す．変数の並び順と物理配置順が異なる点に注意する． */
-static int transfer(int addr,const int32_t *values,int n,int r,int32_t *output){
-    if(addr<8||addr>0x77||n<0||n>32||r<0||r>32){error=1;return 0;}
+/* 呼出し元が開いたI²C FDで転送する．FDの所有権は呼出し元にある． */
+static int transfer(int fd,int addr,const int32_t *values,int n,int r,int32_t *output){
+    if(fd<0||addr<8||addr>0x77||n<0||n>32||r<0||r>32){error=1;return 0;}
     piconix_i2c_transfer_t req={0};req.address=(uint8_t)addr;
     req.write_len=(uint8_t)n;req.read_len=(uint8_t)r;
     for(int i=0;i<n;i++){if(values[i]<0||values[i]>255){error=1;return 0;}
         req.write_data[i]=(uint8_t)values[i];}
-    int fd=open("/dev/i2c/1",O_RDWR);if(fd<0){error=1;return 0;}
-    int rc=ioctl(fd,OS_I2C_TRANSFER,(int)(uintptr_t)&req);close(fd);
-    if(rc<0){error=1;return 0;}
-    for(int i=0;i<r;i++)output[i]=req.read_data[i];return 1;
+    int rc=ioctl(fd,OS_I2C_TRANSFER,(int)(uintptr_t)&req);
+    if(rc<0)return -1;
+    for(int i=0;i<r;i++)output[i]=req.read_data[i];return n;
 }
 static uint32_t last_peer_ip;
 static unsigned last_peer_port;
@@ -377,12 +376,12 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         target[z]=0;int k=seqslot(target);if(!eat(')')||k<0||(!seq[k].used&&!is_string[k])){error=1;return 0;}
         return is_string[k]?(int32_t)strlen(string_at(k)):seq[k].len;
     }
-    /* 整数FDを使う簡易ソケットAPI．ポーリング用にOSの戻り値をそのまま渡す． */
+    /* 整数FDを使う簡易ソケットAPI．操作失敗は-1に統一する． */
     if(same(name,"socket")&&eat('(')){
         int32_t type=expr();if(!eat(')'))error=1;
         if(type!=SOCK_STREAM&&type!=SOCK_DGRAM)error=1;
         if(error||!evaluating)return 0;
-        return socket(AF_INET,type,0);
+        int rc=socket(AF_INET,type,0);return rc<0?-1:rc;
     }
     if(same(name,"connect")&&eat('(')){
         int fd=parse_fd();if(!eat(','))error=1;
@@ -390,24 +389,24 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         if(!socket_address(&addr))return 0;
         if(!eat(')'))error=1;
         if(error||!evaluating)return 0;
-        return connect(fd,(const struct sockaddr *)&addr,sizeof addr);
+        int rc=connect(fd,(const struct sockaddr *)&addr,sizeof addr);return rc<0?-1:rc;
     }
     if(same(name,"bind")&&eat('(')){
         int fd=parse_fd();if(!eat(','))error=1;
         int port=expr();if(!eat(')')||!valid_port(port))error=1;
-        if(error||!evaluating)return 0;return bind_udp(fd,(unsigned)port);
+        if(error||!evaluating)return 0;int rc=bind_udp(fd,(unsigned)port);return rc<0?-1:rc;
     }
     if(same(name,"listen")&&eat('(')){
         int fd=parse_fd();if(!eat(','))error=1;
         int32_t port=expr();if(!eat(')')||!valid_port(port))error=1;
         if(error||!evaluating)return 0;
-        return tcp_listen(fd,(unsigned)port);
+        int rc=tcp_listen(fd,(unsigned)port);return rc<0?-1:rc;
     }
     if((same(name,"accept")||same(name,"status"))&&eat('(')){
         int accepting=same(name,"accept");int fd=parse_fd();
         if(!eat(')'))error=1;
         if(error||!evaluating)return 0;
-        return accepting?tcp_accept(fd):tcp_status(fd);
+        int rc=accepting?tcp_accept(fd):tcp_status(fd);return rc<0?-1:rc;
     }
     if(same(name,"peerport")&&eat('(')){
         if(!eat(')'))error=1;return (int32_t)last_peer_port;
@@ -417,25 +416,25 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         if(!eat(',')){error=1;return 0;}int flags=expr();
         if(!eat(')'))error=1;
         if(error||!evaluating)return 0;
-        int fd=open(path,flags);if(fd<0)error=1;return fd;
+        int rc=open(path,flags);return rc<0?-1:rc;
     }
     if(same(name,"close")&&eat('(')){
         int fd=parse_fd();if(!eat(')'))error=1;
         if(error||!evaluating)return 0;
-        int rc=close(fd);if(rc<0)error=1;return rc;
+        int rc=close(fd);return rc<0?-1:rc;
     }
     if(same(name,"lseek")&&eat('(')){
         int fd=parse_fd();if(!eat(','))error=1;
         int32_t offset=expr();if(!eat(','))error=1;
         int32_t whence=expr();if(!eat(')'))error=1;
         if(error||!evaluating)return 0;
-        return (int32_t)lseek(fd,offset,whence);
+        int32_t rc=(int32_t)lseek(fd,offset,whence);return rc<0?-1:rc;
     }
     if(same(name,"ioctl")&&eat('(')){
         int fd=parse_fd();if(!eat(','))error=1;int cmd=expr();
         if(!eat(','))error=1;int arg=expr();if(!eat(')'))error=1;
         if(error||!evaluating)return 0;
-        int rc=ioctl(fd,cmd,arg);if(rc<0)error=1;return rc;
+        int rc=ioctl(fd,cmd,arg);return rc<0?-1:rc;
     }
     if((same(name,"write")||same(name,"send")||same(name,"sendto"))&&eat('(')){
         int udp=same(name,"sendto"),tcp=same(name,"send");
@@ -445,8 +444,9 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         if(udp){if(!eat(','))error=1;socket_address(&addr);}
         if(!eat(')'))error=1;
         if(error||!evaluating||len<0)return 0;
-        return udp?sendto(fd,buf,(unsigned)len,0,(struct sockaddr *)&addr,sizeof addr):
+        int rc=udp?sendto(fd,buf,(unsigned)len,0,(struct sockaddr *)&addr,sizeof addr):
                tcp?send(fd,buf,(unsigned)len,0):write(fd,buf,(unsigned)len);
+        return rc<0?-1:rc;
     }
 
     if(eat('[')){int32_t index=expr();if(!eat(']'))error=1;
@@ -490,7 +490,17 @@ static int32_t bits(int level){
 }
 
 /* 比較演算を解析する． */
-static int32_t comparison(void){int32_t a=bits(0);ws();int op=0;
+static int32_t comparison(void){
+    /* 配列と整数の等値比較は常に偽．read/recv/I²Cの -1 を検査できる． */
+    const char *save=cursor;ws();char name[16];unsigned n=0;
+    while(idchar(*cursor)&&n<15)name[n++]=*cursor++;
+    name[n]=0;int k=n?seqslot(name):-1;ws();
+    if(k>=0&&seq[k].used&&((cursor[0]=='='&&cursor[1]=='=')||(cursor[0]=='!'&&cursor[1]=='='))){
+        int neq=cursor[0]=='!';cursor+=2;
+        (void)bits(0);return neq;
+    }
+    cursor=save;
+    int32_t a=bits(0);ws();int op=0;
     if(cursor[0]=='='&&cursor[1]=='='){op=1;cursor+=2;}
     else if(cursor[0]=='!'&&cursor[1]=='='){op=2;cursor+=2;}
     else if(cursor[0]=='<'&&cursor[1]=='='){op=3;cursor+=2;}
@@ -570,6 +580,28 @@ static void print_value(void){
     cursor=start;number(expr());
 }
 static int repl_mode;
+/* I²C書込みに渡すFD，アドレス，バイト列を解析する． */
+static int parse_i2c_write_args(int *fd,int32_t *addr,int32_t *payload,int *len){
+    *fd=parse_fd();if(!eat(',')){error=1;return 0;}
+    *addr=expr();if(!eat(',')){error=1;return 0;}
+    *len=0;
+    if(word("bytes")){
+        if(!eat('(')||!eat('[')){error=1;return 0;}
+        if(!eat(']')){
+            do{if(*len==32){error=1;return 0;}payload[(*len)++]=expr();}while(eat(','));
+            if(!eat(']')){error=1;return 0;}
+        }
+        if(!eat(')')){error=1;return 0;}
+    }else{
+        char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
+        srcname[z]=0;int k=seqslot(srcname);
+        if(k<0||!seq[k].used||seq[k].len>32){error=1;return 0;}
+        *len=seq[k].len;for(int j=0;j<*len;j++)payload[j]=items(k)[j];
+    }
+    if(!eat(')')){error=1;return 0;}
+    ws();if(*cursor&&*cursor!='#')error=1;
+    return !error;
+}
 /* 一文の構文と処理を実行する．ファイル，GPIO，通信等の小さな組込み機能へ分岐する． */
 static void statement(unsigned line){cursor=source+offsets[line];ws();
     if(word("msleep")&&eat('(')){
@@ -581,23 +613,9 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
     }
     cursor=source+offsets[line];ws();
     if(word("i2c_write")&&eat('(')){
-        int32_t addr=expr();if(!eat(',')){error=1;return;}
-        int32_t payload[32];int len=0;
-        if(word("bytes")){
-            if(!eat('(')||!eat('[')){error=1;return;}
-            if(!eat(']')){
-                do{if(len==32){error=1;return;}payload[len++]=expr();}while(eat(','));
-                if(!eat(']')){error=1;return;}
-            }
-            if(!eat(')')){error=1;return;}
-        }else{
-            char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
-            srcname[z]=0;int k=seqslot(srcname);if(k<0||!seq[k].used||seq[k].len>32){error=1;return;}
-            len=seq[k].len;for(int j=0;j<len;j++)payload[j]=items(k)[j];
-        }
-        if(!eat(')')){error=1;return;}
-        ws();if(*cursor&&*cursor!='#')error=1;
-        int32_t result[32];if(!error)transfer(addr,payload,len,0,result);
+        int fd,len;int32_t addr,payload[32],result[32];
+        if(parse_i2c_write_args(&fd,&addr,payload,&len))
+            (void)transfer(fd,addr,payload,len,0,result);
         return;
     }
     cursor=source+offsets[line];ws();
@@ -632,6 +650,15 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
             ws();if(*cursor&&*cursor!='#')error=1;
             if(!error){number(v);outs("\r\n");}return;}
         error=1;return;
+    }
+    /* 成功時は送信バイト数，転送失敗時は-1を返す． */
+    if(word("i2c_write")&&eat('(')){
+        int fd,len;int32_t addr,payload[32],result[32];
+        if(parse_i2c_write_args(&fd,&addr,payload,&len)){
+            int rc=transfer(fd,addr,payload,len,0,result);
+            if(!error)setvar(name,rc);
+        }
+        return;
     }
     if(word("input")){
         char value[STR_MAX+1];if(!input_text(value))return;
@@ -681,8 +708,9 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         int rc=is_udp?recvfrom(fd,buf,(unsigned)size,0,(struct sockaddr *)&from,&fromlen):
                nonblocking?recv(fd,buf,(unsigned)size,0):read(fd,buf,(unsigned)size);
         if(is_udp&&rc>=0){last_peer_ip=from.sin_addr.s_addr;last_peer_port=ntohs(from.sin_port);}
-        if(nonblocking&&rc==OS_EAGAIN)rc=0;
-        if(rc<0||rc>size){error=1;return;}
+        /* 空配列はEOFまたは長さ0の受信を意味する．未到着(EAGAIN)も-1を返す． */
+        if(rc<0){setvar(name,-1);return;}
+        if(rc>size){error=1;return;}
         for(int i=0;i<rc;i++)values[i]=buf[i];
         seqnew(name,1,values,rc);return;
     }
@@ -691,6 +719,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
     if(is_read||is_xfer){
         int xfer=is_xfer;
         if(!eat('(')){error=1;return;}
+        int fd=parse_fd();if(!eat(',')){error=1;return;}
         int32_t addr=expr();if(!eat(',')){error=1;return;}
         int32_t values[SEQ_MAX]={0},result[32]={0};int len=0;
         if(xfer){char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
@@ -699,7 +728,11 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
             for(int j=0;j<len;j++)values[j]=items(k)[j];if(!eat(',')){error=1;return;}}
         int32_t r=expr();if(!eat(')')||r<0||r>32){error=1;return;}
         ws();if(*cursor&&*cursor!='#')error=1;
-        if(!error&&transfer(addr,values,len,r,result))seqnew(name,1,result,r);
+        if(!error){
+            int rc=transfer(fd,addr,values,len,r,result);
+            if(rc<0)setvar(name,-1);
+            else seqnew(name,1,result,r);
+        }
         return;
     }
     int32_t v=expr();ws();if(*cursor&&*cursor!='#')error=1;if(!error)setvar(name,v);

@@ -24,7 +24,7 @@ Pico W上のtcp_get         → TCP 8000  → Linux PCのpython -m http.server
 | `socket()` | `SOCK_STREAM` | `SOCK_DGRAM` | `AF_INET`のみ |
 | `bind()` | 呼出時に待受開始 | 受信ポートを設定 | `INADDR_ANY`のみ |
 | `listen()` | 互換用の簡易処理 | 不要 | この関数だけで待受成功を判定しない |
-| `accept(fd,NULL,NULL)` | 接続を取り出す | 不要 | 未接続は`OS_EAGAIN` |
+| `accept(fd,NULL,NULL)` | 接続を取り出す | 不要 | 通常は接続待ち，`O_NONBLOCK`時は`OS_EAGAIN` |
 | `connect()` | 接続開始 | 不要 | TCPは`tcp_status()`で完了確認 |
 | `send()` / `recv()` | バイト列の送受信 | — | 部分送受信・`OS_EAGAIN`あり |
 | `sendto()` / `recvfrom()` | — | データグラム送受信 | 送信元を省略するなら`NULL`指定 |
@@ -34,10 +34,10 @@ PicoNIXのC APIは完全なPOSIX互換ではありません．`errno`ではな�
 
 ## ソケットの待機・エラー・資源管理（実装上の制約）
 
-- TCP/UDPのユーザソケットは**`O_NONBLOCK`の設定にかかわらずポーリング型**です．`fcntl(F_SETFL)`でフラグを変更できても，ソケットの`read()`／`write()`がカーネル内で接続や送受信を待機するわけではありません．データ未到着・送信キュー満杯などでは`OS_EAGAIN`を返すため，短い`msleep()`を挟んで再試行してください．TTYやパイプのブロッキング動作とは異なります．
-- TCPの`connect()`が0を返すのは接続開始に成功した場合です．接続確立は`tcp_status()`が1になったことで確認します（進行中は0，終了した受信側は-2，通信異常は-1）．`accept()`は接続待ちを行わず，未到着なら`OS_EAGAIN`です．TCP待受FDに対する`read()`／`write()`は`OS_EBADF`です．
+- **`accept()`，TCPの`recv()`／`read()`，UDPの`recvfrom()`は，既定でブロッキング動作**です．接続やデータが未到着ならタスクを`BLOCKED`にし，カーネルのスケジューラが到着を確認して起こします．`fcntl(fd,F_SETFL,O_NONBLOCK)`を指定したFDは，未到着時に`OS_EAGAIN`を返します．ソケット送信と`connect()`は従来の非同期方式を維持します．
+- TCPの`connect()`が0を返すのは接続開始に成功した場合です．接続確立は`tcp_status()`が1になったことで確認します（進行中は0，終了した受信側は-2，通信異常は-1）．`accept()`は既定で接続待ちを行い，`O_NONBLOCK`指定時のみ未到着を`OS_EAGAIN`で返します．TCP待受FDに対する`read()`／`write()`は`OS_EBADF`です．
 - TCPの`send()`は最大`TCP_MSS`と送信キューの空きに応じて部分送信になり，`recv()`も蓄積済みの範囲だけ返します．正常なTCP終端で受信データを読み終えた後の`recv()`は0（EOF）です．`shutdown(SHUT_WR)`後の送信は`OS_EIO`になります．
-- UDPはユーザ全体で1ソケット，受信待ちのデータグラムは1件だけです．受信バッファが小さい場合は`OS_EINVAL`となり，そのデータグラムは保持されます．ゼロ長データグラムの受信結果0と，未着時の`OS_EAGAIN`は区別してください．送信を先に行うとUDPのローカルポートは自動割当てされるため，その後の`bind()`は失敗します．先に受信ポートを指定する場合は送信前に`bind()`してください．
+- UDPはユーザ全体で1ソケット，受信待ちのデータグラムは1件だけです．受信バッファが小さい場合は`OS_EINVAL`となり，そのデータグラムは保持されます．ゼロ長データグラムの受信結果0と，非ブロッキング時の未着`OS_EAGAIN`は区別してください．送信を先に行うとUDPのローカルポートは自動割当てされるため，その後の`bind()`は失敗します．先に受信ポートを指定する場合は送信前に`bind()`してください．
 - ソケットの`dup()`／`dup2()`は非対応です．`close()`すると対応するソケット資源を解放し，タスク終了時にも所有ソケットを回収します．TCPの待受FDと`accept()`済みFDは同一管理スロットを使用するため，接続を1件ずつ処理する設計です．
 
 ## 3．新しいコマンドをファームウェアに組み込む
@@ -104,7 +104,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 
 ### 4.2 Pico W側のUDPクライアントのソース
 
-`docs/examples/udp_once.c`の**省略のないコード**です．`IPv4`引数の4バイトを`sin_addr.s_addr`に配置し，`sendto()`で送信した後，`recvfrom()`を最大約2秒ポーリングします．
+`docs/examples/udp_once.c`の**省略のないコード**です．受信の期限を設けるため`O_NONBLOCK`を明示します．`IPv4`引数の4バイトを`sin_addr.s_addr`に配置し，`sendto()`で送信した後，`recvfrom()`を最大約2秒ポーリングします．
 
 ```c
 /* Pico W: send one UDP datagram to an echo server on the PC and read the reply. */
@@ -182,7 +182,7 @@ piconix# udp_once 192.168.4.2 12345
 received 18 bytes: hello from PicoNIX
 ```
 
-上の表示は**成功時の想定例**であり，実機で取得したログではありません．PC側のサーバには送信元IP・ポートが表示されます．`sendto()`の結果は送信バイト数，`recvfrom()`は受信バイト数です．`OS_EAGAIN`は異常ではなく「まだデータがない」ことなので，短時間`msleep()`して再試行します．
+上の表示は**成功時の想定例**であり，実機で取得したログではありません．PC側のサーバには送信元IP・ポートが表示されます．`sendto()`の結果は送信バイト数，`recvfrom()`は受信バイト数です．サンプルのように時間制限付きでポーリングするときは，ソケットFDを`O_NONBLOCK`に設定してください．`OS_EAGAIN`は「まだデータがない」ことなので，短時間`msleep()`して再試行します．
 
 ### 4.3 比較実験
 
@@ -313,3 +313,18 @@ HTTP/1.0 200 OK
 ---
 
 [開発ガイド一覧](../../README.md) ｜ [ネットワークリファレンス](../../../reference/network/README.md) ｜ [English](../../../../en/development/apps/c/NETWORK-PROGRAMMING.md)
+
+## `select()`による短周期ポーリングの削減
+
+複数のソケットやTTYを交互に扱う場合，`O_NONBLOCK`のまま`select()`を使用できます．`select()`はFDの準備状態をカーネルで調べ，準備ができるまでタスクを`BLOCKED`にします．`nc`はソケットと標準入力，`httpd`は受信待ちのタイムアウトに利用しています．
+
+```c
+fd_set rd = 0;
+FD_SET(0, &rd);
+FD_SET(fd, &rd);
+int rc = select(fd + 1, &rd, NULL, NULL, NULL);
+if (rc < 0) { /* error */ }
+if (rc > 0 && FD_ISSET(fd, &rd)) { /* recv() */ }
+```
+
+対応FDはTCP/UDP，TTY，パイプです．`accept()`と`recv()`の通常のブロッキング動作も残しており，単一接続サーバでは`select()`を使う必要はありません．

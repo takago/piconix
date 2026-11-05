@@ -6,7 +6,7 @@ import tempfile
 
 root=Path(__file__).resolve().parents[2]
 source=(root/'kernel/kernel.c').read_text()
-start=source.index('static void trace_record(')
+start=source.index('static void __attribute__((no_instrument_function)) trace_record(')
 open_brace=source.index('{',start)
 level=0
 for pos in range(open_brace,len(source)):

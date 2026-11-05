@@ -162,8 +162,8 @@ static unsigned pending_next;
 #define TRACE_DEPTH_SLOTS 16
 static struct { unsigned pid; unsigned depth; int used; } trace_depths[TRACE_DEPTH_SLOTS];
 static unsigned trace_depth_next;
-/* 最大表示階層．省略時は制限なし． */
-static unsigned trace_max_depth=255;
+static trace_event_t display_pending;
+static int display_has_pending;
 /* PIDが同じイベントだけが同一の深さを共有する． */
 static unsigned *trace_depth(unsigned pid) {
     for(unsigned i=0;i<TRACE_DEPTH_SLOTS;i++)
@@ -224,27 +224,28 @@ static void reset_view_state(void) {
     trace_depth_next=0;
     close_pid=0;
     close_fd=0;
+    display_has_pending=0;
 }
 
 /* 表示は Function（入口name／復帰name/の階層），Arg，Ret，Info に統一する． */
-static void print_event(const trace_event_t *e) {
+static void print_event(const trace_event_t *e, int compact) {
     char time[20],pid[16],arg[64]="",ret[16]="--",label[48];
     unsigned kind=e->kind&TRACE_KIND_MASK;
     unsigned shown_pid=kind==TRACE_SWITCH ? e->value : e->pid;
     format_short_time(time,e->tick);
-    numeric(pid,(int)shown_pid);
+    if(!shown_pid && (kind==TRACE_FUNC_ENTER || kind==TRACE_FUNC_EXIT)) strcpy(pid,"-");
+    else numeric(pid,(int)shown_pid);
     const char *tty=shown_pid==0 ? "-" :
         (TRACE_TTY(e->kind)==1 ? "ttyS1" : TRACE_TTY(e->kind)==2 ? "ttyN0" : "console");
-    const char *name=e->program_id==0 && shown_pid!=0 ? "a.out" : program_name(e->program_id);
+    const char *name=shown_pid==0 && (kind==TRACE_FUNC_ENTER || kind==TRACE_FUNC_EXIT) ? "kernel" :
+        (e->program_id==0 && shown_pid!=0 ? "a.out" : program_name(e->program_id));
     unsigned func_depth=0;
     int func_enter=kind==TRACE_FUNC_ENTER;
     if(kind==TRACE_FUNC_ENTER || kind==TRACE_FUNC_EXIT) {
         unsigned *depth=trace_depth(e->pid);
-        if(!func_enter && *depth) --*depth;
+        if(!compact && !func_enter && *depth) --*depth;
         func_depth=*depth;
-        if(func_enter && *depth<255) ++*depth;
-        /* 非表示の関数も深さを更新するが，行頭を含めて何も出力しない． */
-        if(func_depth>trace_max_depth) return;
+        if(!compact && func_enter && *depth<255) ++*depth;
     }
     col(time,7);col(pid,3);col(name,7);col(tty,7);
     if(kind==TRACE_SWITCH) {
@@ -260,6 +261,16 @@ static void print_event(const trace_event_t *e) {
         char func[17];
         memcpy(func,e->data,16);func[16]=0;
         function_label(label,func,func_depth,func_enter);
+        if(compact) {
+            unsigned i=0;
+            while(label[i]==' ') i++;
+            unsigned j=i;
+            while(label[j]) j++;
+            if(j<33) {
+                for(unsigned k=j+1;k>i;k--) label[k]=label[k-1];
+                label[i]='('; label[j+1]=')'; label[j+2]=0;
+            }
+        }
         col("KERNEL",9);col(label,34);col("--",16);col("--",3);puts("--");
         return;
     }
@@ -306,6 +317,57 @@ static void print_event(const trace_event_t *e) {
         forget_fd(close_pid,close_fd);
 }
 
+/* 関数ENTERは次のレコードまで表示を保留する．ほかのイベントを挟んだ場合は統合しない． */
+/* ミリ秒表示が同一で，連続した同じ関数・実行コンテキストの入退場だけを統合する． */
+static int compact_pair(const trace_event_t *a, const trace_event_t *b) {
+    return (a->kind&TRACE_KIND_MASK)==TRACE_FUNC_ENTER &&
+           (b->kind&TRACE_KIND_MASK)==TRACE_FUNC_EXIT &&
+           a->tick==b->tick && a->pid==b->pid &&
+           a->program_id==b->program_id && a->kind==b->kind-1 &&
+           a->value==b->value && !memcmp(a->data,b->data,16);
+}
+
+/* PIDフィルタは表示のみに適用する．統合判定には生の連続レコードを使う． */
+static int display_matches(const trace_event_t *e, int filter_pid) {
+    unsigned event_pid=(e->kind&TRACE_KIND_MASK)==TRACE_SWITCH ? e->value : e->pid;
+    return filter_pid<0 || event_pid==(unsigned)filter_pid;
+}
+
+static int display_event(const trace_event_t *e, int filter_pid) {
+    int shown=0;
+    if(display_has_pending) {
+        if(compact_pair(&display_pending,e)) {
+            if(display_matches(&display_pending,filter_pid)) {
+                print_event(&display_pending,1);
+                shown++;
+            }
+            display_has_pending=0;
+            return shown;
+        }
+        if(display_matches(&display_pending,filter_pid)) {
+            print_event(&display_pending,0);
+            shown++;
+        }
+        display_has_pending=0;
+    }
+    if((e->kind&TRACE_KIND_MASK)==TRACE_FUNC_ENTER) {
+        display_pending=*e;
+        display_has_pending=1;
+    } else if(display_matches(e,filter_pid)) {
+        print_event(e,0);
+        shown++;
+    }
+    return shown;
+}
+
+static int display_flush(int filter_pid) {
+    if(!display_has_pending) return 0;
+    display_has_pending=0;
+    if(!display_matches(&display_pending,filter_pid)) return 0;
+    print_event(&display_pending,0);
+    return 1;
+}
+
 /* トレースデバイスから固定長レコードを読み，表示へ順次流す． */
 static int trace_drain(int fd) {
     trace_event_t e;
@@ -314,30 +376,13 @@ static int trace_drain(int fd) {
     return n;
 }
 
-/* 指定コマンドをトレースし，待機と表示処理を行う． */
-static int parse_depth(const char *s, unsigned *out) {
-    if(!s || !*s) return 0;
-    unsigned n=0;
-    for(;*s;s++) {
-        if(*s<'0' || *s>'9') return 0;
-        n=n*10u+(unsigned)(*s-'0');
-        if(n>8) return 0;
-    }
-    *out=n;
-    return 1;
-}
-
-static int trace_run(int fd, int argc, char *argv[], int kernel_mode) {
+/* コマンドの実行中だけ記録範囲を切り替え，既存の記録状態を復元する． */
+static int trace_run(int fd, int argc, char *argv[]) {
     int command_index=2;
-    trace_max_depth=255;
-    if(kernel_mode && argc>2 && !strcmp(argv[2],"-d")) {
-        if(argc<5 || !parse_depth(argv[3],&trace_max_depth)) {
-            puts("usage: trace kernel [-d 0..8] command [args...]");return 1;
-        }
-        command_index=4;
-    }
+    int all=argc>2 && !strcmp(argv[2],"-a");
+    if(all) command_index++;
     if(argc<command_index+1 || argc-command_index>8) {
-        puts("usage: trace run command [args...] | trace kernel [-d 0..8] command [args...]");return 1;
+        puts("usage: trace run [-a] command [args...]");return 1;
     }
     load_program_names();
     reset_view_state();
@@ -364,27 +409,25 @@ static int trace_run(int fd, int argc, char *argv[], int kernel_mode) {
     if(bytes>128) {puts("trace: arguments too long");return 1;}
     int enabled=ioctl(fd,TRACE_STATUS,0);
     if(enabled<0) {puts("trace: cannot query tracing status");return 1;}
-    if(!enabled && ioctl(fd,TRACE_ON,0)<0) {
+    int previous_mode=ioctl(fd,TRACE_CONTEXT_GET,0);
+    if(previous_mode<0) {puts("trace: cannot query tracing context");return 1;}
+    if(enabled) {
+        if(ioctl(fd,TRACE_CONTEXT_SET,all)<0) return 1;
+    } else if(ioctl(fd,TRACE_ON,all)<0) {
         puts("trace: cannot enable tracing");return 1;
-    }
-    if(kernel_mode && ioctl(fd,TRACE_FUNC_ON,0)<0) {
-        puts("trace: kernel function tracing is not built in");
-        puts("rebuild with -DPICONIX_KERNEL_FUNCTION_TRACE=ON");
-        if(!enabled) ioctl(fd,TRACE_OFF,0);
-        return 1;
     }
     /* 既に記録中なら取得済みデータを維持する． */
     if(trace_drain(fd)<0) {
         puts("trace: cannot seek to latest event");
-        if(kernel_mode) ioctl(fd,TRACE_FUNC_OFF,0);
-        if(!enabled) ioctl(fd,TRACE_OFF,0);
+        if(enabled) ioctl(fd,TRACE_CONTEXT_SET,previous_mode);
+        else ioctl(fd,TRACE_OFF,0);
         return 1;
     }
     int pid=is_tmp ? spawn_tmp(image) : spawn(id,argc-command_index,(const char *const *)(argv+command_index));
     if(pid<0) {
         puts("trace: cannot start command");
-        if(kernel_mode) ioctl(fd,TRACE_FUNC_OFF,0);
-        if(!enabled) ioctl(fd,TRACE_OFF,0);
+        if(enabled) ioctl(fd,TRACE_CONTEXT_SET,previous_mode);
+        else ioctl(fd,TRACE_OFF,0);
         return 1;
     }
     /* Pythonなどの入力待ちプログラムが通常のTTYを利用できるようにする． */
@@ -392,16 +435,16 @@ static int trace_run(int fd, int argc, char *argv[], int kernel_mode) {
     int status=0;
     int waited=waitpid(pid,&status,0);
     set_foreground(0);
-    if(kernel_mode) ioctl(fd,TRACE_FUNC_OFF,0);
-    if(!enabled) ioctl(fd,TRACE_OFF,0);
+    if(enabled) ioctl(fd,TRACE_CONTEXT_SET,previous_mode);
+    else ioctl(fd,TRACE_OFF,0);
     printf("\n--- trace: %s (PID %d) ---\n",argv[command_index],pid);
     header();
     trace_event_t e;
     int count=0,n;
     while((n=read(fd,&e,sizeof e))==(int)sizeof e) {
-        unsigned event_pid=(e.kind&TRACE_KIND_MASK)==TRACE_SWITCH ? e.value : e.pid;
-        if(event_pid==(unsigned)pid) {print_event(&e);count++;}
+        count+=display_event(&e,pid);
     }
+    count+=display_flush(pid);
     if(n<0) puts("trace: read error");
     else if(!count) puts("trace: no retained events");
     int lost=ioctl(fd,TRACE_LOST,0);
@@ -414,21 +457,23 @@ static int trace_run(int fd, int argc, char *argv[], int kernel_mode) {
 /* トレース表示・起動操作をコマンド引数に基づいて選ぶ． */
 int main(int argc, char *argv[]) {
     if(argc<2) {
-        puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]|kernel [-d 0..8] command [args...]");return 1;
+        puts("usage: trace on [-a]|off|show [PID]|follow [PID]|run [-a] command [args...]");return 1;
     }
-    if(!strcmp(argv[1],"run") || !strcmp(argv[1],"kernel")) {
+    if(!strcmp(argv[1],"run")) {
         int fd=open("/dev/trace",O_RDONLY);
         if(fd<0) {puts("trace: cannot open /dev/trace");return 1;}
-        int rc=trace_run(fd,argc,argv,!strcmp(argv[1],"kernel"));
+        int rc=trace_run(fd,argc,argv);
         close(fd);
         return rc;
     }
-    if(argc>3 || (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
+    int on_all=argc==3 && !strcmp(argv[1],"on") && !strcmp(argv[2],"-a");
+    if((argc>3 || (argc==3 && !on_all && strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) ||
+       (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
                    strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) {
-        puts("usage: trace on|off|show [PID]|follow [PID]|run command [args...]|kernel [-d 0..8] command [args...]");return 1;
+        puts("usage: trace on [-a]|off|show [PID]|follow [PID]|run [-a] command [args...]");return 1;
     }
     int filter_pid=-1;
-    if(argc==3) {
+    if(argc==3 && !on_all) {
         if(strcmp(argv[1],"show") && strcmp(argv[1],"follow")) {
             puts("trace: PID filter requires show or follow"); return 1;
         }
@@ -448,8 +493,10 @@ int main(int argc, char *argv[]) {
     int show=!strcmp(argv[1],"show"), follow=!strcmp(argv[1],"follow");
     if(!show && !follow) {
         int on=!strcmp(argv[1],"on");
-        if(ioctl(fd,on?TRACE_ON:TRACE_OFF,0)<0) {puts("trace: ioctl failed");close(fd);return 1;}
-        puts(on?"trace enabled (buffer cleared)":"trace disabled");
+        if(ioctl(fd,on?TRACE_ON:TRACE_OFF,on_all)<0) {puts("trace: ioctl failed");close(fd);return 1;}
+        int all_active=on_all && ioctl(fd,TRACE_CONTEXT_GET,0)>0;
+        puts(on?(on_all?(all_active?"trace enabled (all contexts)":"trace enabled (function trace not built)"):
+            "trace enabled (SVC functions if built)"):"trace disabled");
         close(fd);return 0;
     }
     if(show && ioctl(fd,TRACE_OFF,0)<0) {puts("trace: ioctl failed");close(fd);return 1;}
@@ -467,18 +514,17 @@ int main(int argc, char *argv[]) {
         }
         n=read(fd,&event,sizeof event);
         if(n==(int)sizeof event) {
-            /* タスク切替イベントはvalueに切替先PIDを持つ． */
-            unsigned event_pid=(event.kind&TRACE_KIND_MASK)==TRACE_SWITCH ? event.value : event.pid;
-            if(filter_pid<0 || event_pid==(unsigned)filter_pid) {
-                print_event(&event);count++;
-            }
+            count+=display_event(&event,filter_pid);
             continue;
         }
-        if(n<0) {puts("trace: read error");close(fd);return 1;}
+        if(n<0) {count+=display_flush(filter_pid);puts("trace: read error");close(fd);return 1;}
         if(!follow) break;
+        /* 新規イベントが途切れたら保留中のENTERを表示し，followの表示遅延を抑える． */
+        count+=display_flush(filter_pid);
         if(ioctl(fd,TRACE_STATUS,0)==0) break;
         msleep(50);
     }
+    count+=display_flush(filter_pid);
     close(fd);
     if(!count) puts("trace: no events (use trace on first)");
     return 0;
