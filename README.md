@@ -16,7 +16,8 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Flash-resident PIC applications** — User programs are stored as position-independent code (PIC) images in Flash and copied into fixed RAM slots for execution.
 - **Pico W Wi-Fi hardware** — On Pico W, PicoNIX uses the onboard Infineon CYW43439 Wi-Fi chip through the Raspberry Pi Pico SDK, with access-point (AP) and station (STA) modes.
 - **Open-source TCP/IP networking** — On Pico W, PicoNIX uses lwIP, a lightweight open-source TCP/IP stack, and provides user applications with a compact BSD-style IPv4 socket API (`socket()`, `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()`).
-- **Network applications** — `nc`, `httpd`, `tcp_echod`, and `udp_echod` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
+- **Network applications** — `nc`, `httpd`, `tcp_echod`, `udp_echod`, and the experimental MCP server `mcpd` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
+- **MCP and local LLM demo (Pico W)** — `mcpd` provides a small Streamable HTTP/JSON-RPC interface on TCP port 8080. Its read-only tools expose the RP2040 temperature and Pico W Wi-Fi status to standard MCP clients and optionally to a local LLM. Basic tool calls and LLM integration were verified on hardware on November 6, 2026. See the [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)).
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
 - **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `cp`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`. Binary transfer with `dd` is also supported.
 - **Foreground interruption** — Ctrl+C terminates registered foreground tasks, including pipeline stages; `nc -u -N` exits on stdin EOF for one-shot UDP sends.
@@ -43,7 +44,7 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Terminals | `getty`, `tty`, `stty`, `reset` |
 | Programming | `edit`, `vi`, `as`, `python` |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink` |
-| Networking | `ip`, `net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod` |
+| Networking | `ip`, `net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod`, `mcpd` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
 | Help | `help` |
 
@@ -154,6 +155,43 @@ printf 'hello\n' | nc -u -w 2 192.168.4.1 1234
 
 To send a one-shot UDP message in the other direction, run `nc -u -l 12345` on Linux and `echo hello | nc -u -N 192.168.4.2 12345` on PicoNIX.
 
+### MCP server and LLM demo (Pico W)
+
+PicoNIX can run `mcpd` as an **experimental network programming example in user space**. It does not require an MCP-specific kernel service and does not replace `httpd` on TCP port 80. Start it from the PicoNIX shell:
+
+```sh
+mcpd &
+```
+
+The server listens on **TCP 8080** at `POST /mcp` and implements a limited subset of MCP **2026-07-28** over Streamable HTTP (JSON responses; no SSE). Its two read-only tools are:
+
+| Tool | Data source | Purpose |
+|---|---|---|
+| `get_temperature` | `/dev/adc/temp` | Read RP2040 internal temperature |
+| `get_wifi_info` | `/proc/net/wifi` | Read Pico W Wi-Fi and IP configuration |
+
+On a Linux PC connected to the Pico W AP, use the official MCP Python SDK v2 to list and call tools **without an LLM**:
+
+```sh
+python3 -m venv .venv
+. .venv/bin/activate
+pip install "mcp>=2,<3"
+python host/mcp_client.py http://192.168.4.1:8080/mcp
+```
+
+For **local LLM integration**, install `openai` and configure the LLM URL, model and API key placeholders in `host/mcp_llm_client.py` before running it:
+
+```sh
+pip install openai
+python host/mcp_llm_client.py
+```
+
+On **November 6, 2026**, hardware testing verified tool discovery, temperature/Wi-Fi readings, and natural-language tool selection by a local LLM using the official MCP Python SDK v2. For example, a question about PicoNIX status triggered both read-only tools. This is a proof of basic interoperability, **not** validation of complete MCP compliance or long-term reliability.
+
+See the [MCP usage guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)), [LLM client tutorial](docs/en/guides/MCP-LLM-CLIENT.md) ([日本語](docs/ja/guides/MCP-LLM-CLIENT.md)), and [MCP server development lab](docs/en/development/apps/c/MCP-SERVER-DEVELOPMENT.md) ([日本語](docs/ja/development/apps/c/MCP-SERVER-DEVELOPMENT.md)).
+
+**MCP security:** `mcpd` has no authentication or TLS. Run it only on an isolated, trusted experimental network; do not expose TCP 8080 to the Internet.
+
 **Security:** The built-in Telnet and remote device-control services do not provide authentication or encryption. Use them only on a trusted experimental network.
 
 ## Build
@@ -187,6 +225,7 @@ This approach saves scarce SRAM by keeping kernel instructions in Flash while al
 | `kernel/net_capture.c` | IPv4 packet summaries and ICMP Echo for Pico W |
 | `kernel/net_service_remote_devctl.c` | Remote device-control service (UDP 2000) |
 | `userland/apps/nc.c`, `userland/apps/httpd.c` | User-space networking applications |
+| `userland/apps/mcpd.c` | Experimental user-space MCP server (HTTP, JSON-RPC, device-file access) |
 | `userland/apps/tcp_echod.c`, `userland/apps/udp_echod.c` | User-space echo servers |
 
 The socket API is intentionally small rather than fully POSIX-compatible. `send()` and `recv()` currently support `flags = 0` only.
@@ -211,6 +250,8 @@ Choose the documentation that matches your purpose. Start with **Setup** if you 
 | **Hardware** — Boards, pins and wiring | [Hardware](docs/en/reference/hardware/README.md) | [ハードウェア](docs/ja/reference/hardware/README.md) |
 | **Devices** — Device files and interfaces | [Devices](docs/en/reference/devices/README.md) | [デバイス仕様](docs/ja/reference/devices/README.md) |
 | **Networking** — Wi-Fi, TCP/IP and services | [Networking](docs/en/reference/network/README.md) | [ネットワーク仕様](docs/ja/reference/network/README.md) |
+| **MCP demo** — MCP server and Linux client | [MCP guide](docs/en/guides/MCP.md) | [MCP操作ガイド](docs/ja/guides/MCP.md) |
+| **LLM integration** — Call MCP tools from a local LLM | [LLM client tutorial](docs/en/guides/MCP-LLM-CLIENT.md) | [LLM連携ガイド](docs/ja/guides/MCP-LLM-CLIENT.md) |
 | **Development guides** — Applications and kernel extensions | [Development guides](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
 | **Function index** — Browse source functions (Japanese only) | [Function index (Japanese)](docs/FUNCTIONS.md) | [関数索引](docs/FUNCTIONS.md) |
 | **Development diary** — Project development history | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
