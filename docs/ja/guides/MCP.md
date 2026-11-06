@@ -28,7 +28,7 @@ mcpd &
 以下の `PICO_IP` はPico WのIPアドレスに置き換えます．
 
 ```sh
-PICO_IP=192.168.1.50
+PICO_IP=192.168.4.1
 curl -i -X POST "http://$PICO_IP:8080/mcp" \
   -H 'Content-Type: application/json' \
   -H 'Accept: application/json, text/event-stream' \
@@ -49,20 +49,20 @@ MCPの仕様に従ったすべてのクライアントで動くことを保証�
 python3 -m venv .venv
 . .venv/bin/activate
 pip install "mcp>=2,<3"
-python host/mcp_client.py http://192.168.1.50:8080/mcp
+python host/mcp_client.py http://192.168.4.1:8080/mcp
 ```
 
 IPアドレスはPico Wに割り当てられたものに置き換えます．引数を省略した場合の接続先は `http://192.168.4.1:8080/mcp` です．
 
 ```sh
 # ツール一覧だけ確認する
-python host/mcp_client.py http://192.168.1.50:8080/mcp --tool none
+python host/mcp_client.py http://192.168.4.1:8080/mcp --tool none
 
 # 温度だけ取得する
-python host/mcp_client.py http://192.168.1.50:8080/mcp --tool get_temperature
+python host/mcp_client.py http://192.168.4.1:8080/mcp --tool get_temperature
 
 # 初期探索を省略して2026-07-28版を指定する
-python host/mcp_client.py http://192.168.1.50:8080/mcp --mode 2026-07-28
+python host/mcp_client.py http://192.168.4.1:8080/mcp --mode 2026-07-28
 ```
 
 SDKの `mode=auto` は `server/discover` を試し，対応しなければ旧形式へ切り替えるため，PicoNIX試作版で問題が起きた場合は `--mode 2026-07-28` も試してください．これは公式SDKと試作版サーバの相互運用性を確認するためのコードであり，2026-11-06にPico W実機との接続・ツール呼び出しを確認しました．未認証HTTPのため隔離されたLANでのみ利用してください．
