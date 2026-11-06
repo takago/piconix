@@ -31,7 +31,7 @@ struct task { int pid; int state; uint8_t program_id,tty; };
 static struct task tasks[OS_MAX_TASKS];
 static trace_event_t trace_ring[TRACE_CAPACITY];
 static uint32_t trace_head,trace_count,trace_serial,ticks;
-static uint8_t trace_enabled;
+static uint8_t trace_enabled,trace_mode;
 static int irq_mask, save_count, restore_count;
 static uint32_t save_and_disable_interrupts(void) {
     uint32_t was_masked=(uint32_t)irq_mask;
@@ -65,7 +65,17 @@ int main(void) {
     assert(trace_count==TRACE_CAPACITY && trace_head==5);
     assert(trace_serial==TRACE_CAPACITY+5);
     assert(save_count==restore_count && irq_mask==0);
-    puts("PASS: trace writer IRQ serialization, record ABI, masking, wraparound");
+    /* Syscall-only mode must not write other event kinds at all. */
+    trace_mode=TRACE_MODE_SYSCALL;
+    unsigned before=trace_serial, irq_before=(unsigned)save_count;
+    trace_record(TRACE_TICK1K,33,0,0,9,-1,NULL,0);
+    trace_record(TRACE_SWITCH,33,0,0,9,-1,NULL,0);
+    trace_record(TRACE_FUNC_ENTER,33,0,0,9,-1,NULL,0);
+    assert(trace_serial==before && (unsigned)save_count==irq_before);
+    trace_record(TRACE_SVC_ENTER,33,1,0,9,-1,NULL,0);
+    trace_record(TRACE_SVC_EXIT,33,1,0,9,-1,NULL,0);
+    assert(trace_serial==before+2 && save_count==restore_count);
+    puts("PASS: trace writer IRQ serialization, record ABI, masking, wraparound, syscall-only mode");
     return 0;
 }
 '''

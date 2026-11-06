@@ -316,15 +316,18 @@ static uint32_t trace_head;
 static uint32_t trace_count;
 static uint32_t trace_serial;
 static uint8_t trace_enabled;
-#if PICONIX_KERNEL_FUNCTION_TRACE
-static uint8_t trace_all_contexts;
-#endif
+/* 記録モードは関数計測OFFのビルドでもSYSCALL専用指定に使用する． */
+static uint8_t trace_mode;
 static uint16_t tick_sample;
 static uint8_t slice_ticks;
 /* 32バイトのトレースイベントを16 KiBリングへ記録する．割込み・SVC・スケジューラが競合しないよう更新全体を割込み禁止区間に置く． */
 static void __attribute__((no_instrument_function)) trace_record(uint8_t kind, uint8_t pid, uint32_t value, uint32_t detail,
                          uint8_t program_id, int8_t file_id, const void *data, unsigned len) {
     if(!trace_enabled || (program_id & 0x7fu)==7u)
+        return;
+    /* -s はリングへ書く前にSYSCALL以外を除外する． */
+    if(trace_mode==TRACE_MODE_SYSCALL &&
+       kind!=TRACE_SVC_ENTER && kind!=TRACE_SVC_EXIT)
         return;
     /* trace自身のタスク切替は記録せず，表示内容の自己増殖を防ぐ． */
     if(kind==TRACE_SWITCH) {
@@ -2488,26 +2491,24 @@ static int device_ioctl(int fd,int cmd,int arg) {
     if(tasks[current].fd[fd]==DEV_TRACE) {
         uint32_t irq=save_and_disable_interrupts();
         if(cmd==TRACE_ON) {
+            if(arg<TRACE_MODE_SVC || arg>TRACE_MODE_SYSCALL) {
+                restore_interrupts(irq); return OS_EINVAL;
+            }
             trace_enabled=0;
-#if PICONIX_KERNEL_FUNCTION_TRACE
-            trace_all_contexts=(arg!=0);
-#endif
+            trace_mode=(uint8_t)arg;
             trace_head=trace_count=trace_serial=0;
             trace_enabled=1;
         } else if(cmd==TRACE_OFF) {
             trace_enabled=0;
         }
         else if(cmd==TRACE_CONTEXT_SET) {
-#if PICONIX_KERNEL_FUNCTION_TRACE
-            trace_all_contexts=(arg!=0);
-#endif
+            if(arg<TRACE_MODE_SVC || arg>TRACE_MODE_SYSCALL) {
+                restore_interrupts(irq); return OS_EINVAL;
+            }
+            trace_mode=(uint8_t)arg;
         } else if(cmd==TRACE_CONTEXT_GET) {
-#if PICONIX_KERNEL_FUNCTION_TRACE
-            int enabled=trace_all_contexts;
-#else
-            int enabled=0;
-#endif
-            restore_interrupts(irq); return enabled;
+            int mode=trace_mode;
+            restore_interrupts(irq); return mode;
         }
         else if(cmd==TRACE_STATUS) { int enabled=trace_enabled; restore_interrupts(irq); return enabled; }
         else if(cmd==TRACE_LOST) {
@@ -3130,7 +3131,8 @@ trace_kernel_func(void *func, uint8_t kind) {
         return;
     uint32_t ipsr;
     __asm volatile("mrs %0, ipsr" : "=r"(ipsr));
-    if(!trace_all_contexts && ipsr!=11u)
+    if(trace_mode==TRACE_MODE_SYSCALL ||
+       (trace_mode!=TRACE_MODE_ALL && ipsr!=11u))
         return;
     /* SVCのみ呼出元PIDを持つ．IRQ・通常カーネル処理はPIDなし． */
     int svc=ipsr==11u && current>=0 && current<OS_MAX_TASKS;

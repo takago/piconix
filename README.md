@@ -30,7 +30,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Follow system activity (`trace`)** — Observe system calls, return values, I/O previews, and task switches to understand how user programs interact with the kernel. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)).
 - **Inspect open descriptors (`lsof`)** — See which files, devices, and sockets are held open by processes, including socket-port information.
 - **Inspect network packets (`tcpdump`, Pico W)** — Capture and examine network traffic directly on the device, alongside `ip`, `ping`, and the user-space networking tools. See the [tcpdump reference](docs/en/reference/network/TCPDUMP.md) ([日本語](docs/ja/reference/network/TCPDUMP.md)).
-- **Experimental kernel function tracing (opt-in)** — Enable `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` at build time to inspect selected kernel function entry/return events and call nesting with `trace run hello`. Disabled by default to avoid instrumentation overhead. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) and [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)).
+- **Kernel function tracing (enabled in standard builds)** — Inspect selected kernel function entry/return events with `trace run hello`, or use `trace run -s hello` to record only system calls. Event capture starts OFF; the build option `PICONIX_KERNEL_FUNCTION_TRACE` defaults to ON. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) and [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)).
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
 ## Commands
@@ -57,15 +57,15 @@ PicoNIX is designed not only to run programs but also to let you inspect what ha
 ```sh
 mem                # Inspect RAM and task memory
 lsof               # List open file descriptors
-trace run hello    # Observe the system calls made by hello
+trace run -s hello # Observe only the system calls made by hello
 ```
 
 ### Trace system calls
 
-`trace run` is available in normal builds. The following excerpt is from an actual PicoNIX run:
+`trace run -s` records system calls without KERNEL, TIMER or SWITCH events. The following excerpt is from an actual PicoNIX run:
 
 ```text
-piconix# trace run hello
+piconix# trace run -s hello
 Hello, PicoNIX!
 
 --- trace: hello (PID 14) ---
@@ -80,9 +80,9 @@ SYSCALL  exit/       0                0   --
 
 The trace shows the `write` system call, its return value and an output preview, followed by process exit. Time, PID, Command, and TTY columns are omitted from this excerpt to keep it readable.
 
-### Trace kernel function calls (experimental)
+### Trace selected kernel function calls
 
-Build with `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` to record selected function events through `trace run` and `trace on`. It is **OFF by default** because function instrumentation can add runtime overhead. The same `hello` program then reveals the nested calls inside `write`:
+Kernel function instrumentation is **ON by default at build time**; event capture remains **OFF on boot** until `trace on` or `trace run`. Use `trace run -s hello` for syscall entry/exit only, `trace run hello` for syscall plus selected SVC kernel functions, and `trace run -a hello` for all-context selected functions. Explicitly build with `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF` for a smaller firmware without `KERNEL` function events. The same `hello` program then reveals the nested calls inside `write`:
 
 ```text
 piconix# trace run hello

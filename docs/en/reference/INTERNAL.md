@@ -116,11 +116,13 @@ Internally, `open()` and `getdents()` share the same parser for `/dev/gpio/N`, `
 The kernel uses a dedicated ring buffer at `0x20038000`–`0x2003BFFF`, holding 512 records of 32 bytes each (16 KiB total). It records task switches and SVC entry/exit events. The `trace` command turns the records into readable text. To prevent competing writes from SysTick, UART1 and SVC, each record and the ring counters are updated in a short interrupt-masked section.
 
 ```text
-trace on
+trace on -s
 hello
 trace off
 trace show
 ```
+
+The standard build enables function instrumentation, but event capture starts OFF at boot. `trace on -s` records only syscall entry/exit, while ordinary `trace on` also captures selected kernel functions, TIMER and SWITCH. `trace on -a` adds selected non-SVC functions.
 
 `/dev/trace` provides the binary records. See [Tracing](../guides/TRACE.md) for event formats and interpretation.
 

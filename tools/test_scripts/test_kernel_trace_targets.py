@@ -38,7 +38,7 @@ for name in names:
 # The actual list still uses direct address matching and is guarded by trace-enable/context checks.
 assert 'if(func==(void *)(uintptr_t)(fn)) name=#fn' in kernel
 assert re.search(r'if\s*\(!trace_enabled\)\s*return\s*;', kernel)
-assert re.search(r'if\s*\(!trace_all_contexts\s*&&\s*ipsr!=11u\)\s*return\s*;', kernel)
+assert 'trace_mode!=TRACE_MODE_ALL && ipsr!=11u' in kernel
 # Polling and readiness probes are explicitly excluded from compiler instrumentation.
 for filename, function_names in {
     'kernel.c': ('tty_rx_ready', 'wake_sockets', 'wake_selects', 'wake_readers', 'wake_waiters', 'wake_pipes', 'select_ready'),

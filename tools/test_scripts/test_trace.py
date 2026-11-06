@@ -29,7 +29,7 @@ assert 'trace_record(TRACE_SVC_EXIT' in source
 assert 'trace_serial++' in source
 assert 'TRACE_STATUS' in source and 'TRACE_LOST' in source
 trace_app=(ROOT/'userland/apps/trace.c').read_text()
-assert 'trace on [-a]|off|show [PID]|follow [PID]' in trace_app
+assert 'trace on [-s|-a]|off|show [PID]|follow [PID]' in trace_app
 assert 'TICKx1K' in trace_app
 assert 'is_tmp ? spawn_tmp(image) : spawn(' in trace_app
 assert 'getcwd(cwd,sizeof cwd)' in trace_app

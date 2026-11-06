@@ -213,8 +213,8 @@ endif()
 add_executable(piconix kernel/net.c kernel/net_capture.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 set_source_files_properties(kernel/kernel.c PROPERTIES OBJECT_DEPENDS "${PICONIX_INITIAL_FS_HEADER}")
-# 実験的なカーネル内部関数トレース．通常ビルドでは計測コードを入れない．
-option(PICONIX_KERNEL_FUNCTION_TRACE "Instrument selected kernel functions for trace" OFF)
+# 選抜カーネル関数の計測は標準で組み込む．イベント記録は起動時OFF．
+option(PICONIX_KERNEL_FUNCTION_TRACE "Instrument selected kernel functions for trace" ON)
 if(PICONIX_KERNEL_FUNCTION_TRACE)
   set_property(SOURCE
     kernel/kernel.c kernel/adc.c kernel/i2c.c kernel/pwm.c

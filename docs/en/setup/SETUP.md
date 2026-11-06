@@ -88,9 +88,9 @@ Use `MinSizeRel` for the firmware (kernel normally optimized with `-Os`). All us
 
 Outputs are `build-pico/piconix.uf2` and `build-pico/piconix.elf` for Pico, or `build-pico_w/piconix.uf2` and `build-pico_w/piconix.elf` for Pico W.
 
-### Experimental kernel function tracing (OFF by default)
+### Kernel function tracing (ON by default at build time)
 
-Syscall tracing with `trace run` works in the normal build. The `trace run` command can additionally show nested internal kernel function calls, but it is **experimental** and **OFF by default at build time**. Enable it only when needed:
+The standard build includes selected kernel function instrumentation (**ON by default**), but **event capture is OFF at boot**. `trace run hello` shows nested function calls; `trace run -s hello` records syscalls alone. Explicitly passing ON is optional:
 
 ```sh
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
@@ -98,9 +98,9 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
     -DPICONIX_KERNEL_FUNCTION_TRACE=ON
 ```
 
-Use `-DPICO_BOARD=pico_w` for Pico W. After building and flashing, try `trace run hello`. To return to the lightweight default configuration, rebuild with `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF` explicitly. **CMake may retain a previous ON setting in its cache; omitting the option does not necessarily turn it off.**
+Use `-DPICO_BOARD=pico_w` for Pico W. After building and flashing, try `trace run hello`. For a smaller build without function instrumentation, rebuild with `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF` explicitly. **CMake may retain a previous ON setting in its cache; omitting the option does not necessarily turn it off.**
 
-When enabled, function entry/exit hooks are inserted even into functions in `kernel/kernel.c` that are not recorded. Flash usage, stack usage, and execution time may increase. See the [trace guide](../guides/TRACE.md) for details and limitations.
+The 51 selected functions retain entry/exit instrumentation; other functions in instrumented source files use `NO_TRACE`. Instrumentation can still increase Flash usage, stack usage and execution time for those selected functions. See the [trace guide](../guides/TRACE.md) for details and limitations.
 
 ## 5. Flash the Pico or Pico W
 

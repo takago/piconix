@@ -116,11 +116,13 @@ USB CDCコンソールとUART1の端末を扱えます．`getty /dev/ttyS1 sh &`
 カーネルは`0x20038000`〜`0x2003BFFF`に置いた32バイト×512件＝16 KiBのリングバッファを管理し，タスク切り替え，SVC開始・終了などを記録します．`trace` コマンドが表示用の文字列に変換します．SysTick，UART1，SVCから同時に記録されないよう，1レコードの書込みとリング管理値の更新を短い割り込み禁止区間で行います．
 
 ```text
-trace on
+trace on -s
 hello
 trace off
 trace show
 ```
+
+標準ビルドは関数計測ONですが，起動時のイベント記録はOFFです．`trace on -s`はシステムコールの入口・出口だけを記録し，通常の`trace on`は選抜カーネル関数やTIMER・SWITCHも記録します．`trace on -a`ではSVC外の選抜関数も記録します．
 
 `/dev/trace` はバイナリレコードを読み出すデバイスです．詳しいイベント定義と解釈は[トレース](../guides/TRACE.md)を参照してください．
 

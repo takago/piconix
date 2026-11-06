@@ -19,8 +19,8 @@ for source, names in {
     for name in names:
         assert f'TRACE_MATCH({name});' in k, name
         assert f'{name}(' in src, name
-assert re.search(r'if\s*\(!trace_all_contexts\s*&&\s*ipsr!=11u\)\s*return\s*;', k)
-assert '"Instrument selected kernel functions for trace" OFF' in cm
+assert 'trace_mode!=TRACE_MODE_ALL && ipsr!=11u' in k
+assert '"Instrument selected kernel functions for trace" ON' in cm
 assert 'kernel/net_capture.c' in cm
 for fn in ('net_echo_write','net_echo_read','net_echo_close'):
     assert f'TRACE_MATCH({fn});' in k

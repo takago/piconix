@@ -30,6 +30,7 @@ trace run hello
 ## コマンド一覧
 
 ```text
+trace on -s      # システムコールのみ記録（KERNEL・TIMER・SWITCHなし）
 trace on         # 記録を消去して開始（関数はSVC内）
 trace on -a      # SVC外の選抜関数も記録
 trace off        # 記録を停止
@@ -37,6 +38,7 @@ trace show       # 記録を停止して全履歴を表示
 trace show 3     # 記録を停止してPID 3のイベントを表示
 trace follow     # 実行した時点以降の新しいイベントを表示
 trace follow 3   # 実行した時点以降のPID 3のイベントを表示
+trace run -s hello # helloのシステムコールのみ記録
 trace run hello  # helloを起動し，終了後にそのPIDのイベントを表示
 trace run python test.py  # Pythonスクリプトの実行を記録
 trace run -a ping 127.0.0.1 # SVC外の選抜関数も記録
@@ -67,28 +69,39 @@ trace run ./a.out
 
 ## 応用：選択カーネル関数の自動トレース
 
-通常ビルドではシステムコール，タスク切替，SysTickの周期イベントだけを記録します．
-次のビルドオプションをONにすると，選抜したカーネル関数の入口と出口も記録対象になります．
+通常ビルドは選抜したカーネル関数の入口・出口の計測機能を含みます（ビルド時の既定値はON）．ただし，起動直後のイベント記録はOFFです．記録するときに `trace on` または `trace run` を使用します．
 
 ```bash
 ./tools/build_sdk.sh --no-flash -DPICO_BOARD=pico -DPICONIX_KERNEL_FUNCTION_TRACE=ON
 ```
 
-ビルド時の既定値はOFFです．CMakeキャッシュが残る場合は明示的に`OFF`を指定してください．
+ビルド時の既定値はONです．計測なしの軽量ビルドが必要なら`-DPICONIX_KERNEL_FUNCTION_TRACE=OFF`を指定してください．既存のCMakeキャッシュには以前の設定が残る場合があります．
 
 ```text
+trace on -s          # システムコールの入口・出口だけ
 trace on             # 通常イベント + SVC内の選抜関数
 trace on -a          # 通常イベント + 全コンテキストの選抜関数
 trace follow         # 以降の記録を表示（表示用コマンド）
 trace show           # 停止して記録を表示
+trace run -s hello   # helloのシステムコールだけ記録
 trace run hello      # コマンドを起動してSVC内の関数も記録
 trace run -a hello   # 全コンテキストの関数を記録
 ```
 
-`-a`は**選抜されたカーネル関数**の記録コンテキストだけを拡張します．通常イベントの種類は変えません．
+`-s`は**記録時点で**SYSCALL入口・出口だけを残し，KERNEL・TIMER・SWITCHは記録しません．`-a`は**選抜されたカーネル関数**の記録コンテキストだけを拡張します．通常イベントの種類は変えません．
 SVCで呼び出された関数には呼出元PIDを付け，割込み・非同期カーネル処理にはPIDを付けず「-」と表示します．
 `trace follow PID`と`trace show PID`はPIDなしのイベントを表示しません．
 `trace run -a`でも記録は全コンテキストですが，終了後の表示は起動したPIDに限定するため，非同期処理は`trace on -a`と`trace follow`で観察してください．
+
+### 記録モードの選択
+
+| 操作 | 記録されるイベント |
+|---|---|
+| `trace on -s` / `trace run -s` | SYSCALLのみ（入口・出口） |
+| `trace on` / `trace run` | SYSCALL，TIMER，SWITCH，SVC内の選抜KERNEL関数 |
+| `trace on -a` / `trace run -a` | 通常イベント＋全コンテキストの選抜KERNEL関数 |
+
+`trace run`は指定プログラムの終了後にPID別の結果を表示し，実行前の記録状態・モードを復元します．`trace on`はリングを初期化して記録を開始し，`trace off`は記録を停止します．`-s`は単なる表示フィルタではなく，リングバッファの消費も抑えます．
 
 ### 高頻度の状態確認と関数計測
 
@@ -103,7 +116,7 @@ SVCで呼び出された関数には呼出元PIDを付け，割込み・非同�
 
 ### 関数一覧とシンボル表の役割
 
-関数計測を有効にしたビルドでは，`kernel/kernel.c`，`kernel/adc.c`，`kernel/i2c.c`，`kernel/pwm.c`，`kernel/gpio.c`，`kernel/fb.c`，`kernel/net_socket.c`，`kernel/net_capture.c` にコンパイラの`-finstrument-functions`が適用されます．計測フックが呼ばれた後，`kernel/kernel.c`の`TRACE_MATCH`一覧で記録する関数を絞ります．別のCファイルで定義した関数も，内部ヘッダに適切な宣言があれば参照できます．計測フックが入る関数と，記録される関数は同一ではありません．
+関数計測を有効にしたビルドでは，`kernel/kernel.c`，`kernel/adc.c`，`kernel/i2c.c`，`kernel/pwm.c`，`kernel/gpio.c`，`kernel/fb.c`，`kernel/net_socket.c`，`kernel/net_capture.c` にコンパイラの`-finstrument-functions`が適用されます．計測フックが呼ばれた後，`kernel/kernel.c`の`TRACE_MATCH`一覧で記録する関数を絞ります．別のCファイルで定義した関数も，内部ヘッダに適切な宣言があれば参照できます．選抜した51関数には計測フックが入り，`TRACE_MATCH`で記録名を選択します．記録OFF時も対象関数のフック負荷は残りますが，計測対象外の関数には`NO_TRACE`を指定しています．
 
 一方，`mem -s kernel`で参照するカーネルシンボル表は，リンク済みELFのシンボルから生成します．関数名とアドレスの参照が目的であり，トレース対象を決める一覧ではありません．関数一覧の重複・所在・計測対象の整合性は`tools/test_scripts/test_kernel_trace_targets.py`で検査します．
 

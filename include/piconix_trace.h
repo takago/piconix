@@ -9,8 +9,11 @@
 #define TRACE_OFF 2
 #define TRACE_STATUS 3
 #define TRACE_LOST 4
-#define TRACE_CONTEXT_SET 5 /* 0: SVC only, 1: all contexts */
+#define TRACE_CONTEXT_SET 5 /* 0: SVC functions, 1: all functions, 2: syscalls only */
 #define TRACE_CONTEXT_GET 6
+#define TRACE_MODE_SVC 0
+#define TRACE_MODE_ALL 1
+#define TRACE_MODE_SYSCALL 2
 #define TRACE_SWITCH 1
 #define TRACE_SVC_ENTER 2
 #define TRACE_SVC_EXIT 3

@@ -4,17 +4,18 @@
 
 ## SVC内と非同期処理の違いを観察する
 
-この実習は，関数計測を有効にしたビルド（`PICONIX_KERNEL_FUNCTION_TRACE=ON`）を想定します．通常ビルドでもシステムコールやSysTickなどのイベントは観察できますが，`KERNEL`行は表示されません．以下の出力は説明用であり，実行時刻，PID，関数の並びは環境によって異なります．
+この実習は，標準ビルドで有効になっている関数計測（`PICONIX_KERNEL_FUNCTION_TRACE=ON`）を想定します．イベント記録は起動時OFFで，`trace on`や`trace run`で開始します．明示的に`OFF`でビルドした場合は`KERNEL`行が表示されません．以下の出力は説明用であり，実行時刻，PID，関数の並びは環境によって異なります．
 
 ### 実習1：プログラムのシステムコールとカーネル関数
 
 ```text
+piconix# trace run -s hello
 piconix# trace run hello
 piconix# trace run ls
 piconix# trace run python test.py
 ```
 
-`SYSCALL`行と`KERNEL`行を比べ，システムコールからVFSやデバイスドライバの選抜関数に処理が移る様子を探します．入口は関数名，出口は末尾に`/`を付けて表示されます．直ちに戻る関数は`(関数名)`と1行で表示される場合があります．関数イベントは通常モードではSVC処理中に限られます．`trace run`の表示は起動したPIDのイベントに絞られます．
+`trace run -s hello`でSYSCALLだけの記録を観察し，通常の`trace run hello`と比較します．`-s`ではTIMER・SWITCH・KERNELは記録されません．次に`SYSCALL`行と`KERNEL`行を比べ，システムコールからVFSやデバイスドライバの選抜関数に処理が移る様子を探します．入口は関数名，出口は末尾に`/`を付けて表示されます．直ちに戻る関数は`(関数名)`と1行で表示される場合があります．関数イベントは通常モードではSVC処理中に限られます．`trace run`の表示は起動したPIDのイベントに絞られます．
 
 ### 実習2：pingによるICMPデバイス操作
 

@@ -4,17 +4,18 @@ Use these exercises after reading the [trace usage guide](../guides/TRACE.md). S
 
 ## SVC and asynchronous execution
 
-These exercises assume a build with `PICONIX_KERNEL_FUNCTION_TRACE=ON`. An ordinary build still records system calls, SysTick events and task switches, but does not show `KERNEL` function records. Actual timestamps, PIDs and call sequences vary.
+The standard build enables `PICONIX_KERNEL_FUNCTION_TRACE=ON` by default, but event capture starts OFF at boot. Builds explicitly configured with `OFF` do not show `KERNEL` records. Actual timestamps, PIDs and call sequences vary.
 
 ### Exercise 1: system calls and selected kernel functions
 
 ```text
+piconix# trace run -s hello
 piconix# trace run hello
 piconix# trace run ls
 piconix# trace run python test.py
 ```
 
-Compare `SYSCALL` and `KERNEL` records to follow calls from a system call into selected VFS or driver functions. An entry is shown as the function name and an exit with a trailing `/`. Adjacent entry/exit records may be shown as one `(name)` row. Without `-a`, function records are limited to SVC execution. `trace run` displays only records associated with the launched PID.
+First compare syscall-only `trace run -s hello` (no TIMER, SWITCH or KERNEL events recorded) with `trace run hello`. Compare `SYSCALL` and `KERNEL` records to follow calls from a system call into selected VFS or driver functions. An entry is shown as the function name and an exit with a trailing `/`. Adjacent entry/exit records may be shown as one `(name)` row. Without `-a`, function records are limited to SVC execution. `trace run` displays only records associated with the launched PID.
 
 ### Exercise 2: ICMP device activity during ping
 

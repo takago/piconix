@@ -10,6 +10,12 @@ PicoNIX grew into a small UNIX-like operating system for Raspberry Pi Pico (RP20
 
 The primary period is **October 24 through November 6, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
 
+### 2026-11-06 — Enable function instrumentation by default and add syscall-only mode
+
+- Changed the build default of `PICONIX_KERNEL_FUNCTION_TRACE` to ON while keeping event capture OFF at boot; start capture using `trace on` or `trace run`.
+- Added `trace on -s` and `trace run -s` to record only SYSCALL entry/exit; KERNEL, TIMER and SWITCH events are filtered before entering the ring. Existing standard and `-a` modes remain available.
+- Kept the 32-byte ABI; extended mode selection and restoration after `trace run`. Updated bilingual guides, exercises, setup instructions and regression checks. Hardware build and load measurements remain pending.
+
 ### 2026-11-06 — Explicit function instrumentation exclusions across kernel sources
 
 - Added `NO_TRACE` to every non-selected function definition in the eight C sources built with `-finstrument-functions`, keeping the 51 functions in `TRACE_MATCH` instrumented. Function bodies and the address/name matching table are unchanged.

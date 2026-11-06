@@ -30,6 +30,7 @@ Next, `trace run ls` provides a richer file-operation example. For observation q
 ## Commands
 
 ```text
+trace on -s      # record syscall entry/exit only
 trace on         # clear the buffer and start recording (SVC functions)
 trace on -a      # record selected functions outside SVC too
 trace off        # stop recording
@@ -37,6 +38,7 @@ trace show       # stop recording and display all retained events
 trace show 3     # stop recording and show events for PID 3
 trace follow     # display events occurring after invocation
 trace follow 3   # display new events for PID 3 after invocation
+trace run -s hello # trace syscalls only
 trace run hello  # start hello and show its trace after exit
 trace run python test.py  # trace a Python script
 trace run -a ping 127.0.0.1 # include selected asynchronous functions

@@ -438,11 +438,13 @@ static int trace_drain(int fd) {
 /* コマンドの実行中だけ記録範囲を切り替え，既存の記録状態を復元する． */
 static int trace_run(int fd, int argc, char *argv[]) {
     int command_index=2;
-    int all=argc>2 && !strcmp(argv[2],"-a");
-    if(all)
+    int mode=TRACE_MODE_SVC;
+    if(argc>2 && (!strcmp(argv[2],"-a") || !strcmp(argv[2],"-s"))) {
+        mode=!strcmp(argv[2],"-a") ? TRACE_MODE_ALL : TRACE_MODE_SYSCALL;
         command_index++;
+    }
     if(argc<command_index+1 || argc-command_index>8) {
-        puts("usage: trace run [-a] command [args...]");return 1;
+        puts("usage: trace run [-s|-a] command [args...]");return 1;
     }
     load_program_names();
     reset_view_state();
@@ -474,9 +476,9 @@ static int trace_run(int fd, int argc, char *argv[]) {
     int previous_mode=ioctl(fd,TRACE_CONTEXT_GET,0);
     if(previous_mode<0) {puts("trace: cannot query tracing context");return 1;}
     if(enabled) {
-        if(ioctl(fd,TRACE_CONTEXT_SET,all)<0)
+        if(ioctl(fd,TRACE_CONTEXT_SET,mode)<0)
             return 1;
-    } else if(ioctl(fd,TRACE_ON,all)<0) {
+    } else if(ioctl(fd,TRACE_ON,mode)<0) {
         puts("trace: cannot enable tracing");return 1;
     }
     /* 既に記録中なら取得済みデータを維持する． */
@@ -525,7 +527,7 @@ static int trace_run(int fd, int argc, char *argv[]) {
 /* トレース表示・起動操作をコマンド引数に基づいて選ぶ． */
 int main(int argc, char *argv[]) {
     if(argc<2) {
-        puts("usage: trace on [-a]|off|show [PID]|follow [PID]|run [-a] command [args...]");return 1;
+        puts("usage: trace on [-s|-a]|off|show [PID]|follow [PID]|run [-s|-a] command [args...]");return 1;
     }
     if(!strcmp(argv[1],"run")) {
         int fd=open("/dev/trace",O_RDONLY);
@@ -534,14 +536,18 @@ int main(int argc, char *argv[]) {
         close(fd);
         return rc;
     }
-    int on_all=argc==3 && !strcmp(argv[1],"on") && !strcmp(argv[2],"-a");
-    if((argc>3 || (argc==3 && !on_all && strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) ||
+    int on_mode=TRACE_MODE_SVC;
+    int on_option=argc==3 && !strcmp(argv[1],"on") &&
+                  (!strcmp(argv[2],"-a") || !strcmp(argv[2],"-s"));
+    if(on_option)
+        on_mode=!strcmp(argv[2],"-a") ? TRACE_MODE_ALL : TRACE_MODE_SYSCALL;
+    if((argc>3 || (argc==3 && !on_option && strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) ||
        (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
                    strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) {
-        puts("usage: trace on [-a]|off|show [PID]|follow [PID]|run [-a] command [args...]");return 1;
+        puts("usage: trace on [-s|-a]|off|show [PID]|follow [PID]|run [-s|-a] command [args...]");return 1;
     }
     int filter_pid=-1;
-    if(argc==3 && !on_all) {
+    if(argc==3 && !on_option) {
         if(strcmp(argv[1],"show") && strcmp(argv[1],"follow")) {
             puts("trace: PID filter requires show or follow"); return 1;
         }
@@ -561,10 +567,10 @@ int main(int argc, char *argv[]) {
     int show=!strcmp(argv[1],"show"), follow=!strcmp(argv[1],"follow");
     if(!show && !follow) {
         int on=!strcmp(argv[1],"on");
-        if(ioctl(fd,on?TRACE_ON:TRACE_OFF,on_all)<0) {puts("trace: ioctl failed");close(fd);return 1;}
-        int all_active=on_all && ioctl(fd,TRACE_CONTEXT_GET,0)>0;
-        puts(on?(on_all?(all_active?"trace enabled (all contexts)":"trace enabled (function trace not built)"):
-            "trace enabled (SVC functions if built)"):"trace disabled");
+        if(ioctl(fd,on?TRACE_ON:TRACE_OFF,on_mode)<0) {puts("trace: ioctl failed");close(fd);return 1;}
+        puts(on?(on_mode==TRACE_MODE_SYSCALL ? "trace enabled (syscalls only)" :
+                 on_mode==TRACE_MODE_ALL ? "trace enabled (all contexts)" :
+                 "trace enabled (SVC functions if built)") : "trace disabled");
         close(fd);return 0;
     }
     if(show && ioctl(fd,TRACE_OFF,0)<0) {puts("trace: ioctl failed");close(fd);return 1;}
