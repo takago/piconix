@@ -26,7 +26,7 @@ GPIO・LEDマトリクス・BH1750の配線は[ハードウェア配線](../../.
 
 ## 起動とスクリプト
 
-`python`でREPL，`python /tmp/test.py`でスクリプトを実行します．REPLの終了は`exit()`です．`if`，`while`，`for ... in range(...)`に対応します．ブロックはスペースでインデントし，REPLでは空行で確定します．スクリプトとREPLの両方で，括弧を閉じるまで複数行のリストや`bytes([...])`を入力できます．
+`python`でREPL，`python /tmp/test.py`でスクリプトを実行します．`exit()`はREPLとスクリプトの両方で利用でき，`if`やループの内部からも直ちに正常終了できます．`True`と`False`はそれぞれ整数`1`と`0`として扱います（独立した`bool`型はありません）．`if`，`while`，`for ... in range(...)`に対応します．ブロックはスペースでインデントし，REPLでは空行で確定します．スクリプトとREPLの両方で，括弧を閉じるまで複数行のリストや`bytes([...])`を入力できます．
 
 ## 整数，配列，文字列
 
@@ -64,7 +64,7 @@ print()
 
 ## ソケット通信（Pico W）
 
-PicoNIX独自の整数FD型APIです．CPythonの`import socket`とは互換ではありません．IPv4の数値アドレスを使用します．ソケットはノンブロッキングです．
+PicoNIX独自の整数FD型APIです．CPythonの`import socket`とは互換ではありません．IPv4の数値アドレスを使用します．ソケットは既定でブロッキング動作です．`accept()`，`recv()`，`recvfrom()`は接続やデータの到着までタスクを待機させます．内蔵Pythonでも`fcntl(fd, F_GETFL, 0)`と`fcntl(fd, F_SETFL, flags | O_NONBLOCK)`でソケットの非ブロッキング動作を切り替えられます．
 
 | API | 内容 |
 |---|---|
@@ -83,18 +83,29 @@ PicoNIX独自の整数FD型APIです．CPythonの`import socket`とは互換で�
 
 ```python
 fd = socket(1)
-rc = connect(fd, "127.0.0.1", 80)
-if rc == 0:
-    state = 0
-    while state == 0:
-        state = status(fd)
-        msleep(10)
-    if state == 1:
-        send(fd, "GET / HTTP/1.0\r\n\r\n")
-        data = recv(fd, 64)
-        print(data)
+if fd < 0:
+    print("socket failed")
+    exit()
+if connect(fd, "127.0.0.1", 80) != 0:
+    print("connect failed")
+    close(fd)
+    exit()
+state = 0
+while state == 0:
+    state = status(fd)
+    msleep(10)
+if state != 1:
+    print("connection failed")
+    close(fd)
+    exit()
+send(fd, "GET / HTTP/1.0\r\n\r\n")
+data = recv(fd, 64)
+if data != -1:
+    print(data)
 close(fd)
 ```
+
+**エラー処理：** サンプルでは，必須のデバイスやソケットの初期化に失敗した場合，理由を表示し，開いたFDを必要に応じて閉じてから`exit()`します．`exit()`は正常終了（終了コード0）であり，`exit(1)`や例外処理の代替ではありません．BH1750は任意のセンサーなので，接続できない場合は固定速度に切り替えます．
 
 ### 内蔵温度センサーのTCP・UDP配信サーバ
 
@@ -117,7 +128,7 @@ nc <Pico WのIPアドレス> 9000
 printf 'temp' | nc -u -w 2 <Pico WのIPアドレス> 9000
 ```
 
-TCPとUDPは同じ9000番でも別のポート空間です．`accept()`と`recvfrom()`はノンブロッキングです．TCP `send()`には部分送信・一時的な送信不可があり得ますが，サンプルは短い応答を1度だけ送信する最小構成であり，再送処理はありません．UDPの`"peer"`，ポート`0`は直近の`recvfrom()`の送信元を指し，記憶する送信元は1件だけです．このPythonの`while`は1ループ最大10,000回で終了する制限があるため，恒久稼働を想定していません．外部公開せず実験用LANで利用してください．
+TCPとUDPは同じ9000番でも別のポート空間です．`accept()`と`recvfrom()`は既定でブロッキング動作し，サンプルではポーリング用の`msleep()`は不要です．TCP `send()`には部分送信・一時的な送信不可があり得ますが，サンプルは短い応答を1度だけ送信する最小構成であり，再送処理はありません．UDPの`"peer"`，ポート`0`は直近の`recvfrom()`の送信元を指し，記憶する送信元は1件だけです．このPythonの`while`は1ループ最大10,000回で終了する制限があるため，恒久稼働を想定していません．外部公開せず実験用LANで利用してください．
 
 ## ファイルディスクリプタAPI
 
@@ -164,7 +175,7 @@ PWM周波数は8〜100000 Hz，Dutyは0〜100%の整数テキストです．
 
 ## I²C1
 
-`i2c_write(fd, addr, sequence)`，`data = i2c_read(fd, addr, count)`，`data = i2c_xfer(fd, addr, sequence, count)`を提供します．アドレスは0x08〜0x77，送受信は各最大32バイトです．`i2c_xfer()`はRepeated STARTを使用します．`i2c_write()`は成功時に送信バイト数，失敗時に`-1`を返します．`i2c_read()`と`i2c_xfer()`は成功時にバイト配列，失敗時に整数`-1`を返します．読み取り結果と`-1`は`if data != -1:`で比較できます．`open()`も失敗時は`-1`を返します．`read()`，`recv()`，`recvfrom()`も成功時はバイト配列，操作失敗時は`-1`です．空配列は長さ0の結果を表します．`EAGAIN`も`-1`に統一されるため，一時的な未到着とそれ以外の失敗は区別できません．引数の構文や値が不正な場合は従来どおりエラーになります．`i2c_write(i2c, 0x23, bytes([0x10]))`のような直接指定にも対応します．I²Cの構造体転送には専用関数を使ってください．`fd = open("/dev/i2c/1", 2)`で一度開いたFDを全転送で再利用し，終了時に`close(fd)`します．FDの指定は必須で，旧形式の2引数`i2c_write()`などは利用できません．
+`i2c_write(fd, addr, sequence)`，`data = i2c_read(fd, addr, count)`，`data = i2c_xfer(fd, addr, sequence, count)`を提供します．アドレスは0x08〜0x77，送受信は各最大32バイトです．`i2c_xfer()`はRepeated STARTを使用します．`i2c_write()`は成功時に送信バイト数，失敗時に`-1`を返します．`i2c_read()`と`i2c_xfer()`は成功時にバイト配列，失敗時に整数`-1`を返します．読み取り結果と`-1`は`if data != -1:`で比較できます．`open()`も失敗時は`-1`を返します．`read()`，`recv()`，`recvfrom()`も成功時はバイト配列，操作失敗時は`-1`です．空配列は長さ0の結果を表します．`EAGAIN`も`-1`に統一されるため，一時的な未到着とそれ以外の失敗は区別できません．引数の構文や値が不正な場合は従来どおりエラーになります．`i2c_write(i2c, 0x23, bytes([0x10]))`のような直接指定にも対応します． `i2c_write()`と`i2c_xfer()`の送信データには，`bytes([0x00])`の直接指定とバイト配列変数のどちらも使用できます．例：`data = i2c_xfer(fd, 0x48, bytes([0x00]), 2)`．配列要素は0〜255，送信バイト数は最大32です．読み取り系の戻り値はバイト配列または`-1`なので，従来どおり変数に代入してから判定します． `i2c_write()`は整数を返す通常の式として使えるため，`if i2c_write(fd, 0x23, bytes([0x10])) < 0:`のような条件式，変数への代入，単独呼び出しのいずれにも対応します．I²Cの構造体転送には専用関数を使ってください．`fd = open("/dev/i2c/1", 2)`で一度開いたFDを全転送で再利用し，終了時に`close(fd)`します．FDの指定は必須で，旧形式の2引数`i2c_write()`などは利用できません．
 
 ### BH1750（アドレス0x23）
 
@@ -275,3 +286,19 @@ if fd >= 0:
 ---
 
 **関連リンク：** [開発ガイド一覧](../../README.md) ｜ [学習ロードマップ](../../../ROADMAP.md)
+
+## I2Cセンサーの実習サンプル
+
+ADT7410，BH1750，LCD0802，RPR-0521RSの移植例は[Python I2Cサンプル](../../../../../userland/examples/python/README.md)にあります．いずれもPicoNIX内蔵Pythonの整数演算とI2C APIを利用します．実機動作は未検証です．
+
+### `fcntl()` と非ブロッキングI/O
+
+`fcntl(fd, cmd, value)`はC言語版と同じ3引数です．`F_GETFL`，`F_SETFL`，`O_NONBLOCK`などの定数を使用できます．`F_SETFL`で変更できるのは対応するTTYとTCP/UDPソケットの`O_NONBLOCK`のみです．
+
+```python
+flags = fcntl(fd, F_GETFL, 0)
+if flags >= 0:
+    result = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+```
+
+ソケットの`recv()`，`recvfrom()`，`accept()`は非ブロッキング時にデータ・接続が未到着なら`-1`を返します．`read()`でTTYを扱う場合は未入力時に`[]`を返すなど，FDの種類によって結果が異なります．なお，Pythonの`fcntl()`はCPythonの`fcntl`モジュールではなくPicoNIX独自の組込み関数です．

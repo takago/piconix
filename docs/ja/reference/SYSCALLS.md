@@ -69,11 +69,11 @@
 - `socket(domain, type, protocol)`：`domain=AF_INET` (2)，`type=SOCK_STREAM` (1) または `SOCK_DGRAM` (2)，`protocol=0` のみです．
 - `bind_udp(fd, port)`，`tcp_listen(fd, port)`：`port` は1〜65535です．ソケットの種類によって呼び出し先が異なります．
 - `sendto_udp(fd, packet)`／`recvfrom_udp(fd, packet)`：`packet` は `piconix_udp_packet_t *` で，データポインタ，長さ，相手IPアドレスとポートを保持します．送受信長には実装上の上限があります．
-- `tcp_connect(fd, endpoint)`：`endpoint` は `piconix_tcp_endpoint_t *` です．接続処理は非同期であり，`tcp_status(fd)` で状態を確認します．`tcp_accept(fd)` は受け付け可能な接続がなければ `OS_EAGAIN` を返します．
+- `tcp_connect(fd, endpoint)`：`endpoint` は `piconix_tcp_endpoint_t *` です．接続処理は非同期であり，`tcp_status(fd)` で状態を確認します．`tcp_accept(fd)` は既定では接続までタスクをブロックし，`O_NONBLOCK` 設定時に接続がなければ `OS_EAGAIN` を返します．
 - `getdents(fd, entry, size)`：`entry` は `piconix_dirent_t *` です．1はエントリ取得，0は終端を表します．
 - `spawn_tmp(path)`：`path` は `/tmp` 内のPNX1形式のThumbイメージを指定します．
 
-- TCP/UDPソケットの`read()`／`write()`は`O_NONBLOCK`に関係なく待機せず，準備できない場合は`OS_EAGAIN`です．`fcntl()`はフラグを変更しますが，通信時の待機方式は変わりません．UDPの短すぎる受信バッファは`OS_EINVAL`で，データグラムは保持されます．TCPの正常終端を読み切った後は`read()`が0を返します．
+- TCPの`read()`とUDPの`recvfrom()`，TCPの`accept()`は既定でブロッキング動作し，未準備ならタスクを`BLOCKED`にします．`fcntl(F_SETFL)`で`O_NONBLOCK`を設定すると，未準備の場合は`OS_EAGAIN`を返します．TCPの`write()`／送信と`connect()`は同じ待機規則ではありません．UDPの短すぎる受信バッファは`OS_EINVAL`で，データグラムは保持されます．TCPの正常終端を読み切った後は`read()`が0を返します．
 
 ## `open()`，`unlink()`，`getdents()`の境界条件
 

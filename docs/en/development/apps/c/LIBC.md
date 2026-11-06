@@ -50,7 +50,7 @@ The following entries match the headers and the implementation in this repositor
 | `msleep(milliseconds)` | Delay in milliseconds | OS service result (`int`) |
 | `socket(domain, type, protocol)` | Address family, socket type, protocol | FD or negative OS error |
 
-For **complete prototypes**, use the headers; for **system-call numbers, ABI registers and kernel behavior**, see [System calls](../../../reference/SYSCALLS.md). For the special network behavior (asynchronous `connect()`, `tcp_status()`, nonblocking `accept()`/`recvfrom()`), see [Network programming](NETWORK-PROGRAMMING.md).
+For **complete prototypes**, use the headers; for **system-call numbers, ABI registers and kernel behavior**, see [System calls](../../../reference/SYSCALLS.md). For the special network behavior (asynchronous `connect()`, `tcp_status()`, default blocking and explicitly nonblocking `accept()`/`recvfrom()`), see [Network programming](NETWORK-PROGRAMMING.md).
 
 For a complete example combining TTY `ioctl()` with FD `fcntl()` to poll keyboard input, see [Section 8, “Real-time keyboard input,” in the C programming guide](PROGRAMMING.md).
 

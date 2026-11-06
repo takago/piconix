@@ -334,6 +334,7 @@ static int32_t integer_conversion(void){
     int32_t v=expr();if(!eat(')'))error=1;return v;
 }
 static int32_t expr(void);
+static int parse_i2c_write_args(int *fd, int32_t *addr, int32_t *payload, int *len);
 /* 整数式の最小単位を解析する．括弧，変数，文字列などの型と範囲を確認する． */
 static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=1;return x;}
     if(eat('-'))return (int32_t)(0u-(uint32_t)atom());
@@ -365,6 +366,16 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
     if(same(name,"FB_ENABLE"))return OS_FB_ENABLE;
     if(same(name,"FB_DISABLE"))return OS_FB_DISABLE;
     if(same(name,"FB_STATUS"))return OS_FB_STATUS;
+    /* fcntlのコマンドとFDフラグはCライブラリと同じ値を使用する． */
+    if(same(name,"F_GETFL"))return F_GETFL;
+    if(same(name,"F_SETFL"))return F_SETFL;
+    if(same(name,"O_RDONLY"))return O_RDONLY;
+    if(same(name,"O_WRONLY"))return O_WRONLY;
+    if(same(name,"O_RDWR"))return O_RDWR;
+    if(same(name,"O_NONBLOCK"))return O_NONBLOCK;
+    if(same(name,"O_CREAT"))return O_CREAT;
+    if(same(name,"O_TRUNC"))return O_TRUNC;
+    if(same(name,"O_APPEND"))return O_APPEND;
     if(same(name,"SEEK_SET"))return SEEK_SET;
     if(same(name,"SEEK_CUR"))return SEEK_CUR;
     if(same(name,"SEEK_END"))return SEEK_END;
@@ -375,6 +386,14 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         char target[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)target[z++]=*cursor++;
         target[z]=0;int k=seqslot(target);if(!eat(')')||k<0||(!seq[k].used&&!is_string[k])){error=1;return 0;}
         return is_string[k]?(int32_t)strlen(string_at(k)):seq[k].len;
+    }
+    /* I2C書き込みも整数を返す式として扱い，if条件・代入・単独呼び出しを共通化する． */
+    if(same(name,"i2c_write")&&eat('(')){
+        int fd,len;
+        int32_t addr,payload[32],result[32];
+        if(!parse_i2c_write_args(&fd,&addr,payload,&len))return 0;
+        if(!evaluating)return 0;
+        return transfer(fd,addr,payload,len,0,result);
     }
     /* 整数FDを使う簡易ソケットAPI．操作失敗は-1に統一する． */
     if(same(name,"socket")&&eat('(')){
@@ -429,6 +448,14 @@ static int32_t atom(void){ws();if(eat('(')){int32_t x=expr();if(!eat(')'))error=
         int32_t whence=expr();if(!eat(')'))error=1;
         if(error||!evaluating)return 0;
         int32_t rc=(int32_t)lseek(fd,offset,whence);return rc<0?-1:rc;
+    }
+    /* Python側もCと同じ3引数のfcntl(fd, cmd, value)を公開する． */
+    if(same(name,"fcntl")&&eat('(')){
+        int fd=parse_fd();if(!eat(','))error=1;
+        int32_t cmd=expr();if(!eat(','))error=1;
+        int32_t value=expr();if(!eat(')'))error=1;
+        if(error||!evaluating)return 0;
+        return fcntl(fd,cmd,value);
     }
     if(same(name,"ioctl")&&eat('(')){
         int fd=parse_fd();if(!eat(','))error=1;int cmd=expr();
@@ -581,41 +608,59 @@ static void print_value(void){
 }
 static int repl_mode;
 /* I²C書込みに渡すFD，アドレス，バイト列を解析する． */
-static int parse_i2c_write_args(int *fd,int32_t *addr,int32_t *payload,int *len){
-    *fd=parse_fd();if(!eat(',')){error=1;return 0;}
-    *addr=expr();if(!eat(',')){error=1;return 0;}
+/* I²C送信バイト列を解析する．bytes([..]) と既存の配列変数を共通に扱う． */
+static int parse_i2c_bytes(int32_t *values,int *len){
     *len=0;
     if(word("bytes")){
         if(!eat('(')||!eat('[')){error=1;return 0;}
         if(!eat(']')){
-            do{if(*len==32){error=1;return 0;}payload[(*len)++]=expr();}while(eat(','));
+            do{
+                if(*len==32){error=1;return 0;}
+                int32_t v=expr();
+                if(v<0||v>255){error=1;return 0;}
+                values[(*len)++]=v;
+            }while(!error&&eat(','));
             if(!eat(']')){error=1;return 0;}
         }
         if(!eat(')')){error=1;return 0;}
     }else{
-        char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
-        srcname[z]=0;int k=seqslot(srcname);
+        char name[16];unsigned n=0;
+        ws();while(idchar(*cursor)&&n<15)name[n++]=*cursor++;
+        name[n]=0;
+        int k=n?seqslot(name):-1;
         if(k<0||!seq[k].used||seq[k].len>32){error=1;return 0;}
-        *len=seq[k].len;for(int j=0;j<*len;j++)payload[j]=items(k)[j];
+        *len=seq[k].len;
+        for(int i=0;i<*len;i++){
+            int32_t v=items(k)[i];
+            if(v<0||v>255){error=1;return 0;}
+            values[i]=v;
+        }
     }
+    return !error;
+}
+
+/* I²C書込みに渡すFD，アドレス，バイト列を解析する． */
+static int parse_i2c_write_args(int *fd,int32_t *addr,int32_t *payload,int *len){
+    *fd=parse_fd();if(!eat(',')){error=1;return 0;}
+    *addr=expr();if(!eat(',')){error=1;return 0;}
+    if(!parse_i2c_bytes(payload,len))return 0;
     if(!eat(')')){error=1;return 0;}
-    ws();if(*cursor&&*cursor!='#')error=1;
     return !error;
 }
 /* 一文の構文と処理を実行する．ファイル，GPIO，通信等の小さな組込み機能へ分岐する． */
 static void statement(unsigned line){cursor=source+offsets[line];ws();
+    /* REPLとスクリプトのどちらでも，入れ子のブロックから終了できる． */
+    if(word("exit")&&eat('(')){
+        if(!eat(')')){error=1;return;}
+        ws();if(*cursor&&*cursor!='#'){error=1;return;}
+        _exit(0);
+    }
+    cursor=source+offsets[line];ws();
     if(word("msleep")&&eat('(')){
         int32_t ms=expr();if(!eat(')'))error=1;
         ws();if(*cursor&&*cursor!='#')error=1;
         if(ms<0||ms>60000)error=1;
         if(!error)msleep(ms);
-        return;
-    }
-    cursor=source+offsets[line];ws();
-    if(word("i2c_write")&&eat('(')){
-        int fd,len;int32_t addr,payload[32],result[32];
-        if(parse_i2c_write_args(&fd,&addr,payload,&len))
-            (void)transfer(fd,addr,payload,len,0,result);
         return;
     }
     cursor=source+offsets[line];ws();
@@ -631,7 +676,7 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         if(!error)outs("\r\n");return;
     }
     cursor=source+offsets[line];ws();
-    if(word("write")||word("close")||word("ioctl")||word("connect")||word("listen")||word("bind")||word("send")||word("sendto")){
+    if(word("i2c_write")||word("write")||word("close")||word("fcntl")||word("ioctl")||word("connect")||word("listen")||word("bind")||word("send")||word("sendto")){
         cursor=source+offsets[line];(void)expr();
         ws();if(*cursor&&*cursor!='#')error=1;return;
     }
@@ -650,15 +695,6 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
             ws();if(*cursor&&*cursor!='#')error=1;
             if(!error){number(v);outs("\r\n");}return;}
         error=1;return;
-    }
-    /* 成功時は送信バイト数，転送失敗時は-1を返す． */
-    if(word("i2c_write")&&eat('(')){
-        int fd,len;int32_t addr,payload[32],result[32];
-        if(parse_i2c_write_args(&fd,&addr,payload,&len)){
-            int rc=transfer(fd,addr,payload,len,0,result);
-            if(!error)setvar(name,rc);
-        }
-        return;
     }
     if(word("input")){
         char value[STR_MAX+1];if(!input_text(value))return;
@@ -722,10 +758,10 @@ static void statement(unsigned line){cursor=source+offsets[line];ws();
         int fd=parse_fd();if(!eat(',')){error=1;return;}
         int32_t addr=expr();if(!eat(',')){error=1;return;}
         int32_t values[SEQ_MAX]={0},result[32]={0};int len=0;
-        if(xfer){char srcname[16];unsigned z=0;ws();while(idchar(*cursor)&&z<15)srcname[z++]=*cursor++;
-            srcname[z]=0;int k=seqslot(srcname);if(k<0||!seq[k].used){error=1;return;}
-            len=seq[k].len;if(len>32){error=1;return;}
-            for(int j=0;j<len;j++)values[j]=items(k)[j];if(!eat(',')){error=1;return;}}
+        if(xfer){
+            if(!parse_i2c_bytes(values,&len))return;
+            if(!eat(',')){error=1;return;}
+        }
         int32_t r=expr();if(!eat(')')||r<0||r>32){error=1;return;}
         ws();if(*cursor&&*cursor!='#')error=1;
         if(!error){

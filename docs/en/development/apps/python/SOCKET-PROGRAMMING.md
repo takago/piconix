@@ -31,7 +31,7 @@ Confirm the Pico W Wi-Fi connection. Use `cat /proc/net/wifi` to find its IP add
 
 ### Interpreting return values
 
-`accept()`, `recv()` and `recvfrom()` **block by default** until a connection or data arrives. When the socket FD is explicitly marked `O_NONBLOCK` via `fcntl`, C returns `OS_EAGAIN` and Tiny Python converts receive failures to integer `-1`. Successful receives return byte sequences; `[]` represents TCP EOF or a zero-length UDP datagram. Check `data != -1` before `len()` or `write()`. Use `status(fd)` to inspect TCP state.
+`accept()`, `recv()` and `recvfrom()` **block by default** until a connection or data arrives. Python also supports `fcntl(fd, F_GETFL, 0)` and `fcntl(fd, F_SETFL, flags | O_NONBLOCK)`. On nonblocking sockets an unavailable receive produces `OS_EAGAIN`, which the Python receive functions convert to integer `-1`; its receive functions return integer `-1` on actual failures. Successful receives return byte sequences; `[]` represents TCP EOF or a zero-length UDP datagram. Check `data != -1` before `len()` or `write()`. Use `status(fd)` to inspect TCP state.
 
 `accept()` waits for a connection by default; check `client >= 0` for actual errors. `send()` may transmit only part of the payload or be temporarily unable to send. Each call is limited to 64 bytes. Payloads can be literals, string variables, list/`bytes` variables, or `str(integer_expression)`. `recv()` and `recvfrom()` **must be used in assignment statements**.
 
@@ -41,18 +41,26 @@ First start the user-space `httpd` on Pico W with `httpd &` in the shell. Create
 
 ```python
 fd = socket(1)
-rc = connect(fd, "127.0.0.1", 80)
-if rc == 0:
-    state = 0
-    while state == 0:
-        state = status(fd)
-        msleep(10)
-    if state == 1:
-        send(fd, "GET / HTTP/1.0\r\n\r\n")
-        msleep(100)
-        data = recv(fd, 64)
-        if data != -1:
-            write(1, data)
+if fd < 0:
+    print("socket failed")
+    exit()
+if connect(fd, "127.0.0.1", 80) != 0:
+    print("connect failed")
+    close(fd)
+    exit()
+state = 0
+while state == 0:
+    state = status(fd)
+    msleep(10)
+if state != 1:
+    print("connection failed")
+    close(fd)
+    exit()
+send(fd, "GET / HTTP/1.0\r\n\r\n")
+msleep(100)
+data = recv(fd, 64)
+if data != -1:
+    write(1, data)
 close(fd)
 ```
 
@@ -80,14 +88,18 @@ The existing [`temp_udp.py`](../../../../../userland/examples/python/temp_udp.py
 
 ```python
 fd = socket(2)
-rc = bind(fd, 9000)
-if rc == 0:
-    while True:
-        data = recvfrom(fd, 64)
-        if data != -1:
-            if len(data) > 0:
-                sendto(fd, "OK\n", "peer", 0)
-        msleep(20)
+if fd < 0:
+    print("socket failed")
+    exit()
+if bind(fd, 9000) != 0:
+    print("bind failed")
+    close(fd)
+    exit()
+while True:
+    data = recvfrom(fd, 64)
+    if data != -1:
+        if len(data) > 0:
+            sendto(fd, "OK\n", "peer", 0)
 close(fd)
 ```
 
@@ -108,3 +120,21 @@ The expected response is `OK`. UDP has a one-datagram receive buffer. If a read 
 - These functions are not compatible with the standard Python `socket` module. `import socket` is not supported.
 
 **See also:** [Python fundamentals](PYTHON.md) / [C networking API](../c/NETWORK-PROGRAMMING.md)
+
+**Initialization failures:** The bundled TCP/UDP examples report failed `socket()`, `listen()`, or `bind()` calls, close any allocated FD, and call `exit()`. A failed client connection or individual sensor read does not terminate the server. `exit()` returns status 0.
+
+
+
+**TCP/UDP temperature servers:** `accept()` and `recvfrom()` block by default. The examples therefore do not poll with `msleep()`; the task blocks while waiting for input.
+
+### `fcntl()` and nonblocking I/O
+
+`fcntl(fd, cmd, value)` takes the same three arguments as the PicoNIX C API. Constants include `F_GETFL`, `F_SETFL`, and `O_NONBLOCK`. Only `O_NONBLOCK` can be changed via `F_SETFL`, and only on supported TTY and TCP/UDP socket descriptors.
+
+```python
+flags = fcntl(fd, F_GETFL, 0)
+if flags >= 0:
+    result = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+```
+
+On nonblocking sockets, `recv()`, `recvfrom()`, and `accept()` return `-1` when no data or connection is ready. TTY `read()` instead returns `[]` when no input is ready; semantics depend on the descriptor type. This is a PicoNIX built-in, not CPython fcntl module.

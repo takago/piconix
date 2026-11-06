@@ -88,7 +88,7 @@ with `tools/build_sdk.sh` and its ELF layout checks after integrating this
 change. These safeguards do not yet establish that the earlier
 `tcp_receive: valid queue length` assertion has been completely eliminated.
 
-User TCP/UDP sockets are polled irrespective of the `O_NONBLOCK` flag. Unavailable I/O returns `OS_EAGAIN` and the application should retry after a short delay. UDP buffers just one datagram; an undersized receive buffer returns `OS_EINVAL` without consuming it. See the [socket programming guide](../../development/apps/c/NETWORK-PROGRAMMING.md).
+TCP `accept()` and `read()`, and UDP `recvfrom()`, block the task by default when not ready. With `O_NONBLOCK`, they return `OS_EAGAIN` instead. Sending and asynchronous `connect()` have different semantics, including partial sends or temporary unavailability. UDP buffers just one datagram; an undersized receive buffer returns `OS_EINVAL` without consuming it. See the [socket programming guide](../../development/apps/c/NETWORK-PROGRAMMING.md).
 
 ## TCP transmission and half-close
 

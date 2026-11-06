@@ -9,6 +9,7 @@
 - [PicoNIXのCアプリケーション開発](apps/c/PROGRAMMING.md)
 - [PicoNIXのCライブラリとユーザアプリケーションAPI](apps/c/LIBC.md)
 - [ソケットAPIとネットワークアプリケーション](apps/c/NETWORK-PROGRAMMING.md)
+- [MCPサーバ`mcpd`の開発実習](apps/c/MCP-SERVER-DEVELOPMENT.md)
 
 ## Pythonとアセンブラ
 

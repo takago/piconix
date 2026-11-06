@@ -50,7 +50,7 @@ PicoNIXは，ユーザプログラム向けに**独自の小規模なCライブ�
 | `msleep(milliseconds)` | ミリ秒 | OSサービスの結果（`int`） |
 | `socket(domain, type, protocol)` | アドレス族，種類，プロトコル | FDまたは負のOSエラー値 |
 
-**全関数の正確な型・引数**はヘッダ，**SVCの番号・レジスタ規約・カーネル処理**は[システムコール](../../../reference/SYSCALLS.md)を参照してください．`connect()`の非同期動作，`tcp_status()`，`accept()`と`recvfrom()`の非ブロッキング動作は[ネットワークプログラミング](NETWORK-PROGRAMMING.md)に説明があります．
+**全関数の正確な型・引数**はヘッダ，**SVCの番号・レジスタ規約・カーネル処理**は[システムコール](../../../reference/SYSCALLS.md)を参照してください．`connect()`の非同期動作，`tcp_status()`，`accept()`と`recvfrom()`の既定のブロッキング動作と明示的な非ブロッキング設定は[ネットワークプログラミング](NETWORK-PROGRAMMING.md)に説明があります．
 
 実践例：TTYの`ioctl()`とFDの`fcntl()`を組み合わせてキー入力をポーリングする場合は，[Cアプリケーション開発ガイドの第8章「リアルタイムキー入力」](PROGRAMMING.md)を参照してください．
 

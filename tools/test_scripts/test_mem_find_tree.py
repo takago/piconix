@@ -12,7 +12,7 @@ assert 'proc_ramfiles_read' in k
 assert 'RAM_FILE: /%s' in m
 assert "if(c=='g'||c=='G')" in m
 assert 'refresh_ram_labels(addr);' in m
-assert 'tree find nc httpd tcp_echod udp_echod)' in cmake
+assert 'tree find nc httpd tcp_echod udp_echod mcpd)' in cmake
 for name in ('tree','find'):
  assert f'register_image({32 if name=="tree" else 33},"{name}"' in main
  assert (r/'userland/apps'/f'{name}.c').is_file()

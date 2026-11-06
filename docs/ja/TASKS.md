@@ -73,6 +73,7 @@
 | Telnetで遠隔シェルを使いたい | [ネットワーク接続](reference/network/NETWORK.md) · [操作：net](reference/network/NET.md) |
 | ncでTCP/UDP通信を試したい | [ネットワーク接続](reference/network/NETWORK.md) · [操作：nc](reference/network/NC.md) |
 | httpdでWebページを公開したい | [操作：httpd](reference/network/HTTPD.md) · [仕様：初期ファイルとrc](reference/INITIAL-FILES.md) · [ネットワーク接続](reference/network/NETWORK.md) |
+| MCPサーバを開発・動作確認したい（Pico W） | [MCPサーバ開発実習](development/apps/c/MCP-SERVER-DEVELOPMENT.md) · [MCP操作ガイド](guides/MCP.md) |
 | ping・tcpdumpで通信を観察したい | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
 | UDPでデバイスを遠隔制御したい | [仕様：遠隔デバイス制御](reference/network/REMOTE-DEVICE.md) · [実習：遠隔GPIO](reference/network/REMOTE_GPIO.md) · [ネットワーク接続](reference/network/NETWORK.md) |
 

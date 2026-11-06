@@ -24,7 +24,7 @@ See [hardware wiring](../../../reference/hardware/WIRING.md) for LED matrix orie
 
 ## REPL and scripts
 
-Use `python` for the REPL and `python /tmp/test.py` to run a script. Enter `exit()` to quit the REPL. Supported control flow includes `if`, `while`, and `for ... in range(...)`. Use space indentation; submit a blank line to finish a REPL block. Both scripts and the REPL support multi-line lists and `bytes([...])` until brackets are closed.
+Use `python` for the REPL and `python /tmp/test.py` to run a script. `exit()` terminates either the REPL or a script successfully, including from inside an `if` or loop. `True` and `False` are represented as integers `1` and `0`; there is no separate `bool` type. Supported control flow includes `if`, `while`, and `for ... in range(...)`. Use space indentation; submit a blank line to finish a REPL block. Both scripts and the REPL support multi-line lists and `bytes([...])` until brackets are closed.
 
 ## Integers, sequences, and strings
 
@@ -105,7 +105,7 @@ Frequency is 8–100000 Hz and duty is an integer percentage 0–100, both as te
 
 ## I²C1
 
-Use `i2c_write(fd, addr, sequence)`, `data = i2c_read(fd, addr, count)`, or `data = i2c_xfer(fd, addr, sequence, count)`. Valid addresses are 0x08–0x77, and each phase is limited to 32 bytes. `i2c_xfer()` uses repeated START. `i2c_write()` returns the number of bytes written, or `-1` on transfer failure. `i2c_read()` and `i2c_xfer()` return a byte list, or the integer `-1` on failure. Use `if data != -1:` to test the result. `open()` also returns `-1` if opening fails. `read()`, `recv()`, and `recvfrom()` return a byte sequence on success or `-1` on operation failure. An empty sequence represents a zero-length result. `EAGAIN` also becomes `-1`, so pending data cannot be distinguished from other failures. Invalid syntax or arguments still cause an error. Inline payloads such as `i2c_write(i2c, 0x23, bytes([0x10]))` are supported. Use these helpers for the pointer-based transfer request. Open the bus once with `fd = open("/dev/i2c/1", 2)`, reuse that FD for transfers, and `close(fd)` when finished. The FD argument is required; the previous two-argument `i2c_write()` form is no longer supported.
+Use `i2c_write(fd, addr, sequence)`, `data = i2c_read(fd, addr, count)`, or `data = i2c_xfer(fd, addr, sequence, count)`. Valid addresses are 0x08–0x77, and each phase is limited to 32 bytes. `i2c_xfer()` uses repeated START. `i2c_write()` returns the number of bytes written, or `-1` on transfer failure. `i2c_read()` and `i2c_xfer()` return a byte list, or the integer `-1` on failure. Use `if data != -1:` to test the result. `open()` also returns `-1` if opening fails. `read()`, `recv()`, and `recvfrom()` return a byte sequence on success or `-1` on operation failure. An empty sequence represents a zero-length result. `EAGAIN` also becomes `-1`, so pending data cannot be distinguished from other failures. Invalid syntax or arguments still cause an error. Inline payloads such as `i2c_write(i2c, 0x23, bytes([0x10]))` are supported. Both `i2c_write()` and `i2c_xfer()` accept either inline `bytes([0x00])` or a byte-array variable as the write payload; for example, `data = i2c_xfer(fd, 0x48, bytes([0x00]), 2)`. Values must be 0–255 and each write is limited to 32 bytes. Read operations still return a byte array or `-1`; assign the result before checking it. `i2c_write()` is an integer-valued expression and may be used in conditions such as `if i2c_write(fd, 0x23, bytes([0x10])) < 0:`, assignments, or standalone calls. Use these helpers for the pointer-based transfer request. Open the bus once with `fd = open("/dev/i2c/1", 2)`, reuse that FD for transfers, and `close(fd)` when finished. The FD argument is required; the previous two-argument `i2c_write()` form is no longer supported.
 
 ### BH1750 (address 0x23)
 
@@ -216,7 +216,7 @@ The `wave` array specifies the lit column in each row, and `phase` advances the 
 
 ## Socket communication (Pico W)
 
-This is a PicoNIX-specific integer-FD API, not CPython's `import socket`. It uses numeric IPv4 addresses. Sockets are nonblocking.
+This is a PicoNIX-specific integer-FD API, not CPython's `import socket`. It uses numeric IPv4 addresses. Sockets are blocking by default. `accept()`, `recv()`, and `recvfrom()` suspend the task until a connection or data arrives. Built-in Python also supports `fcntl(fd, F_GETFL, 0)` and `fcntl(fd, F_SETFL, flags | O_NONBLOCK)` for switching supported socket descriptors to nonblocking mode.
 
 | API | Behavior |
 |---|---|
@@ -235,16 +235,25 @@ This is a PicoNIX-specific integer-FD API, not CPython's `import socket`. It use
 
 ```python
 fd = socket(1)
-rc = connect(fd, "127.0.0.1", 80)
-if rc == 0:
-    state = 0
-    while state == 0:
-        state = status(fd)
-        msleep(10)
-    if state == 1:
-        send(fd, "GET / HTTP/1.0\r\n\r\n")
-        data = recv(fd, 64)
-        print(data)
+if fd < 0:
+    print("socket failed")
+    exit()
+if connect(fd, "127.0.0.1", 80) != 0:
+    print("connect failed")
+    close(fd)
+    exit()
+state = 0
+while state == 0:
+    state = status(fd)
+    msleep(10)
+if state != 1:
+    print("connection failed")
+    close(fd)
+    exit()
+send(fd, "GET / HTTP/1.0\r\n\r\n")
+data = recv(fd, 64)
+if data != -1:
+    print(data)
 close(fd)
 ```
 
@@ -269,8 +278,26 @@ nc <Pico W IP address> 9000
 printf 'temp' | nc -u -w 2 <Pico W IP address> 9000
 ```
 
-TCP and UDP have separate port spaces. `accept()` and `recvfrom()` are nonblocking. TCP `send()` may be partial or temporarily unavailable; the TCP sample makes a single short send without retries. UDP `"peer"` with port `0` addresses only the most recently received sender. Each Python `while` loop is limited to 10,000 iterations, so these examples are not permanent services. Use only on a trusted test LAN.
+TCP and UDP have separate port spaces. `accept()` and `recvfrom()` block by default, so the examples do not need polling delays such as `msleep()`. TCP `send()` may be partial or temporarily unavailable; the TCP sample makes a single short send without retries. UDP `"peer"` with port `0` addresses only the most recently received sender. Each Python `while` loop is limited to 10,000 iterations, so these examples are not permanent services. Use only on a trusted test LAN.
 
 ---
 
 **Related links:** [Development guide index](../../README.md) | [Learning roadmap](../../../ROADMAP.md)
+
+**Error handling:** Samples print an error and call `exit()` if a required device or socket cannot be initialized, closing open FDs where necessary. `exit()` terminates with status 0; it is not a substitute for `exit(1)` or exceptions. The optional BH1750 sensor falls back to fixed-speed animation when unavailable.
+
+## I2C sensor examples
+
+See the [Python I2C examples](../../../../../userland/examples/python/README.md) for ADT7410, BH1750, LCD0802 and RPR-0521RS. They use PicoNIX integer arithmetic and I2C APIs. Hardware validation is pending.
+
+### `fcntl()` and nonblocking I/O
+
+`fcntl(fd, cmd, value)` takes the same three arguments as the PicoNIX C API. Constants include `F_GETFL`, `F_SETFL`, and `O_NONBLOCK`. Only `O_NONBLOCK` can be changed via `F_SETFL`, and only on supported TTY and TCP/UDP socket descriptors.
+
+```python
+flags = fcntl(fd, F_GETFL, 0)
+if flags >= 0:
+    result = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+```
+
+On nonblocking sockets, `recv()`, `recvfrom()`, and `accept()` return `-1` when no data or connection is ready. TTY `read()` instead returns `[]` when no input is ready; semantics depend on the descriptor type. This is a PicoNIX built-in, not CPython fcntl module.

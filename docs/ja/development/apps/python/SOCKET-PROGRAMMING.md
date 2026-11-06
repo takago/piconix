@@ -31,7 +31,7 @@ Pico WのWi-Fi接続を確認し，`cat /proc/net/wifi`でIPアドレスを調�
 
 ### 戻り値を読むときの注意
 
-PicoNIXの`accept()`，`recv()`，`recvfrom()`は**既定でブロッキング動作**です．データ未到着時はPythonタスクを待機させます．`fcntl`でソケットFDを非ブロッキングに変更した場合は，未到着時にC APIが`OS_EAGAIN`，Pythonの受信関数が整数`-1`を返します．成功時はバイト配列で，`[]`はTCPのEOFやゼロ長UDPデータグラムを表します．`len()`や`write()`より先に`data != -1`で判定してください．TCPの状態は`status(fd)`でも確認できます．
+PicoNIXの`accept()`，`recv()`，`recvfrom()`は**既定でブロッキング動作**です．データ未到着時はPythonタスクを待機させます．Pythonでも`fcntl(fd, F_GETFL, 0)`と`fcntl(fd, F_SETFL, flags | O_NONBLOCK)`で非ブロッキングに変更できます．未到着時の`OS_EAGAIN`はPythonの受信関数では整数`-1`として返ります．Pythonの受信関数は実際の通信失敗時に整数`-1`を返します．成功時はバイト配列で，`[]`はTCPのEOFやゼロ長UDPデータグラムを表します．`len()`や`write()`より先に`data != -1`で判定してください．TCPの状態は`status(fd)`でも確認できます．
 
 `accept()`は接続を待機し，接続時に新しいFDを返します．`client >= 0`で実際の失敗を検査してください．`send()`は部分送信または一時的な送信不可になる可能性があります．1回の送受信は最大64バイトで，`send()`・`sendto()`の`data`にはリテラル，文字列変数，`bytes`/リスト変数，`str(整数式)`を渡せます．`recv()`と`recvfrom()`は**代入文**で使います．
 
@@ -41,18 +41,26 @@ PicoNIXの`accept()`，`recv()`，`recvfrom()`は**既定でブロッキング�
 
 ```python
 fd = socket(1)
-rc = connect(fd, "127.0.0.1", 80)
-if rc == 0:
-    state = 0
-    while state == 0:
-        state = status(fd)
-        msleep(10)
-    if state == 1:
-        send(fd, "GET / HTTP/1.0\r\n\r\n")
-        msleep(100)
-        data = recv(fd, 64)
-        if data != -1:
-            write(1, data)
+if fd < 0:
+    print("socket failed")
+    exit()
+if connect(fd, "127.0.0.1", 80) != 0:
+    print("connect failed")
+    close(fd)
+    exit()
+state = 0
+while state == 0:
+    state = status(fd)
+    msleep(10)
+if state != 1:
+    print("connection failed")
+    close(fd)
+    exit()
+send(fd, "GET / HTTP/1.0\r\n\r\n")
+msleep(100)
+data = recv(fd, 64)
+if data != -1:
+    write(1, data)
 close(fd)
 ```
 
@@ -80,14 +88,18 @@ nc PICO_IP 9000
 
 ```python
 fd = socket(2)
-rc = bind(fd, 9000)
-if rc == 0:
-    while True:
-        data = recvfrom(fd, 64)
-        if data != -1:
-            if len(data) > 0:
-                sendto(fd, "OK\n", "peer", 0)
-        msleep(20)
+if fd < 0:
+    print("socket failed")
+    exit()
+if bind(fd, 9000) != 0:
+    print("bind failed")
+    close(fd)
+    exit()
+while True:
+    data = recvfrom(fd, 64)
+    if data != -1:
+        if len(data) > 0:
+            sendto(fd, "OK\n", "peer", 0)
 close(fd)
 ```
 
@@ -108,3 +120,21 @@ printf 'hello' | nc -u -w 2 PICO_IP 9000
 - `socket()`や`connect()`などの呼出しは標準Pythonの構文と互換ではありません．`import socket`も使えません．
 
 **関連資料：** [Pythonの基本](PYTHON.md) ／ [C言語のネットワークAPI](../c/NETWORK-PROGRAMMING.md)
+
+**初期化エラー：** 同梱のTCP/UDPサンプルは`socket()`や`listen()`／`bind()`が失敗したらメッセージを表示し，必要なFDを閉じて`exit()`します．接続や個別のセンサー読み取り失敗はサーバ全体を終了させず，次の要求を待ちます．`exit()`の終了コードは0です．
+
+
+
+**TCP/UDP温度サーバ：** `accept()`と`recvfrom()`はデフォルトでブロッキング動作するため，サンプルでは待機用の`msleep()`を使用しません．受信待機中はタスクがブロックされます．
+
+### `fcntl()` と非ブロッキングI/O
+
+`fcntl(fd, cmd, value)`はC言語版と同じ3引数です．`F_GETFL`，`F_SETFL`，`O_NONBLOCK`などの定数を使用できます．`F_SETFL`で変更できるのは対応するTTYとTCP/UDPソケットの`O_NONBLOCK`のみです．
+
+```python
+flags = fcntl(fd, F_GETFL, 0)
+if flags >= 0:
+    result = fcntl(fd, F_SETFL, flags | O_NONBLOCK)
+```
+
+ソケットの`recv()`，`recvfrom()`，`accept()`は非ブロッキング時にデータ・接続が未到着なら`-1`を返します．`read()`でTTYを扱う場合は未入力時に`[]`を返すなど，FDの種類によって結果が異なります．なお，Pythonの`fcntl()`はCPythonの`fcntl`モジュールではなくPicoNIX独自の組込み関数です．

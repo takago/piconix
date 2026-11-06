@@ -69,11 +69,11 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 - `socket(domain, type, protocol)`: only `AF_INET` (2), `SOCK_STREAM` (1) or `SOCK_DGRAM` (2), and protocol 0 are accepted.
 - `bind_udp(fd, port)` and `tcp_listen(fd, port)`: port must be 1–65535. These operate on different socket types.
 - `sendto_udp(fd, packet)` / `recvfrom_udp(fd, packet)`: `packet` is a `piconix_udp_packet_t *` containing data pointer, length, peer IPv4 address and port. Datagram size is bounded.
-- `tcp_connect(fd, endpoint)`: `endpoint` is a `piconix_tcp_endpoint_t *`. Connection is asynchronous; check `tcp_status(fd)`. `tcp_accept(fd)` returns `OS_EAGAIN` if no connection is ready.
+- `tcp_connect(fd, endpoint)`: `endpoint` is a `piconix_tcp_endpoint_t *`. Connection is asynchronous; check `tcp_status(fd)`. `tcp_accept(fd)` blocks the task by default until a connection is ready; with `O_NONBLOCK` it returns `OS_EAGAIN` when none is ready.
 - `getdents(fd, entry, size)`: `entry` is `piconix_dirent_t *`. Returns 1 for an entry and 0 at directory end.
 - `spawn_tmp(path)`: path names a PNX1-format Thumb image under `/tmp`.
 
-- TCP/UDP socket `read()`/`write()` are polled independently of `O_NONBLOCK`; unavailable I/O returns `OS_EAGAIN`. `fcntl()` changes the flag but not the socket waiting behavior. An undersized UDP receive buffer returns `OS_EINVAL` without consuming the datagram. TCP `read()` returns 0 after a normal peer close and drain.
+- TCP `read()`, UDP `recvfrom()`, and TCP `accept()` block the task by default when no data or connection is ready. With `O_NONBLOCK` set by `fcntl(F_SETFL)`, they return `OS_EAGAIN` instead. TCP `write()`/sending and `connect()` do not follow the same waiting rules. An undersized UDP receive buffer returns `OS_EINVAL` without consuming the datagram. TCP `read()` returns 0 after a normal peer close and drain.
 
 ## Boundary conditions for `open()`, `unlink()`, and `getdents()`
 

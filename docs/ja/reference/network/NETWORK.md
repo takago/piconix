@@ -78,7 +78,7 @@ PicoNIXはポーリング式のlwIP raw APIを用いるため，ループバッ�
 
 従来の1,024バイトに対し各スロット48バイト，4スロット合計192バイトの静的RAM増加があります．適用後は`tools/build_sdk.sh`のビルドとELFレイアウト検査で，カーネルRAM上限を確認してください．今回の対策だけで，既知の`tcp_receive: valid queue length`アサーションが完全に解消したと断定することはできません．
 
-ユーザTCP/UDPソケットは`O_NONBLOCK`のフラグ値に関係なく非待機型です．未準備の送受信は`OS_EAGAIN`となり，アプリが短時間待って再試行します．UDPは1件のデータグラムだけを保留し，小さすぎる受信バッファでは`OS_EINVAL`を返して保持を継続します．詳細は[ソケットAPI実習](../../development/apps/c/NETWORK-PROGRAMMING.md)を参照してください．
+ユーザソケットのTCP `accept()`・`read()`とUDP `recvfrom()`は既定でブロッキング動作し，未準備ならタスクを待機させます．`O_NONBLOCK`を設定した場合は未準備時に`OS_EAGAIN`を返します．送信と非同期`connect()`はこれらの受信待機とは異なり，部分送信や一時的な送信不可を考慮する必要があります．UDPは1件のデータグラムだけを保留し，小さすぎる受信バッファでは`OS_EINVAL`を返して保持を継続します．詳細は[ソケットAPI実習](../../development/apps/c/NETWORK-PROGRAMMING.md)を参照してください．
 
 ## TCP送信と半閉鎖
 
