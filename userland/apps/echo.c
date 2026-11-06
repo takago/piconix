@@ -8,8 +8,10 @@
 static int emit(char c) {
     for (;;) {
         int n=write(1,&c,1);
-        if(n<0) return -1;
-        if(n) return 0;
+        if(n<0)
+            return -1;
+        if(n)
+            return 0;
         msleep(1);
     }
 }
@@ -36,7 +38,8 @@ static int output(const char *s,size_t n,int escapes) {
                 while(k<2 && i+1<n && (d=digit(s[i+1],16))>=0) {
                     v=v*16+d;i++;k++;
                 }
-                if(k) c=(char)v;
+                if(k)
+                    c=(char)v;
                 else {if(emit('\\')<0)return -1;c='x';}
             } else if(e>='0'&&e<='7') {
                 int v=e-'0',k=1,d;
@@ -58,10 +61,12 @@ int main(int argc,char *argv[]) {
     for(;i<argc;i++) {
         const char *p=argv[i];
         if(!strcmp(p,"--")) {i++;break;}
-        if(*p!='-' || !p[1]) break;
+        if(*p!='-' || !p[1])
+            break;
         const char *q=p+1;
         for(;*q && (*q=='n'||*q=='e');q++);
-        if(*q) break;
+        if(*q)
+            break;
         for(q=p+1;*q;q++) if(*q=='n')newline=0;else escapes=1;
     }
     /* 簡易シェルは現在，引用符を文字として保持する． */

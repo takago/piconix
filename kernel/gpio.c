@@ -6,8 +6,11 @@
 #include "pins.h"
 #include "pico/stdlib.h"
 #include <string.h>
+
+/* 関数トレースの対象外では計測フックを生成しない． */
+#define NO_TRACE __attribute__((no_instrument_function))
 /* ボード上のLEDとスイッチを含むGPIOの初期設定を行う． */
-void gpio_driver_init(void) {
+NO_TRACE void gpio_driver_init(void) {
     /* 標準ボード入出力：GP25のLEDとLow有効のGP16/17ボタン． */
     gpio_init(25);
     gpio_put(25, 0);
@@ -22,10 +25,12 @@ void gpio_driver_init(void) {
 
 /* GPIO値・方向等をデバイスファイル経由で読み書きする．表示機能と競合するピンは拒否する． */
 int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
-    if(pin<16 && fb_active()) return OS_EBUSY;
+    if(pin<16 && fb_active())
+        return OS_EBUSY;
     if(n==0) return 0;
     if(kind==1 || kind==2) {
-        if(!pin_gpio(pin)) return OS_EINVAL;
+        if(!pin_gpio(pin))
+            return OS_EINVAL;
         if(kind==1) {
             if(writing) {
                 const uint8_t *b=p;
@@ -35,7 +40,8 @@ int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
             }
             const char *v=gpio_get_dir(pin)==GPIO_OUT?"out":"in";
             size_t len=(v[0]=='o')?3:2;
-            if(n<len) len=n;
+            if(n<len)
+                len=n;
             memcpy(p,v,len); return (int)len;
         }
         if(writing) {
@@ -47,15 +53,18 @@ int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
         }
         const char *v=gpio_is_pulled_up(pin)?"up":gpio_is_pulled_down(pin)?"down":"none";
         size_t len=strlen(v);
-        if(n<len) len=n;
+        if(n<len)
+            len=n;
         memcpy(p,v,len); return (int)len;
     }
-    if(!pin_gpio(pin)) return OS_EINVAL;
+    if(!pin_gpio(pin))
+        return OS_EINVAL;
     if(writing) {
         const uint8_t *b=p;
         if(n>=2 && b[0]=='i' && b[1]=='n') {gpio_init(pin);gpio_set_dir(pin,GPIO_IN);return (int)n;}
         if(n>=3 && b[0]=='o' && b[1]=='u' && b[2]=='t') {gpio_init(pin);gpio_set_dir(pin,GPIO_OUT);return (int)n;}
-        if(b[0]!='0' && b[0]!='1') return OS_EINVAL;
+        if(b[0]!='0' && b[0]!='1')
+            return OS_EINVAL;
         gpio_put(pin,b[0]=='1');
         return (int)n;
     }
@@ -65,8 +74,10 @@ int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
 
 /* GPIOの入力・出力モード等を変更する．使用予約ピンや表示中のピンを保護する． */
 int gpio_driver_ioctl(unsigned pin, int cmd) {
-    if(pin<16 && fb_active()) return OS_EBUSY;
-    if(!pin_gpio(pin)) return OS_EINVAL;
+    if(pin<16 && fb_active())
+        return OS_EBUSY;
+    if(!pin_gpio(pin))
+        return OS_EINVAL;
     switch(cmd) {
         case OS_GPIO_INPUT: gpio_init(pin);gpio_set_dir(pin,GPIO_IN);break;
         case OS_GPIO_OUTPUT: gpio_init(pin);gpio_set_dir(pin,GPIO_OUT);break;

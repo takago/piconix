@@ -6,17 +6,47 @@ This guide explains **how to read the current PicoNIX kernel source**, rather th
 
 Before starting, read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Differences from Linux](../../reference/DIFFERENCES.md). PicoNIX uses fixed-size task slots and does **not** implement the full process isolation or virtual memory of Linux. Use `rg -n 'function_name\(' kernel userland` to locate calls and definitions; line numbers can change as code is edited.
 
-| Step | Topic | Read in this order | Check your understanding |
-|---|---|---|---|
-| 1 | Boot | `kernel/main.c`: `main()` → `os_init()` → `register_image()` → `net_init()` → `os_init_idle()` → `os_start_program(2)` → `os_start()`; also `idle_task()` | Why is program registration different from launching a task? Why is an idle task necessary? |
-| 2 | Task creation and RAM | `include/piconix.h` constants → `os_register_program()` → `os_register_ram_image()` → `free_program_slot()` → `spawn_in_slot()` → `os_start_program()` in `kernel/kernel.c` | Distinguish program ID, PID and slot. When is the Flash image copied to RAM? |
-| 3 | Scheduling | `os_start()` → `isr_systick()` → `pend()` → `os_schedule()`; inspect task states and `wake_readers()` / `wake_waiters()` / `wake_pipes()` | How do the 1 ms SysTick and usual 10-tick quantum interact with PendSV? What happens if no user task is READY? |
-| 4 | Context switching | `kernel/context.S`: `isr_pendsv` → `kernel/kernel.c`: `os_schedule()` → return to `isr_pendsv` | What do the hardware exception frame, PSP, MSP and r4–r11 each do? |
-| 5 | System calls | An application using `write()` → `userland/lib/syscalls.c`: `write()`, `call()` → `include/piconix_syscall.h` → `kernel/context.S`: `isr_svcall` → `kernel/kernel.c`: `os_svc_dispatch()` | How does `svc #0` enter the kernel and how are arguments/results passed? Where is the user buffer checked? |
-| 6 | Files and FDs | `fd_set()` → `fd_release()` → `vfs_open()` → `vfs_rw()` → `tmp_open()` / `tmp_rw()` → `device_rw_proc()` / `device_rw_tty()` | How do `/tmp`, `/proc` and `/dev` share `open/read/write/close`? |
-| 7 | TTY and pipes | `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`; then `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → FD helpers → `SYS_PIPE` / `SYS_DUP2` / `SYS_CLOSE` → shell pipeline handling | Why does a reader block? How are pipe EOF and reference counts related? |
-| 8 | Devices | VFS device dispatch in `kernel/kernel.c` → `kernel/gpio.c` → `fb.c` → `adc.c` → `i2c.c` → `pwm.c` | What belongs in device-specific code versus the VFS or `ioctl()` interface? |
-| 9 (optional) | Networking (Pico W) | `kernel/main.c`: `net_init()` → `kernel/net.c`: `net_init()` / `net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c` / `kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c` | How are Wi-Fi/lwIP, built-in Telnet, and user-process sockets separated? |
+| Step | Topic | Read in this order |
+|---|---|---|
+| 1 | Boot | `kernel/main.c`: `main()` → `os_init()` → `register_image()` → `net_init()` → `os_init_idle()` → `os_start_program(2)` → `os_start()`; also `idle_task()` |
+| 2 | Task creation and RAM | `include/piconix.h` constants → `os_register_program()` → `os_register_ram_image()` → `free_program_slot()` → `spawn_in_slot()` → `os_start_program()` in `kernel/kernel.c` |
+| 3 | Scheduling | `os_start()` → `isr_systick()` → `pend()` → `os_schedule()`; inspect task states and `wake_readers()` / `wake_waiters()` / `wake_pipes()` |
+| 4 | Context switching | `kernel/context.S`: `isr_pendsv` → `kernel/kernel.c`: `os_schedule()` → return to `isr_pendsv` |
+| 5 | System calls | An application using `write()` → `userland/lib/syscalls.c`: `write()`, `call()` → `include/piconix_syscall.h` → `kernel/context.S`: `isr_svcall` → `kernel/kernel.c`: `os_svc_dispatch()` |
+| 6 | Files and FDs | `fd_set()` → `fd_release()` → `vfs_open()` → `vfs_rw()` → `tmp_open()` / `tmp_rw()` → `device_rw_proc()` / `device_rw_tty()` |
+| 7 | TTY and pipes | `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`; then `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → FD helpers → `SYS_PIPE` / `SYS_DUP2` / `SYS_CLOSE` → shell pipeline handling |
+| 8 | Devices | VFS device dispatch in `kernel/kernel.c` → `kernel/gpio.c` → `fb.c` → `adc.c` → `i2c.c` → `pwm.c` |
+| 9 (optional) | Networking (Pico W) | `kernel/main.c`: `net_init()` → `kernel/net.c`: `net_init()` / `net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c` / `kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c` |
+
+See [Kernel reading exercises](../../exercises/KERNEL-READING.md) for the corresponding review questions and final source-reading task.
+## How to follow the code
+
+Assume prior knowledge of UNIX processes, FDs, syscalls and C. The aim is not to review their definitions, but to follow their **PicoNIX-specific implementation**. For each stage: observe an operation, locate its entry point, trace state changes and return paths, then compare with the reference. The [function index](../../../FUNCTIONS.md) helps locate definitions; line numbers may shift.
+
+### Steps 1–2: Boot, image registration and task slots
+
+Start with `kernel/main.c` and follow registration of flash-resident application images, then `spawn_in_slot()` in `kernel/kernel.c`. Distinguish *registering an image* from *loading and starting a task*. Inspect `OS_TASK_BYTES` and the fixed memory map in [Memory layout](../../reference/MEMORY-LAYOUT.md). Observe processes with `ps`, and use `mem -s kernel` / `mem -s sh` to inspect symbols.
+
+### Steps 3–4: Tick, scheduling and context switch
+
+Follow `isr_systick()` → `pend()` → `os_schedule()`, then `isr_pendsv` in `kernel/context.S`. Identify what is saved on each task's PSP and what runs on the shared MSP. Trace task states and the READY/BLOCKED transitions; do not assume that syscall handlers retain suspended C call frames.
+
+### Step 5: Syscall entry and return
+
+Use `trace run hello`, then connect a visible `write` event to `write()` and `call()` in `userland/lib/syscalls.c`, `isr_svcall` in `context.S`, and `os_svc_dispatch()` in `kernel.c`. Follow the argument validation and result path. Consult [Syscalls](../../reference/SYSCALLS.md) for the PicoNIX ABI.
+
+### Steps 6–7: VFS, FD, terminal and pipe
+
+Compare `cat /proc/uptime`, `ls /dev`, and `lsof`. Follow FD lookup and VFS dispatch to the RAM file, `/proc`, or device backend. For pipelines, try `echo hello | grep hello | cat`, then locate shell pipe construction, `SYS_PIPE`, `SYS_DUP2`, `pipe_transfer()` and wake-up handling. See [Pipes](../../guides/PIPE.md) and [TTY](../../guides/TTY.md).
+
+### Step 8: Device I/O
+
+Begin at VFS device dispatch in `kernel/kernel.c`, then follow a selected backend such as `kernel/gpio.c`. Separate path/device identification from the read/write/ioctl operation and hardware-specific code. Consult [Device reference](../../reference/devices/DEVICES.md) and [Driver development](../drivers/DRIVER-DEVELOPMENT.md).
+
+### Step 9: Networking (Pico W only)
+
+Follow `net_init()` and `net_poll()` in `kernel/net.c`, the socket adaptation in `kernel/net_socket.c`, and the kernel's Telnet/remote-control services. Compare these with the **user-space** `userland/apps/httpd.c`. Read [Kernel networking development](../network/NETWORK-DEVELOPMENT.md) and [Socket programming](../apps/c/NETWORK-PROGRAMMING.md). This step can be skipped on a non-W Pico.
+
 
 ## Deep dive: CPU modes, stacks, SVC and PendSV in the source
 
@@ -27,7 +57,7 @@ Read this section **after steps 2–5**. Distinguish Cortex-M0+ architectural be
 The processor runs ordinary application code in **Thread mode**, and SVC, PendSV, SysTick and interrupt handlers in **Handler mode**. Mode and privilege are different concepts: Handler mode is always privileged; Thread mode may be privileged or unprivileged. PicoNIX user tasks run in privileged Thread mode and use the PSP. This does **not** provide Linux-style hardware-enforced isolation between user and kernel code.
 
 | Execution | Mode | Stack | Source |
-|---|---|---|---|
+|---|---|---|
 | PicoNIX task | Thread | Per-task PSP | `spawn_in_slot()` in `kernel/kernel.c` |
 | System call | Handler (SVC) | Shared MSP | `isr_svcall` in `kernel/context.S` |
 | Context switch | Handler (PendSV) | Shared MSP | `isr_pendsv` in `kernel/context.S` |
@@ -95,7 +125,6 @@ In Research UNIX V5/V6, a process can call `sleep()` **inside the kernel**, swit
 
 PicoNIX instead retains the wait condition and the **user-side syscall-return context**, without keeping the kernel C call chain suspended. Both implementations can present an ordinary blocking `read()` interface to applications, but they manage the waiting process differently.
 
-**Source-reading exercises:** Match the frame built by `spawn_in_slot()` to the restore sequence in `isr_pendsv`. Trace `device_rw_tty()` → `os_schedule()` → `wake_readers()` → `task_unblock()` and explain `wait_frame_ready` and `t->sp[8]`. Compare `SYS_SLEEP` with `SYS_YIELD`.
 
 For step 2, try `ps`, `mem -s kernel`, and `mem -s sh`. For step 5, use `trace run hello` and follow this path:
 
@@ -110,7 +139,6 @@ For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS
 echo hello | grep hello | cat
 ```
 
-**Final exercise:** trace a complete `hello` execution: the shell's `spawn()` call, task-slot allocation and initial context, PendSV scheduling, `write()` through VFS/TTY, and cleanup on exit. Next, draw the FD and pipe flow for `echo hello | cat`. Explain each transition with the names of the functions responsible, without modifying the kernel.
 
 Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../guides/TRACE.md), [Memory inspection](../../guides/MEM.md), [TTY](../../guides/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../FUNCTIONS.md).
 

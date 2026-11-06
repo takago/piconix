@@ -18,30 +18,42 @@
 static void draw(int obstacle, int crater_width, int jump, int score, int frame, int top, int left) {
     char screen[HEIGHT][WIDTH+1];
     for(int y=0;y<HEIGHT;y++) {
-        for(int x=0;x<WIDTH;x++) screen[y][x]=' ';
+        for(int x=0;x<WIDTH;x++)
+            screen[y][x]=' ';
         screen[y][WIDTH]=0;
     }
     const char *title="  M O O N   B U G G Y";
     const char *help="  SPACE/j: jump    q: quit";
-    for(int i=0;title[i];i++) screen[0][i]=title[i];
-    for(int i=0;help[i];i++) screen[9][i]=help[i];
+    for(int i=0;title[i];i++)
+        screen[0][i]=title[i];
+    for(int i=0;help[i];i++)
+        screen[9][i]=help[i];
     /* 得点は右上に独立して表示する． */
     int lift=jump>0 ? ((jump>=16 || jump<=3) ? 1 : 2) : 0;
     int y=4-lift;
     const char *body0="    __     ";
     const char *body1=" __/[]\\__  ";
     const char *body2=(frame&1) ? "(-)    (-)" : "(o)    (o)";
-    for(int i=0;body0[i];i++) screen[y][BUGGY_X+i]=body0[i];
-    for(int i=0;body1[i];i++) screen[y+1][BUGGY_X+i]=body1[i];
-    for(int i=0;body2[i];i++) screen[y+2][BUGGY_X+i]=body2[i];
+    for(int i=0;body0[i];i++)
+        screen[y][BUGGY_X+i]=body0[i];
+    for(int i=0;body1[i];i++)
+        screen[y+1][BUGGY_X+i]=body1[i];
+    for(int i=0;body2[i];i++)
+        screen[y+2][BUGGY_X+i]=body2[i];
     /* クレーターは幅が変化し，周囲に盛り上がりがある． */
-    for(int x=0;x<WIDTH;x++) screen[7][x]='-';
+    for(int x=0;x<WIDTH;x++)
+        screen[7][x]='-';
     if(obstacle>=0 && obstacle<WIDTH) {
-        for(int i=0;i<crater_width;i++) if(obstacle+i<WIDTH) screen[7][obstacle+i]=' ';
-        if(obstacle>0) screen[7][obstacle-1]='^';
-        if(obstacle+crater_width<WIDTH) screen[7][obstacle+crater_width]='^';
+        for(int i=0;i<crater_width;i++)
+            if(obstacle+i<WIDTH)
+                screen[7][obstacle+i]=' ';
+        if(obstacle>0)
+            screen[7][obstacle-1]='^';
+        if(obstacle+crater_width<WIDTH)
+            screen[7][obstacle+crater_width]='^';
     }
-    for(int x=0;x<WIDTH;x++) screen[8][x]='.';
+    for(int x=0;x<WIDTH;x++)
+        screen[8][x]='.';
     /* 毎フレーム絶対座標で描画し，CR/LFは出力しない． */
     for(int row=0;row<HEIGHT;row++) {
         screen_move(top+row,left);
@@ -78,10 +90,13 @@ int main(int argc, char **argv) {
       while(running) {
         char ch;
         while(read(0,&ch,1)==1) {
-            if(ch=='q'||ch=='Q') running=0;
-            if((ch==' ' || ch=='j') && jump==0) jump=18;
+            if(ch=='q'||ch=='Q')
+                running=0;
+            if((ch==' ' || ch=='j') && jump==0)
+                jump=18;
         }
-        if(!running) break;
+        if(!running)
+            break;
         draw(obstacle,crater_width,jump,score,frame++,top,left);
         /* クレーターの幅は変わるため，越えるにはジャンプ状態が必要になる． */
         if(jump==0 && ((REAR_WHEEL_X>=obstacle && REAR_WHEEL_X<obstacle+crater_width) ||
@@ -94,7 +109,8 @@ int main(int argc, char **argv) {
             rng^=rng<<13; rng^=rng>>17; rng^=rng<<5;
             crater_width=3+(int)(rng%4);score++;
         }
-        if(jump>0) jump--;
+        if(jump>0)
+            jump--;
         msleep(110);
     }
       if(running==2) {

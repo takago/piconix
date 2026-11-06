@@ -34,7 +34,8 @@ static uint64_t wifi_mac_next_us;
 #define WIFI_MAC_RETRY_US 5000000ull
 /* CYW43から取得したMACアドレスをキャッシュする．失敗時は次回のアイドルポーリングで再試行し，/proc読出し中にドライバを呼ばない． */
 static void wifi_cache_mac(uint64_t now) {
-    if (wifi_mac_valid || (int64_t)(now - wifi_mac_next_us) < 0) return;
+    if (wifi_mac_valid || (int64_t)(now - wifi_mac_next_us) < 0)
+        return;
     int itf = PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP;
     if (cyw43_wifi_get_mac(&cyw43_state, itf, wifi_mac) == 0)
         wifi_mac_valid = 1;
@@ -92,7 +93,8 @@ static void sta_rssi_clear(void) {
 
 /* STA接続時のRSSIを低頻度に取得し，診断表示にはキャッシュを使う． */
 static void sta_rssi_poll(uint64_t now) {
-    if ((int64_t)(now - sta_rssi_next_us) < 0) return;
+    if ((int64_t)(now - sta_rssi_next_us) < 0)
+        return;
     int32_t value = 0;
     if (cyw43_wifi_get_rssi(&cyw43_state, &value) == 0 &&
             value < 0 && value >= -127) {
@@ -111,8 +113,10 @@ static void sta_rssi_text(char *out, unsigned size) {
         return;
     }
     int quality = ((int)sta_rssi_dbm + 100) * 2;
-    if (quality < 0) quality = 0;
-    if (quality > 100) quality = 100;
+    if (quality < 0)
+        quality = 0;
+    if (quality > 100)
+        quality = 100;
     snprintf(out, size, "%ld dBm (%d%%)", (long)sta_rssi_dbm, quality);
 }
 
@@ -243,7 +247,8 @@ static void sta_poll(void) {
                 sta_garp_next_us = now + STA_GARP_INTERVAL_US;
             if ((int64_t)(now - sta_garp_next_us) >= 0) {
                 err_t err = etharp_gratuitous(iface);
-                if (err == ERR_OK) ++sta_garp_ok;
+                if (err == ERR_OK)
+                    ++sta_garp_ok;
                 else ++sta_garp_error;
                 sta_garp_next_us = now + STA_GARP_INTERVAL_US;
             }
@@ -254,11 +259,14 @@ static void sta_poll(void) {
     sta_rssi_valid = 0; /* 接続喪失時には古いRSSIを表示しない． */
     sta_rssi_next_us = 0;
     sta_garp_next_us = 0; /* DHCPとリンクが復旧してから次の通知を準備する． */
-    if (sta_mdns_registered) sta_mdns_link_was_down = 1;
-    if (!sta_dhcp_bound) sta_mdns_remove();
+    if (sta_mdns_registered)
+        sta_mdns_link_was_down = 1;
+    if (!sta_dhcp_bound)
+        sta_mdns_remove();
     if (sta_connected) {
         /* 再接続中の一時的なリンク状態変化を無視する． */
-        if (!sta_link_lost_us) sta_link_lost_us = now;
+        if (!sta_link_lost_us)
+            sta_link_lost_us = now;
         if ((int64_t)(now - sta_link_lost_us) <
                 (int64_t)STA_LINK_LOSS_GRACE_US) return;
         sta_reset_association('D');
@@ -282,7 +290,8 @@ static void sta_poll(void) {
 
 /* STAのリンク確立後にネットワークサービスとmDNS等を起動する． */
 static void sta_start_services(void) {
-    if (sta_services_ready) return;
+    if (sta_services_ready)
+        return;
     sta_services_ready = 1;
     int telnet_ready = net_service_telnet_init();
     int device_ready = net_service_remote_devctl_init();
@@ -336,28 +345,34 @@ static void dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     unsigned char server_id[4] = {0};
     int has_requested_ip = 0, has_server_id = 0;
     unsigned int pos;
-    if (!p) return;
+    if (!p)
+        return;
     dhcp_expire_offer();
     if (dhcp_pending) goto done; /* 保留中の最初の返信を上書きしない． */
     if (port != 68 || p->tot_len < DHCP_OPTIONS_OFFSET ||
         pbuf_copy_partial(p, request, sizeof(request), 0) != sizeof(request) ||
         request[0] != 1 || request[1] != 1 || request[2] != 6 ||
         memcmp(request + 236, dhcp_cookie, 4) != 0) goto done;
-    if (lease_valid && memcmp(lease_mac, request + 28, 6) != 0) goto done;
+    if (lease_valid && memcmp(lease_mac, request + 28, 6) != 0)
+        goto done;
     /* 次のDISCOVERにより先着端末の保留中オファーを奪わせない． */
     if (!lease_valid && offer_valid &&
         memcmp(offer_mac, request + 28, 6) != 0) goto done;
     pos = DHCP_OPTIONS_OFFSET;
     while (pos < p->tot_len) {
         unsigned char code, len;
-        if (pbuf_copy_partial(p, &code, 1, (u16_t)pos) != 1) break;
+        if (pbuf_copy_partial(p, &code, 1, (u16_t)pos) != 1)
+            break;
         ++pos;
-        if (code == 255) break;
-        if (code == 0) continue;
+        if (code == 255)
+            break;
+        if (code == 0)
+            continue;
         if (pos >= p->tot_len ||
             pbuf_copy_partial(p, &len, 1, (u16_t)pos) != 1) break;
         ++pos;
-        if (len > p->tot_len - pos) break;
+        if (len > p->tot_len - pos)
+            break;
         if (code == 53 && len == 1) {
             /* メッセージ種別が複数含まれる曖昧なパケットを拒否する． */
             if (message_type) goto done;
@@ -373,7 +388,8 @@ static void dhcp_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
         }
         pos += len;
     }
-    if (message_type != 1 && message_type != 3) goto done;
+    if (message_type != 1 && message_type != 3)
+        goto done;
     /* DISCOVER/OFFERでは割当てを確定しない．REQUEST/ACKを経たときだけリースとし，確定前はオファー相手からのREQUESTだけ認める． */
     if (message_type == 3 && !lease_valid &&
         (!offer_valid || memcmp(offer_mac, request + 28, 6) != 0)) goto done;
@@ -413,7 +429,8 @@ static int ap_dhcp_server_start(void) {
     ip_addr_t any;
     IP_ADDR4(&any, 0, 0, 0, 0);
     dhcp_pcb = udp_new_ip_type(IPADDR_TYPE_V4);
-    if (!dhcp_pcb) return 0;
+    if (!dhcp_pcb)
+        return 0;
     if (udp_bind(dhcp_pcb, &any, 67) != ERR_OK) {
         udp_remove(dhcp_pcb);
         dhcp_pcb = NULL;
@@ -447,7 +464,8 @@ void net_init(void) {
     static const char hex[] = "0123456789abcdef";
     uint32_t fid = piconix_flash_id();
     memcpy(sta_mdns_name,"piconix-",8);
-    for (unsigned i=0;i<8;i++) sta_mdns_name[8+i] = hex[(fid >> (28-4*i)) & 15u];
+    for (unsigned i=0;i<8;i++)
+        sta_mdns_name[8+i] = hex[(fid >> (28-4*i)) & 15u];
     sta_mdns_name[16] = 0;
     mdns_resp_init();
     /* STAの省電力設定はアイドルの初回net_pollまで遅らせ，起動時のスタックでドライバ操作しない． */
@@ -486,7 +504,8 @@ void net_init(void) {
 #if !PICONIX_WIFI_STA
 /* cyw43_arch_pollとlwIPコールバックの外側から呼ぶ． */
 static void dhcp_send_pending(void) {
-    if (!dhcp_pending || !dhcp_pcb) return;
+    if (!dhcp_pending || !dhcp_pcb)
+        return;
     struct pbuf *out = pbuf_alloc(PBUF_TRANSPORT, DHCP_REPLY_LEN, PBUF_RAM);
     if (!out) {
         dhcp_pending = 0;
@@ -518,7 +537,8 @@ static void dhcp_send_pending(void) {
 #endif /* AP側DHCPサーバ */
 /* アイドルタスクから無線・TCP/IP・保留送信・ループバックを順次処理する．同じlwIP文脈への再入を避ける． */
 void net_poll(void) {
-    if (!wifi_ready) return;
+    if (!wifi_ready)
+        return;
     /* ネットワークを処理できなかった最長間隔を測る．ユーザタスクがアイドル処理を先延ばしにした時間も含む． */
     uint64_t now = time_us_64();
     if (net_poll_last_us &&
@@ -571,7 +591,8 @@ int net_poll_in_progress(void) { return 0; }
 
 /* lwIPヒープやプールの診断情報をテキスト化する．値はネットワーク関連領域の観測値であり総RAM使用量ではない． */
 int net_memory_info(char *out, unsigned size) {
-    if (!size) return 0;
+    if (!size)
+        return 0;
 #if PICONIX_WIFI
     const struct stats_mem *pool = lwip_stats.memp[MEMP_PBUF_POOL];
     int len = snprintf(out, size,
@@ -589,7 +610,8 @@ int net_memory_info(char *out, unsigned size) {
     int len = snprintf(out, size, "MODE: N/A\nIDLE_STACK: %u/%u\n",
         os_idle_stack_used_bytes(), os_idle_stack_capacity_bytes());
 #endif
-    if (len < 0) return 0;
+    if (len < 0)
+        return 0;
     return (unsigned)len >= size ? (int)(size - 1u) : len;
 }
 
@@ -597,7 +619,8 @@ int net_memory_info(char *out, unsigned size) {
 #if PICONIX_WIFI
 /* /proc/net/wifi用の状態をテキストへ整形する．システムコール中にCYW43へ同期問い合わせしない． */
 int net_wifi_info(char *out, unsigned size) {
-    if (!size) return 0;
+    if (!size)
+        return 0;
     if (!wifi_ready) return snprintf(out,size,"MODE: %s\nSTATUS: DOWN\nERROR: CYW43 initialization failed\n", PICONIX_WIFI_STA ? "STA" : "AP");
     struct netif *iface = &cyw43_state.netif[PICONIX_WIFI_STA ? CYW43_ITF_STA : CYW43_ITF_AP];
     /* /procのreadはSVC内で行うため，同期的なCYW43問い合わせはしない．ドライバの進行にはポーリングが必要な場合がある． */
@@ -632,8 +655,10 @@ int net_wifi_info(char *out, unsigned size) {
         (unsigned long)sta_garp_ok, (unsigned long)sta_garp_error,
         sta_mdns_name, sta_mdns_registered, sta_mdns_error,
         os_idle_stack_used_bytes(), os_idle_stack_capacity_bytes());
-    if (len < 0) return 0;
-    if ((unsigned)len >= size) return (int)(size - 1u);
+    if (len < 0)
+        return 0;
+    if ((unsigned)len >= size)
+        return (int)(size - 1u);
     return len;
 #else
     return snprintf(out,size,
@@ -651,9 +676,12 @@ int net_wifi_info(char *out, unsigned size) {
 int net_wifi_info(char *out, unsigned size) {
     static const char msg[] = "MODE: N/A\n";
     unsigned n = sizeof(msg)-1;
-    if (n >= size) n = size ? size-1 : 0;
-    for (unsigned i=0; i<n; ++i) out[i]=msg[i];
-    if (size) out[n] = 0;
+    if (n >= size)
+        n = size ? size-1 : 0;
+    for (unsigned i=0; i<n; ++i)
+        out[i]=msg[i];
+    if (size)
+        out[n] = 0;
     return (int)n;
 }
 #endif
@@ -661,7 +689,8 @@ int net_wifi_info(char *out, unsigned size) {
 /* 再起動要求のフラグを立てる．実際のドライバ再接続はアイドル側へ委ねる． */
 int net_wifi_request_restart(void) {
 #if PICONIX_WIFI && PICONIX_WIFI_STA
-    if (!wifi_ready) return -1;
+    if (!wifi_ready)
+        return -1;
     sta_manual_restart = 1;
     return 0;
 #else
@@ -671,7 +700,8 @@ int net_wifi_request_restart(void) {
 
 /* AP/ARPの診断データを取得する．接続状態はポーリング側で更新したキャッシュを利用する． */
 int net_diag_info(char *out, unsigned size, int type) {
-    if (!size) return 0;
+    if (!size)
+        return 0;
 #if PICONIX_WIFI
     unsigned used = 0;
     int n;
@@ -681,32 +711,37 @@ int net_diag_info(char *out, unsigned size, int type) {
         return snprintf(out,size,"Not in AP mode\n");
 #else
         n=snprintf(out,size,"Connected clients: %d\n",ap_sta_count);
-        if(n<0 || (unsigned)n>=size) return (int)(size-1);
+        if(n<0 || (unsigned)n>=size)
+            return (int)(size-1);
         used=(unsigned)n;
         for(int i=0;i<ap_sta_count;i++) {
             const uint8_t *m=ap_stas[i];
             n=snprintf(out+used,size-used,"%02X:%02X:%02X:%02X:%02X:%02X\n",
                 m[0],m[1],m[2],m[3],m[4],m[5]);
-            if(n<0 || (unsigned)n>=size-used) break;
+            if(n<0 || (unsigned)n>=size-used)
+                break;
             used+=(unsigned)n;
         }
         return (int)used;
 #endif
     }
     n=snprintf(out,size,"ARP table:\n");
-    if(n<0 || (unsigned)n>=size) return (int)(size-1);
+    if(n<0 || (unsigned)n>=size)
+        return (int)(size-1);
     used=(unsigned)n;
     for(int i=0;i<ARP_TABLE_SIZE;i++) {
         ip4_addr_t *ip;
         struct netif *iface;
         struct eth_addr *mac;
-        if(!etharp_get_entry(i,&ip,&iface,&mac)) continue;
+        if(!etharp_get_entry(i,&ip,&iface,&mac))
+            continue;
         char addr[20];
         ip4addr_ntoa_r(ip,addr,sizeof addr);
         n=snprintf(out+used,size-used,"%s %02X:%02X:%02X:%02X:%02X:%02X\n",
             addr,mac->addr[0],mac->addr[1],mac->addr[2],
             mac->addr[3],mac->addr[4],mac->addr[5]);
-        if(n<0 || (unsigned)n>=size-used) break;
+        if(n<0 || (unsigned)n>=size-used)
+            break;
         used+=(unsigned)n;
     }
     return (int)used;

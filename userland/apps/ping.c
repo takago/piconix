@@ -59,11 +59,13 @@ int main(int argc,char **argv) {
                 } else printf("timeout: seq=%u\n",seq);
                 answered=1;break;
             }
-            if(n!=OS_EAGAIN) break;
+            if(n!=OS_EAGAIN)
+                break;
             msleep(10);
         }
         if(!answered) printf("timeout: seq=%u\n",seq);
-        if(seq<count) msleep(1000);
+        if(seq<count)
+            msleep(1000);
     }
     printf("%d transmitted, %d received\n",count,received);
     close(fd);return received==count?0:1;

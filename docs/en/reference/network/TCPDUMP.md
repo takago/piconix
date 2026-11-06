@@ -18,7 +18,7 @@ piconix# tcpdump -x -c 20
 
 An empty screen may simply mean that no packets are being sent to/from the Pico W. Records are held in a **16-entry ring buffer**; busy traffic can overwrite old entries. ARP and traffic between unrelated devices are not captured.
 
-## First exercise: capture HTTP
+## First example: capture HTTP
 
 1. Connect the Pico W USB console and check `ip addr`.
 2. On the **PicoNIX USB shell**, start `tcpdump -x -c 20`.

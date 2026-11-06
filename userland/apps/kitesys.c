@@ -31,7 +31,8 @@ static int display(int fd, int digit, int shift) {
 /* Lowで押下を検出し，30 msデバウンス後の安定した押下を一回だけ返す． */
 static int pressed(int fd, int *stable, int *candidate, int *samples) {
     char value;
-    if (read(fd, &value, 1) != 1) return -1;
+    if (read(fd, &value, 1) != 1)
+        return -1;
     int now = value == '0' ? 0 : 1;
     if (now != *candidate) {
         *candidate = now;
@@ -49,7 +50,8 @@ static int pressed(int fd, int *stable, int *candidate, int *samples) {
 /* PWMデバイスへ数値文字列を送り，書込みの成否を返す． */
 static int pwm_value(int fd, const char *value) {
     int n = 0;
-    while (value[n]) ++n;
+    while (value[n])
+        ++n;
     return write(fd, value, (size_t)n) == n ? 0 : -1;
 }
 
@@ -62,7 +64,8 @@ int main(int argc, char **argv) {
     int right = open("/dev/gpio/17", O_RDONLY);
     int freq = open("/dev/pwm/1/freq", O_WRONLY);
     int buzzer = open("/dev/pwm/1/a", O_WRONLY);
-    if (fb < 0 || left < 0 || right < 0 || freq < 0 || buzzer < 0) return 1;
+    if (fb < 0 || left < 0 || right < 0 || freq < 0 || buzzer < 0)
+        return 1;
     if (pwm_value(buzzer, "0\n") < 0 ||
         pwm_value(freq, "2000\n") < 0) return 1;
 
@@ -76,22 +79,26 @@ int main(int argc, char **argv) {
 
     int digit = 0, shift = 1;
     int stable[2] = {1, 1}, candidate[2] = {1, 1}, samples[2] = {0, 0};
-    if (display(fb, digit, shift) < 0) return 1;
+    if (display(fb, digit, shift) < 0)
+        return 1;
 
     int elapsed = 0, beep_remaining = 0;
     for (;;) {
         int a = pressed(left, &stable[0], &candidate[0], &samples[0]);
         int b = pressed(right, &stable[1], &candidate[1], &samples[1]);
-        if (a < 0 || b < 0) return 1;
+        if (a < 0 || b < 0)
+            return 1;
         int old_shift = shift;
         if (a == 1 && shift > 0) --shift; /* GP16で表示を反対側へ移動する． */
         if (b == 1 && shift < 3) ++shift; /* GP17で表示を反対側へ移動する． */
-        if (shift != old_shift && display(fb, digit, shift) < 0) return 1;
+        if (shift != old_shift && display(fb, digit, shift) < 0)
+            return 1;
 
         msleep(10);
         if (beep_remaining > 0) {
             beep_remaining -= 10;
-            if (beep_remaining == 0 && pwm_value(buzzer, "0\n") < 0) return 1;
+            if (beep_remaining == 0 && pwm_value(buzzer, "0\n") < 0)
+                return 1;
         }
         elapsed += 10;
         if (elapsed >= 1000) {

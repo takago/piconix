@@ -1,4 +1,6 @@
 # Development Guides
+**Prerequisites:** Familiarity with C, UNIX and OS concepts such as processes, FDs and syscalls is assumed. These guides focus on reading and changing the actual implementation. Before editing, consult [Differences from Linux](../reference/DIFFERENCES.md) and [Memory layout](../reference/MEMORY-LAYOUT.md).
+
 
 These contain detailed implementation instructions and API information. Follow the [Learning roadmap](../ROADMAP.md) for learning order and consult these guides as needed.
 

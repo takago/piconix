@@ -22,26 +22,33 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
     unsigned n=0;
     if(*input!='/') {
         for(const char *q=cwd;*q;q++) { if(n>=sizeof(combined)-2) return -1; combined[n++]=*q; }
-        if(n==0 || combined[n-1]!='/') combined[n++]='/';
+        if(n==0 || combined[n-1]!='/')
+            combined[n++]='/';
     }
     for(const char *q=input;*q;q++) { if(n>=sizeof(combined)-1) return -1; combined[n++]=*q; }
     combined[n]=0;
     unsigned o=1; out[0]='/'; out[1]=0;
     for(unsigned i=0;i<n;) {
-        while(combined[i]=='/') i++;
-        if(!combined[i]) break;
+        while(combined[i]=='/')
+            i++;
+        if(!combined[i])
+            break;
         unsigned start=i;
-        while(combined[i] && combined[i]!='/') i++;
+        while(combined[i] && combined[i]!='/')
+            i++;
         unsigned len=i-start;
-        if(len==1 && combined[start]=='.') continue;
+        if(len==1 && combined[start]=='.')
+            continue;
         if(len==2 && combined[start]=='.' && combined[start+1]=='.') {
             if(o>1) { while(o>1 && out[o-1]!='/') o--; if(o>1) o--; }
             out[o]=0;
             continue;
         }
         if(o>1) { if(o>=127) return -1; out[o++]='/'; }
-        if(o+len>=128) return -1;
-        for(unsigned k=0;k<len;k++) out[o++]=combined[start+k];
+        if(o+len>=128)
+            return -1;
+        for(unsigned k=0;k<len;k++)
+            out[o++]=combined[start+k];
         out[o]=0;
     }
     return 0;
@@ -96,7 +103,8 @@ int main(int argc,char *argv[]) {
     int i=1;
     if(i<argc && argv[i][0]=='-') {
         for(const char *a=argv[i]+1;*a;a++) {
-            if(*a=='l') detailed=1;
+            if(*a=='l')
+                detailed=1;
             else if(*a=='a')show_all=1;
             else {puts("usage: ls [-la] [PATH]");return 1;}
         }

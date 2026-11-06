@@ -30,7 +30,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Follow system activity (`trace`)** — Observe system calls, return values, I/O previews, and task switches to understand how user programs interact with the kernel. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)).
 - **Inspect open descriptors (`lsof`)** — See which files, devices, and sockets are held open by processes, including socket-port information.
 - **Inspect network packets (`tcpdump`, Pico W)** — Capture and examine network traffic directly on the device, alongside `ip`, `ping`, and the user-space networking tools. See the [tcpdump reference](docs/en/reference/network/TCPDUMP.md) ([日本語](docs/ja/reference/network/TCPDUMP.md)).
-- **Experimental kernel function tracing (opt-in)** — Enable `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` at build time to inspect selected kernel function entry/return events and call nesting with `trace kernel -d 2 hello`. Disabled by default to avoid instrumentation overhead. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) and [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)).
+- **Experimental kernel function tracing (opt-in)** — Enable `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` at build time to inspect selected kernel function entry/return events and call nesting with `trace run hello`. Disabled by default to avoid instrumentation overhead. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) and [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)).
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
 ## Commands
@@ -82,10 +82,10 @@ The trace shows the `write` system call, its return value and an output preview,
 
 ### Trace kernel function calls (experimental)
 
-Build with `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` to enable `trace kernel`. It is **OFF by default** because function instrumentation can add runtime overhead. The same `hello` program then reveals the nested calls inside `write`:
+Build with `-DPICONIX_KERNEL_FUNCTION_TRACE=ON` to record selected function events through `trace run` and `trace on`. It is **OFF by default** because function instrumentation can add runtime overhead. The same `hello` program then reveals the nested calls inside `write`:
 
 ```text
-piconix# trace kernel hello
+piconix# trace run hello
 Hello, PicoNIX!
 
 --- trace: hello (PID 16) ---
@@ -107,7 +107,7 @@ SYSCALL  write/               1:/dev/console   16  "Hello, P"...
 --- end of trace ---
 ```
 
-These excerpts reproduce observed call names, order, and return values, but omit the repeated time/process columns and, in the kernel example, repetitive `fd_release` events on exit. A trailing `/` indicates a function return; indentation indicates call nesting. `--` means that an argument, return value, or supplemental information is not recorded or is not applicable. For `trace kernel -d 2 hello`, `-d 2` limits **displayed** call depth; it does not reduce event recording.
+These excerpts reproduce observed call names, order, and return values, but omit the repeated time/process columns and, in the kernel example, repetitive `fd_release` events on exit. A trailing `/` indicates a function return; indentation indicates call nesting. `--` means that an argument, return value, or supplemental information is not recorded or is not applicable. The former `trace kernel` command and its `-d` depth option are no longer supported. `trace run` displays selected function events when instrumentation is enabled.
 
 See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) for details, and the [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)) to enable experimental kernel tracing. On **Pico W**, `tcpdump` can also inspect network traffic; run `help tcpdump` for supported options.
 

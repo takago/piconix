@@ -2,6 +2,9 @@
 
 *Usage guide*
 
+**Before you start:** `edit` modifies files. Check how to save and exit before editing; the key table below summarizes the controls.
+
+
 `edit` edits RAM-backed text files. It does not modify arbitrary memory addresses.
 
 Run `edit /tmp/test.s` to edit or create a file. Use arrow keys to move, Enter for a newline, and TAB for 4-column tab stops (the TAB byte is preserved). Ctrl+S saves and Ctrl+Q exits; press Ctrl+Q again to discard unsaved changes. The `edit` buffer holds up to 2,048 bytes, matching the RAM-file limit; the number of visible lines adapts to the terminal (up to 56 lines), and long lines scroll horizontally.

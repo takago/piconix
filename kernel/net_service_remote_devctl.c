@@ -11,65 +11,83 @@
 #include <string.h>
 /* UDPで届いたデバイス操作要求を検査し，対応するGPIO等の操作へ変換する． */
 static int net_device_request(const unsigned char *req, unsigned n, unsigned char *out, unsigned cap) {
-    if(n<6 || cap<16) return -1;
+    if(n<6 || cap<16)
+        return -1;
     unsigned writing=0, enable=0, disable=0, prefix=0;
-    if(n>=5 && !memcmp(req,"READ ",5)) prefix=5;
+    if(n>=5 && !memcmp(req,"READ ",5))
+        prefix=5;
     else if(n>=6 && !memcmp(req,"WRITE ",6)) { prefix=6; writing=1; }
     else if(n>=7 && !memcmp(req,"ENABLE ",7)) { prefix=7; enable=1; }
     else if(n>=8 && !memcmp(req,"DISABLE ",8)) { prefix=8; disable=1; }
     else return -1;
     unsigned end=prefix;
-    while(end<n && req[end]!='\n' && req[end]!=' ') ++end;
-    if(end==prefix || end>=64) return -1;
+    while(end<n && req[end]!='\n' && req[end]!=' ')
+        ++end;
+    if(end==prefix || end>=64)
+        return -1;
     char path[64];
     memcpy(path,req+prefix,end-prefix); path[end-prefix]=0;
     unsigned payload=end;
     if(writing) {
-        if(payload>=n) return -1;
+        if(payload>=n)
+            return -1;
         /* ペイロードの前に区切り文字を一つ置く．改行を使うとバイナリのフレームバッファデータも扱える． */
         ++payload;
     } else if(end!=n && !(end+1==n && req[end]=='\n')) return -1;
     if(!strcmp(path,"/dev/gpio/fb")) {
-        if(enable || disable) return fb_ioctl(enable ? OS_FB_ENABLE : OS_FB_DISABLE)==0 ? 0 : -1;
-        if(writing) return n-payload==8 && fb_rw((void *)(req+payload),8,1)==8 ? 0 : -1;
-        if(cap<8) return -1;
+        if(enable || disable)
+            return fb_ioctl(enable ? OS_FB_ENABLE : OS_FB_DISABLE)==0 ? 0 : -1;
+        if(writing)
+            return n-payload==8 && fb_rw((void *)(req+payload),8,1)==8 ? 0 : -1;
+        if(cap<8)
+            return -1;
         return fb_rw(out,8,0)==8 ? 8 : -1;
     }
     /* 認証のないUDPからアクセスできるGPIOはボード上で安全な範囲に限る．GP23〜25はPico W用，PWM・ADC・UARTのピンはpin_gpioが除外し，表示動作中のGP0〜15はFBドライバが拒否する． */
     if(!strncmp(path,"/dev/gpio/",10)) {
         const char *digits=path+10;
         unsigned pin=0;
-        if(!*digits) return -1;
+        if(!*digits)
+            return -1;
         for(const char *c=digits; *c; ++c) {
-            if(*c<'0' || *c>'9') return -1;
+            if(*c<'0' || *c>'9')
+                return -1;
             pin=pin*10u+(unsigned)(*c-'0');
-            if(pin>28u) return -1;
+            if(pin>28u)
+                return -1;
         }
         if(!pin_gpio(pin) || pin>=23u) return -1;
         if(enable || disable)
             return gpio_driver_ioctl(pin,enable ? OS_GPIO_OUTPUT : OS_GPIO_INPUT)==0 ? 0 : -1;
         if(writing) {
-            if(n-payload!=1u && !(n-payload==2u && req[payload+1]=='\n')) return -1;
-            if(req[payload]!='0' && req[payload]!='1') return -1;
+            if(n-payload!=1u && !(n-payload==2u && req[payload+1]=='\n'))
+                return -1;
+            if(req[payload]!='0' && req[payload]!='1')
+                return -1;
             unsigned char value=req[payload];
             return gpio_driver_rw(0,pin,&value,1,1)==1 ? 0 : -1;
         }
-        if(cap<2u) return -1;
+        if(cap<2u)
+            return -1;
         int count=gpio_driver_rw(0,pin,out,1,0);
-        if(count!=1) return -1;
+        if(count!=1)
+            return -1;
         out[1]='\n';
         return 2;
     }
-    if(enable || disable) return -1;
+    if(enable || disable)
+        return -1;
     unsigned which=0;
-    if(!strcmp(path,"/dev/pwm/1/freq")) which=0;
+    if(!strcmp(path,"/dev/pwm/1/freq"))
+        which=0;
     else if(!strcmp(path,"/dev/pwm/1/a")) which=1;
     else if(!strcmp(path,"/dev/pwm/1/b")) which=2;
     else which=3;
     if(which<3) {
         if(writing) {
             unsigned value;
-            if(pwm_parse_value(which,req+payload,n-payload,&value)<0) return -1;
+            if(pwm_parse_value(which,req+payload,n-payload,&value)<0)
+                return -1;
             return pwm_driver_set(which,value)==0 ? 0 : -1;
         }
         unsigned value=pwm_driver_get(which);
@@ -77,14 +95,17 @@ static int net_device_request(const unsigned char *req, unsigned n, unsigned cha
                          : snprintf((char *)out,cap,"%u.%u\n",value/10u,value%10u);
         return len>=0 && (unsigned)len<cap ? len : -1;
     }
-    if(writing) return -1;
+    if(writing)
+        return -1;
     unsigned channel=0;
-    if(!strcmp(path,"/dev/adc/0")) channel=0;
+    if(!strcmp(path,"/dev/adc/0"))
+        channel=0;
     else if(!strcmp(path,"/dev/adc/1")) channel=1;
     else if(!strcmp(path,"/dev/adc/2")) channel=2;
     else if(!strcmp(path,"/dev/adc/temp")) channel=4;
     else return -1;
-    if(channel!=4 && !pin_adc(channel)) return -1;
+    if(channel!=4 && !pin_adc(channel))
+        return -1;
     int len=adc_driver_format(adc_driver_read(channel),channel==4,(char *)out,cap);
     return len>=0 && (unsigned)len<cap ? len : -1;
 }
@@ -121,7 +142,8 @@ static void device_recv(void *arg, struct udp_pcb *pcb, struct pbuf *p,
 /* UDP 2000番のデバイス制御受信口を初期化し，コールバックを設定する． */
 static int device_start(void) {
     device_pcb=udp_new_ip_type(IPADDR_TYPE_V4);
-    if(!device_pcb) return 0;
+    if(!device_pcb)
+        return 0;
     if(udp_bind(device_pcb,IP_ANY_TYPE,2000)!=ERR_OK) {
         udp_remove(device_pcb); device_pcb=NULL; return 0;
     }
@@ -131,7 +153,8 @@ static int device_start(void) {
 
 /* 保留したデバイス要求をアイドル文脈で処理する． */
 static void device_process_pending(void) {
-    if(!device_pending || !device_pcb) return;
+    if(!device_pending || !device_pcb)
+        return;
     unsigned char data[128];
     int len=net_device_request(device_req,device_req_len,data+3,sizeof(data)-3);
     if(len<0) { memcpy(data,"ERR",3); len=0; }

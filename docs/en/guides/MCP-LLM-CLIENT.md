@@ -1,6 +1,6 @@
 # Call PicoNIX MCP tools from a local LLM
 
-This tutorial connects an OpenAI-compatible LLM on a Linux PC to the PicoNIX `mcpd` server on Pico W. `host/mcp_llm_client.py` is a small **non-streaming** Python example: the LLM chats normally and selects MCP tools only when needed.
+This guide connects an OpenAI-compatible LLM on a Linux PC to the PicoNIX `mcpd` server on Pico W. `host/mcp_llm_client.py` is a small **non-streaming** Python example: the LLM chats normally and selects MCP tools only when needed.
 
 **Hardware-verified (2026-11-06):** A Linux client connected to PicoNIX in AP mode at `192.168.4.1`, listed and invoked tools using the official MCP Python SDK v2, and used a local LLM to select tools and compose responses. This verifies a basic workflow, not complete MCP compliance or long-term reliability.
 
@@ -90,6 +90,6 @@ MCP Python SDK v2 uses the attributes `input_schema` and `is_error`, not `inputS
 - An LLM may add unsupported interpretations of sensor readings. Distinguish the measured data from model inference.
 - Tool calling depends on the OpenAI-compatible server and selected model.
 
-## 6. Exercise
+## 6. Related exercises
 
-Compare an ordinary question with a PicoNIX status query and observe when the LLM chooses `tools/call`. Compare `host/mcp_client.py` (no LLM) with `host/mcp_llm_client.py` (LLM-assisted) to understand the separation between MCP transport and tool selection.
+See [exercises](../exercises/README.md#compare-mcp-and-llm-roles) for questions comparing MCP transport and LLM tool selection.

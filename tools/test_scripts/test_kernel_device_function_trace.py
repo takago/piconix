@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Verify optional instrumentation of device and socket kernel entry points."""
 from pathlib import Path
+import re
 root=Path(__file__).resolve().parents[2]
 cm=(root/'CMakeLists.txt').read_text()
 k=(root/'kernel/kernel.c').read_text()
@@ -18,7 +19,7 @@ for source, names in {
     for name in names:
         assert f'TRACE_MATCH({name});' in k, name
         assert f'{name}(' in src, name
-assert 'if(!trace_all_contexts && ipsr!=11u) return;' in k
+assert re.search(r'if\s*\(!trace_all_contexts\s*&&\s*ipsr!=11u\)\s*return\s*;', k)
 assert '"Instrument selected kernel functions for trace" OFF' in cm
 assert 'kernel/net_capture.c' in cm
 for fn in ('net_echo_write','net_echo_read','net_echo_close'):

@@ -143,7 +143,8 @@ static int32_t divide(int32_t a,int32_t b,int mod) {
     if(!evaluating)return 0;
     if(!b) { error=1; return 0; }
     /* 数学的な商2147483648はint32_tに収まらないため，従来の32ビット折返し結果を維持する． */
-    if(a==INT32_MIN && b==-1) return mod ? 0 : INT32_MIN;
+    if(a==INT32_MIN && b==-1)
+        return mod ? 0 : INT32_MIN;
     return mod ? a%b : a/b;
 }
 static int32_t expr(void);

@@ -25,7 +25,8 @@ static int show_task(int pid) {
     data[used]=0;
     for(char *p=data; *p;) {
         char *end=strchr(p,'\n');
-        if(end) *end=0;
+        if(end)
+            *end=0;
         if(!strncmp(p,"Name: ",6)) {
             unsigned i=0;
             while(p[6+i] && i<sizeof(name)-1) {name[i]=p[6+i];i++;}
@@ -43,7 +44,8 @@ static int show_task(int pid) {
                 }
             }
         }
-        if(!end) break;
+        if(!end)
+            break;
         p=end+1;
     }
     return 0;
@@ -57,7 +59,8 @@ int main(int argc,char **argv) {
     int fd=open("/proc/tasks",O_RDONLY);
     if(fd<0) {puts("lsof: cannot open /proc/tasks");return 1;}
     char buf[1024]; unsigned used=0; int n;
-    while(used<sizeof(buf)-1 && (n=read(fd,buf+used,sizeof(buf)-1-used))>0) used+=(unsigned)n;
+    while(used<sizeof(buf)-1 && (n=read(fd,buf+used,sizeof(buf)-1-used))>0)
+        used+=(unsigned)n;
     close(fd);buf[used]=0;
     for(char *p=buf;*p;) {
         char *end=strchr(p,'\n');if(end)*end=0;

@@ -2,6 +2,17 @@
 
 *Usage guide*
 
+## Two different responsibilities
+
+It helps to distinguish the kernel's terminal input/output rules from an application's screen drawing.
+
+| Mechanism | What it controls | Where to change it |
+|---|---|---|
+| TTY (kernel) | Canonical input, echo, newline conversion | `stty`, `ioctl()`, and `fcntl()` for FD blocking |
+| Screen control (application) | Clearing the screen, cursor movement, full-screen display | ANSI/DEC escape sequences |
+
+For example, restoring TTY settings with `stty` does not necessarily restore an application's alternate screen. If you can still enter commands, `reset` is the basic recovery tool.
+
 In PicoNIX, **the kernel manages TTY input/output behavior**, while **applications control cursor position, full-screen display, and other screen features by emitting ANSI/DEC escape sequences**. These layers are independent: restoring TTY settings does not necessarily restore the screen.
 
 ## 1. Terminals and I/O

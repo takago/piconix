@@ -11,6 +11,7 @@ header=r'''
 #include <stdint.h>
 #include <stddef.h>
 #include <assert.h>
+#define NO_TRACE __attribute__((no_instrument_function))
 #define OS_MAX_TASKS 2
 #define OS_FD_MAX 16
 #define TCP_USER_SLOTS 4

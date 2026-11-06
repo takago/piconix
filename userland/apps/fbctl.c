@@ -62,7 +62,8 @@ int main(int argc,char **argv){
     int fd=open("/dev/gpio/fb",O_RDWR);
     if(fd<0){puts("fbctl: cannot open framebuffer");return 1;}
     int rc=0;
-    if(same(argv[1],"on")) rc=ioctl(fd,OS_FB_ENABLE,0);
+    if(same(argv[1],"on"))
+        rc=ioctl(fd,OS_FB_ENABLE,0);
     else if(same(argv[1],"off")) rc=ioctl(fd,OS_FB_DISABLE,0);
     else if(same(argv[1],"clear")){
         uint8_t empty[8]={0};rc=pattern(fd,empty);

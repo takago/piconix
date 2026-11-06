@@ -77,23 +77,9 @@ TelnetとUDPデバイス制御サービスには**認証や暗号化がありま
 
 これらは各機能の固定容量であり，すべての資源を同時に最大数まで使用できる保証ではありません．詳しくは[メモリ配置](MEMORY-LAYOUT.md)，[ファイルシステム](FILESYSTEM.md)，[TTY](../guides/TTY.md)，[ネットワーク](network/NETWORK.md)を参照してください．
 
-## 6．実習：違いを観察する
+## 6．関連する演習
 
-PicoNIXのシェルで次のコマンドを実行します．
-
-```sh
-ps
-cat /proc/memory
-ls /bin
-ls /dev
-ls /proc
-cat /proc/ramfiles
-echo hello | cat -n
-```
-
-`ps`のタスク数を6個のスロットと比較し，通常のファイルと仮想ファイルの違いを観察してください．さらに，ユーザプログラムからの`read()`や`write()`がシステムコールを経由してVFSへ届く処理をソースコードで追ってみてください．Pico Wでは`ping`と`tcpdump`も試せますが，結果はネットワーク接続状態によります．
-
-**学習のポイント：** PicoNIXはUNIXの概念を小さなコードで再現する教材です．同じ名前のコマンドやAPIがあっても，Linux・POSIXと同じ機能をすべて持つとは限りません．
+[Linuxとの差異を観察する演習](../exercises/README.md#linuxとの違いを観察する)に操作課題をまとめています．
 
 ## 7．仕様の根拠
 

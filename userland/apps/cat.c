@@ -13,7 +13,8 @@ static int output(const char *buf, int n) {
     while(done<n) {
         int k=write(1,buf+done,(unsigned)(n-done));
         if(k==OS_EAGAIN || k==0) { msleep(1); continue; }
-        if(k<0) return -1;
+        if(k<0)
+            return -1;
         done+=k;
     }
     return 0;
@@ -25,12 +26,14 @@ static int numbered_output(const char *buf, int n, unsigned *line, int *at_start
         if(*at_start) {
             char label[20];
             int len=snprintf(label,sizeof label,"%6u\t",(*line)++);
-            if(output(label,len)<0) return -1;
+            if(output(label,len)<0)
+                return -1;
             *at_start=0;
         }
         int end=i;
         while(end<n && buf[end++]!='\n') {}
-        if(output(buf+i,end-i)<0) return -1;
+        if(output(buf+i,end-i)<0)
+            return -1;
         *at_start=buf[end-1]=='\n';
         i=end;
     }
@@ -83,9 +86,12 @@ int main(int argc, char *argv[]) {
         while((n=read(fd,buf,sizeof buf))>0) {
             if(display(buf,n,numbered,&line,&at_start)<0) { rc=1; break; }
         }
-        if(n<0) rc=1;
+        if(n<0)
+            rc=1;
     }
-    if(path) close(fd);
-    if(rc) puts("cat: read/write error");
+    if(path)
+        close(fd);
+    if(rc)
+        puts("cat: read/write error");
     return rc;
 }

@@ -134,7 +134,8 @@ int main(void) {
     register_image(49,"mcpd",piconix_mcpd_image_start,piconix_mcpd_image_end);
     net_init();
     os_init_idle(idle_task);
-    if(os_start_program(2)<0) panic("PicoNIX: shell start failed");
+    if(os_start_program(2)<0)
+        panic("PicoNIX: shell start failed");
     // blinkは起動時に自動実行せず，シェルコマンドから起動する．
     os_start();
 }

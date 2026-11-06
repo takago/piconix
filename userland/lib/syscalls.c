@@ -50,7 +50,8 @@ long lseek(int fd,long offset,int whence) { return call(SYS_LSEEK,(uintptr_t)fd,
 /* FDマスクと待機時間を一つの要求にまとめてSVCへ渡す． */
 int select(int nfds, fd_set *readfds, fd_set *writefds,
            fd_set *exceptfds, const struct timeval *timeout) {
-    if (nfds<0 || nfds>PICONIX_FD_SETSIZE || exceptfds) return OS_EINVAL;
+    if (nfds<0 || nfds>PICONIX_FD_SETSIZE || exceptfds)
+        return OS_EINVAL;
     int32_t ms=-1;
     if(timeout) {
         if(timeout->tv_sec<0 || timeout->tv_usec<0 || timeout->tv_usec>=1000000L ||
@@ -60,8 +61,10 @@ int select(int nfds, fd_set *readfds, fd_set *writefds,
     piconix_select_request_t r={readfds?*readfds:0,writefds?*writefds:0,0,0,ms};
     int n=call(SYS_SELECT,(uintptr_t)nfds,(uintptr_t)&r,0);
     if(n>=0) {
-        if(readfds) *readfds=r.ready_read;
-        if(writefds) *writefds=r.ready_write;
+        if(readfds)
+            *readfds=r.ready_read;
+        if(writefds)
+            *writefds=r.ready_write;
     }
     return n;
 }
@@ -150,7 +153,8 @@ int tcp_accept(int fd) { return call(SYS_ACCEPT_TCP,fd,0,0); }
 /* BSD風ソケットのアドレスをIPv4に限定して検査する．受理できた場合だけ変換後ポインタを渡す． */
 static int ipv4_addr(const struct sockaddr *addr, socklen_t len,
                      const struct sockaddr_in **out) {
-    if (!addr || len < sizeof(struct sockaddr_in)) return OS_EINVAL;
+    if (!addr || len < sizeof(struct sockaddr_in))
+        return OS_EINVAL;
     *out = (const struct sockaddr_in *)addr;
     return (*out)->sin_family == AF_INET ? 0 : OS_EINVAL;
 }
@@ -159,12 +163,15 @@ static int ipv4_addr(const struct sockaddr *addr, socklen_t len,
 int bind(int fd, const struct sockaddr *addr, socklen_t len) {
     const struct sockaddr_in *in;
     int r = ipv4_addr(addr, len, &in);
-    if (r < 0) return r;
+    if (r < 0)
+        return r;
     unsigned port = ntohs(in->sin_port);
-    if (!port || in->sin_addr.s_addr != INADDR_ANY) return OS_EINVAL;
+    if (!port || in->sin_addr.s_addr != INADDR_ANY)
+        return OS_EINVAL;
     /* 下位のTCPシステムコールではbindとlistenが一体化している． */
     r = bind_udp(fd, port);
-    if (r == OS_EBADF || r == OS_EINVAL) return tcp_listen(fd, port);
+    if (r == OS_EBADF || r == OS_EINVAL)
+        return tcp_listen(fd, port);
     return r;
 }
 
@@ -184,14 +191,16 @@ int accept(int fd, struct sockaddr *addr, socklen_t *len) {
 int connect(int fd, const struct sockaddr *addr, socklen_t len) {
     const struct sockaddr_in *in;
     int r = ipv4_addr(addr, len, &in);
-    if (r < 0) return r;
+    if (r < 0)
+        return r;
     piconix_tcp_endpoint_t ep = {in->sin_addr.s_addr, ntohs(in->sin_port)};
     return tcp_connect(fd, &ep);
 }
 
 /* 送信側だけの半閉鎖（SHUT_WR）をサポートする． */
 int shutdown(int fd,int how) {
-    if(how!=SHUT_WR) return OS_EINVAL;
+    if(how!=SHUT_WR)
+        return OS_EINVAL;
     return call(SYS_SHUTDOWN_TCP,(uintptr_t)fd,0,0);
 }
 
@@ -212,8 +221,10 @@ int sendto(int fd, const void *buf, size_t len, int flags,
            const struct sockaddr *to, socklen_t tolen) {
     const struct sockaddr_in *in;
     int r = ipv4_addr(to, tolen, &in);
-    if (r < 0) return r;
-    if (flags || len > UINT32_MAX || (len && !buf)) return OS_EINVAL;
+    if (r < 0)
+        return r;
+    if (flags || len > UINT32_MAX || (len && !buf))
+        return OS_EINVAL;
     piconix_udp_packet_t pkt = {buf, (uint32_t)len, in->sin_addr.s_addr,
                                 ntohs(in->sin_port), 0};
     return sendto_udp(fd, &pkt);
@@ -222,8 +233,10 @@ int sendto(int fd, const void *buf, size_t len, int flags,
 /* UDPデータを受信し，必要なら送信元をsockaddr_inへ戻す． */
 int recvfrom(int fd, void *buf, size_t len, int flags,
              struct sockaddr *from, socklen_t *fromlen) {
-    if (flags || len > UINT32_MAX || (len && !buf)) return OS_EINVAL;
-    if (from && (!fromlen || *fromlen < sizeof(struct sockaddr_in))) return OS_EINVAL;
+    if (flags || len > UINT32_MAX || (len && !buf))
+        return OS_EINVAL;
+    if (from && (!fromlen || *fromlen < sizeof(struct sockaddr_in)))
+        return OS_EINVAL;
     piconix_udp_packet_t pkt = {buf, (uint32_t)len, 0, 0, 0};
     int r = recvfrom_udp(fd, &pkt);
     if (r >= 0 && from) {

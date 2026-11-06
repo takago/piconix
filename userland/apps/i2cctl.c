@@ -11,7 +11,8 @@
 /* I2Cアドレス・転送値の数値引数を解析する． */
 static int number(const char *s,int *v) {
     char *end; long n=strtol(s,&end,0);
-    if(!*s || *end || n<0 || n>255) return -1;
+    if(!*s || *end || n<0 || n>255)
+        return -1;
     *v=(int)n; return 0;
 }
 

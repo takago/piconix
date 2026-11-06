@@ -12,11 +12,14 @@ static void field(char *out, unsigned cap, const char *text, const char *key) {
     while (*p) {
         if (!strncmp(p,key,k)) {
             p+=k; unsigned i=0;
-            while (*p && *p!='\n' && i+1<cap) out[i++]=*p++;
+            while (*p && *p!='\n' && i+1<cap)
+                out[i++]=*p++;
             out[i]=0; return;
         }
-        while (*p && *p!='\n') p++;
-        if (*p) p++;
+        while (*p && *p!='\n')
+            p++;
+        if (*p)
+            p++;
     }
     out[0]=0;
 }

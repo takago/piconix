@@ -19,7 +19,8 @@ static unsigned view_count = 16*BYTES_PER_ROW;
 static unsigned goto_row = 21;
 /* カーネル・タスク・共有RAM・ファイル・トレース・ネットワーク領域を表示用に区分する． */
 static void mem_layout(int rows) {
- if(rows<8) rows=24;
+ if(rows<8)
+     rows=24;
  view_rows=(unsigned)(rows-6);
  if(view_rows>MAX_ROWS)view_rows=MAX_ROWS;
  view_count=view_rows*BYTES_PER_ROW;
@@ -70,7 +71,8 @@ static int symbol_record(char *line,char **app,unsigned *offset,char *kind,char 
 static int scan_symbols(const char *selected,unsigned base,int list_mode,unsigned slot_hint){
  char path[128];
  if(selected) {
-  if(!strcmp(selected,"kernel")) strcpy(path,"/proc/sym/kernel");
+  if(!strcmp(selected,"kernel"))
+      strcpy(path,"/proc/sym/kernel");
   else snprintf(path,sizeof path,"/proc/sym/userland/%s",selected);
  } else return -1;
  int fd=open(path,O_RDONLY);

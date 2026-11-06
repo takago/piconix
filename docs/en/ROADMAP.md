@@ -1,8 +1,16 @@
-# UNIX Learning Roadmap
+# PicoNIX Learning Roadmap
 
-This roadmap guides you through **using UNIX-like commands → observing OS behavior → reading source code → modifying the system** with PicoNIX. It links to practical guides and reference documents rather than duplicating them as a separate learning roadmap.
+This roadmap connects prior UNIX/OS knowledge to **using PicoNIX → observing behavior → reading source → modifying the system**. It links to practical guides and reference documents rather than duplicating them as a separate learning roadmap.
 
-Begin with [Setup](setup/SETUP.md). Follow the steps in order if you are new to PicoNIX. Network topics marked optional require Pico W.
+Begin with [Setup](setup/SETUP.md).
+## Audience and prerequisites
+
+These materials assume prior knowledge of **UNIX/Linux command-line usage, core OS concepts (processes, system calls, file descriptors and virtual memory), and C pointers and structures**. Basic TCP/IP knowledge is assumed for the optional Pico W networking material; ARM/Thumb and exception-handling details are needed for low-level kernel reading. This is not a general introduction to these topics.
+
+The central goal is to connect familiar concepts to **their concrete implementation on RP2040**: fixed user slots, a flash-resident kernel and RAM-loaded user images, PIC, SVC/PendSV, VFS and lwIP integration. Similar names do not imply Linux-equivalent protection or virtual-memory semantics; consult [Differences from Linux](reference/DIFFERENCES.md).
+
+**Suggested path:** Observe behavior with a usage guide → consult the PicoNIX-specific reference → follow the corresponding source functions in a development guide → modify and test on a separate branch if appropriate. Investigative questions belong in the [exercise collection](exercises/README.md).
+ Follow the steps in order if you are new to PicoNIX. Network topics marked optional require Pico W.
 
 ## 1. Use the system
 
@@ -47,3 +55,5 @@ For a particular goal use the [Task index](TASKS.md). See [Usage guides](guides/
 ---
 
 [Documentation index](../DOCS.md) | [日本語](../ja/ROADMAP.md)
+
+**Exercises:** Choose a topic from the [Exercise index](exercises/README.md).

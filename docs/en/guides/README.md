@@ -1,6 +1,10 @@
 # Usage and Command Guides
+**Prerequisites:** Basic UNIX commands, FDs and processes are assumed. These guides cover PicoNIX operations, limitations and observations; consult [Differences from Linux](../reference/DIFFERENCES.md) for implementation-specific distinctions.
+
 
 Find command instructions, operational cautions, and practical examples here. For a sequential introduction to UNIX, follow the [Learning roadmap](../ROADMAP.md).
+
+**Exercises:** See the [Exercise index](../exercises/README.md).
 
 **Setup:** [Installation guide](../setup/SETUP.md).
 

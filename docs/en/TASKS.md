@@ -6,6 +6,8 @@ Find documentation for **what you want to do**. Each task links to starting expl
 
 **Note:** Pico W networking is unavailable on a standard Pico. Check the wiring instructions and 3.3 V precautions before connecting peripherals.
 
+**Looking for exercises?** See the [Exercise index](exercises/README.md).
+
 ## Task index
 
 ### Getting started

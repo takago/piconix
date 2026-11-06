@@ -144,8 +144,10 @@ int main(int argc,char **argv) {
                 int key=pong_key((unsigned char)c,&escapes[player]);
                 if(key==2){live=0;break;}
                 int *paddle=((side==0)==(player==0) ? &left : &right);
-                if(key<0 && *paddle>0) --*paddle;
-                if(key==1 && *paddle<H-6-PADDLE) ++*paddle;
+                if(key<0 && *paddle>0)
+                    --*paddle;
+                if(key==1 && *paddle<H-6-PADDLE)
+                    ++*paddle;
             }
             if(r<0){live=0;break;}
         }
@@ -166,7 +168,8 @@ int main(int argc,char **argv) {
             if(bx<=1)score1++;else score0++;
             bx=W/2;by=8;dx=-dx;dy=-dy;
         }
-        if(side==0) render(1,other,left,right,bx,by,score0,score1,initial,old,top,left_col);
+        if(side==0)
+            render(1,other,left,right,bx,by,score0,score1,initial,old,top,left_col);
         else render(other,1,left,right,bx,by,score0,score1,initial,old,top,left_col);
         initial=0;
         msleep(90);

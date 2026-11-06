@@ -11,6 +11,7 @@ import traceback
 
 
 def parse_args():
+    """コマンドライン引数を解析する．"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "url", nargs="?", default="http://192.168.4.1:8080/mcp",
@@ -28,6 +29,7 @@ def parse_args():
 
 
 async def run(url, mode, tool_selection):
+    """MCP接続を確立して要求を送る．"""
     # Import here to show an actionable dependency error instead of a traceback.
     try:
         from mcp import Client
@@ -68,6 +70,7 @@ async def run(url, mode, tool_selection):
 
 
 def main():
+    """非同期クライアント処理を起動する．"""
     args = parse_args()
     if not args.url.startswith("http://"):
         sys.exit("This experimental sample expects an http:// URL on an isolated LAN")

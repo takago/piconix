@@ -20,7 +20,8 @@ static int prefix(const char *a,const char *b) { return strncmp(a,b,strlen(b))==
 static void write_all(int fd, const char *p, size_t n) {
     while(n) {
         int rc=write(fd, p, n);
-        if(rc<0) return;
+        if(rc<0)
+            return;
         if(rc==0) { msleep(1); continue; }
         p+=(unsigned)rc; n-=(unsigned)rc;
     }
@@ -31,7 +32,8 @@ static void put(const char *s) {
     char b[48];
     while(*s) {
         size_t n=0;
-        while(n<sizeof b && *s) b[n++]=*s++;
+        while(n<sizeof b && *s)
+            b[n++]=*s++;
         write_all(1,b,n);
     }
 }
@@ -42,26 +44,33 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
     unsigned n=0;
     if(*input!='/') {
         for(const char *q=cwd;*q;q++) { if(n>=sizeof(combined)-2) return -1; combined[n++]=*q; }
-        if(n==0 || combined[n-1]!='/') combined[n++]='/';
+        if(n==0 || combined[n-1]!='/')
+            combined[n++]='/';
     }
     for(const char *q=input;*q;q++) { if(n>=sizeof(combined)-1) return -1; combined[n++]=*q; }
     combined[n]=0;
     unsigned o=1; out[0]='/'; out[1]=0;
     for(unsigned i=0;i<n;) {
-        while(combined[i]=='/') i++;
-        if(!combined[i]) break;
+        while(combined[i]=='/')
+            i++;
+        if(!combined[i])
+            break;
         unsigned start=i;
-        while(combined[i] && combined[i]!='/') i++;
+        while(combined[i] && combined[i]!='/')
+            i++;
         unsigned len=i-start;
-        if(len==1 && combined[start]=='.') continue;
+        if(len==1 && combined[start]=='.')
+            continue;
         if(len==2 && combined[start]=='.' && combined[start+1]=='.') {
             if(o>1) { while(o>1 && out[o-1]!='/') o--; if(o>1) o--; }
             out[o]=0;
             continue;
         }
         if(o>1) { if(o>=127) return -1; out[o++]='/'; }
-        if(o+len>=128) return -1;
-        for(unsigned k=0;k<len;k++) out[o++]=combined[start+k];
+        if(o+len>=128)
+            return -1;
+        for(unsigned k=0;k<len;k++)
+            out[o++]=combined[start+k];
         out[o]=0;
     }
     return 0;
@@ -69,9 +78,11 @@ static int resolve(const char *cwd, const char *input, char out[128]) {
 
 /* リダイレクト先の名前に空白を含めず，周囲の空白を構文として扱う． */
 static char *trim(char *s) {
-    while(*s==' ' || *s=='\t') s++;
+    while(*s==' ' || *s=='\t')
+        s++;
     char *end=s+strlen(s);
-    while(end>s && (end[-1]==' ' || end[-1]=='\t')) *--end=0;
+    while(end>s && (end[-1]==' ' || end[-1]=='\t'))
+        *--end=0;
     return s;
 }
 
@@ -93,45 +104,59 @@ static void restore_stdio(int saved_in, int saved_out) {
 static int redirect(char *s, const char *cwd, int *save_in, int *save_out) {
     char *first=0;
     for(char *q=s;*q;q++) if(*q=='<' || *q=='>') {
-        if(!first) first=q;
-        if(*q=='>' && q[1]=='>') q++;
+        if(!first)
+            first=q;
+        if(*q=='>' && q[1]=='>')
+            q++;
     }
-    if(!first) return 0;
+    if(!first)
+        return 0;
     /* リダイレクト先は引用符なしの一語とし，二箇所まで認める． */
     char *q=first;
     int seen=0;
     while(*q) {
-        if(*q!='<' && *q!='>') return -1;
+        if(*q!='<' && *q!='>')
+            return -1;
         int output=*q=='>';
         q++;
         int append=output && *q=='>';
-        if(append) q++;
-        while(*q==' ' || *q=='\t') q++;
+        if(append)
+            q++;
+        while(*q==' ' || *q=='\t')
+            q++;
         char *name=q;
-        while(*q && *q!=' ' && *q!='\t' && *q!='<' && *q!='>') q++;
-        if(name==q) return -1;
+        while(*q && *q!=' ' && *q!='\t' && *q!='<' && *q!='>')
+            q++;
+        if(name==q)
+            return -1;
         char terminator=*q;
         *q=0;
         char path[128];
         int valid=resolve(cwd,name,path);
         *q=terminator;
-        if(valid<0) return -1;
+        if(valid<0)
+            return -1;
         /* デバイスノードは通常ファイルではないため，作成・切り詰めを要求しない． */
         int flag=output?(1|(prefix(path,"/dev/")?0:O_CREAT|(append?O_APPEND:O_TRUNC))):0;
         int target=output?1:0, saved=-1;
-        if(seen & (1<<target)) return -1;
+        if(seen & (1<<target))
+            return -1;
         seen|=1<<target;
         int fd=open(path, flag);
-        if(fd<0) return -1;
+        if(fd<0)
+            return -1;
         saved=dup(target);
         if(saved<0 || dup2(fd, target)<0) {
-            if(saved>=0) close(saved);
+            if(saved>=0)
+                close(saved);
             close(fd); return -1;
         }
         close(fd);
         if(output) *save_out=saved; else *save_in=saved;
-        while(*q==' ' || *q=='\t') q++;
-        if(*q && *q!='<' && *q!='>') return -1;
+        while(*q==' ' || *q=='\t')
+            q++;
+        if(*q && *q!='<' && *q!='>')
+            return -1;
     }
     *first=0;
     return 0;
@@ -142,16 +167,22 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     char *args[8];int argc=0;
     char *q=cmd;
     while(*q) {
-        while(*q==' ' || *q=='\t') q++;
-        if(!*q) break;
+        while(*q==' ' || *q=='\t')
+            q++;
+        if(!*q)
+            break;
         if(argc==8) {put("too many arguments (max 8)\r\n");return 1;}
         args[argc++]=q;
-        while(*q && *q!=' ' && *q!='\t') q++;
-        if(*q) *q++=0;
+        while(*q && *q!=' ' && *q!='\t')
+            q++;
+        if(*q)
+            *q++=0;
     }
-    if(!argc) return 1;
+    if(!argc)
+        return 1;
     const char *name=args[0];
-    if(prefix(name,"/bin/")) name+=5;
+    if(prefix(name,"/bin/"))
+        name+=5;
     if(prefix(name,"./") || prefix(name,"/tmp/")) {
         char path[128];
         if(argc!=1 || resolve(cwd,name,path)<0) { put("invalid executable path\r\n"); return 1; }
@@ -162,11 +193,13 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
         return 1;
     }
     int id=program_id(name);
-    if(id<0) return 0;
+    if(id<0)
+        return 0;
     args[0]=(char *)name;
     /* 引数は変えずに渡し，各コマンドまたはVFSがそのパスを解釈する． */
     unsigned total=0;
-    for(int i=0;i<argc;i++) total+=(unsigned)strlen(args[i])+1;
+    for(int i=0;i<argc;i++)
+        total+=(unsigned)strlen(args[i])+1;
     if(total>128) {put("arguments too long (max 128 bytes)\r\n");return 1;}
     int pid=background?spawn(id,argc,(const char *const *)args):spawn_foreground(id,argc,(const char *const *)args);
     if(pid<0) {put("cannot start program\r\n");return 1;}
@@ -187,28 +220,39 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
 static int pipeline_spawn(char *cmd, const char *cwd) {
     char *args[8]; int argc=0;
     for(char *q=cmd;*q;) {
-        while(*q==' ' || *q=='\t') q++;
-        if(!*q) break;
-        if(argc==8) return -1;
+        while(*q==' ' || *q=='\t')
+            q++;
+        if(!*q)
+            break;
+        if(argc==8)
+            return -1;
         args[argc++]=q;
-        while(*q && *q!=' ' && *q!='\t') q++;
-        if(*q) *q++=0;
+        while(*q && *q!=' ' && *q!='\t')
+            q++;
+        if(*q)
+            *q++=0;
     }
-    if(!argc) return -1;
+    if(!argc)
+        return -1;
     const char *name=args[0];
-    if(prefix(name,"/bin/")) name+=5;
+    if(prefix(name,"/bin/"))
+        name+=5;
     if(prefix(name,"./") || prefix(name,"/tmp/")) {
         char path[128];
-        if(argc!=1 || resolve(cwd,name,path)<0) return -1;
+        if(argc!=1 || resolve(cwd,name,path)<0)
+            return -1;
         return spawn_tmp(path);
     }
     int id=program_id(name);
-    if(id<0) return -1;
+    if(id<0)
+        return -1;
     args[0]=(char *)name;
     /* パイプの各段へ通常コマンドと同様の引数を渡す． */
     unsigned total=0;
-    for(int i=0;i<argc;i++) total+=(unsigned)strlen(args[i])+1;
-    if(total>128) return -1;
+    for(int i=0;i<argc;i++)
+        total+=(unsigned)strlen(args[i])+1;
+    if(total>128)
+        return -1;
     return spawn(id,argc,(const char *const *)args);
 }
 
@@ -227,43 +271,56 @@ static void run_pipeline(char *stage[3], int count, const char *cwd) {
         int input=i ? previous_read : saved_in;
         int output=i<count-1 ? next[1] : saved_out;
         if(dup2(input,0)<0 || dup2(output,1)<0) {
-            if(next[0]>=0) close(next[0]);
-            if(next[1]>=0) close(next[1]);
+            if(next[0]>=0)
+                close(next[0]);
+            if(next[1]>=0)
+                close(next[1]);
             failed=1;break;
         }
         pid[i]=pipeline_spawn(stage[i],cwd);
-        if(next[1]>=0) close(next[1]);
+        if(next[1]>=0)
+            close(next[1]);
         if(pid[i]<0) {
-            if(next[0]>=0) close(next[0]);
+            if(next[0]>=0)
+                close(next[0]);
             failed=1;break;
         }
         /* 前景パイプの各PIDを登録し，Ctrl+Cで一括終了できるようにする． */
         set_foreground(pid[i]);
-        if(previous_read>=0) close(previous_read);
+        if(previous_read>=0)
+            close(previous_read);
         previous_read=next[0];
     }
 cleanup:
     restore_stdio(saved_in,saved_out);
-    if(previous_read>=0) close(previous_read);
+    if(previous_read>=0)
+        close(previous_read);
     if(failed) put("pipe: cannot start command\r\n");
     int status;
-    for(int i=0;i<count;i++) if(pid[i]>0) waitpid(pid[i],&status,0);
+    for(int i=0;i<count;i++)
+        if(pid[i]>0)
+            waitpid(pid[i],&status,0);
     set_foreground(0);
 }
 
 /* 入力行を解釈し，組込みコマンド／外部コマンドへ振り分ける． */
 static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const char **bg_name) {
-    while(*s==' ') s++;
-    if(!*s) return;
+    while(*s==' ')
+        s++;
+    if(!*s)
+        return;
     if(eq(s,"logout") || eq(s,"exit")) {
         put("logout\r\nPicoNIX: Session closed.\r\n");
         _exit(0);
-        for(;;) msleep(100);
+        for(;;)
+            msleep(100);
     }
     else if(eq(s,"cd") || prefix(s,"cd ")) {
         const char *arg=eq(s,"cd")?"/":s+3;
-        while(*arg==' ') arg++;
-        if(!*arg) arg="/";
+        while(*arg==' ')
+            arg++;
+        if(!*arg)
+            arg="/";
         char path[128];
         if(resolve(cwd,arg,path)<0 || chdir(path)<0) { put("cd: no such directory\r\n"); return; }
         strcpy(cwd,path);
@@ -290,20 +347,25 @@ static unsigned history_count, history_next;
 
 /* 固定長のコマンド履歴へ追加する．ヒープは使わず，古い項目を順に入れ替える． */
 static void history_add(const char *line) {
-    if(!*line) return;
-    if(history_count && eq(history[(history_next+HISTORY_SIZE-1)%HISTORY_SIZE],line)) return;
+    if(!*line)
+        return;
+    if(history_count && eq(history[(history_next+HISTORY_SIZE-1)%HISTORY_SIZE],line))
+        return;
     strcpy(history[history_next],line);
     history_next=(history_next+1)%HISTORY_SIZE;
-    if(history_count<HISTORY_SIZE) history_count++;
+    if(history_count<HISTORY_SIZE)
+        history_count++;
 }
 
 /* 現在位置からn桁だけ左へ移動する． */
 static void shell_move_left(unsigned n) {
-    if(!n) return;
+    if(!n)
+        return;
     char digits[4];unsigned used=0;
     do {digits[used++]=(char)('0'+n%10);n/=10;} while(n);
     put("\033[");
-    while(used) write_all(1,&digits[--used],1);
+    while(used)
+        write_all(1,&digits[--used],1);
     put("D");
 }
 
@@ -350,29 +412,38 @@ static void shell_redraw_tail(const char *line, unsigned len, unsigned cursor) {
 /* 行末のファイル名または/binコマンドを補完する．引用・ワイルドカード等は対象にせずRAM使用を抑える． */
 static int shell_complete(char line[128], unsigned *len, unsigned *cursor,
                           const char cwd[128]) {
-    if(*cursor!=*len) return 0;
+    if(*cursor!=*len)
+        return 0;
     unsigned start=*len;
-    while(start && line[start-1]!=' ' && line[start-1]!='\t') start--;
+    while(start && line[start-1]!=' ' && line[start-1]!='\t')
+        start--;
     const char *word=line+start;
-    if(!*word) return 0;
+    if(!*word)
+        return 0;
     unsigned slash=*len;
-    while(slash>start && line[slash-1]!='/') slash--;
+    while(slash>start && line[slash-1]!='/')
+        slash--;
     char directory[128], name_prefix[128];
     unsigned prefix_len=*len-slash;
-    if(prefix_len>=sizeof name_prefix) return 0;
-    for(unsigned i=0;i<prefix_len;i++) name_prefix[i]=line[slash+i];
+    if(prefix_len>=sizeof name_prefix)
+        return 0;
+    for(unsigned i=0;i<prefix_len;i++)
+        name_prefix[i]=line[slash+i];
     name_prefix[prefix_len]=0;
     if(slash>start) {
         char path[128];
         unsigned n=slash-start;
-        if(n>=sizeof path) return 0;
+        if(n>=sizeof path)
+            return 0;
         for(unsigned i=0;i<n;i++)path[i]=word[i];
         path[n]=0;
-        if(resolve(cwd,path,directory)<0) return 0;
+        if(resolve(cwd,path,directory)<0)
+            return 0;
     } else if(start==0) strcpy(directory,"/bin");
     else strcpy(directory,cwd);
     int fd=open(directory,O_RDONLY);
-    if(fd<0) return 0;
+    if(fd<0)
+        return 0;
     piconix_dirent_t entry;
     char common[32]={0};
     int matches=0, is_dir=0, status;
@@ -384,21 +455,25 @@ static int shell_complete(char line[128], unsigned *len, unsigned *cursor,
             is_dir=entry.is_dir;
         } else {
             unsigned i=0;
-            while(common[i] && entry.name[i] && common[i]==entry.name[i]) i++;
+            while(common[i] && entry.name[i] && common[i]==entry.name[i])
+                i++;
             common[i]=0;
         }
         matches++;
     }
     close(fd);
-    if(!matches) return 0;
+    if(!matches)
+        return 0;
     unsigned common_len=(unsigned)strlen(common);
     unsigned append=common_len>prefix_len?common_len-prefix_len:0;
-    if(*len+append+(matches==1 && is_dir?1u:0u)>127) return 0;
+    if(*len+append+(matches==1 && is_dir?1u:0u)>127)
+        return 0;
     if(append) {
         memcpy(line+*len,common+prefix_len,append);
         *len+=append;
     }
-    if(matches==1 && is_dir && *len<127) line[(*len)++]='/';
+    if(matches==1 && is_dir && *len<127)
+        line[(*len)++]='/';
     line[*len]=0;
     *cursor=*len;
     return matches;
@@ -447,8 +522,10 @@ static int shell_readline(char line[128], const char cwd[128]) {
     int echo=ioctl(0,OS_TTY_GET_ECHO,0);
     if(canon<0 || echo<0 || ioctl(0,OS_TTY_SET_CANON,0)<0 ||
        ioctl(0,OS_TTY_SET_ECHO,0)<0) {
-        if(canon>=0) ioctl(0,OS_TTY_SET_CANON,canon);
-        if(echo>=0) ioctl(0,OS_TTY_SET_ECHO,echo);
+        if(canon>=0)
+            ioctl(0,OS_TTY_SET_CANON,canon);
+        if(echo>=0)
+            ioctl(0,OS_TTY_SET_ECHO,echo);
         unsigned used=0; int previous_cr=0;
         for(;;) {
             char c;int n=read(0,&c,1);
@@ -456,7 +533,8 @@ static int shell_readline(char line[128], const char cwd[128]) {
             if(c=='\n' && previous_cr) {previous_cr=0;continue;}
             previous_cr=(c=='\r');
             if(c=='\r'||c=='\n') {line[used]=0;return 1;}
-            if(used<127) line[used++]=c;
+            if(used<127)
+                line[used++]=c;
         }
     }
     char draft[128]={0};
@@ -472,12 +550,17 @@ static int shell_readline(char line[128], const char cwd[128]) {
         if(escape==2) {
             escape=0;
             if(c=='A' || c=='B') {
-                if(c=='A' && selected==0) continue;
-                if(c=='B' && selected==history_count) continue;
-                if(selected==history_count) strcpy(draft,line);
-                if(c=='A') selected--;
+                if(c=='A' && selected==0)
+                    continue;
+                if(c=='B' && selected==history_count)
+                    continue;
+                if(selected==history_count)
+                    strcpy(draft,line);
+                if(c=='A')
+                    selected--;
                 else selected++;
-                if(selected==history_count) strcpy(line,draft);
+                if(selected==history_count)
+                    strcpy(line,draft);
                 else strcpy(line,history[(history_next+HISTORY_SIZE-history_count+selected)%HISTORY_SIZE]);
                 len=(unsigned)strlen(line);cursor=len;
             } else if(c=='C') {
@@ -508,8 +591,10 @@ static int shell_readline(char line[128], const char cwd[128]) {
         }
         if(c==23) { /* Ctrl+W：直前の空白区切りの単語を削除する． */
             unsigned end=cursor;
-            while(cursor && (line[cursor-1]==' ' || line[cursor-1]=='\t')) cursor--;
-            while(cursor && line[cursor-1]!=' ' && line[cursor-1]!='\t') cursor--;
+            while(cursor && (line[cursor-1]==' ' || line[cursor-1]=='\t'))
+                cursor--;
+            while(cursor && line[cursor-1]!=' ' && line[cursor-1]!='\t')
+                cursor--;
             if(cursor!=end) {
                 memmove(line+cursor,line+end,len-end+1);
                 len-=end-cursor;
@@ -524,7 +609,8 @@ static int shell_readline(char line[128], const char cwd[128]) {
                 tab_pending=0;
             } else {
                 int matches=shell_complete(line,&len,&cursor,cwd);
-                if(matches) shell_redraw(line,len,cursor);
+                if(matches)
+                    shell_redraw(line,len,cursor);
                 else put("\a");
                 tab_pending=matches>1;
             }
@@ -546,11 +632,13 @@ static int shell_readline(char line[128], const char cwd[128]) {
             return 1;
         }
         if(c==8 || c==127) {
-            if(!cursor) continue;
+            if(!cursor)
+                continue;
             int had_tab=shell_has_tab(line,len);
             for(unsigned i=cursor;i<len;i++)line[i-1]=line[i];
             len--;cursor--;line[len]=0;
-            if(had_tab) shell_redraw(line,len,cursor);
+            if(had_tab)
+                shell_redraw(line,len,cursor);
             else {
                 put("\b");
                 if(cursor==len) put(" \b");
@@ -560,7 +648,8 @@ static int shell_readline(char line[128], const char cwd[128]) {
             int at_end=(cursor==len);
             for(unsigned i=len;i>cursor;i--)line[i]=line[i-1];
             line[cursor++]=c;line[++len]=0;
-            if(shell_has_tab(line,len)) shell_redraw(line,len,cursor);
+            if(shell_has_tab(line,len))
+                shell_redraw(line,len,cursor);
             else if(at_end) write_all(1,&c,1);
             else {
                 /* 端末上のカーソルは引き続き挿入位置にある． */
@@ -574,10 +663,12 @@ static int shell_readline(char line[128], const char cwd[128]) {
 /* 最初の起動シェルで設定ファイルの各行を通常のコマンド解析器へ渡す．長すぎる行は実行しない． */
 static void run_boot_rc(char *cwd) {
     int fd=open("/etc/rc",O_RDONLY);
-    if(fd<0) return;
+    if(fd<0)
+        return;
     char line[128]; unsigned len=0; char c;
     while(read(fd,&c,1)==1) {
-        if(c=='\r') continue;
+        if(c=='\r')
+            continue;
         if(c!='\n' && len<sizeof(line)-1) {line[len++]=c;continue;}
         if(c!='\n') { /* 長すぎるrc行を途中まで実行しないよう拒否する． */
             while(read(fd,&c,1)==1 && c!='\n') {}
@@ -585,10 +676,12 @@ static void run_boot_rc(char *cwd) {
         }
         line[len]=0;len=0;
         char *cmd=trim(line);
-        if(!*cmd || *cmd=='#') continue;
+        if(!*cmd || *cmd=='#')
+            continue;
         unsigned n=(unsigned)strlen(cmd);int bg=0;
         if(n && cmd[n-1]=='&') {cmd[n-1]=0;cmd=trim(cmd);bg=1;}
-        if(strchr(cmd,'|') || strchr(cmd,'<') || strchr(cmd,'>')) continue;
+        if(strchr(cmd,'|') || strchr(cmd,'<') || strchr(cmd,'>'))
+            continue;
         int pid=0;const char *label=0;
         command(cmd,cwd,bg,&pid,&label);
     }
@@ -607,7 +700,8 @@ int main(int argc, char *argv[]) {
     }
     strcpy(cwd,"/tmp");
     /* シェル起動後にUSB CDCが接続されることがあるため，起動バナーを捨てない． */
-    while(!console_ready()) msleep(10);
+    while(!console_ready())
+        msleep(10);
     char id_line[] = "FlashID: 00000000\r\n";
     static const char hex[] = "0123456789abcdef";
     unsigned id = flash_id();
@@ -618,7 +712,8 @@ int main(int argc, char *argv[]) {
     put(id_line);
     put("Type 'help' for commands.\r\n"
         "--------------------------------------------------------\r\n");
-    if(getpid()==1) run_boot_rc(cwd);
+    if(getpid()==1)
+        run_boot_rc(cwd);
     put("\033[0m\033[?25h" SHELL_PROMPT);
     for(;;) {
         shell_readline(line,cwd);
@@ -638,14 +733,16 @@ int main(int argc, char *argv[]) {
             char *stage[3]; int count=0, invalid=requested_bg;
             char *start=cmd;
             for(char *q=cmd;;q++) {
-                if(*q!='|' && *q) continue;
+                if(*q!='|' && *q)
+                    continue;
                 char sep=*q;
                 *q=0;
                 char *part=trim(start);
                 if(!*part || strchr(part,'<') || strchr(part,'>') || count==3)
                     invalid=1;
                 else stage[count++]=part;
-                if(!sep) break;
+                if(!sep)
+                    break;
                 start=q+1;
             }
             if(invalid || count<2)
@@ -657,7 +754,8 @@ int main(int argc, char *argv[]) {
         int saved_in=-1,saved_out=-1, bg_pid=0;
         const char *bg_name=0;
         int redir_ok=redirect(cmd,cwd,&saved_in,&saved_out);
-        if(redir_ok==0) command(trim(cmd),cwd,requested_bg,&bg_pid,&bg_name);
+        if(redir_ok==0)
+            command(trim(cmd),cwd,requested_bg,&bg_pid,&bg_name);
         restore_stdio(saved_in,saved_out);
         if(redir_ok<0) put("redirect: invalid path or cannot open file\r\n");
         /* 背景起動の通知はリダイレクト先でなく端末へ出す． */

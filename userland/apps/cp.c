@@ -12,9 +12,11 @@ static int path(const char *src,char out[128]) {
     char input[256],cwd[128];
     unsigned n=0,o=1;
     if(*src!='/') {
-        if(!getcwd(cwd,sizeof cwd)) return -1;
+        if(!getcwd(cwd,sizeof cwd))
+            return -1;
         for(const char *p=cwd;*p;p++) {if(n>=sizeof input-2)return -1;input[n++]=*p;}
-        if(!n || input[n-1]!='/') input[n++]='/';
+        if(!n || input[n-1]!='/')
+            input[n++]='/';
     }
     for(const char *p=src;*p;p++) {if(n>=sizeof input-1)return -1;input[n++]=*p;}
     input[n]=0;out[0]='/';out[1]=0;
@@ -35,7 +37,8 @@ static int path(const char *src,char out[128]) {
     }
     /* コピー可能なのは/tmpと/etcの直下のRAMファイルである． */
     const char *name=0;
-    if(!strncmp(out,"/tmp/",5)) name=out+5;
+    if(!strncmp(out,"/tmp/",5))
+        name=out+5;
     else if(!strncmp(out,"/etc/",5)) name=out+5;
     return (name && *name && !strchr(name,'/'))?0:-1;
 }

@@ -10,9 +10,11 @@ static int ipv4(const char *s, uint32_t *result) {
         unsigned value = 0, digits = 0;
         while (*s >= '0' && *s <= '9') {
             value = value * 10u + (unsigned)(*s++ - '0');
-            if (value > 255u || ++digits > 3) return -1;
+            if (value > 255u || ++digits > 3)
+                return -1;
         }
-        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0')) return -1;
+        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0'))
+            return -1;
         p[i] = (unsigned char)value;
     }
     return 0;
@@ -20,11 +22,14 @@ static int ipv4(const char *s, uint32_t *result) {
 
 static int port_number(const char *s) {
     unsigned n = 0;
-    if (!*s) return -1;
+    if (!*s)
+        return -1;
     for (; *s; ++s) {
-        if (*s < '0' || *s > '9') return -1;
+        if (*s < '0' || *s > '9')
+            return -1;
         n = n * 10u + (unsigned)(*s - '0');
-        if (n > 65535u) return -1;
+        if (n > 65535u)
+            return -1;
     }
     return n ? (int)n : -1;
 }
@@ -47,7 +52,8 @@ int main(int argc, char **argv) {
     int status = 0;
     for (int i = 0; i < 300; ++i) {
         status = tcp_status(fd);
-        if (status != 0) break;
+        if (status != 0)
+            break;
         msleep(10);
     }
     if (status != 1) { printf("not connected: %d\n", status); close(fd); return 1; }
@@ -66,7 +72,8 @@ int main(int argc, char **argv) {
     int idle = 0;
     for (;;) {
         r = recv(fd, buf, sizeof(buf), 0);
-        if (r == 0) break;
+        if (r == 0)
+            break;
         if (r == OS_EAGAIN) {
             if (++idle > 300) { puts("timeout reading response"); close(fd); return 1; }
             msleep(10); continue;

@@ -52,7 +52,20 @@ The two dedicated guides contain the full changes, commands, expected observatio
 **Exercise:** Draw both paths from the 1 ms kernel counter: through SVC returning an integer, and through VFS/FD returning formatted text. No physical hardware is connected in this virtual-driver exercise.
 
 
-## 4. Related documents
+
+## 4. Change and verification workflow
+
+Before editing, trace the relevant **entry point (SVC/VFS/driver) → internal state → user-visible result**, and check declarations shared with `include/` and `userland/lib/`. Avoid unnecessary cross-module dependencies or exposing `static` helpers merely for convenience.
+
+1. Inspect `git status`, create a working branch if needed, and record baseline build and command behavior.
+2. Make the smallest change possible. Recheck syscall numbers, event ABI, device IDs, SRAM layout and PIC constraints; update the corresponding reference if any of these change.
+3. Run `python3 tools/run_tests.py` for host-side tests. Record passes, failures and tests not run separately; some tests require host tools or configurations that may not be available.
+4. Build the target board using [Setup](../../setup/SETUP.md). If a shared change affects both Pico and Pico W, build both. Retain the build output including PIC and memory-layout checks.
+5. Verify the changed path on hardware. For example, use `trace run hello` to observe syscall entry/exit, or exercise the affected `/dev` node for a driver. Record the board and build configuration with the result.
+
+**Verification boundaries:** Passing host tests does not prove hardware behavior; passing a build does not, by itself, establish the status of every PIC, SRAM-layout or trace check.
+
+## 5. Related documents
 
 - [SYSCALLS.md](../../reference/SYSCALLS.md): ABI, arguments and return values
 - [LIBC.md](../apps/c/LIBC.md): C library and wrappers

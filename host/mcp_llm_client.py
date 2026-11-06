@@ -19,6 +19,7 @@ llm = AsyncOpenAI(base_url=LLM_URL, api_key=LLM_API_KEY, timeout=120.0)
 
 
 async def main():
+    """MCPクライアントとLLMの対話を実行する．"""
     async with Client(MCP_URL, mode="auto") as mcp:
         print("MCP protocol:", mcp.protocol_version)
         available = (await mcp.list_tools()).tools

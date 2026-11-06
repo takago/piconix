@@ -82,7 +82,8 @@ static int directory_load(void) {
     total_entries=0;
     while((n=getdents(fd,&e,sizeof e))>0) {
         if(!strcmp(e.name,".")) continue;
-        if(!strcmp(e.name,"..") && !strcmp(current,"/")) continue;
+        if(!strcmp(e.name,"..") && !strcmp(current,"/"))
+            continue;
         ++total_entries;
         if(count<MAX_ENTRIES) {
             int k=count++;
@@ -145,7 +146,8 @@ static int view_load(void){
     int indexed=!strcmp(path,"/proc/sym/kernel") && indexed_lines>0;
     if(indexed) {
         /* 古いカーネルはseekに未対応の場合があるので，実際に試して判定する． */
-        if(lseek(fd,0,SEEK_CUR)<0) indexed=0;
+        if(lseek(fd,0,SEEK_CUR)<0)
+            indexed=0;
         else {
             int anchor=view_top/INDEX_STRIDE;
             if(anchor>=indexed_lines)anchor=indexed_lines-1;

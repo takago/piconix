@@ -11,7 +11,8 @@
 static int emit(const char *p, unsigned n) {
     while(n) {
         int k=write(1,p,n);
-        if(k<=0) return -1;
+        if(k<=0)
+            return -1;
         p+=k; n-=(unsigned)k;
     }
     return 0;
@@ -19,11 +20,14 @@ static int emit(const char *p, unsigned n) {
 
 /* 指定した検索語が対象の行に含まれるかを調べる． */
 static int match(const char *line, unsigned n, const char *pat, unsigned m) {
-    if(m>n) return 0;
+    if(m>n)
+        return 0;
     for(unsigned i=0;i<=n-m;i++) {
         unsigned j=0;
-        while(j<m && line[i+j]==pat[j]) j++;
-        if(j==m) return 1;
+        while(j<m && line[i+j]==pat[j])
+            j++;
+        if(j==m)
+            return 1;
     }
     return 0;
 }
@@ -52,13 +56,16 @@ int main(int argc,char **argv) {
             else overflow=1; /* 行が長すぎるときは途中までの一致を表示せず，行全体を読み飛ばす． */
         }
     }
-    if(n<0) error=1;
+    if(n<0)
+        error=1;
     if(!error && used && !overflow && match(line,used,pat,m)) {
-        if(emit(line,used)<0) error=1;
+        if(emit(line,used)<0)
+            error=1;
         else found=1;
     }
 done:
-    if(argc==3) close(fd);
+    if(argc==3)
+        close(fd);
     if(error) { puts("grep: read/write error"); return 2; }
     return found?0:1;
 }

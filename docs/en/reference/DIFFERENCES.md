@@ -77,23 +77,9 @@ The following are **fixed implementation capacities**, not Linux-like resource-l
 
 These are capacities, not guarantees that every combination of processes, descriptors, sockets, and services will run simultaneously. See [memory layout](MEMORY-LAYOUT.md), [filesystem](FILESYSTEM.md), [TTY guide](../guides/TTY.md), and [network devices](network/NETWORK.md) for details.
 
-## 6. Exercises: observe the differences
+## 6. Related exercises
 
-From a PicoNIX shell, try:
-
-```sh
-ps
-cat /proc/memory
-ls /bin
-ls /dev
-ls /proc
-cat /proc/ramfiles
-echo hello | cat -n
-```
-
-Compare process capacity in `ps` with the six slots, inspect which paths are virtual, then follow one `read()` or `write()` from a user program through the system call and VFS. On Pico W, additionally try `ping` and `tcpdump`; network results depend on the connection.
-
-**Learning point:** PicoNIX models UNIX concepts with a deliberately small implementation. Do not assume that a command name or API spelling means full Linux or POSIX compatibility.
+The observation tasks are in [Exercises: differences from Linux](../exercises/README.md#observe-differences-from-linux).
 
 ## 7. Source of truth
 

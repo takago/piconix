@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Source-level contract for unified optional function tracing."""
 from pathlib import Path
+import re
 p=Path(__file__).resolve().parents[2]
 cm=(p/'CMakeLists.txt').read_text()
 k=(p/'kernel/kernel.c').read_text()
@@ -10,10 +11,10 @@ assert 'PICONIX_KERNEL_FUNCTION_TRACE' in cm and '-finstrument-functions' in cm
 for name in ('TRACE_CONTEXT_SET','TRACE_CONTEXT_GET','TRACE_FUNC_ENTER','TRACE_FUNC_EXIT'):
     assert name in a and name in k+t
 assert 'TRACE_FUNC_ON' not in a and 'trace kernel' not in t
-assert 'if(!trace_all_contexts && ipsr!=11u) return;' in k
+assert re.search(r'if\s*\(!trace_all_contexts\s*&&\s*ipsr!=11u\)\s*return\s*;', k)
 assert 'int svc=ipsr==11u && current>=0' in k
 assert 'trace_record(kind,t?(uint8_t)t->pid:0' in k
-assert 'if(!trace_enabled) return;' in k
+assert re.search(r'if\s*\(!trace_enabled\)\s*return\s*;', k)
 assert 'trace_all_contexts=(arg!=0);' in k
 assert 'save_and_disable_interrupts()' in k
 assert 'trace_run(fd,argc,argv)' in t

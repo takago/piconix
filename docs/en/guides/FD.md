@@ -2,18 +2,60 @@
 
 *Usage guide*
 
-`fd [directory]` opens a small, FDclone-inspired full-screen browser. The default directory is `/tmp`. Up/Down selects an entry, Enter/Right opens a directory or file, and Enter on the `../` entry, or Backspace/Left, goes to the parent directory. Press `r` to refresh and `q` to exit.
+`fd` is a small, FDclone-inspired full-screen browser for navigating directories and viewing files from a terminal. It is not a full replacement for a Linux file manager.
 
-For `/tmp`, `/etc`, and `/proc` files, Enter opens a **read-only viewer that reloads the path roughly once per second**. This is useful for changing `/proc` status values. The viewer displays printable ASCII and replaces other bytes with dots; it is not a binary viewer. Up/Down scrolls one line and PgUp/PgDn scrolls one screen. The viewer can reach the end of large files such as `/proc/sym/kernel` while keeping only the current display window in a 2 KiB buffer. Long lines are clipped to the terminal width. File changes are not saved by the viewer. `q` or Esc returns to the list.
+## Start the browser
 
-Press `e` on a selected file, or while viewing, to launch `edit`. Editing is supported for files directly in `/tmp` or `/etc`, consistent with the editor. Leave `edit` normally to return to `fd`. The browser clears nonblocking stdin before launching the editor and restores its input settings afterwards.
+```sh
+fd
+fd /etc
+fd /proc
+```
 
-The list shows up to 48 entries (including `../` when applicable) and adapts to screen dimensions (capped at 40 rows × 110 columns). Other entries are counted but not shown. No file operations such as copying, deleting, renaming, or moving are implemented. `/dev` nodes are deliberately not previewed, since reading hardware devices may block or have side effects. A terminal supporting ANSI cursor keys is required.
+Without an argument, `fd` opens `/tmp`. Supply a directory to start elsewhere. An **ANSI-capable terminal with cursor-key support** is required.
 
-The `../` entry now comes from the VFS `getdents()` interface rather than being synthesized by `fd`. The browser hides the `.` entry and avoids showing `..` at the root.
+## Navigate the file list
 
-For `/proc/sym/kernel`, if the kernel supports `lseek()`, the viewer keeps a bounded index of file offsets every 16 lines and seeks to the nearest known position before reading. The index is reset when opening a file or pressing `r`. Other `/proc` files may change at any time, so they continue to use sequential scanning to avoid stale offsets. Older kernels without symbol-file seek support also fall back to sequential scanning. The index holds at most 128 offsets; distant lines past its coverage can still be read, but may require scanning.
+| Key | Action |
+|---|---|
+| `↑` / `↓` | Select an entry |
+| `Enter` / `→` | Enter a directory or open a file |
+| `←` / `Backspace` | Go to the parent directory |
+| `Enter` on `../` | Go to the parent directory |
+| `r` | Reload the list |
+| `e` | Open an editable selected file in `edit` |
+| `q` | Quit |
+
+For example, run `fd /proc`, choose an entry with the arrow keys, and press `Enter` to inspect it. Press `q` or `Esc` to return from the viewer. **`q` quits from the file list but returns to the list from the viewer.**
+
+## View a file
+
+Pressing `Enter` on a file under `/tmp`, `/etc`, or `/proc` opens a **read-only viewer**. It reloads the path roughly once per second, making changing `/proc` values useful to observe.
+
+| Key | Viewer action |
+|---|---|
+| `↑` / `↓` | Scroll one line |
+| `PgUp` / `PgDn` | Scroll one screen |
+| `e` | Launch `edit` when the file is editable |
+| `q` / `Esc` | Return to the file list |
+
+The viewer is intended for text. Nonprintable bytes appear as `.`, and long lines are clipped at the terminal width. **It never modifies a file.** Use `hexdump` for binary inspection.
+
+## Edit a file
+
+Select a writable RAM file directly under `/tmp` or `/etc` and press `e`; you can also press `e` from the viewer. Leaving `edit` normally returns to `fd`. The browser temporarily disables nonblocking input before launching the editor and restores its settings afterward. Files under `/proc` are for observation, not editing. See the [edit guide](EDIT.md).
+
+## Limits and implementation notes
+
+- The list displays at most 48 entries (including `../` when present). Further entries are counted but not displayed. The maximum layout is 40 rows × 110 columns.
+- Copy, delete, rename, and move operations are not implemented; use shell commands instead.
+- `/dev` nodes are not previewed because reading devices may block or have side effects.
+- `../` comes from VFS `getdents()` rather than being invented by the browser. `.` is hidden, and `..` is omitted at the root.
+- The viewer holds only the visible window in a 2-KiB buffer, allowing large files to be read sequentially.
+- For `/proc/sym/kernel`, when `lseek()` is available, offsets are indexed every 16 lines (up to 128 entries). Opening another file or pressing `r` clears the index. Lines beyond the indexed range remain readable by scanning. Other `/proc` files and kernels without seek support use sequential reading.
+
+**Troubleshooting:** If cursor keys do not work, verify terminal ANSI support. If an expected item is missing, check the current directory and the 48-entry limit; use `ls` as an alternative.
 
 ---
 
-**Related links:** [Setup](../setup/SETUP.md) | [Guide index](README.md) | [日本語](../../ja/guides/FD.md) | [Documentation](../../DOCS.md)
+**Related links:** [Setup](../setup/SETUP.md) | [Guide index](README.md) | [edit](EDIT.md) | [日本語](../../ja/guides/FD.md) | [Documentation](../../DOCS.md)

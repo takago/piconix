@@ -6,12 +6,14 @@
 
 ## 読み進め方
 
+各段階で「**実行して観察する → 関数の入口を見つける → 引数・状態変化・復帰を追う → リファレンスで仕様を照合する**」を繰り返します．例えば`trace run hello`の`write`を起点に，`call()`，`isr_svcall`，`os_svc_dispatch()`，`vfs_rw()`へ進みます．トレースの表示が関数呼出しの完全な履歴ではない点にも注意してください．
+
 1. 各段階の「読む順序」に従ってソースを開き，該当関数のコメント・引数・戻り値を確認します．
 2. 呼び出し元と呼び出し先を探し，処理の流れを紙などに図示します．`rg -n '関数名\(' kernel userland`が使えます．
 3. 可能なら実機でコマンドを実行し，`ps`・`trace`・`mem`などで結果を確認します．機器に依存する実験は省略可能です．
-4. 各段階の確認問題に答えてから次へ進みます．まず**既存のコードを変更せず**読むことを推奨します．
+4. 各段階の内容を確認し，必要に応じて[カーネル読解演習](../../exercises/KERNEL-READING.md)で理解を確かめてから次へ進みます．まず**既存のコードを変更せず**読むことを推奨します．
 
-事前知識はCの関数・構造体・ポインタと基礎的な二進数です．第4段階だけはCortex-M0+の例外処理とThumbアセンブリを補助資料で確認します．最初に[全体構造](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[Linuxとの違い](../../reference/DIFFERENCES.md)に目を通すと理解しやすくなります．**PicoNIXは一般的なLinuxのプロセス分離・仮想記憶をそのまま実装したOSではありません．**
+UNIX/Linuxの利用経験とOS基礎，Cの関数・構造体・ポインタを前提にします．第4段階だけはCortex-M0+の例外処理とThumbアセンブリを補助資料で確認します．最初に[全体構造](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[Linuxとの違い](../../reference/DIFFERENCES.md)に目を通すと理解しやすくなります．**PicoNIXは一般的なLinuxのプロセス分離・仮想記憶をそのまま実装したOSではありません．**
 
 | 段階 | 学習テーマ | 主なファイル | 学ぶこと |
 |---|---|---|---|
@@ -33,7 +35,6 @@
 
 `register_image()`はFlash上の実行イメージを**登録**し，その時点ではユーザスロットへコピーしません．シェルのプログラムIDは2です．`idle_task()`では`net_poll()`と`os_console_poll()`が動きます．
 
-**確認問題：** 登録と起動は何が違うか．なぜアイドルタスクが必要か．
 
 ## 第2段階：タスク生成とメモリ
 
@@ -43,7 +44,6 @@
 
 **実験：** `ps`でタスクを確認し，`mem -s kernel`や`mem -s sh`でシンボルを調べます．詳しい操作は[メモリ参照](../../guides/MEM.md)を参照してください．
 
-**確認問題：** プログラムID・PID・スロット番号は同じか．RAMスロットはいつ確保されるか．
 
 ## 第3段階：スケジューラ
 
@@ -53,7 +53,6 @@ SysTickは1 ms周期で時刻を進め，通常10 tickごとにPendSVを要求�
 
 **実験：** 複数のコマンドが動く状態で`ps`を確認します．コンテキスト切替の観察方法は[トレース](../../guides/TRACE.md)を参照してください．
 
-**確認問題：** SysTickとPendSVは何を分担しているか．実行可能なユーザタスクがない場合どうなるか．
 
 ## 第4段階：コンテキストスイッチ
 
@@ -61,7 +60,6 @@ SysTickは1 ms周期で時刻を進め，通常10 tickごとにPendSVを要求�
 
 PSP（プロセススタック），MSP（例外処理側のスタック），ハードウェアによる例外フレームの保存と，ソフトウェアによるr4〜r11の退避・復元を区別します．`os_schedule(oldsp)`が旧PSPを保存し次のPSPを返す点が中心です．
 
-**確認問題：** タスクを切り替えたあとに，別のタスクの続きから実行できるのはなぜか．SVCとPendSVは目的がどう違うか．
 
 ## 第5段階：システムコール
 
@@ -82,7 +80,6 @@ PSP（プロセススタック），MSP（例外処理側のスタック），�
 
 **実験：** `trace run hello`でwriteのENTER/EXITを観察します．
 
-**確認問題：** ユーザコードが直接デバイスを操作する代わりにSVCを使う理由は何か．
 
 ## 第6段階：ファイルとFD
 
@@ -92,7 +89,6 @@ FD番号と，FDに結び付けられた対象の内部ID・ファイル位置�
 
 **実験：** `cat /proc/uptime`，`ls /dev`，`lsof`を使い，[ファイルシステム](../../reference/FILESYSTEM.md)と比較します．
 
-**確認問題：** 同じ`read()`が通常ファイルとデバイスの双方で動くのはなぜか．EOFはどのように表すか．
 
 ## 第7段階：TTYとパイプ
 
@@ -104,7 +100,6 @@ FD番号と，FDに結び付けられた対象の内部ID・ファイル位置�
 echo hello | grep hello | cat
 ```
 
-**確認問題：** パイプの読取側がデータを待つときタスクはどうなるか．書込側の参照がなくなったことをどこで判断し，EOFを返すか．TTYの入力行編集と画面制御は誰の責任か．
 
 ## 第8段階：デバイス
 
@@ -112,7 +107,6 @@ echo hello | grep hello | cat
 
 GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [デバイス仕様](../../reference/devices/DEVICES.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
 
-**確認問題：** デバイス固有のコードを通常のI/O入口から切り離す利点は何か．VFS側とドライバ側では何を担当するか．
 
 ## 第9段階：ネットワーク（Pico Wのみ・任意）
 
@@ -122,7 +116,6 @@ Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイ�
 
 **補助資料：** [ネットワーク実装・拡張ガイド](../network/NETWORK-DEVELOPMENT.md)で各ファイルの責任分担と改造時の注意点を確認できます．
 
-**確認問題：** `net_poll()`はなぜ必要か．`httpd`がユーザプログラムなのに，Telnetサービスはカーネル側にあるのはどのような設計上の違いか．
 
 ## 補講：CPUモード・スタック・SVC・PendSVをソースで追う
 
@@ -202,59 +195,11 @@ Research UNIX V5/V6では，カーネル内の`sleep()`で待機したプロセ�
 
 対してPicoNIXは，待機条件とシステムコールの復帰状態を保存し，**カーネル関数の呼び出し状態を残さず**別タスクへ移ります．この違いを，プロセス別カーネルスタックの必要性と結び付けて考えてください．両方式とも「ユーザプログラムからはブロッキング`read()`に見える」という点は同じです．
 
-**ソース読解課題：** `spawn_in_slot()`で作られる初期フレームの順序と`isr_pendsv`の復元順序を照合する．続いて`device_rw_tty()` → `os_schedule()` → `wake_readers()` → `task_unblock()`を追い，なぜ`wait_frame_ready`と`t->sp[8]`が必要なのか説明する．最後に`SYS_SLEEP`と`SYS_YIELD`の違いを説明する．
 
-## 第6段階：ファイルとFD
+## まとめと演習
 
-**読む順序：** `fd_set()` → `fd_release()` → `vfs_open()` → `vfs_rw()` → `tmp_open()`・`tmp_rw()` → `device_rw_proc()`・`device_rw_tty()`．最後に`os_svc_dispatch()`の`SYS_OPEN`・`SYS_READ`・`SYS_WRITE`・`SYS_CLOSE`を見直します．
+章末の確認問題と総合課題は[カーネル読解演習](../../exercises/KERNEL-READING.md)にまとめています．
 
-FD番号と，FDに結び付けられた対象の内部ID・ファイル位置・フラグは別の情報です．`/tmp`のRAMファイル，`/proc`の仮想情報，`/dev`のデバイスは，パスの振り分け先が異なります．
-
-**実験：** `cat /proc/uptime`，`ls /dev`，`lsof`を使い，[ファイルシステム](../../reference/FILESYSTEM.md)と比較します．
-
-**確認問題：** 同じ`read()`が通常ファイルとデバイスの双方で動くのはなぜか．EOFはどのように表すか．
-
-## 第7段階：TTYとパイプ
-
-**TTYを読む順序：** `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`．[端末](../../guides/TERMINAL.md)と[TTY設定](../../guides/TTY.md)も参照します．
-
-**パイプを読む順序：** `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → `fd_set()`・`fd_release()` → `os_svc_dispatch()`の`SYS_PIPE`・`SYS_DUP2`・`SYS_CLOSE` → シェルの`|`処理．
-
-```sh
-echo hello | grep hello | cat
-```
-
-**確認問題：** パイプの読取側がデータを待つときタスクはどうなるか．書込側の参照がなくなったことをどこで判断し，EOFを返すか．TTYの入力行編集と画面制御は誰の責任か．
-
-## 第8段階：デバイス
-
-**読む順序：** `kernel/kernel.c`のデバイスI/O振り分け → `kernel/gpio.c` → `kernel/fb.c` → `kernel/adc.c` → `kernel/i2c.c` → `kernel/pwm.c`．ハードウェアの定義は`kernel/pins.h`・`kernel/devices.h`・`include/device_names.h`も参照します．
-
-GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [デバイス仕様](../../reference/devices/DEVICES.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
-
-**確認問題：** デバイス固有のコードを通常のI/O入口から切り離す利点は何か．VFS側とドライバ側では何を担当するか．
-
-## 第9段階：ネットワーク（Pico Wのみ・任意）
-
-**読む順序：** `kernel/main.c`での`net_init()` → `kernel/net.c`の`net_init()`・`net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c`・`kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c`．
-
-Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイス制御，ユーザアプリのTCP/UDPソケットを区別します．ソケットAPIとユーザ側の例は[ネットワークプログラミング](../apps/c/NETWORK-PROGRAMMING.md)を参照してください．**通常のPicoだけで学ぶ場合はこの段階を省略できます．**
-
-**補助資料：** [ネットワーク実装・拡張ガイド](../network/NETWORK-DEVELOPMENT.md)で各ファイルの責任分担と改造時の注意点を確認できます．
-
-**確認問題：** `net_poll()`はなぜ必要か．`httpd`がユーザプログラムなのに，Telnetサービスはカーネル側にあるのはどのような設計上の違いか．
-
-## 最終演習：一つの操作を端から端まで追う
-
-`trace run hello`を実行したうえで，**「シェルがhelloを起動し，文字列がTTYへ出力され，終了するまで」**を次の順に説明してください．
-
-1. シェルの起動要求（`spawn()`）とSVC
-2. 実行イメージの読み込み・タスクの準備
-3. スケジューラとPendSVによる最初の実行
-4. `write()`からVFSとTTYへの経路
-5. 終了処理，FDの解放，スロットの再利用
-
-余力があれば，`echo hello | cat`の起動・FD複製・ブロック・EOFまで同じ方法で図示します．**コードの変更が目的ではなく，関数間の関係を説明できることが到達目標です．**
 
 ## 次に読む文書
 

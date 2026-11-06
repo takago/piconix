@@ -98,7 +98,7 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
     -DPICONIX_KERNEL_FUNCTION_TRACE=ON
 ```
 
-Pico Wの場合は`-DPICO_BOARD=pico_w`に変更します．ビルド・書き込み後は`trace run -d 2 hello`などで呼び出し階層を確認できます．通常の軽量な構成に戻す場合は，`-DPICONIX_KERNEL_FUNCTION_TRACE=OFF`を明示して再ビルドしてください．**CMakeキャッシュに以前のON設定が残ることがあるため，オプションの省略だけではOFFに戻らない場合があります．**
+Pico Wの場合は`-DPICO_BOARD=pico_w`に変更します．ビルド・書き込み後は`trace run hello`などで呼び出し階層を確認できます．通常の軽量な構成に戻す場合は，`-DPICONIX_KERNEL_FUNCTION_TRACE=OFF`を明示して再ビルドしてください．**CMakeキャッシュに以前のON設定が残ることがあるため，オプションの省略だけではOFFに戻らない場合があります．**
 
 ONでは`kernel/kernel.c`内の計測対象外の関数にも入口・出口フックが挿入され，Flash・スタック使用量および実行時間が増える可能性があります．詳細と制約は[トレースガイド](../guides/TRACE.md)を参照してください．
 

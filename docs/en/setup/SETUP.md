@@ -98,7 +98,7 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
     -DPICONIX_KERNEL_FUNCTION_TRACE=ON
 ```
 
-Use `-DPICO_BOARD=pico_w` for Pico W. After building and flashing, try `trace run -d 2 hello`. To return to the lightweight default configuration, rebuild with `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF` explicitly. **CMake may retain a previous ON setting in its cache; omitting the option does not necessarily turn it off.**
+Use `-DPICO_BOARD=pico_w` for Pico W. After building and flashing, try `trace run hello`. To return to the lightweight default configuration, rebuild with `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF` explicitly. **CMake may retain a previous ON setting in its cache; omitting the option does not necessarily turn it off.**
 
 When enabled, function entry/exit hooks are inserted even into functions in `kernel/kernel.c` that are not recorded. Flash usage, stack usage, and execution time may increase. See the [trace guide](../guides/TRACE.md) for details and limitations.
 

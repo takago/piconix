@@ -8,7 +8,85 @@ The design principles and specifications of PicoNIX are determined by its creato
 
 PicoNIX grew into a small UNIX-like operating system for Raspberry Pi Pico (RP2040), intended to make operating-system mechanisms observable and understandable. This diary records **the development process through conversations between the developer and ChatGPT**: design choices, experiments, failures, revisions, and lessons learned. It is not a substitute for the current technical documentation.
 
-The primary period is **October 24 through November 5, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
+The primary period is **October 24 through November 6, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
+
+### 2026-11-06 — Explicit function instrumentation exclusions across kernel sources
+
+- Added `NO_TRACE` to every non-selected function definition in the eight C sources built with `-finstrument-functions`, keeping the 51 functions in `TRACE_MATCH` instrumented. Function bodies and the address/name matching table are unchanged.
+- Extended the existing target-check test to catch missing exclusions and wrongly excluded targets without adding a generator or a build step.
+- UART input and SYSCALL/TIMER/SWITCH events remain available. Hardware performance measurements are pending.
+
+### 2026-11-06 — Suppress instrumentation of frequent polling probes
+
+- Marked TCP/TTY readiness probes and scheduler wake-check routines `NO_TRACE` to avoid entry/exit hook overhead while leaving the polling logic unchanged.
+- Removed three probes from `TRACE_MATCH` (54 to 51 entries); retained `tty_input_char()`, timer, switch and syscall events.
+- Updated the target checks and bilingual trace guides. Hardware overhead measurements remain pending.
+
+### 2026-11-06 — Separate changes in displayed PID with ASCII lines
+
+- Replaced the ANSI underline on `SWITCH` rows with a hyphen-only separator before any displayed row whose PID differs from the preceding displayed row.
+- `SWITCH` rows show the destination PID, while a completed blocked system call can name a task before it resumes. The separator therefore marks changes in displayed PID, not necessarily the exact context-switch instant. No kernel event or ABI change was made.
+
+### 2026-11-06 — Revert SVC boundary events and fix syscall indentation
+
+- Removed the experimental `SVC_LEAVE` assembly hook, kernel recorder, event definition, and display handler; `SVC_ENTER` will not be added. The SVC exception-return assembly returns to its prior form.
+- Nest `SYSCALL` rows beneath an instrumented `os_svc_dispatch()` and indent internal kernel functions one level further. Preserve top-level syscall display when the dispatcher is not traced.
+- Retain underline on `SWITCH` rows, the 54 selected functions, and the 32-byte event ABI.
+
+### 2026-11-06 — Record the SVC return boundary and highlight context switches
+
+- Added `SVC_LEAVE` in the assembly SVC handler after `os_svc_dispatch()` returns and before exception return. This does not guarantee resumption of the previous user program.
+- Underlined `SWITCH` rows in the trace output with ANSI SGR, restoring terminal attributes at the end of each line. The 32-byte trace ABI and 512-record ring remain unchanged.
+- Hardware validation is still needed, including the additional event volume and UART1 tracing overhead.
+
+### 2026-11-06 — Experimentally trace TTY character input
+
+- Added `tty_input_char()` to the selected function list, increasing the target count from 53 to 54 without changing the event ABI, trace processing, or TTY input behavior.
+- Because UART1 calls it in the receive interrupt, continuous-reception tests on hardware must check for lost input and interrupt overhead. Use `trace on -a` to capture the non-SVC path; default function tracing remains SVC-only.
+- Updated both trace guides and the trace-target consistency test.
+
+### 2026-11-06 — Trace SVC dispatch and task wakeups
+
+- Added `os_svc_dispatch()` and `task_unblock()` to the selected kernel function trace targets, bringing the count from 51 to 53 without changing the existing `SYSCALL` records or trace ABI.
+- Left `tty_input_char()` unselected despite its shared USB CDC/Telnet/UART1 input role because it runs per character, including in the UART1 receive interrupt, and could increase instrumentation overhead and trace traffic.
+- Updated the target-list regression test and both trace guides. Hardware validation remains necessary.
+
+### 2026-11-06 — Clarified prior-knowledge assumptions and source-focused learning
+
+- Stated that the documentation assumes prior UNIX/Linux, OS and C knowledge, and concentrates on RP2040-specific behavior, source reading, observation and modification.
+- Expanded the English kernel-reading stages, removed duplicated sections in the Japanese guide, and added a concrete edit/test/build/hardware-validation workflow to the kernel development guide.
+- No source code or command behavior changed.
+
+### 2026-11-06 — Reorganized usage guides for beginners
+
+- Improved the Japanese and English `FD`, `MEM`, `TRACE`, `TERMINAL`, and `DD` guides, separating introductions, first steps, output interpretation, limitations, and further reading. Added quick-start context to `EDIT`, `VI`, and `PIPE`.
+- Moved the `MEM` observation questions to the bilingual exercise index, leaving operating instructions and cautions in the guide.
+- No kernel or command behavior was changed; documentation links and bilingual structure were checked.
+
+### 2026-11-06 — Separate guides and exercises
+
+- Kept usage instructions, reproducible examples, and technical specifications in guides and references, while collecting investigation tasks in `docs/en/exercises/`.
+- Reorganized ten tracing exercises, kernel reading questions, MCP/Linux comparisons, and network review questions, with matching Japanese material.
+- Updated documentation indexes, roadmaps, task lookups, and cross-links. No kernel or user application sources were changed.
+
+### 2026-11-06 — Show the requested path on open entry traces
+
+- Record up to 16 validated bytes of the user-provided path on `open` ENTER, replacing the literal `path` placeholder when data is available.
+- Preserve the existing `open/` EXIT behavior, 32-byte trace ABI, and FD-name cache. Failed opens also retain the requested name from ENTER.
+- Check the pointer range, avoid additional path reads while tracing is disabled, and update the bilingual tracing guides and regression coverage.
+
+### 2026-11-06 — Improve C readability and audit the documentation
+
+- Reformatted simple single-line `if`, `for`, and `while` statements across C source and headers to make control flow easier to read. Preserved macros, C tokens, and existing behavior; compared the token streams before and after formatting.
+- Added missing function summaries in the networking, MCP, tracing, and host utilities; regenerated `docs/FUNCTIONS.md` from the current source.
+- Checked the bilingual manual pairs, internal Markdown links, generated function index, and documented interface contracts. Kept obsolete commands in historical diary entries to preserve the chronology of development.
+- Ran available host-side regression checks. ARM firmware, PIC, and SRAM layout validation remain unverified without the required cross-toolchain.
+
+### 2026-11-06 — Clarify kernel-function tracing and maintain its target list
+
+- Retained the `TRACE_MATCH` list in `kernel.c`, including functions from other kernel modules referenced through internal headers. Documented its distinction from the ELF-derived kernel symbol table used by `mem -s kernel`.
+- Added a source-level test for duplicate names, function definitions and CMake instrumentation coverage. No trace hooks, event ABI, or target functions were changed.
+- Replaced obsolete `trace kernel` and `trace run -d` examples in the README and bilingual setup guides with the current `trace run` command.
 
 ### 2026-11-06 — MCP server and local-LLM integration verified on Pico W
 

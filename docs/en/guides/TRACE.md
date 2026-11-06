@@ -4,6 +4,29 @@
 
 PicoNIX records task switches, system-call entry/exit, and periodic timer events through `/dev/trace`. Use the `trace` command to inspect these events.
 
+## Start with one command
+
+```sh
+trace run hello
+```
+
+This launches `hello`, waits for it to finish, and displays events associated with that process. It is the easiest starting point. Read the columns as follows:
+
+| Column | Meaning |
+|---|---|
+| `Time` | Time since boot when the event was recorded |
+| `PID` / `Command` | Associated task and command |
+| `TTY` | Terminal used |
+| `Type` | Event category such as `SYSCALL`, `KERNEL`, `SWITCH`, or `TIMER` |
+| `Function` | Operation name; a trailing `/` marks an exit |
+| `Arg` | Captured arguments, FD, or path (not necessarily every argument) |
+| `Ret` | Recorded syscall result |
+| `Info` | Supplemental information, such as a preview of I/O data |
+
+For example, `open` marks entry and `open/` marks exit. The entry `Arg` can show the requested path, up to 16 bytes; check the exit for the result. Longer paths are truncated. `--` means no value was captured for that field. Timestamps and event counts depend on the run.
+
+Next, `trace run ls` provides a richer file-operation example. For observation questions, see the [trace exercises](../exercises/TRACE.md).
+
 ## Commands
 
 ```text
@@ -63,6 +86,25 @@ have no PID and display a dash. `show PID` and `follow PID` exclude PID-less eve
 `run -a` records all contexts but displays only the launched PID after the command exits;
 use `on -a` and `follow` to inspect asynchronous records.
 
+### Polling/readiness checks and function instrumentation
+
+`-finstrument-functions` inserts entry/exit hooks into functions in selected source files. Under `trace on -a`, frequent readiness checks can fill the trace ring even without network traffic.
+
+The `NO_TRACE` (`no_instrument_function`) attribute therefore suppresses instrumentation of TCP/TTY readiness and status probes and scheduler wake-check loops. Those probes are also excluded from `TRACE_MATCH`. The actual `tty_input_char()` input path, socket data transfers, `task_unblock()`, `SYSCALL`, `TIMER`, and `SWITCH` remain observable.
+
+
+In the eight instrumented kernel C sources, **only the 51 functions listed in `TRACE_MATCH`** retain compiler entry/exit instrumentation. Every other function definition is marked `NO_TRACE`. This avoids invoking instrumentation hooks for functions that would never appear in the trace. Polling itself still runs, but the trace overhead is reduced. When adding a function, check whether it belongs in `TRACE_MATCH` or needs `NO_TRACE`, and run `test_kernel_trace_targets.py` to detect omissions.
+
+`NO_TRACE` does not affect called functions and does not stop polling itself. Validate the remaining UART1 interrupt/input instrumentation overhead with continuous input on real hardware.
+
+### Selected functions and the symbol table
+
+When instrumentation is enabled, the compiler adds `-finstrument-functions` hooks to `kernel/kernel.c`, `kernel/adc.c`, `kernel/i2c.c`, `kernel/pwm.c`, `kernel/gpio.c`, `kernel/fb.c`, `kernel/net_socket.c` and `kernel/net_capture.c`. The `TRACE_MATCH` list in `kernel/kernel.c` filters which function calls are actually recorded. A function defined in another C file can be referenced through its declaration in an internal header. Instrumented functions and recorded functions are not necessarily the same set.
+
+The kernel symbol table shown by `mem -s kernel` is instead generated from the linked ELF. It provides symbol names and addresses for inspection; it does not select trace targets. Run `tools/test_scripts/test_kernel_trace_targets.py` to check the selected list for duplicates, source definitions and instrumentation coverage.
+
+The target list now also includes `os_svc_dispatch()` (SVC dispatch) and `task_unblock()` (resuming blocked tasks). The former intentionally overlaps the existing `SYSCALL` events to show the function boundary. The latter can run outside SVC, so observing it may require `trace on -a`. `tty_input_char()` is now included experimentally. It processes input characters from USB CDC and Telnet and can run in the UART1 receive interrupt once per character. Use `trace on -a` to observe non-SVC calls. Check UART1 continuous reception for lost bytes on hardware, as interrupt overhead and ring-buffer overwrites may increase. PID-less interrupt events are not shown by the PID-filtered `trace run -a` output.
+
 Coverage includes selected VFS, file-descriptor, RAM-file, TTY, ADC, I2C, PWM, GPIO,
 framebuffer and TCP/UDP functions. ICMP device calls `net_echo_write`, `net_echo_read`,
 and `net_echo_close` are included, but `net_capture_poll` and `echo_received` are not.
@@ -73,16 +115,17 @@ Compiler optimizations may inline calls. All-context recording increases runtime
 The ring buffer is protected against interrupt-time re-entry, but real-device timing and
 capacity must still be validated. The old `trace kernel` command has been removed.
 
+#
 ## Event types and display
 
 | Event | Meaning |
 |---|---|
-| `SWITCH` | Context switch |
+| `SWITCH` | Context switch (destination PID is displayed) |
 | `read` / `read/` etc. | System-call entry and exit, using the syscall name |
 | `TICKx1K` | One record for every 1,000 ticks of the 1ms SysTick |
 | `vfs_rw` / `vfs_rw/` etc. | Entry/exit of selected kernel functions (experimental) |
 
-The display contains `Time | PID | Command | TTY | Type | Function | Arg | Ret | Info`. The `Type` column distinguishes `SYSCALL`, `KERNEL`, `SWITCH`, `TIMER`, and `OTHER`. Kernel functions directly inside a syscall start at indentation depth 1; the syscall itself is depth 0. `Arg` carries the previously displayed target or recorded argument, not necessarily every function argument. `Ret` is the recorded syscall return value; internal kernel-function return values are not captured. `Info` contains auxiliary details such as I/O previews or task switches. Missing or inapplicable fields show `--`. The `exit` record is an OS termination event, not a conventional function return. The trace command's own system calls and related context switches are excluded from capture.
+The display contains `Time | PID | Command | TTY | Type | Function | Arg | Ret | Info`. The `Type` column distinguishes `SYSCALL`, `KERNEL`, `SWITCH`, `TIMER`, and `OTHER`. With `os_svc_dispatch()` instrumented, the syscall row is nested inside it, and internal kernel calls are indented one level further. Without the dispatcher event, syscall rows start at depth 0. `Arg` carries the previously displayed target or recorded argument, not necessarily every function argument. `Ret` is the recorded syscall return value; internal kernel-function return values are not captured. `Info` contains auxiliary details such as I/O previews or task switches. Missing or inapplicable fields show `--`. The `exit` record is an OS termination event, not a conventional function return. The trace command's own system calls and related context switches are excluded from capture.
 
 ## Try it: observe system calls and task switches
 
@@ -95,145 +138,20 @@ After each program exits, its trace is displayed. Compare `function` and `functi
 
 For a longer capture, start with `trace on`, run another command, then inspect the result using `trace show` (which stops capture). On long runs, older events may be overwritten in the ring buffer.
 
-## Hands-on exercises: SVC and asynchronous execution
+## Further exercises
 
-These exercises assume a build with `PICONIX_KERNEL_FUNCTION_TRACE=ON`. An ordinary build still records system calls, SysTick events and task switches, but does not show `KERNEL` function records. Actual timestamps, PIDs and call sequences vary.
+For step-by-step investigations and observation questions, see [Kernel trace exercises](../exercises/TRACE.md). This guide remains the reference for usage and event formats.
 
-### Exercise 1: system calls and selected kernel functions
 
-```text
-piconix# trace run hello
-piconix# trace run ls
-piconix# trace run python test.py
-```
+## Kernel function and syscall nesting; switch emphasis
 
-Compare `SYSCALL` and `KERNEL` records to follow calls from a system call into selected VFS or driver functions. An entry is shown as the function name and an exit with a trailing `/`. Adjacent entry/exit records may be shown as one `(name)` row. Without `-a`, function records are limited to SVC execution. `trace run` displays only records associated with the launched PID.
+When function instrumentation includes `os_svc_dispatch()`, `SYSCALL` entry/exit rows appear one level beneath that function. For example, `os_svc_dispatch` → `write` → `vfs_rw` → `write/` → `os_svc_dispatch/` shows the nesting. Without function instrumentation, syscalls remain at the top level. Indentation is reconstructed from trace events and may not represent an exact call stack after dropped events or interrupts.
 
-### Exercise 2: ICMP device activity during ping
+`os_svc_dispatch/` means the C dispatcher returned; it does not prove completion of exception return. No extra `SVC_ENTER` or `SVC_LEAVE` boundary event is recorded.
 
-```text
-piconix# trace run ping 127.0.0.1
-```
+When the displayed PID changes from the preceding displayed row, an ASCII hyphen (`-`) separator is printed immediately before the new row. No separator appears before the first event. Events removed by the PID filter do not affect this comparison; compacted function entry/exit pairs count as one displayed row. A `SWITCH` row displays the destination PID, so a separator is a change in the displayed PID, not necessarily the exact instant of a context switch. No ANSI control sequences are needed.
 
-Look for `open`, `write` and `read` calls involving `/dev/net/icmp`. In instrumented builds, `net_echo_write`, `net_echo_read` and `net_echo_close` may appear if actually called in SVC context. This does not trace every asynchronous stage of ICMP reception.
-
-### Exercise 3: observe other contexts using two terminals
-
-Use **two terminals**, such as USB CDC plus UART1 or Telnet.
-
-Terminal A:
-
-```text
-piconix# trace on -a
-piconix# trace follow
-```
-
-Terminal B:
-
-```text
-piconix# ping 127.0.0.1
-piconix# ls
-```
-
-Look for `SYSCALL`, `SWITCH`, `TIMER` and `KERNEL` records in terminal A. The `-a` option widens capture of **selected instrumented kernel functions** beyond SVC. Asynchronous and interrupt-context function events have no PID and appear as `-`. Functions not selected or instrumented, such as `net_capture_poll` and `echo_received`, are not recorded. The periodic SysTick `TICKx1K` record is an ordinary event and does not depend on `-a`.
-
-From another terminal, stop capture:
-
-```text
-piconix# trace off
-```
-
-`trace follow` drains the remaining records and exits. Note that `trace show` also stops capture before displaying history.
-
-### Exercise 4: compare with `trace run -a`
-
-```text
-piconix# trace run -a ping 127.0.0.1
-```
-
-The `-a` option **records** selected functions in all contexts, but the resulting output **displays** records for the launched ping PID only. To inspect PID-less asynchronous functions, use `trace on -a` with `trace follow` as in exercise 3. Keep captures short: the 512-event ring buffer overwrites old records when full.
-
-## Labs: files, devices, networking, and scheduling
-
-Use `trace run` for short-lived programs and `trace on` plus `trace follow` from another terminal for long-running servers. `trace run` prints its report only after the target terminates. Stop a live capture using `trace off` from another terminal.
-
-### Exercise 5: RAM files and VFS
-
-Prepare a small RAM file first:
-
-```text
-piconix# echo hello > /tmp/test.txt
-piconix# trace run cat /tmp/test.txt
-```
-
-Look for `open`, `read`, `write`, and `close`, and compare them to selected `KERNEL` calls such as `vfs_rw`. A compact `(in_task_range)` row represents consecutive entry and exit records at the same recorded time. The two underlying events remain in the buffer.
-
-### Exercise 6: Python file operations and ADC
-
-```text
-piconix# trace run python test.py
-```
-
-The bundled `test.py` reads the on-chip temperature sensor five times. Python assignments and integer arithmetic run in user space and do not themselves generate `SYSCALL` events. Observe device-file `open`, `read`, `write`, and `close`, together with any waiting syscalls. Check the contents of `/tmp/test.py` when interpreting the result.
-
-### Exercise 7: BH1750 and I2C ioctl
-
-With a BH1750 connected, limit the program to one measurement:
-
-```text
-piconix# trace run bh1750 1
-```
-
-Observe `open` for `/dev/i2c/1`, `ioctl` for the transfer, and `close` during cleanup. In an instrumented build, look for `i2c_driver_transfer` when the corresponding SVC path runs. A sensor-free board cannot be expected to return a valid measurement. Without a count argument, `bh1750` measures continuously, so supply a count when using `trace run`.
-
-### Exercise 8: HTTP server, select, accept, and read
-
-Start the server on terminal A:
-
-```text
-piconix# httpd
-```
-
-On terminal B:
-
-```text
-piconix# trace on
-piconix# trace follow
-```
-
-Access the Pico W HTTP server from a PC browser. Look for `select`, `accept`, `read`, and `write`. Relate the count of ready descriptors returned by `select` to subsequent `accept` and `read` operations. Because `httpd` normally continues running, do not use `trace run httpd` in this exercise.
-
-### Exercise 9: blocking accept versus I/O multiplexing
-
-On terminal A:
-
-```text
-piconix# tcp_echod 7000
-```
-
-Capture events using `trace on` and `trace follow` on another terminal, and connect with an external TCP client on port 7000 to exchange data. Compare events during idle waiting and after connections or data arrive. Next, compare with communication through `nc` to study blocking on one socket versus using `select` for multiple descriptors. Confirm the precise wait states in the user-space and kernel sources; the trace alone may not identify every internal state transition.
-
-### Exercise 10: PID filtering and SysTick
-
-```text
-piconix# ps
-piconix# trace on
-piconix# trace follow
-```
-
-Find periodic `TIMER TICKx1K` events and `SWITCH` records. `TICKx1K` reports every 1,000 ticks of the 1 ms SysTick; it does not report every interrupt.
-
-To focus on one program, obtain its PID using `ps`, then use `trace follow PID` or `trace show PID`. A PID argument is a **display filter**, not a capture filter, and does not reduce ring-buffer usage. `SWITCH` records are filtered by destination PID. To inspect PID-less asynchronous function events, use `trace on -a` with unfiltered `trace follow`.
-
-### Lab caveats
-
-- A build with `PICONIX_KERNEL_FUNCTION_TRACE=OFF` produces no `KERNEL` function rows.
-- `-a` does **not** enable every kernel function. It admits non-SVC contexts only for selected and instrumented functions.
-- The ring buffer holds 512 events and overwrites old entries. Start with short captures.
-- `Ret` for function events is not the internal function's return value; distinguish it from syscall return values.
-- Tracing adds runtime overhead, so displayed timestamps are not a precise performance benchmark.
-
-## `/dev/trace` binary format
+## Internals: `/dev/trace` binary format
 
 Records are **32 bytes each**, as defined by `trace_event_t` in `include/piconix_trace.h`. The kernel holds **16 KiB (512 events)** in a ring buffer; new events overwrite the oldest when full.
 
@@ -242,7 +160,9 @@ Records are **32 bytes each**, as defined by `trace_event_t` in `include/piconix
 - `pid` / `program_id`: registered program ID (the event kind high bits encode TTY)
 - `file_id`: internal device/file ID, or -1 when absent/unknown
 - `value` / `detail`: syscall ID, arguments, return value, or destination task depending on event
-- `data[16]`: first 16 bytes of a successful `open()` path or successful `read()`/`write()` transfer; not necessarily NUL-terminated
+- `data[16]`: first 16 bytes of an `open()` path on entry (including failed calls) and on successful exit, or a successful `read()`/`write()` transfer; not necessarily NUL-terminated
+
+The `Arg` column for `open` on ENTER shows the requested path (up to 16 bytes). On successful `open/` EXIT, the FD is associated with that path. On failed EXIT, the viewer reuses the path recorded at ENTER. If the path cannot be read or is empty, ENTER displays `path`.
 
 The viewer associates successful open events with PID/FD paths. If that history has been overwritten, it falls back to file IDs. Long paths and I/O are truncated, while binary bytes are escaped for display.
 

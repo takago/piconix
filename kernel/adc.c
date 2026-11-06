@@ -6,10 +6,15 @@
 #include "hardware/adc.h"
 #include <stdio.h>
 #include <stdint.h>
+
+/* 関数トレースの対象外では計測フックを生成しない． */
+#define NO_TRACE __attribute__((no_instrument_function))
 /* ADCと温度センサを初期化し，利用可能な入力ピンをADC機能に切り替える． */
-void adc_driver_init(void) {
+NO_TRACE void adc_driver_init(void) {
     adc_init();
-    for(unsigned ch=0;ch<3;ch++) if(pin_adc(ch)) adc_gpio_init(26u+ch);
+    for(unsigned ch=0;ch<3;ch++)
+        if(pin_adc(ch))
+            adc_gpio_init(26u+ch);
     adc_set_temp_sensor_enabled(true);
 }
 

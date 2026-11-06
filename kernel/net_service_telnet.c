@@ -49,7 +49,8 @@ unsigned net_terminal_epoch(void) { return terminal_epoch; }
 
 /* 受信キューから指定した最大バイト数を取り出す．切断時は-1，データ待ちなら0，成功時は読出しバイト数を返す． */
 int net_terminal_read(void *dst, unsigned size) {
-    if (!client) return -1;
+    if (!client)
+        return -1;
     unsigned char *out = dst;
     unsigned n = 0;
     while (n < size && net_rx_tail != net_rx_head) {
@@ -61,12 +62,15 @@ int net_terminal_read(void *dst, unsigned size) {
 
 /* TTY送信バイトを固定長キューに積み，積めた量を返す．切断時は-1．CRLFの途中だけを採用しない． */
 int net_terminal_write(const void *src, unsigned size) {
-    if (!client) return -1;
+    if (!client)
+        return -1;
     /* TTYからのCRLFをCRだけでキューに入れてはならない． */
     unsigned needed = size;
     if (client_telnet) {
         const unsigned char *b = src;
-        for (unsigned i=0; i<size; ++i) if (b[i] == 255) ++needed;
+        for (unsigned i=0; i<size; ++i)
+            if (b[i] == 255)
+                ++needed;
     }
     if (needed > queue_space(net_tx_head, net_tx_tail)) return 0;
     const unsigned char *in = src;
@@ -85,10 +89,12 @@ int net_terminal_write(const void *src, unsigned size) {
 
 /* ポーリング文脈からネットワークへ送信キューを流す．TCPの送信バッファ容量を超えないようにする． */
 static void net_terminal_flush(void) {
-    if (!client) return;
+    if (!client)
+        return;
     if (client_telnet && telnet_hello_pos < sizeof(telnet_hello)) {
         unsigned n = sizeof(telnet_hello) - telnet_hello_pos;
-        if (n > tcp_sndbuf(client)) n = tcp_sndbuf(client);
+        if (n > tcp_sndbuf(client))
+            n = tcp_sndbuf(client);
         if (n && tcp_write(client, telnet_hello + telnet_hello_pos,
                            (u16_t)n, TCP_WRITE_FLAG_COPY) == ERR_OK) {
             telnet_hello_pos += n;
@@ -96,11 +102,14 @@ static void net_terminal_flush(void) {
         }
         return;
     }
-    if (net_tx_tail == net_tx_head) return;
+    if (net_tx_tail == net_tx_head)
+        return;
     unsigned available = queue_count(net_tx_head, net_tx_tail);
     unsigned contiguous = NET_TTY_QUEUE_SIZE - net_tx_tail;
-    if (available > contiguous) available = contiguous;
-    if (available > tcp_sndbuf(client)) available = tcp_sndbuf(client);
+    if (available > contiguous)
+        available = contiguous;
+    if (available > tcp_sndbuf(client))
+        available = tcp_sndbuf(client);
     /* 一度の送信追加はMSS以内に収める．tcp_sndbufだけではlwIPのTCPセグメント管理数の上限を考慮できない． */
     if (available > TCP_MSS) available = TCP_MSS;
     if (available && tcp_write(client, net_tx + net_tx_tail,
@@ -134,7 +143,8 @@ static void net_receive_byte(unsigned char c) {
             telnet_state = 0;
             return;
         } else if (telnet_state == 3) {
-            if (c == 255) telnet_state = 4;
+            if (c == 255)
+                telnet_state = 4;
             return;
         } else if (telnet_state == 4) {
             telnet_state = c == 240 ? 0 : 3;
@@ -142,9 +152,11 @@ static void net_receive_byte(unsigned char c) {
         } else if (c == 255) { telnet_state = 1; return; }
         if (telnet_cr) {
             telnet_cr = 0;
-            if (c == 0 || c == '\n') return;
+            if (c == 0 || c == '\n')
+                return;
         }
-        if (c == '\r') telnet_cr = 1;
+        if (c == '\r')
+            telnet_cr = 1;
     }
     net_rx[net_rx_head] = c;
     net_rx_head = (net_rx_head + 1u) & (NET_TTY_QUEUE_SIZE - 1u);

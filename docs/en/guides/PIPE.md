@@ -2,6 +2,9 @@
 
 *Usage guide*
 
+**Before you start:** A pipe (`|`) connects the previous command’s standard output to the next command’s standard input. Data not shown on screen is not necessarily lost.
+
+
 The PicoNIX shell supports `|` to connect one command's standard output to the next command's standard input. `grep` selects lines containing a literal string.
 
 ## Examples

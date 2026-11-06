@@ -1,5 +1,7 @@
 # PicoNIX documentation directory
 
+**Audience:** Readers who already know UNIX/Linux operations, basic OS concepts and C. These documents explain how PicoNIX implements those ideas, not the underlying theory. See the [prerequisites and roadmap](en/ROADMAP.md#audience-and-prerequisites).
+
 PicoNIX documentation is organized into **usage guides, technical reference, and development guides**. For a suggested learning order, use the [Learning roadmap](en/ROADMAP.md).
 
 ## Start here: Setup
@@ -19,6 +21,10 @@ Find learning steps, command guides, and references for goals such as editing fi
 ## 3. Look up individual operations (usage guides)
 
 **[Usage guides](en/guides/README.md)** cover detailed commands such as help, pipes, terminal settings, trace, the memory viewer, and editors. The roadmap suggests an order; step-by-step instructions are provided in each guide.
+
+## Exercises
+
+**[Exercise index](en/exercises/README.md)**: investigation and review tasks, separate from command examples in the guides.
 
 ## 4. Look up current behavior (technical reference)
 

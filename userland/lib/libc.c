@@ -363,7 +363,7 @@ static int format(Format *f,const char *fmt,va_list ap){
         }else{emit(f,'%');emit(f,spec);}
     }
     if(!f->stream&&f->dst&&f->cap)f->dst[f->count<f->cap?f->count:f->cap-1]=0;
-    
+
     return f->failed?-1:(int)f->count;
 }
 
@@ -531,7 +531,8 @@ int sscanf(const char *text,const char *fmt,...){
 /* 一部のコンパイラがローカル構造体のゼロ初期化で生成するARM EABI補助関数． */
 void __aeabi_memclr(void *dst, size_t n) {
     volatile unsigned char *p = (volatile unsigned char *)dst;
-    while (n--) *p++ = 0;
+    while (n--)
+        *p++ = 0;
 }
 
 /* ARM EABIの4バイト整列ゼロクリア要求をmemsetへ委譲する． */

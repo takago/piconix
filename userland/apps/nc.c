@@ -46,7 +46,8 @@ int main(int argc,char **argv) {
     unsigned char data[512];
     int udp=0,exit_on_eof=0,listening=0,i=1,fd=-1,peer=-1,number;
     while(i<argc) {
-        if(!strcmp(argv[i],"-u")) udp=1;
+        if(!strcmp(argv[i],"-u"))
+            udp=1;
         else if(!strcmp(argv[i],"-N")) exit_on_eof=1;
         else if(!strcmp(argv[i],"-l")) listening=1;
         else break;
@@ -125,7 +126,8 @@ int main(int argc,char **argv) {
             }
             fd_set rd=0;
             FD_SET(peer,&rd);
-            if(!stdin_finished) FD_SET(0,&rd);
+            if(!stdin_finished)
+                FD_SET(0,&rd);
             if(select(peer+1,&rd,0,0,0)<0)break;
         }
     }

@@ -13,9 +13,11 @@
 static int number(const char *s, unsigned *value)
 {
     char *end;
-    if (!*s || *s=='-') return -1;
+    if (!*s || *s=='-')
+        return -1;
     long n=strtol(s,&end,0);
-    if (*end || n<0) return -1;
+    if (*end || n<0)
+        return -1;
     *value=(unsigned long)n;
     return 0;
 }
@@ -36,12 +38,14 @@ int main(int argc, char *argv[])
     if((count>=2 && number(parts[1],&offset)<0) ||
        (limited && number(parts[2],&remaining)<0)) {
         puts("hexdump: invalid offset or count");
-        if(fd) close(fd);
+        if(fd)
+            close(fd);
         return 1;
     }
     if(count>=2 && lseek(fd,(long)offset,SEEK_SET)<0) {
         puts("hexdump: cannot seek");
-        if(fd) close(fd);
+        if(fd)
+            close(fd);
         return 1;
     }
     /* /dev/memでは全メモリを読み出さないよう，明示的なサイズを要求する． */
@@ -54,16 +58,20 @@ int main(int argc, char *argv[])
     int n=0;
     while(!limited || remaining) {
         size_t want=sizeof data;
-        if(limited && remaining<want) want=remaining;
+        if(limited && remaining<want)
+            want=remaining;
         n=read(fd,data,want);
-        if(n<=0) break;
+        if(n<=0)
+            break;
         printf("%08x",offset);
         printf("  ");
         for(int i=0;i<16;i++) {
-            if(i<n) printf("%02x",(unsigned)data[i]);
+            if(i<n)
+                printf("%02x",(unsigned)data[i]);
             else printf("  ");
             putchar(' ');
-            if(i==7) putchar(' ');
+            if(i==7)
+                putchar(' ');
         }
         printf(" | ");
         for(int i=0;i<n;i++) {
@@ -72,9 +80,11 @@ int main(int argc, char *argv[])
         }
         putchar('\n');
         offset+=(unsigned)n;
-        if(limited) remaining-=(unsigned)n;
+        if(limited)
+            remaining-=(unsigned)n;
     }
-    if(fd) close(fd);
+    if(fd)
+        close(fd);
     if(n<0) { puts("hexdump: read error"); return 1; }
     return 0;
 }

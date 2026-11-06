@@ -24,7 +24,8 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
     /* 出力中の端末制御列は無視する．全画面プログラムではなく行指向コマンド用である． */
     if(f->esc) {
         if(f->esc==1 && c=='[') {f->esc=2;return;}
-        if(f->esc==2 && c>=0x20 && c<0x40) return;
+        if(f->esc==2 && c>=0x20 && c<0x40)
+            return;
         f->esc=0;
         return;
     }
@@ -33,40 +34,48 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
         f->cr=0;
         if(c!='\n') {
             f->col=0;
-            if(f->row<WATCH_ROWS) f->line[f->row][0]=0;
+            if(f->row<WATCH_ROWS)
+                f->line[f->row][0]=0;
         }
     }
     if(c=='\r') {f->cr=1;f->utf8=0;return;}
     if(c=='\n') {
         f->utf8=0;
-        if(f->row>=WATCH_ROWS) f->truncated=1;
+        if(f->row>=WATCH_ROWS)
+            f->truncated=1;
         else {
-            if(f->rows<=f->row) f->rows=f->row+1;
+            if(f->rows<=f->row)
+                f->rows=f->row+1;
             f->row++;
         }
         f->col=0;
         return;
     }
     if(c=='\b') {
-        if(f->col) f->col--;
-        if(f->row<WATCH_ROWS) f->line[f->row][f->col]=0;
+        if(f->col)
+            f->col--;
+        if(f->row<WATCH_ROWS)
+            f->line[f->row][f->col]=0;
         return;
     }
     if(c=='\t') {
         unsigned count=4-(f->col&3u);
-        while(count--) capture_byte(f,' ');
+        while(count--)
+            capture_byte(f,' ');
         return;
     }
     /* 長い行の切詰め時にUTF-8の途中で分断しない．上限は文字数でなくバイト数であり，80桁より小さく設定する． */
     if(c>=128) {
         if((c&0xc0)==0x80) {
-            if(!f->utf8) return;
+            if(!f->utf8)
+                return;
             f->utf8--;
         } else {
             unsigned tail=(c>=0xc2 && c<=0xdf)?1u:
                           (c>=0xe0 && c<=0xef)?2u:
                           (c>=0xf0 && c<=0xf4)?3u:0u;
-            if(!tail) return;
+            if(!tail)
+                return;
             f->utf8=(unsigned char)tail;
             if(f->row>=WATCH_ROWS || f->col+tail>=WATCH_COLS) {
                 f->utf8=0;f->truncated=1;return;
@@ -74,18 +83,21 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
         }
     } else {
         f->utf8=0;
-        if(c<32) return;
+        if(c<32)
+            return;
     }
     if(f->row>=WATCH_ROWS || f->col>=WATCH_COLS) {f->truncated=1;return;}
     f->line[f->row][f->col++]=(char)c;
     f->line[f->row][f->col]=0;
-    if(f->rows<=f->row) f->rows=f->row+1;
+    if(f->rows<=f->row)
+        f->rows=f->row+1;
 }
 
 /* 対象コマンドの出力を再描画し，画面を更新する． */
 static void redraw(const watch_frame_t *old, const watch_frame_t *next, int first) {
     for(unsigned i=0;i<WATCH_ROWS;i++) {
-        if(!first && !strcmp(old->line[i],next->line[i])) continue;
+        if(!first && !strcmp(old->line[i],next->line[i]))
+            continue;
         /* まず上書きし，未使用の末尾だけ消す．全消去によるちらつきを防ぐ． */
         printf("\033[?7l\033[%u;1H%s\033[K\033[?7h", i+3, next->line[i]);
     }
@@ -97,7 +109,8 @@ static void redraw(const watch_frame_t *old, const watch_frame_t *next, int firs
 static int capture_command(int id, int count, const char *const args[], watch_frame_t *f) {
     int pair[2]={-1,-1}, saved_out=-1, saved_err=-1;
     int child=-1, error=0;
-    if(pipe(pair)<0) return -1;
+    if(pipe(pair)<0)
+        return -1;
     saved_out=dup(1);
     saved_err=dup(2);
     if(saved_out<0 || saved_err<0) {error=1;goto restore;}
@@ -111,13 +124,16 @@ restore:
     char buf[64];
     for(;;) {
         int n=read(pair[0],buf,sizeof buf);
-        if(n==0) break;
+        if(n==0)
+            break;
         if(n==OS_EAGAIN) {msleep(1);continue;}
         if(n<0) {error=1;break;}
-        for(int j=0;j<n;j++) capture_byte(f,(unsigned char)buf[j]);
+        for(int j=0;j<n;j++)
+            capture_byte(f,(unsigned char)buf[j]);
     }
     close(pair[0]);
-    if(waitpid(child,0,0)<0) error=1;
+    if(waitpid(child,0,0)<0)
+        error=1;
     return error?-1:0;
 }
 
@@ -134,19 +150,22 @@ int main(int argc, char *argv[]) {
     }
     if(argc<=first) {puts("usage: watch [seconds] command [args...]");return 1;}
     const char *name=argv[first];
-    if(!strncmp(name,"/bin/",5)) name+=5;
+    if(!strncmp(name,"/bin/",5))
+        name+=5;
     int id=program_id(name);
     if(id<0 || !strcmp(name,"watch")) {puts("watch: unknown or recursive command");return 1;}
     const char *args[8]; int count=argc-first;
     if(count>8) {puts("watch: too many arguments");return 1;}
-    for(int i=0;i<count;i++) args[i]=argv[first+i];
+    for(int i=0;i<count;i++)
+        args[i]=argv[first+i];
     args[0]=name;
 
     char header[WATCH_COLS+1];
     snprintf(header,sizeof header,"Every %us:",interval);
     for(int i=0;i<count;i++) {
         unsigned len=(unsigned)strlen(header);
-        if(len>=WATCH_COLS) break;
+        if(len>=WATCH_COLS)
+            break;
         snprintf(header+len,sizeof header-len," %s",args[i]);
     }
     int old=0, next=1, first_frame=1;

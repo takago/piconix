@@ -33,7 +33,8 @@ static int number(char *s,int *v) {
     if(s[0]=='0' && (s[1]=='x'||s[1]=='X')) {s+=2;base=16;}
     while(*s) {int d=(*s>='0'&&*s<='9')?*s-'0':(*s>='a'&&*s<='f')?*s-'a'+10:(*s>='A'&&*s<='F')?*s-'A'+10:-1;
         if(d<0||d>=base) break; result=result*base+d;digits++;s++;}
-    if(!digits||*space(s)) return 0;
+    if(!digits||*space(s))
+        return 0;
     *v=sign*result;return 1;
 }
 

@@ -81,9 +81,11 @@ int main(int argc,char **argv) {
     puts("                          +------- USB -------+");
     for(int i=0;i<20;i++) {
         char l[60],r[60];
-        if(left[i]>=0) pinlabel(l,sizeof l,left[i],records);
+        if(left[i]>=0)
+            pinlabel(l,sizeof l,left[i],records);
         else snprintf(l,sizeof l,"%s","GND");
-        if(right[i]>=0) pinlabel(r,sizeof r,right[i],records);
+        if(right[i]>=0)
+            pinlabel(r,sizeof r,right[i],records);
         else {
             /* PICを保つため文字列リテラルは呼出し位置で使う． */
             switch(i) {
@@ -101,9 +103,11 @@ int main(int argc,char **argv) {
         }
         printf("%s",l);
         unsigned len=0; while(l[len]) len++;
-        while(len++<23) putchar(' ');
+        while(len++<23)
+            putchar(' ');
         /* PicoNIXのprintfは%2dのような幅指定には対応しない． */
-        if(i+1<10) putchar(' ');
+        if(i+1<10)
+            putchar(' ');
         printf("%d |                 | %d  %s\r\n",i+1,40-i,r);
     }
     puts("                          +-------------------+");

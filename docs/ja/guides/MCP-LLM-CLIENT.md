@@ -1,6 +1,6 @@
 # ローカルLLMからPicoNIXのMCPツールを呼び出す
 
-この実習では，Linux PC上のOpenAI互換LLMと，Pico W上のPicoNIX `mcpd`を接続します．`host/mcp_llm_client.py`は**非ストリーミング**の小さなPythonサンプルです．LLMは通常の会話にも応答し，必要な場合だけMCPツールを選択して実行します．
+このガイドでは，Linux PC上のOpenAI互換LLMと，Pico W上のPicoNIX `mcpd`を接続します．`host/mcp_llm_client.py`は**非ストリーミング**の小さなPythonサンプルです．LLMは通常の会話にも応答し，必要な場合だけMCPツールを選択して実行します．
 
 **実機で確認済み（2026-11-06）：** PicoNIXのAPモード（`192.168.4.1`）で，公式MCP Python SDK v2を使ったツール列挙と実行，さらにローカルLLMによるツール選択と回答生成に成功しました．これは基本機能の確認であり，MCP全仕様への準拠や長期安定性の検証ではありません．
 
@@ -90,6 +90,6 @@ MCP SDK v2のPython属性は`input_schema`，`is_error`です．`inputSchema`，
 - モデルが測定値に根拠のない評価を添える可能性があります．実際の測定結果とLLMの解釈は区別してください．
 - LLMが利用するOpenAI互換APIやモデルにより，Function Callingが動作しない場合があります．
 
-## 6．発展課題
+## 6．関連する演習
 
-ツールを呼ぶ必要のない質問とPicoNIXの状態を尋ねる質問を比較し，LLMがいつ`tools/call`を発行するか観察します．さらに，`host/mcp_client.py`（LLMなし）と本サンプル（LLMあり）を比較すると，MCP通信とツール選択の役割分担が理解できます．
+[演習資料](../exercises/README.md#mcpとllmの役割を比較する)に，MCPとLLMの役割を比較する課題を掲載しています．

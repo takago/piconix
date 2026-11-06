@@ -19,20 +19,24 @@ static const char *protocol(unsigned n) {
 static void show(const piconix_packet_t *p,int hex) {
     printf("%s %s ",p->direction ? "TX" : "RX",protocol(p->protocol));
     ip(p->src);
-    if(p->protocol==6 || p->protocol==17) printf(":%u",p->sport);
+    if(p->protocol==6 || p->protocol==17)
+        printf(":%u",p->sport);
     printf(" > "); ip(p->dst);
-    if(p->protocol==6 || p->protocol==17) printf(":%u",p->dport);
+    if(p->protocol==6 || p->protocol==17)
+        printf(":%u",p->dport);
     printf(" LEN=%u",p->ip_len);
     if(hex) printf(" DATA=%u",p->data_len);
     if(p->protocol==6)
         printf("%s%s%s%s%s",(p->flags&2)?" SYN":"",(p->flags&16)?" ACK":"",
                (p->flags&1)?" FIN":"",(p->flags&4)?" RST":"",(p->flags&8)?" PSH":"");
-    if(p->protocol==1) printf(" TYPE=%u",p->flags);
+    if(p->protocol==1)
+        printf(" TYPE=%u",p->flags);
     putchar('\n');
     if(hex && p->sample_len) {
         printf("    DATA:  ");
         for(unsigned i=0;i<16;i++) {
-            if(i<p->sample_len) printf("%02x ",p->sample[i]);
+            if(i<p->sample_len)
+                printf("%02x ",p->sample[i]);
             else printf("   ");
         }
         printf("| ");
@@ -47,7 +51,8 @@ static void show(const piconix_packet_t *p,int hex) {
 int main(int argc,char **argv) {
     int hex=0,limit=0;
     for(int i=1;i<argc;i++) {
-        if(!strcmp(argv[i],"-x")) hex=1;
+        if(!strcmp(argv[i],"-x"))
+            hex=1;
         else if(!strcmp(argv[i],"-c") && ++i<argc) {
             for(const char *p=argv[i];*p;p++) {
                 if(*p<'0'||*p>'9'||limit>1000) {limit=0;break;}

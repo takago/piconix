@@ -26,7 +26,8 @@ static int transfer(int fd, uint8_t addr, int command, uint8_t *data)
         t.read_len = 2;
     }
     int rc = ioctl(fd, OS_I2C_TRANSFER, (int)(uintptr_t)&t);
-    if (rc < 0) return rc;
+    if (rc < 0)
+        return rc;
     if (data) {
         data[0] = t.read_data[0];
         data[1] = t.read_data[1];
