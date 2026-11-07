@@ -18,6 +18,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Open-source TCP/IP networking** — On Pico W, PicoNIX uses lwIP, a lightweight open-source TCP/IP stack, and provides user applications with a compact BSD-style IPv4 socket API (`socket()`, `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()`).
 - **LED text ticker** — `scroll` renders printable ASCII on the 8×8 LED matrix from stdin or UDP 2001, with a 1 KiB ring buffer, `select()` and plain-text UDP reception. `mcpd` can send display text using `display_message` (delivery is not confirmed). See [scroll tutorial](docs/en/guides/SCROLL.md) ([日本語](docs/ja/guides/SCROLL.md)).
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, `udp_echod`, and the experimental MCP server `mcpd` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
+- **Experimental agent shell tool** — Opt-in `mcpd --shell` exposes `execute_command` and `write_file` for small source files and short non-interactive `sh -c` commands over MCP, streaming up to 4 KiB of output using HTTP/1.1 chunked transfer. No authentication or process isolation: use **only** on an isolated laboratory network. See the [agent guide](docs/en/guides/AGENT-GUIDE.md) ([日本語](docs/ja/guides/AGENT-GUIDE.md)).
 - **MCP and local LLM demo (Pico W)** — `mcpd` exposes RP2040 temperature, Pico W Wi-Fi information, and LED text output through Streamable HTTP/JSON-RPC on TCP port 8080. On November 7, 2026, the developer confirmed on real hardware that an LLM could obtain the IP address with `get_wifi_info` and display it on the 8×8 LED matrix using `display_message` and `scroll`. See the [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)).
 - **Concurrent UDP clients and servers** — Up to three user UDP sockets with independent receive buffers enable local communication between `scroll` and `nc` (Pico W; the developer confirmed the integrated MCP-to-LED demonstration on real hardware on November 7, 2026).
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
@@ -179,12 +180,15 @@ PicoNIX can run `mcpd` as an **experimental network programming example in user 
 mcpd &
 ```
 
-The server listens on **TCP 8080** at `POST /mcp` and implements a limited subset of MCP **2026-07-28** over Streamable HTTP (JSON responses; no SSE). Its two read-only tools are:
+The server listens on **TCP 8080** at `POST /mcp` and implements a limited subset of MCP **2026-07-28** over Streamable HTTP (JSON responses; no SSE). Its read-only tools are:
 
 | Tool | Data source | Purpose |
 |---|---|---|
 | `get_temperature` | `/dev/adc/temp` | Read RP2040 internal temperature |
 | `get_wifi_info` | `/proc/net/wifi` | Read Pico W Wi-Fi and IP configuration |
+| `display_message` | UDP `127.0.0.1:2001` | Send LED scrolling text (no delivery confirmation) |
+| `execute_command` (opt-in) | New non-interactive `sh -c` process | Up to 4 KiB streamed via HTTP chunked transfer; only with `mcpd --shell` |
+| `write_file` (opt-in) | `/tmp/NAME` RAM text file | Overwrite at most 2,048 bytes of ASCII; only with `mcpd --shell` |
 
 On a Linux PC connected to the Pico W AP, use the official MCP Python SDK v2 to list and call tools **without an LLM**:
 

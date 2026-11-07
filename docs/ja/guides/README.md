@@ -37,3 +37,5 @@
 **関連リンク：** [English](../../en/guides/README.md)
 
 - [LED文字スクロール：selectとUDP](SCROLL.md)
+
+- [エージェント操作ガイド](AGENT-GUIDE.md) — MCPからのシェル操作とエージェント設定．

@@ -10,6 +10,26 @@ PicoNIX grew into a small UNIX-like operating system for Raspberry Pi Pico (RP20
 
 The primary period is **October 24 through November 6, 2026**. The sequence is reconstructed from conversation records, rather than exhaustively verified against every Git commit. Events with uncertain exact dates are grouped into approximate periods. Descriptions of earlier architectures are historical and should not be mistaken for the current implementation.
 
+### 2026-11-08 — Flush small `watch` screen updates (hardware not yet verified)
+
+When watching short outputs such as `watch ip`, ANSI cursor-positioning updates contain no newline, so line-buffered `stdout` could retain a short incremental redraw instead of displaying it immediately. Flush `stdout` after each redraw regardless of the number of changed rows. Existing watch tests and ARM syntax checks passed; hardware display remains unverified.
+
+### 2026-11-07 — Fixed MCP shell `[execution error]` (hardware retest pending)
+
+`execute_command("ps")` returned `[execution error]`: `mcpd` attempted `fcntl(F_SETFL, O_NONBLOCK)` on its output-capture pipe, but the kernel's `SYS_FCNTL` rejected pipe descriptors even though pipe reads and writes already supported nonblocking behavior. Allowed pipe descriptors for `F_SETFL`. Relevant source-level MCP and shell regression checks passed; Pico W hardware revalidation remains pending.
+
+### 2026-11-07 — Added MCP `write_file` for agent coding experiments (hardware unverified)
+
+Added opt-in `write_file(path, content)` when starting `mcpd --shell`. It writes up to 2,048 bytes of ASCII text to RAM files immediately under `/tmp`, decoding the JSON string incrementally using a small buffer. Expanded the HTTP JSON body limit to 3,200 bytes; escaped payloads may reduce the usable maximum. Normal startup does not expose file writes. The proposed workflow is source creation → `cc` → `as` → execution. ARM syntax and MCP tool metadata tests passed, but a complete firmware link and on-device execution remain unverified. The unauthenticated service must be restricted to an isolated network.
+
+### 2026-11-07 — Stream MCP shell output up to 4 KiB (hardware unverified)
+
+Raised `execute_command` output limit from 399 to 4,096 bytes. To conserve the 24 KiB task slot, the MCP server now reads 64-byte chunks from the pipe, JSON-escapes them incrementally, and sends a single JSON response using HTTP/1.1 chunked transfer without retaining the entire output. Excess bytes are drained and reported as truncated. ARM syntax and regression tests passed; complete firmware and hardware/Open WebUI interoperability remain unverified.
+
+### 2026-11-07 — Experimental MCP shell tool (hardware not yet verified)
+
+Added opt-in `execute_command` with `mcpd --shell` and a non-interactive `sh -c` mode. The server captures bounded stdout/stderr through a pipe and enforces a nominal timeout. Normal `mcpd` startup does not publish the shell tool. Added Japanese and English agent guides documenting limitations, Linux differences, Open WebUI setup, and security risks from unauthenticated command execution. ARM-target syntax checks passed; complete firmware and hardware execution remain unverified.
+
 #### 2026-11-07 — Color-coded terminal output for the MCP/LLM client
 
 Improved `host/mcp_llm_client.py` to distinguish user input (cyan), LLM answers (green), MCP tool invocations and arguments (yellow), tool results (blue), and errors (red). Colors are automatically disabled for non-TTY output and when `NO_COLOR` is set. The developer confirmed that the updated display behaved as expected in use.

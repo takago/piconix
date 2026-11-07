@@ -10,6 +10,9 @@
 #include "fcntl.h"
 #include "string.h"
 #include "stdio.h"
+/* 非対話実行ではTTYのフォアグラウンド所有者を変更しない． */
+static int batch_mode;
+
 /* 二つの文字列を完全一致で比較する． */
 static int eq(const char *a,const char *b) { return strcmp(a,b)==0; }
 
@@ -186,10 +189,10 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     if(prefix(name,"./") || prefix(name,"/tmp/")) {
         char path[128];
         if(argc!=1 || resolve(cwd,name,path)<0) { put("invalid executable path\r\n"); return 1; }
-        int pid=background?spawn_tmp(path):spawn_tmp_foreground(path);
+        int pid=(background || batch_mode)?spawn_tmp(path):spawn_tmp_foreground(path);
         if(pid<0) { put("cannot execute image\r\n"); return 1; }
         if(background) {*bg_pid=pid;*bg_name="a.out";}
-        else { int status=0; waitpid(pid,&status,0); set_foreground(0); }
+        else { int status=0; waitpid(pid,&status,0); if(!batch_mode) set_foreground(0); }
         return 1;
     }
     int id=program_id(name);
@@ -201,13 +204,13 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     for(int i=0;i<argc;i++)
         total+=(unsigned)strlen(args[i])+1;
     if(total>128) {put("arguments too long (max 128 bytes)\r\n");return 1;}
-    int pid=background?spawn(id,argc,(const char *const *)args):spawn_foreground(id,argc,(const char *const *)args);
+    int pid=(background || batch_mode)?spawn(id,argc,(const char *const *)args):spawn_foreground(id,argc,(const char *const *)args);
     if(pid<0) {put("cannot start program\r\n");return 1;}
     if(background) {*bg_pid=pid;*bg_name=name;}
     else {
         int status=0;
         waitpid(pid,&status,0);
-        set_foreground(0);
+        if(!batch_mode) set_foreground(0);
         /* 全画面アプリは終了処理前にkillされ得るため，画面復旧が必要となる． */
         if(eq(name,"mb") || eq(name,"gpio") || eq(name,"pong") ||
            eq(name,"fbed") || eq(name,"edit") || eq(name,"mem") || eq(name,"fd"))
@@ -286,7 +289,7 @@ static void run_pipeline(char *stage[3], int count, const char *cwd) {
             failed=1;break;
         }
         /* 前景パイプの各PIDを登録し，Ctrl+Cで一括終了できるようにする． */
-        set_foreground(pid[i]);
+        if(!batch_mode) set_foreground(pid[i]);
         if(previous_read>=0)
             close(previous_read);
         previous_read=next[0];
@@ -300,7 +303,7 @@ cleanup:
     for(int i=0;i<count;i++)
         if(pid[i]>0)
             waitpid(pid[i],&status,0);
-    set_foreground(0);
+    if(!batch_mode) set_foreground(0);
 }
 
 /* 入力行を解釈し，組込みコマンド／外部コマンドへ振り分ける． */
@@ -688,10 +691,46 @@ static void run_boot_rc(char *cwd) {
     close(fd);
 }
 
+/* MCPなどからの一回限りの非対話実行．端末入力，起動バナー，rcは使用しない．
+ * シェルの通常のコマンド処理とパイプ処理を再利用する． */
+static int run_one_command(const char *input, char cwd[128]) {
+    char line[128];
+    size_t n = strlen(input);
+    if(n == 0 || n >= sizeof line) return 2;
+    memcpy(line, input, n + 1);
+    char *cmd = trim(line);
+    if(strchr(cmd, '&')) { put("sh -c: background disabled\n"); return 2; }
+    if(strchr(cmd, '|')) {
+        char *stage[3]; int count=0, invalid=0;
+        char *start=cmd;
+        for(char *q=cmd;;q++) {
+            if(*q!='|' && *q) continue;
+            char sep=*q; *q=0;
+            char *part=trim(start);
+            if(!*part || strchr(part,'<') || strchr(part,'>') || count==3)
+                invalid=1;
+            else stage[count++]=part;
+            if(!sep) break;
+            start=q+1;
+        }
+        if(invalid || count<2) { put("sh -c: invalid pipeline\n"); return 2; }
+        run_pipeline(stage,count,cwd);
+        return 0;
+    }
+    int saved_in=-1,saved_out=-1,bg_pid=0;
+    const char *bg_name=0;
+    int rc=redirect(cmd,cwd,&saved_in,&saved_out);
+    if(rc==0) command(trim(cmd),cwd,0,&bg_pid,&bg_name);
+    restore_stdio(saved_in,saved_out);
+    if(rc<0) { put("sh -c: invalid redirection\n"); return 2; }
+    return 0; /* 現行shは個々のコマンドの終了状態を伝播しない． */
+}
+
 /* 端末の用意と起動時処理を終えた後，入力・解析・実行・子の回収を繰り返す． */
 int main(int argc, char *argv[]) {
-    (void)argv;
-    if(argc!=1) {put("usage: sh\r\n");return 1;}
+    if(argc!=1 && !(argc==3 && !strcmp(argv[1],"-c"))) {
+        put("usage: sh [-c command]\r\n"); return 1;
+    }
     char line[128];
     char cwd[128];
     if(chdir("/tmp")<0) {
@@ -699,6 +738,7 @@ int main(int argc, char *argv[]) {
         _exit(1);
     }
     strcpy(cwd,"/tmp");
+    if(argc==3) { batch_mode=1; return run_one_command(argv[2],cwd); }
     /* シェル起動後にUSB CDCが接続されることがあるため，起動バナーを捨てない． */
     while(!console_ready())
         msleep(10);

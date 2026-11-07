@@ -2966,7 +2966,9 @@ void os_svc_dispatch(uint32_t *f) {
             else if(b==2) { /* F_SETFLで変更可能なのはO_NONBLOCKだけである． */
                 if(c & ~(OS_O_NONBLOCK | OS_O_RDWR | OS_O_WRONLY | OS_O_CREAT | OS_O_TRUNC | OS_O_APPEND))
                     result=OS_EINVAL;
+                /* パイプにもO_NONBLOCKを許す．MCPの出力回収で必要． */
                 else if(!fd_is_socket(tasks[current].fd[a]) &&
+                        !pipe_end(tasks[current].fd[a]) &&
                         tasks[current].fd[a]!=DEV_CONSOLE &&
                         tasks[current].fd[a]!=DEV_UART1 &&
                         !(PICONIX_WIFI && tasks[current].fd[a]==DEV_WIFI_TTY)) result=OS_EINVAL;

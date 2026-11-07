@@ -176,6 +176,8 @@ int main(int argc, char *argv[]) {
         }
         if(first_frame) printf("\033[?7l\033[H\033[2J%s\033[?7h",header);
         redraw(&frames[old],&frames[next],first_frame);
+        /* ANSIのカーソル移動には改行がない．差分が少なくても直ちに端末へ反映する． */
+        if(fflush(stdout)<0) return 1;
         first_frame=0;
         int tmp=old;old=next;next=tmp;
         msleep(interval*1000u);
