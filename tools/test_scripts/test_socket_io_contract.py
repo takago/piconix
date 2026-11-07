@@ -20,10 +20,10 @@ assert 'BLOCKED' not in tcp_rw
 assert 'WAIT_TCP_READ' in kernel
 assert 'wake_sockets();' in kernel
 assert 'result=n==-2 ? OS_EINVAL : n==-3 ? OS_EAGAIN' in kernel
-assert 'capacity < rx_length) return -2' in backend
-assert 'if (!rx_ready) return -3' in backend
-assert 'if (udp_socket || !port) return -1' in backend
-assert 'if (!udp_socket) {' in backend
+assert 'capacity<s->rx_length) return -2' in backend
+assert 'if (!s->pcb || !s->rx_ready) return -3' in backend
+assert 'if (!s || s->pcb || !port) return -1' in backend
+assert 'if (!s->pcb) {' in backend
 assert 'if(n>TCP_MSS) n=TCP_MSS;' in backend
 assert 's->peer_closed || s->fault ? -2 : 0' in backend
 assert 'if (flags || (len && !buf)) return OS_EINVAL;' in lib

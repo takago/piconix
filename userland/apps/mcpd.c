@@ -265,6 +265,28 @@ static void rpc_result(const char *id, const char *result) {
              "{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":%s}", id, result);
 }
 
+/* MCP tool: send plain ASCII over UDP. Successful sendto() does not
+ * guarantee delivery, queueing, or completion of LED rendering. */
+static int scroll_message(const char *v, const char *end) {
+    if(!v || end-v<3 || *v!='"' || end[-1]!='"')return -1;
+    unsigned n=(unsigned)(end-v-2);
+    if(n==0 || n>128)return -1;
+    unsigned char packet[128];
+    for(unsigned i=0;i<n;i++){
+        unsigned char c=(unsigned char)v[i+1];
+        if(c<32 || c>126 || c=='\\' || c=='"')return -1;
+        packet[i]=c;
+    }
+    int fd=socket(AF_INET,SOCK_DGRAM,0);
+    if(fd<0)return -2;
+    struct sockaddr_in dst={0};dst.sin_family=AF_INET;dst.sin_port=htons(2001);
+    unsigned char *ip=(unsigned char *)&dst.sin_addr.s_addr;
+    ip[0]=127;ip[1]=0;ip[2]=0;ip[3]=1;
+    int sent=sendto(fd,packet,n,0,(struct sockaddr *)&dst,sizeof dst);
+    close(fd);
+    return sent==(int)n?0:-2;
+}
+
 /* MCPのJSON要求を解析して処理する． */
 static int process_json(const char *body, unsigned body_len, const char *http_method,
                         const char *http_name, const char *http_version) {
@@ -340,7 +362,7 @@ static int process_json(const char *body, unsigned body_len, const char *http_me
         return 200;
     }
     if (!strcmp(method, "tools/list")) {
-        rpc_result(id, "{\"resultType\":\"complete\",\"tools\":[{\"name\":\"get_temperature\",\"description\":\"Read the RP2040 temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},{\"name\":\"get_wifi_info\",\"description\":\"Read Pico W Wi-Fi status\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}}],\"ttlMs\":0,\"cacheScope\":\"private\"}");
+        rpc_result(id, "{\"resultType\":\"complete\",\"tools\":[{\"name\":\"get_temperature\",\"description\":\"Read the RP2040 temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},{\"name\":\"get_wifi_info\",\"description\":\"Read Pico W Wi-Fi status\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}}, {\"name\":\"display_message\",\"description\":\"Send ASCII text to the LED ticker over UDP (no delivery guarantee)\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"}},\"required\":[\"text\"],\"additionalProperties\":false}}],\"ttlMs\":0,\"cacheScope\":\"private\"}");
         return 200;
     }
     if (!strcmp(method, "tools/call")) {
@@ -350,6 +372,16 @@ static int process_json(const char *body, unsigned body_len, const char *http_me
             path = "/dev/adc/temp";
         if (json_equals(v, v_end, "get_wifi_info"))
             path = "/proc/net/wifi";
+        if (json_equals(v, v_end, "display_message")) {
+            if(strcmp(http_name,"display_message")) {rpc_error(id,-32020,"HeaderMismatch");return 400;}
+            const char *args_end,*args=params?member(params,params_end,"arguments",&args_end):0;
+            const char *txt_end,*txt=args?member(args,args_end,"text",&txt_end):0;
+            int result=scroll_message(txt,txt_end);
+            const char *message=result==0?"UDP send succeeded (display not confirmed)":result==-2?"UDP send failed":"Invalid ASCII message (1..128 bytes, no escapes)";
+            char output[256];
+            snprintf(output,sizeof output,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"%s\"}],\"isError\":%s}",message,result==0?"false":"true");
+            rpc_result(id,output);return 200;
+        }
         if (!path) { rpc_error(id, -32602, "Unknown tool"); return 200; }
         char tool_name[20];
         unsigned count = (unsigned)(v_end - v - 2);

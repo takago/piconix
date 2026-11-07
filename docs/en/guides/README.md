@@ -35,3 +35,5 @@ Find command instructions, operational cautions, and practical examples here. Fo
 ---
 
 **Related links:** [日本語](../../ja/guides/README.md)
+
+- [LED scroll / select + UDP](SCROLL.md)

@@ -93,3 +93,29 @@ MCP SDK v2のPython属性は`input_schema`，`is_error`です．`inputSchema`，
 ## 6．関連する演習
 
 [演習資料](../exercises/README.md#mcpとllmの役割を比較する)に，MCPとLLMの役割を比較する課題を掲載しています．
+
+
+## LED表示と複数ツールの連携
+
+`scroll -u 2001`をPicoNIX上で起動してから，次を試します．`scroll`はUDP 2001番の通常のASCII文字列をリングバッファに格納します．ACKは返しません．
+
+```sh
+python host/mcp_client.py http://192.168.4.1:8080/mcp --tool display_message --text "HELLO PICONIX"
+python host/mcp_llm_client.py
+```
+
+LLM版では次のように質問します．
+
+```text
+User > PicoNIXのIPアドレスを調べて，LEDマトリクスにスクロール表示して
+Tool: get_wifi_info
+Result: ... IP: 192.168.4.1 ...
+Tool: display_message
+Result: ...
+```
+
+これは想定される呼び出し順序を示す例であり，実測ログではありません．IPアドレスは環境により異なります．LLMは`get_wifi_info`の結果を読んでから`display_message`に`text`を指定します．Python側にIPアドレス表示専用の処理は追加していません．
+
+`display_message`の成功はUDP送信処理の成功のみを表し，`scroll`への配送やLED表示は保証されません．`scroll`が起動していなくてもUDP送信が成功する場合があります．UDPは認証されないため，信頼できるネットワークで使用してください．
+
+`host/mcp_client.py`の`--tool all`はLED表示も実行します．表示を変更したくない場合は`--tool none`または読み取り専用ツールを指定してください．

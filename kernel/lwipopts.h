@@ -38,7 +38,7 @@
 #define PBUF_POOL_BUFSIZE 512
 #define MEMP_NUM_TCP_PCB 5
 #define MEMP_NUM_TCP_PCB_LISTEN 5 /* TelnetとユーザTCPで使用する待受枠を確保する．HTTP等も同じ枠を共有する． */
-#define MEMP_NUM_UDP_PCB 4 /* DHCP・デバイス制御・ユーザUDP・mDNSで使う枠． */
+#define MEMP_NUM_UDP_PCB 8 /* DHCP・デバイス制御・mDNS・複数ユーザUDPの枠． */
 #define LWIP_MDNS_RESPONDER 1
 /* mDNSの探索・通知ではlwIP基本タイマー以外の枠が必要になるため，STA/APとも一時タイマーを4枠余分に確保する． */
 #define MEMP_NUM_SYS_TIMEOUT (LWIP_NUM_SYS_TIMEOUT_INTERNAL + 4)

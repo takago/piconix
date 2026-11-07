@@ -57,6 +57,7 @@ extern const unsigned char piconix_pong_image_start[], piconix_pong_image_end[];
 extern const unsigned char piconix_gpio_image_start[], piconix_gpio_image_end[];
 extern const unsigned char piconix_fbed_image_start[], piconix_fbed_image_end[];
 extern const unsigned char piconix_asm_image_start[], piconix_asm_image_end[];
+extern const unsigned char piconix_cc_image_start[], piconix_cc_image_end[];
 extern const unsigned char piconix_help_image_start[], piconix_help_image_end[];
 extern const unsigned char piconix_edit_image_start[], piconix_edit_image_end[];
 extern const unsigned char piconix_vi_image_start[], piconix_vi_image_end[];
@@ -69,6 +70,7 @@ extern const unsigned char piconix_httpd_image_start[], piconix_httpd_image_end[
 extern const unsigned char piconix_tcp_echod_image_start[], piconix_tcp_echod_image_end[];
 extern const unsigned char piconix_udp_echod_image_start[], piconix_udp_echod_image_end[];
 extern const unsigned char piconix_mcpd_image_start[], piconix_mcpd_image_end[];
+extern const unsigned char piconix_scroll_image_start[], piconix_scroll_image_end[];
 #define RAM_APP_ORIGIN 0x2000E000u
 
 /* Flash内のバイナリ範囲をプログラムIDに紐づける．entryは全アプリ共通のスロット先頭アドレスを使い，spawn時に実体をコピーする． */
@@ -120,6 +122,7 @@ int main(void) {
     register_image(26,"gpio",piconix_gpio_image_start,piconix_gpio_image_end);
     register_image(27,"fbed",piconix_fbed_image_start,piconix_fbed_image_end);
     register_image(28,"as",piconix_asm_image_start,piconix_asm_image_end);
+    register_image(50,"cc",piconix_cc_image_start,piconix_cc_image_end);
     register_image(29,"help",piconix_help_image_start,piconix_help_image_end);
     register_image(30,"edit",piconix_edit_image_start,piconix_edit_image_end);
     register_image(41,"vi",piconix_vi_image_start,piconix_vi_image_end);
@@ -132,6 +135,7 @@ int main(void) {
     register_image(36,"tcp_echod",piconix_tcp_echod_image_start,piconix_tcp_echod_image_end);
     register_image(37,"udp_echod",piconix_udp_echod_image_start,piconix_udp_echod_image_end);
     register_image(49,"mcpd",piconix_mcpd_image_start,piconix_mcpd_image_end);
+    register_image(51,"scroll",piconix_scroll_image_start,piconix_scroll_image_end);
     net_init();
     os_init_idle(idle_task);
     if(os_start_program(2)<0)

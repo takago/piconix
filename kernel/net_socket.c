@@ -14,98 +14,102 @@
 #include "lwip/pbuf.h"
 #include "lwip/ip4_addr.h"
 #include <string.h>
-/* UDP受信は一つの固定バッファへ保存する．受信コールバックで動的確保しない． */
-static struct udp_pcb *udp_socket;
-static unsigned char rx_data[NET_SOCKET_UDP_MAX];
-static unsigned rx_length;
-static uint32_t rx_peer_ip;
-static uint16_t rx_peer_port;
-static unsigned rx_ready;
-/* UDP受信データを固定の一件バッファへ保存する．コールバックでヒープを確保せず，空きがなければ保持中データを守る． */
+/* 各ソケットが受信データグラムを1件保持する固定長領域． */
+typedef struct {
+    struct udp_pcb *pcb;
+    unsigned char rx_data[NET_SOCKET_UDP_MAX];
+    unsigned rx_length;
+    uint32_t rx_peer_ip;
+    uint16_t rx_peer_port;
+    unsigned rx_ready;
+} udp_slot_t;
+static udp_slot_t udp_slots[NET_SOCKET_UDP_SLOTS];
+NO_TRACE static udp_slot_t *udp_slot_at(int id) {
+    return id>=0 && id<NET_SOCKET_UDP_SLOTS ? &udp_slots[id] : NULL;
+}
+
+/* lwIPコールバックは登録時に渡されたスロットの受信領域だけを書き換える． */
 NO_TRACE static void udp_received(void *arg, struct udp_pcb *pcb, struct pbuf *p,
                          const ip_addr_t *addr, u16_t port) {
-    (void)arg; (void)pcb;
-    if (!p)
-        return;
-    if (!rx_ready && IP_IS_V4(addr) && p->tot_len <= sizeof(rx_data)) {
-        rx_length = pbuf_copy_partial(p, rx_data, p->tot_len, 0);
-        rx_peer_ip = ip4_addr_get_u32(ip_2_ip4(addr));
-        rx_peer_port = port;
-        rx_ready = 1;
+    (void)pcb;
+    udp_slot_t *s=(udp_slot_t *)arg;
+    if (!p) return;
+    if (s && !s->rx_ready && IP_IS_V4(addr) && p->tot_len <= sizeof(s->rx_data)) {
+        s->rx_length=pbuf_copy_partial(p,s->rx_data,p->tot_len,0);
+        s->rx_peer_ip=ip4_addr_get_u32(ip_2_ip4(addr));
+        s->rx_peer_port=port;
+        s->rx_ready=1;
     }
     pbuf_free(p);
 }
 
-/* 受信済みデータグラムの有無を調べる（消費しない）． */
-NO_TRACE int net_socket_udp_read_ready(void) { return rx_ready!=0; }
+/* 指定ソケットが読み取り可能か調べる． */
+NO_TRACE int net_socket_udp_read_ready(int id) {
+    udp_slot_t *s=udp_slot_at(id);
+    return s && s->rx_ready;
+}
 
-/* UDP待受ポートをlwIPへ登録する．不正ポート・既存状態などの失敗時は負値を返す． */
-int net_socket_udp_bind(uint16_t port) {
-    if (udp_socket || !port) return -1;
-    struct udp_pcb *pcb = udp_new_ip_type(IPADDR_TYPE_V4);
-    if (!pcb)
-        return -1;
-    if (udp_bind(pcb, IP_ANY_TYPE, port) != ERR_OK) {
+/* 指定スロットのUDP待受ポートを登録する． */
+int net_socket_udp_bind(int id, uint16_t port) {
+    udp_slot_t *s=udp_slot_at(id);
+    if (!s || s->pcb || !port) return -1;
+    struct udp_pcb *pcb=udp_new_ip_type(IPADDR_TYPE_V4);
+    if (!pcb) return -1;
+    if (udp_bind(pcb,IP_ANY_TYPE,port)!=ERR_OK) {
         udp_remove(pcb);
         return -1;
     }
-    udp_socket = pcb;
-    rx_ready = 0;
-    udp_recv(pcb, udp_received, NULL);
+    s->pcb=pcb;
+    s->rx_ready=0;
+    udp_recv(pcb,udp_received,s);
     return 0;
 }
 
-/* 保持中の一つのデータグラムを取り出す．データがなければ再試行可能な状態を返す． */
-int net_socket_udp_recv(void *buf, unsigned capacity, uint32_t *peer_ip, uint16_t *peer_port) {
-    if (!buf)
-        return -1;
-    /* UDPクライアントは最初の送信までPCBがなくても正常である． */
-    if (!udp_socket)
-        return -3;
-    if (!rx_ready) return -3; /* データグラムがない状態と，長さ0の正当なデータグラムを区別する． */
-    if (capacity < rx_length) return -2; /* データグラムを保留して次回の受信で取り出せるようにする． */
-    memcpy(buf, rx_data, rx_length);
-    if (peer_ip)
-        *peer_ip = rx_peer_ip;
-    if (peer_port)
-        *peer_port = rx_peer_port;
-    unsigned n = rx_length;
-    rx_ready = 0;
+/* スロット固有の保留データグラムを取り出す． */
+int net_socket_udp_recv(int id,void *buf,unsigned capacity,uint32_t *peer_ip,uint16_t *peer_port) {
+    udp_slot_t *s=udp_slot_at(id);
+    if (!s || !buf) return -1;
+    if (!s->pcb || !s->rx_ready) return -3;
+    if (capacity<s->rx_length) return -2;
+    memcpy(buf,s->rx_data,s->rx_length);
+    if (peer_ip) *peer_ip=s->rx_peer_ip;
+    if (peer_port) *peer_port=s->rx_peer_port;
+    unsigned n=s->rx_length;
+    s->rx_ready=0;
     return (int)n;
 }
 
-/* 宛先IPv4とポートを指定してUDPデータグラムを送る．必要なら最初の送信時にPCBを用意する． */
-int net_socket_udp_send(const void *buf, unsigned length, uint32_t peer_ip, uint16_t peer_port) {
-    if ((!buf && length) || length > NET_SOCKET_UDP_MAX || !peer_port)
-        return -1;
-    /* UDPクライアントは最初の送信時に一時ローカルポートを確保する． */
-    if (!udp_socket) {
-        struct udp_pcb *pcb = udp_new_ip_type(IPADDR_TYPE_V4);
-        if (!pcb)
-            return -1;
-        if (udp_bind(pcb, IP_ANY_TYPE, 0) != ERR_OK) {
+/* UDPクライアントは初回送信時に自身のPCBと送信元ポートを取得する． */
+int net_socket_udp_send(int id,const void *buf,unsigned length,uint32_t peer_ip,uint16_t peer_port) {
+    udp_slot_t *s=udp_slot_at(id);
+    if (!s || (!buf && length) || length>NET_SOCKET_UDP_MAX || !peer_port) return -1;
+    if (!s->pcb) {
+        struct udp_pcb *pcb=udp_new_ip_type(IPADDR_TYPE_V4);
+        if (!pcb) return -1;
+        if (udp_bind(pcb,IP_ANY_TYPE,0)!=ERR_OK) {
             udp_remove(pcb);
             return -1;
         }
-        udp_socket = pcb;
-        rx_ready = 0;
-        udp_recv(pcb, udp_received, NULL);
+        s->pcb=pcb;
+        s->rx_ready=0;
+        udp_recv(pcb,udp_received,s);
     }
-    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, length, PBUF_RAM);
-    if (!p)
-        return -1;
-    if (length && pbuf_take(p, buf, length) != ERR_OK) { pbuf_free(p); return -1; }
+    struct pbuf *pkt=pbuf_alloc(PBUF_TRANSPORT,length,PBUF_RAM);
+    if (!pkt) return -1;
+    if (length && pbuf_take(pkt,buf,length)!=ERR_OK) { pbuf_free(pkt); return -1; }
     ip_addr_t dest;
-    ip_addr_set_ip4_u32(&dest, peer_ip);
-    err_t err = udp_sendto(udp_socket, p, &dest, peer_port);
-    pbuf_free(p);
-    return err == ERR_OK ? (int)length : -1;
+    ip_addr_set_ip4_u32(&dest,peer_ip);
+    err_t err=udp_sendto(s->pcb,pkt,&dest,peer_port);
+    pbuf_free(pkt);
+    return err==ERR_OK ? (int)length : -1;
 }
 
-/* UDPソケットを解放し，受信状態をリセットする．非Wi-Fi版では何もしない． */
-NO_TRACE void net_socket_udp_close(void) {
-    if (udp_socket) { udp_remove(udp_socket); udp_socket = NULL; }
-    rx_ready = 0;
+/* ソケットを閉じるときは対象スロットだけを破棄する． */
+NO_TRACE void net_socket_udp_close(int id) {
+    udp_slot_t *s=udp_slot_at(id);
+    if (!s) return;
+    if (s->pcb) { udp_remove(s->pcb); s->pcb=NULL; }
+    s->rx_ready=0;
 }
 /* PicoNIXのTCPシステムコールを支えるlwIP側の実装． */
 #include "lwip/tcp.h"
@@ -385,7 +389,7 @@ void net_socket_tcp_close(int id) {
 /* UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． */
 NO_TRACE uint16_t net_socket_local_port(int kind,int id) {
     if(kind==0)
-        return udp_socket ? udp_socket->local_port : 0;
+        return udp_slot_at(id) && udp_slot_at(id)->pcb ? udp_slot_at(id)->pcb->local_port : 0;
     tcp_slot_t *s=slot_at(id);
     if(!s)
         return 0;
@@ -398,22 +402,22 @@ NO_TRACE uint16_t net_socket_local_port(int kind,int id) {
 
 #else
 /* UDP待受ポートをlwIPへ登録する．不正ポート・既存状態などの失敗時は負値を返す． */
-int net_socket_udp_bind(uint16_t port) { (void)port; return -1; }
+int net_socket_udp_bind(int id,uint16_t port) { (void)id; (void)port; return -1; }
 /* UDPの受信データがあるか確認する． */
-NO_TRACE int net_socket_udp_read_ready(void) { return 0; }
+NO_TRACE int net_socket_udp_read_ready(int id) { (void)id; return 0; }
 
 /* 保持中の一つのデータグラムを取り出す．データがなければ再試行可能な状態を返す． */
-int net_socket_udp_recv(void *b, unsigned n, uint32_t *a, uint16_t *p) {
-    (void)b; (void)n; (void)a; (void)p; return -1;
+int net_socket_udp_recv(int id,void *b, unsigned n, uint32_t *a, uint16_t *p) {
+    (void)id; (void)b; (void)n; (void)a; (void)p; return -1;
 }
 
 /* 宛先IPv4とポートを指定してUDPデータグラムを送る．必要なら最初の送信時にPCBを用意する． */
-int net_socket_udp_send(const void *b, unsigned n, uint32_t a, uint16_t p) {
-    (void)b; (void)n; (void)a; (void)p; return -1;
+int net_socket_udp_send(int id,const void *b, unsigned n, uint32_t a, uint16_t p) {
+    (void)id; (void)b; (void)n; (void)a; (void)p; return -1;
 }
 
 /* UDPソケットを解放し，受信状態をリセットする．非Wi-Fi版では何もしない． */
-NO_TRACE void net_socket_udp_close(void) {}
+NO_TRACE void net_socket_udp_close(int id) { (void)id; }
 
 /* 固定TCP管理スロットを確保する．空きがなければ-1を返す． */
 int net_socket_tcp_alloc(void) { return -1; }

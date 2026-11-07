@@ -18,17 +18,18 @@ def parse_args():
         help="PicoNIX MCP endpoint (default: %(default)s)",
     )
     parser.add_argument(
-        "--tool", choices=("get_temperature", "get_wifi_info", "all", "none"),
+        "--tool", choices=("get_temperature", "get_wifi_info", "display_message", "all", "none"),
         default="all", help="Tool(s) to call after listing (default: %(default)s)",
     )
     parser.add_argument(
         "--mode", choices=("auto", "2026-07-28"), default="auto",
         help="MCP protocol mode (default: %(default)s)",
     )
+    parser.add_argument("--text", default="HELLO PICONIX", help="ASCII text for display_message")
     return parser.parse_args()
 
 
-async def run(url, mode, tool_selection):
+async def run(url, mode, tool_selection, text):
     """MCP接続を確立して要求を送る．"""
     # Import here to show an actionable dependency error instead of a traceback.
     try:
@@ -47,7 +48,7 @@ async def run(url, mode, tool_selection):
 
         if tool_selection == "none":
             return
-        wanted = ("get_temperature", "get_wifi_info") if tool_selection == "all" else (tool_selection,)
+        wanted = ("get_temperature", "get_wifi_info", "display_message") if tool_selection == "all" else (tool_selection,)
         failed = False
         for name in wanted:
             if name not in names:
@@ -56,7 +57,7 @@ async def run(url, mode, tool_selection):
                 continue
             print(f"\n{name}:")
             print(f"Request: tools/call ({name})", flush=True)
-            answer = await client.call_tool(name, {})
+            answer = await client.call_tool(name, {"text": text} if name == "display_message" else {})
             for item in answer.content:
                 if item.type == "text":
                     print(item.text)
@@ -75,7 +76,7 @@ def main():
     if not args.url.startswith("http://"):
         sys.exit("This experimental sample expects an http:// URL on an isolated LAN")
     try:
-        asyncio.run(run(args.url, args.mode, args.tool))
+        asyncio.run(run(args.url, args.mode, args.tool, args.text))
     except (Exception, KeyboardInterrupt) as exc:
         print("MCP client failed; detailed traceback:", file=sys.stderr)
         traceback.print_exception(exc)

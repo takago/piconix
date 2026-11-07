@@ -80,13 +80,14 @@ static uint8_t tty_last_cr[OS_TTY_COUNT], tty_saved_canon[OS_TTY_COUNT];
 static uint8_t tty_saved_echo[OS_TTY_COUNT], tty_saved_onlcr[OS_TTY_COUNT];
 static int tty_saved_owner[OS_TTY_COUNT];
 static struct { int pid,parent_pid; } exited[OS_MAX_TASKS];
-static int udp_owner_pid, tcp_owner_pid[4];
+static int udp_owner_pid[3], tcp_owner_pid[4];
 static int fd_release_count, tty_reset_count, record_count, pend_count;
 static int read_data_ready, read_bytes;
 static void fd_release(task_t *t,int fd) {if(t->fd[fd]>=0)fd_release_count++;t->fd[fd]=-1;}
-static void net_socket_udp_close(void) {assert(0);}
+static void net_socket_udp_close(int id) {(void)id;assert(0);}
 static void net_socket_tcp_close(int id) {(void)id;assert(0);}
 #define TCP_USER_SLOTS 4
+#define UDP_USER_SLOTS 3
 static void tty_mode_reset(int tty) {tty_reset_count++;tty_mode_owner[tty]=0;}
 static int tty_owner_pid(int tty) { return tty_claim_pid[tty] ? tty_claim_pid[tty] :
     (foreground_pid[tty] ? foreground_pid[tty] : tty_shell_pid[tty]); }
@@ -119,7 +120,7 @@ static void reset(void) {
     memset(tty_mode_owner,0,sizeof tty_mode_owner);
     memset(tcp_owner_pid,0,sizeof tcp_owner_pid);
     fd_release_count=tty_reset_count=record_count=pend_count=0;
-    udp_owner_pid=0;
+    memset(udp_owner_pid,0,sizeof udp_owner_pid);
     read_data_ready=read_bytes=0;
     for(int i=0;i<TOTAL_SLOTS;i++)
         for(int fd=0;fd<OS_FD_MAX;fd++) tasks[i].fd[fd]=-1;

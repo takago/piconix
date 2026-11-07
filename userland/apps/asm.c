@@ -69,6 +69,8 @@ static int memory_operand(char *s,int *base,int *offset) {
     *e=0;char *c=strchr(s,',');
     if(c){*c++=0;if(!number(c,offset))return 0;}
     else *offset=0;
+    s=space(s);
+    if(!strcmp(s,"sp")){*base=13;return 1;}
     *base=reg(s);return *base>=0;
 }
 
@@ -133,26 +135,63 @@ static int compile(int pass) {
                     emit16(0xf800|((imm>>1)&0x7ff),pass);
                     if(next){line=next;continue;}break;
                 }
+                else if(!strcmp(p,"addsp")) {
+                    char *c=strchr(arg,',');int amount=0;
+                    if(!c){err=1;break;}*c++=0;end(arg);
+                    r=reg(arg);
+                    if(r<0||r>7||!number(c,&amount)||amount<0||amount>1020||(amount&3))err=1;
+                    ins=0xa800|(r<<8)|((amount>>2)&255);
+                }
+                else if(!strcmp(p,"sub")||!strcmp(p,"add")) {
+                    char *c=strchr(arg,',');int amount=0;
+                    if(!c){err=1;break;}
+                    *c++=0;end(arg);
+                    if(strcmp(arg,"sp")||!number(c,&amount)||amount<0||amount>508||(amount&3))err=1;
+                    ins=(!strcmp(p,"sub")?0xb080:0xb000)|((amount>>2)&127);
+                }
                 else if(!strcmp(p,"svc")) {if(!number(arg,&v)||v<0||v>255)err=1;ins=0xdf00|(v&255);}
-                else if(!strcmp(p,"b")||!strcmp(p,"beq")||!strcmp(p,"bne")||!strcmp(p,"bcc")||!strcmp(p,"bcs")) {
+                else if(!strcmp(p,"b")||!strcmp(p,"beq")||!strcmp(p,"bne")||!strcmp(p,"bcc")||!strcmp(p,"bcs")||!strcmp(p,"blt")||!strcmp(p,"bge")||!strcmp(p,"bgt")||!strcmp(p,"ble")) {
                     int target=label(arg);if(target<0){if(pass)err=1;target=(int)pos+4;}
                     int delta=target-(int)pos-4;int conditional=strcmp(p,"b")!=0;
                     if(pass && ((delta&1)||delta < (conditional?-256:-2048) || delta>(conditional?254:2046)))err=1;
-                    ins=conditional?(0xd000|(!strcmp(p,"bne")?0x100:!strcmp(p,"bcs")?0x200:!strcmp(p,"bcc")?0x300:0)|((delta>>1)&255)):(0xe000|((delta>>1)&2047));
+                    int cond=!strcmp(p,"beq")?0:!strcmp(p,"bne")?1:
+                        !strcmp(p,"bcs")?2:!strcmp(p,"bcc")?3:
+                        !strcmp(p,"bge")?10:!strcmp(p,"blt")?11:
+                        !strcmp(p,"bgt")?12:13;
+                    ins=conditional?(0xd000|(cond<<8)|((delta>>1)&255)):(0xe000|((delta>>1)&2047));
                 } else {
                     if(!comma){err=1;break;}*comma++=0;end(arg);comma=space(comma);
                     r=reg(arg);if(r<0){err=1;break;}
                     if(!strcmp(p,"mov")) {
                         int other=reg(comma);if(other<0)err=1;
                         ins=0x4600|((r&8)<<4)|((other&15)<<3)|(r&7);
+                    } else if(!strcmp(p,"adds")||!strcmp(p,"subs")||!strcmp(p,"muls")||!strcmp(p,"cmp")) {
+                        int other=reg(comma);
+                        if(other>=0) {
+                            if(!strcmp(p,"adds"))ins=0x1800|(other<<6)|(r<<3)|r;
+                            else if(!strcmp(p,"subs"))ins=0x1a00|(other<<6)|(r<<3)|r;
+                            else if(!strcmp(p,"muls"))ins=0x4340|(other<<3)|r;
+                            else ins=0x4280|(other<<3)|r;
+                        } else {
+                            if(!number(comma,&v)||v<0||v>255)err=1;
+                            else if(!strcmp(p,"adds"))ins=0x3000|(r<<8)|v;
+                            else if(!strcmp(p,"subs"))ins=0x3800|(r<<8)|v;
+                            else if(!strcmp(p,"cmp"))ins=0x2800|(r<<8)|v;
+                            else err=1;
+                        }
                     } else if(!strcmp(p,"ldr")||!strcmp(p,"str")||!strcmp(p,"ldrb")||!strcmp(p,"strb")) {
                         int base,off;
                         if(!memory_operand(comma,&base,&off)||off<0)err=1;
                         else {
                             int byteop=(!strcmp(p,"ldrb")||!strcmp(p,"strb"));
+                            if(base==13) {
+                                if(byteop||(off&3)||off>1020)err=1;
+                                else ins=(!strcmp(p,"str")?0x9000:0x9800)|(r<<8)|(off>>2);
+                            } else {
                             if((!byteop && (off&3))||off>(byteop?31:124))err=1;
                             unsigned op=!strcmp(p,"str")?0x6000:!strcmp(p,"ldr")?0x6800:!strcmp(p,"strb")?0x7000:0x7800;
                             ins=op|((unsigned)(off>>(byteop?0:2))<<6)|(base<<3)|r;
+                            }
                         }
                     } else if(!strcmp(p,"adr")) {
                         int target=label(comma);if(target<0){if(pass)err=1;target=(int)pos+4;}

@@ -41,14 +41,16 @@ typedef struct {
  int result;
 } task_t;
 static task_t tasks[OS_MAX_TASKS];
-static int tcp_owner_pid[TCP_USER_SLOTS], udp_owner_pid;
+static int tcp_owner_pid[TCP_USER_SLOTS], udp_owner_pid[3];
+static int udp_fd_slot(task_t *t,int fd) { int id=(int)t->fd_pos[fd]; return t->fd[fd]==DEV_SOCKET_UDP && id>=0 && id<3 && udp_owner_pid[id]==t->pid ? id : -1; }
 static int net_busy, accept_ready, tcp_status, tcp_bytes, udp_bytes;
 static int net_poll_in_progress(void) { return net_busy; }
 static int net_socket_tcp_listening(int id) { return id==0; }
 static int net_socket_tcp_accept_ready(int id) { (void)id; if(!accept_ready)return 0; accept_ready=0; return 1; }
 static int net_socket_tcp_status(int id) { (void)id; return tcp_status; }
 static int net_socket_tcp_read(int id, void *dst, unsigned size) { (void)id; (void)size; if(tcp_bytes>0) ((char *)dst)[0]='X'; return tcp_bytes; }
-static int net_socket_udp_recv(void *buf, unsigned capacity, uint32_t *ip, uint16_t *port) {
+static int net_socket_udp_recv(int id, void *buf, unsigned capacity, uint32_t *ip, uint16_t *port) {
+ (void)id;
  (void)buf; (void)capacity;
  if(udp_bytes>=0) { *ip=1; *port=2; }
  return udp_bytes;
@@ -76,7 +78,7 @@ int main(void) {
  tcp_bytes=1;wake_sockets();assert(t->state==READY&&t->result==1&&data[0]=='X');
  t->state=BLOCKED;t->wait_frame_ready=1;tcp_status=-2;tcp_bytes=-2;wake_sockets();assert(t->state==READY&&t->result==0);
  t->fd[5]=DEV_SOCKET_UDP;t->state=BLOCKED;t->wait_frame_ready=1;t->wait_dev=WAIT_UDP_READ;t->wait_fd=5;
- piconix_udp_packet_t pkt={0};t->wait_buf=&pkt;udp_owner_pid=3;
+ piconix_udp_packet_t pkt={0};t->wait_buf=&pkt;udp_owner_pid[0]=3;
  udp_bytes=-3;wake_sockets();assert(t->state==BLOCKED);
  udp_bytes=0;wake_sockets();assert(t->state==READY&&t->result==0&&pkt.peer_ip==1);
  return 0;

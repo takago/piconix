@@ -93,3 +93,17 @@ MCP Python SDK v2 uses the attributes `input_schema` and `is_error`, not `inputS
 ## 6. Related exercises
 
 See [exercises](../exercises/README.md#compare-mcp-and-llm-roles) for questions comparing MCP transport and LLM tool selection.
+
+
+## LED ticker and multi-tool orchestration
+
+Start `scroll -u 2001` on PicoNIX, then try:
+
+```sh
+python host/mcp_client.py http://192.168.4.1:8080/mcp --tool display_message --text "HELLO PICONIX"
+python host/mcp_llm_client.py
+```
+
+Ask the LLM: `Find the PicoNIX IP address and scroll it on the LED matrix.` The expected workflow is `get_wifi_info` followed by `display_message` with the retrieved IP as `text`. This is an illustrative workflow, not a recorded run. No IP-specific workflow is hardcoded into the Python client.
+
+A successful UDP send does not confirm delivery or display. If `scroll` is stopped, UDP sending may still succeed. Use UDP only on trusted networks. `--tool all` now also sends an LED message; use `--tool none` or a read-only tool to avoid modifying the display.

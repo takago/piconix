@@ -39,14 +39,15 @@ typedef struct {
  int result;
 } task_t;
 static task_t tasks[OS_MAX_TASKS];
-static int tcp_owner_pid[TCP_USER_SLOTS],udp_owner_pid,accept_pending,rx_bytes,udp_pending,tty_pending,poll_busy,can_write;
+static int tcp_owner_pid[TCP_USER_SLOTS],udp_owner_pid[3],accept_pending,rx_bytes,udp_pending,tty_pending,poll_busy,can_write;
 static uint32_t ticks;
 static pipe_t pipe_storage;
 static int pipe_end(int d) {return d==PIPE_DEV_BASE || d==PIPE_DEV_BASE+1;}
 static pipe_t *pipe_for_dev(int d) {(void)d;return &pipe_storage;}
 static int pipe_is_writer(int d) {return d==PIPE_DEV_BASE+1;}
 static int net_poll_in_progress(void) {return poll_busy;}
-static int net_socket_udp_read_ready(void) {return udp_pending;}
+static int udp_fd_slot(task_t *t,int fd) { int id=(int)t->fd_pos[fd]; return id>=0 && id<3 && udp_owner_pid[id]==t->pid ? id : -1; }
+static int net_socket_udp_read_ready(int id) {(void)id;return udp_pending;}
 static int net_socket_tcp_listening(int id) {(void)id;return 1;}
 static int net_socket_tcp_accept_peek(int id) {(void)id;return accept_pending;}
 static int net_socket_tcp_recv_ready(int id) {(void)id;return rx_bytes>0;}
@@ -63,7 +64,7 @@ int main(void) {
  for(int i=0;i<OS_FD_MAX;i++)t->fd[i]=-1;
  t->fd[3]=DEV_SOCKET_TCP; t->fd_pos[3]=0;tcp_owner_pid[0]=7;
  t->fd[4]=DEV_SOCKET_TCP_ACCEPTED;t->fd_pos[4]=1;tcp_owner_pid[1]=7;
- t->fd[5]=DEV_SOCKET_UDP;udp_owner_pid=7;
+ t->fd[5]=DEV_SOCKET_UDP;udp_owner_pid[0]=7;
  t->fd[0]=DEV_CONSOLE;
  t->fd[6]=PIPE_DEV_BASE;pipe_storage.writers=1;
  piconix_select_request_t req={.read_mask=(1u<<3)|(1u<<4),.timeout_ms=100};

@@ -419,7 +419,14 @@ static void fd_set(task_t *t, int fd, int dev, uint32_t pos, int flags, int targ
     t->fd_flags[fd]=(uint8_t)flags;
 }
 /* 一つのFDを解放する．ソケットはタスクが所有し，パイプは端点ごとの参照数を持つ． */
-static int udp_owner_pid;
+#define UDP_USER_SLOTS NET_SOCKET_UDP_SLOTS
+static int udp_owner_pid[UDP_USER_SLOTS];
+/* UDP FDの所有者と管理スロットを検証する． */
+NO_TRACE static int udp_fd_slot(task_t *t,int fd) {
+    if(fd<0 || fd>=OS_FD_MAX || t->fd[fd]!=DEV_SOCKET_UDP) return -1;
+    unsigned id=t->fd_pos[fd];
+    return id<UDP_USER_SLOTS && udp_owner_pid[id]==t->pid ? (int)id : -1;
+}
 #define TCP_USER_SLOTS NET_SOCKET_TCP_SLOTS
 static int tcp_owner_pid[TCP_USER_SLOTS];
 /* タスク内のTCP用FDを検証し，対応するネットワーク管理スロットを返す． */
@@ -450,7 +457,8 @@ static void fd_release(task_t *t,int fd) {
     if(dev<0)
         return;
     if(dev==DEV_SOCKET_UDP) {
-        net_socket_udp_close(); udp_owner_pid=0;
+        int id=udp_fd_slot(t,fd);
+        if(id>=0) { net_socket_udp_close(id); udp_owner_pid[id]=0; }
     } else if(dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
         int id=tcp_fd_slot(t,fd);
         if(id>=0) {
@@ -529,7 +537,7 @@ NO_TRACE static void finish_task(int slot, int status) {
             exited[i].pid=0;
     for(int fd=0;fd<OS_FD_MAX;fd++) fd_release(t,fd);
     /* FDが失われた場合にも，タスクに紐づいたソケットを後始末する． */
-    if(udp_owner_pid==t->pid) { net_socket_udp_close(); udp_owner_pid=0; }
+    for(int id=0;id<UDP_USER_SLOTS;id++) if(udp_owner_pid[id]==t->pid) { net_socket_udp_close(id); udp_owner_pid[id]=0; }
     for(int id=0;id<TCP_USER_SLOTS;id++) if(tcp_owner_pid[id]==t->pid) { net_socket_tcp_close(id); tcp_owner_pid[id]=0; }
     t->state=DEAD;
     /* 終了したパイプ段を外してから生存者を決める．シェルは別の段の終了待ちを継続する場合がある． */
@@ -641,9 +649,9 @@ NO_TRACE static void wake_sockets(void) {
                     }
                 }
             } else if(t->wait_dev==WAIT_UDP_READ && t->fd[fd]==DEV_SOCKET_UDP &&
-                      udp_owner_pid==t->pid) {
+                      udp_fd_slot(t,fd)>=0) {
                 piconix_udp_packet_t *pkt=(piconix_udp_packet_t *)t->wait_buf;
-                int n=net_socket_udp_recv((void *)pkt->data,pkt->length,&pkt->peer_ip,&pkt->peer_port);
+                int n=net_socket_udp_recv(udp_fd_slot(t,fd),(void *)pkt->data,pkt->length,&pkt->peer_ip,&pkt->peer_port);
                 if(n==-3)
                     continue;
                 result=n==-2 ? OS_EINVAL : n<0 ? OS_EIO : n;
@@ -672,9 +680,9 @@ NO_TRACE static int select_ready(task_t *t,int nfds,piconix_select_request_t *r)
         if(dev<0)
             return OS_EBADF;
         if(dev==DEV_SOCKET_UDP) {
-            if(udp_owner_pid!=t->pid)
-                return OS_EBADF;
-            rd=net_socket_udp_read_ready(); wr=1;
+            int id=udp_fd_slot(t,fd);
+            if(id<0) return OS_EBADF;
+            rd=net_socket_udp_read_ready(id); wr=1;
         } else if(dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
             int id=(int)t->fd_pos[fd];
             if(id<0 || id>=TCP_USER_SLOTS || tcp_owner_pid[id]!=t->pid)
@@ -2577,7 +2585,6 @@ void os_svc_dispatch(uint32_t *f) {
         }
         case SYS_SOCKET: {
             if(a!=2 || (b!=1 && b!=2) || c!=0) { result=OS_EINVAL; break; }
-            if(b==2 && udp_owner_pid) { result=OS_EBUSY; break; }
             int fd=free_fd();
             if(fd<0) { result=OS_EMFILE; break; }
             int id=0;
@@ -2585,7 +2592,12 @@ void os_svc_dispatch(uint32_t *f) {
                 id=net_socket_tcp_alloc();
                 if(id<0) { result=OS_EBUSY; break; }
                 tcp_owner_pid[id]=tasks[current].pid;
-            } else udp_owner_pid=tasks[current].pid;
+            } else {
+                id=-1;
+                for(int j=0;j<UDP_USER_SLOTS;j++) if(!udp_owner_pid[j]) { id=j; break; }
+                if(id<0) { result=OS_EBUSY; break; }
+                udp_owner_pid[id]=tasks[current].pid;
+            }
             fd_set(&tasks[current],fd,b==1 ? DEV_SOCKET_TCP : DEV_SOCKET_UDP,(uint32_t)id,OS_O_RDWR,0);
             result=fd;
             break;
@@ -2643,26 +2655,26 @@ void os_svc_dispatch(uint32_t *f) {
             break;
         }
         case SYS_BIND:
-            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]!=DEV_SOCKET_UDP || udp_owner_pid!=tasks[current].pid)
+            if(udp_fd_slot(&tasks[current],a)<0)
                 result=OS_EBADF;
             else if(b<=0 || b>65535) result=OS_EINVAL;
-            else result=net_socket_udp_bind((uint16_t)b)==0 ? 0 : OS_EINVAL;
+            else result=net_socket_udp_bind(udp_fd_slot(&tasks[current],a),(uint16_t)b)==0 ? 0 : OS_EINVAL;
             break;
         case SYS_SENDTO: {
-            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]!=DEV_SOCKET_UDP || udp_owner_pid!=tasks[current].pid) { result=OS_EBADF; break; }
+            if(udp_fd_slot(&tasks[current],a)<0) { result=OS_EBADF; break; }
             const piconix_udp_packet_t *pkt=(const piconix_udp_packet_t *)(uintptr_t)b;
             if(!pkt || !in_task_range(pkt,sizeof(*pkt)) || pkt->length>NET_SOCKET_UDP_MAX ||
                (pkt->length && (!pkt->data || !in_task_range(pkt->data,pkt->length)))) { result=OS_EINVAL; break; }
-            int n=net_socket_udp_send(pkt->data,pkt->length,pkt->peer_ip,pkt->peer_port);
+            int n=net_socket_udp_send(udp_fd_slot(&tasks[current],a),pkt->data,pkt->length,pkt->peer_ip,pkt->peer_port);
             result=n<0 ? OS_EIO : n;
             break;
         }
         case SYS_RECVFROM: {
-            if(a<0 || a>=OS_FD_MAX || tasks[current].fd[a]!=DEV_SOCKET_UDP || udp_owner_pid!=tasks[current].pid) { result=OS_EBADF; break; }
+            if(udp_fd_slot(&tasks[current],a)<0) { result=OS_EBADF; break; }
             piconix_udp_packet_t *pkt=(piconix_udp_packet_t *)(uintptr_t)b;
             if(!pkt || !in_task_range(pkt,sizeof(*pkt)) || !pkt->data ||
                pkt->length>NET_SOCKET_UDP_MAX || !in_task_range(pkt->data,pkt->length)) { result=OS_EINVAL; break; }
-            int n=net_socket_udp_recv((void *)pkt->data,pkt->length,&pkt->peer_ip,&pkt->peer_port);
+            int n=net_socket_udp_recv(udp_fd_slot(&tasks[current],a),(void *)pkt->data,pkt->length,&pkt->peer_ip,&pkt->peer_port);
             if(n==-3 && !(tasks[current].fd_flags[a] & OS_O_NONBLOCK)) {
                 task_t *t=&tasks[current];
                 t->wait_dev=WAIT_UDP_READ; t->wait_fd=a; t->wait_buf=pkt;

@@ -16,8 +16,10 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Flash-resident PIC applications** — User programs are stored as position-independent code (PIC) images in Flash and copied into fixed RAM slots for execution.
 - **Pico W Wi-Fi hardware** — On Pico W, PicoNIX uses the onboard Infineon CYW43439 Wi-Fi chip through the Raspberry Pi Pico SDK, with access-point (AP) and station (STA) modes.
 - **Open-source TCP/IP networking** — On Pico W, PicoNIX uses lwIP, a lightweight open-source TCP/IP stack, and provides user applications with a compact BSD-style IPv4 socket API (`socket()`, `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()`).
+- **LED text ticker** — `scroll` renders printable ASCII on the 8×8 LED matrix from stdin or UDP 2001, with a 1 KiB ring buffer, `select()` and plain-text UDP reception. `mcpd` can send display text using `display_message` (delivery is not confirmed). See [scroll tutorial](docs/en/guides/SCROLL.md) ([日本語](docs/ja/guides/SCROLL.md)).
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, `udp_echod`, and the experimental MCP server `mcpd` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
-- **MCP and local LLM demo (Pico W)** — `mcpd` provides a small Streamable HTTP/JSON-RPC interface on TCP port 8080. Its read-only tools expose the RP2040 temperature and Pico W Wi-Fi status to standard MCP clients and optionally to a local LLM. Basic tool calls and LLM integration were verified on hardware on November 6, 2026. See the [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)).
+- **MCP and local LLM demo (Pico W)** — `mcpd` exposes RP2040 temperature, Pico W Wi-Fi information, and LED text output through Streamable HTTP/JSON-RPC on TCP port 8080. On November 7, 2026, the developer confirmed on real hardware that an LLM could obtain the IP address with `get_wifi_info` and display it on the 8×8 LED matrix using `display_message` and `scroll`. See the [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)).
+- **Concurrent UDP clients and servers** — Up to three user UDP sockets with independent receive buffers enable local communication between `scroll` and `nc` (Pico W; the developer confirmed the integrated MCP-to-LED demonstration on real hardware on November 7, 2026).
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
 - **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `cp`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`. Binary transfer with `dd` is also supported.
 - **Foreground interruption** — Ctrl+C terminates registered foreground tasks, including pipeline stages; `nc -u -N` exits on stdin EOF for one-shot UDP sends.
@@ -33,6 +35,20 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Kernel function tracing (enabled in standard builds)** — Inspect selected kernel function entry/return events with `trace run hello`, or use `trace run -s hello` to record only system calls. Event capture starts OFF; the build option `PICONIX_KERNEL_FUNCTION_TRACE` defaults to ON. See the [trace guide](docs/en/guides/TRACE.md) ([日本語](docs/ja/guides/TRACE.md)) and [setup guide](docs/en/setup/SETUP.md) ([日本語](docs/ja/setup/SETUP.md)).
 - **Terminal games** — Moon Buggy (`mb`) and `pong`.
 
+## LLM-to-LED demo (Pico W)
+
+The developer confirmed an end-to-end hardware demonstration on **November 7, 2026**: a local LLM called the MCP tool `get_wifi_info` to obtain the Pico W IP address, then used `display_message` to scroll that address across the 8×8 LED matrix.
+
+Start the LED ticker from the PicoNIX shell:
+
+```sh
+scroll -u 2001 &
+```
+
+The data path is **LLM → MCP client → `mcpd` (TCP 8080) → `display_message` → UDP `127.0.0.1:2001` → `scroll` → LED matrix**. `mcpd` sends plain text via UDP and does not wait for an acknowledgement; a successful send alone does not guarantee that text has been displayed. `scroll` may also receive text through standard input or a plain-text UDP sender.
+
+This example demonstrates composition of two MCP tools, user-space networking, `select()`-based I/O multiplexing, and physical device output. See the [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)) and [scroll guide](docs/en/guides/SCROLL.md) ([日本語](docs/ja/guides/SCROLL.md)).
+
 ## Commands
 
 PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting the OS, programming the RP2040, and experimenting with networking. Run `help` for the command list or `help NAME` for usage. For example, `cat -n /tmp/test.py` displays line numbers.
@@ -42,8 +58,8 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Shell & files | `sh`, `ls`, `cat`, `cp`, `grep`, `pwd`, `echo`, `rm`, `find`, `tree`, `fd`, `dd` |
 | Processes & diagnostics | `ps`, `kill`, `lsof`, `trace`, `mem`, `hexdump`, `watch` |
 | Terminals | `getty`, `tty`, `stty`, `reset` |
-| Programming | `edit`, `vi`, `as`, `python` |
-| Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink` |
+| Programming | `edit`, `vi`, `as`, `cc`, `python` |
+| Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink`, `scroll` |
 | Networking | `ip`, `net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod`, `mcpd` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
 | Help | `help` |
@@ -250,6 +266,8 @@ Choose the documentation that matches your purpose. Start with **Setup** if you 
 | **Hardware** — Boards, pins and wiring | [Hardware](docs/en/reference/hardware/README.md) | [ハードウェア](docs/ja/reference/hardware/README.md) |
 | **Devices** — Device files and interfaces | [Devices](docs/en/reference/devices/README.md) | [デバイス仕様](docs/ja/reference/devices/README.md) |
 | **Networking** — Wi-Fi, TCP/IP and services | [Networking](docs/en/reference/network/README.md) | [ネットワーク仕様](docs/ja/reference/network/README.md) |
+| **LED text ticker** — LED text and UDP/MCP integration | [Scroll guide](docs/en/guides/SCROLL.md) | [LEDスクロール](docs/ja/guides/SCROLL.md) |
+| **C subset compiler** — On-device C compilation | [Compiler guide](docs/en/development/apps/c/CC.md) | [Cコンパイラガイド](docs/ja/development/apps/c/CC.md) |
 | **MCP demo** — MCP server and Linux client | [MCP guide](docs/en/guides/MCP.md) | [MCP操作ガイド](docs/ja/guides/MCP.md) |
 | **LLM integration** — Call MCP tools from a local LLM | [LLM client tutorial](docs/en/guides/MCP-LLM-CLIENT.md) | [LLM連携ガイド](docs/ja/guides/MCP-LLM-CLIENT.md) |
 | **Development guides** — Applications and kernel extensions | [Development guides](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
@@ -257,3 +275,22 @@ Choose the documentation that matches your purpose. Start with **Setup** if you 
 | **Development diary** — Project development history | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |
 
 The learning roadmap gives the recommended sequence; usage guides and development guides provide the hands-on instructions. The reference pages describe the interfaces and constraints.
+
+### On-device C subset compiler
+
+`cc` translates a small educational C subset into Thumb-1 assembly for the built-in `as`. Try `cc /tmp/hello.c`, `as /tmp/cc.s`, then `./a.out`. Supported statements include `write(fd, "text", count);`, `getpid();`, `return N;`, integer locals, recursive-descent arithmetic expressions (`+`, `-`, `*`, `/`, `%`, parentheses), `if` and `while` inside `int main(void)`. This is **not** a general-purpose C compiler. [Japanese guide](docs/ja/development/apps/c/CC.md) / [English guide](docs/en/development/apps/c/CC.md).
+
+
+### C subset compiler: characters and arrays
+
+The educational `cc` now supports 32-bit `int`, byte-sized `char`, local fixed-size `int[]` and `char[]`, character constants, indexed reads/writes, `sizeof(local)`, and `char[]` string initialization. `read(fd, array, count_expression)` and `write(fd, array, count_expression)` now accept integer expressions for the file descriptor and byte count. All local storage uses a 256-byte stack frame. Array bounds are **not** checked at runtime; array-buffer arguments must be named local arrays (not general pointers). See the [Japanese guide](docs/ja/development/apps/c/CC.md) and [English guide](docs/en/development/apps/c/CC.md). This is not a conforming C compiler; native RP2040 execution is not yet verified.
+
+### `cc` 回帰テスト / Compiler regression tests
+
+`python3 tools/test_scripts/test_cc_regressions.py` checks accepted/rejected C subsets and Thumb assembly output. `python3 tools/test_scripts/test_cc_stack.py` uses the current 256-byte frame. These are host-side checks, **not** RP2040 execution tests.
+
+> `cc` の比較演算は符号付きThumb-1条件分岐に対応しました．`tools/test_scripts/test_cc_signed_comparisons.py` は命令符号を検証しますが，実機実行テストではありません．
+
+### Experimental C function definitions
+
+The educational `cc` now emits Thumb-1 calls for user-defined `int`/`void` functions with up to four `int` parameters, per-call stack frames, nested calls, and recursion. See [日本語](docs/ja/development/apps/c/CC.md) / [English](docs/en/development/apps/c/CC.md). Assembly tests pass; RP2040 execution and full AAPCS stack alignment remain unverified.

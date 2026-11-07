@@ -203,7 +203,7 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     if(total>128) {put("arguments too long (max 128 bytes)\r\n");return 1;}
     int pid=background?spawn(id,argc,(const char *const *)args):spawn_foreground(id,argc,(const char *const *)args);
     if(pid<0) {put("cannot start program\r\n");return 1;}
-    if(background) {*bg_pid=pid;*bg_name="program";}
+    if(background) {*bg_pid=pid;*bg_name=name;}
     else {
         int status=0;
         waitpid(pid,&status,0);
@@ -760,7 +760,9 @@ int main(int argc, char *argv[]) {
         if(redir_ok<0) put("redirect: invalid path or cannot open file\r\n");
         /* 背景起動の通知はリダイレクト先でなく端末へ出す． */
         if(bg_pid>0) {
-            put("["); printf("%d", bg_pid);
+            char pid_text[16];
+            snprintf(pid_text,sizeof pid_text,"%d",bg_pid);
+            put("["); put(pid_text);
             put("] "); put(bg_name?bg_name:"program"); put(" started\r\n");
         }
         put("\033[0m\033[?25h" SHELL_PROMPT);

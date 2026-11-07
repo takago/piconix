@@ -58,6 +58,8 @@ int main(int argc, char **argv) {
         puts("  ping       Send ICMP Echo requests (Pico W)");
         puts("  tcpdump    Observe IPv4 traffic (Pico W)");
         puts("  httpd      HTTP/1.0 server on TCP port 80");
+        puts("  scroll     ASCII LED scrolling display (stdin/UDP)");
+        puts("  cc         Small C-subset compiler (C to Thumb assembly)");
         puts("  mcpd       Experimental MCP HTTP server on TCP 8080");
         puts("  tcp_echod  TCP echo server (default port 7)");
         puts("  udp_echod  UDP echo server (default port 7)");
@@ -93,6 +95,8 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"tcp_echod")) puts("tcp_echod [PORT]: TCP echo server (default 7)");
     else if(!strcmp(argv[1],"udp_echod")) puts("udp_echod [PORT]: UDP echo server (default 7)");
     else if(!strcmp(argv[1],"httpd")) puts("httpd: HTTP/1.0 server on TCP 80 (HTML, framebuffer/PWM APIs)");
+    else if(!strcmp(argv[1],"scroll")) puts("scroll: LED text ticker\nusage: scroll [-u [PORT]] (default UDP 2001)");
+    else if(!strcmp(argv[1],"cc")) puts("cc: compile a tiny C subset to Thumb assembly\nusage: cc source.c\nthen: as /tmp/cc.s ; ./a.out");
     else if(!strcmp(argv[1],"mcpd")) puts("mcpd: Experimental Streamable HTTP MCP server (Pico W)\nusage: mcpd (TCP 8080)");
     else if(!strcmp(argv[1],"ip")) puts("ip: Interface addresses (Pico W)\nusage: ip [addr]\nShows loopback and actual Wi-Fi interface names; no configuration support");
     else if(!strcmp(argv[1],"net")) puts("net: Wi-Fi network status\nusage: net [-a|-r]\n-a: AP clients, -r: ARP cache");

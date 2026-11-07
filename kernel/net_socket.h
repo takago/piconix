@@ -5,12 +5,14 @@
 #include <stdint.h>
 /* UDP内部通信API．システムコールまたはアイドル側から呼ぶが，割込み内では呼ばない．lwIPポーリングとユーザソケットSVCを同時実行させない． */
 #define NET_SOCKET_UDP_MAX 512u
-int net_socket_udp_bind(uint16_t port);
-int net_socket_udp_read_ready(void);
-/* データグラムなしは-3を返し，長さ0は正当なUDPデータグラムと区別する． */
-int net_socket_udp_recv(void *buf, unsigned capacity, uint32_t *peer_ip, uint16_t *peer_port);
-int net_socket_udp_send(const void *buf, unsigned length, uint32_t peer_ip, uint16_t peer_port);
-void net_socket_udp_close(void);
+#define NET_SOCKET_UDP_SLOTS 3
+/* UDPソケットはFDごとの管理スロットに対応する． */
+int net_socket_udp_bind(int id, uint16_t port);
+int net_socket_udp_read_ready(int id);
+/* データグラムなしは-3を返し，長さ0の正常なデータグラムと区別する． */
+int net_socket_udp_recv(int id, void *buf, unsigned capacity, uint32_t *peer_ip, uint16_t *peer_port);
+int net_socket_udp_send(int id, const void *buf, unsigned length, uint32_t peer_ip, uint16_t peer_port);
+void net_socket_udp_close(int id);
 
 /* 固定数のユーザTCPソケット枠．バックエンドとFD所有情報で共有する． */
 #define NET_SOCKET_TCP_SLOTS 4

@@ -74,6 +74,8 @@ address. This does not create a second network interface or a new syscall.
 
 ## TCP receive and connection cleanup
 
+Up to three user UDP sockets may be open simultaneously. Each has its own lwIP PCB and 512-byte receive buffer. For example, `scroll -u 1234 &` can run alongside `nc -u 127.0.0.1 1234`. Each socket queues at most one incoming datagram. The lwIP UDP PCB pool has eight entries shared with DHCP, mDNS and remote device control; available PCB capacity depends on enabled services. Hardware validation is pending.
+
 The user TCP socket backend has four fixed slots. Each receive buffer is sized to
 `TCP_WND` (currently 1,072 bytes, or two 536-byte segments), so it can hold an
 entire advertised receive window. A callback returns `ERR_MEM` **without**
