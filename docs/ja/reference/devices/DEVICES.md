@@ -18,6 +18,7 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 | `/dev/net/icmp` | ICMP Echo専用の排他的な読み書きデバイス（Pico W専用） |
 | `/dev/rand` | 暗号用途には使えない疑似乱数（読み取り専用，1回の`read()`につき最大4バイト） |
 | `/dev/fb` | 8×8 LEDマトリクス用64bitフレームバッファ |
+| `/dev/fbchar` | ASCII 1文字または名前付き図柄を8×8 LEDに表示．読取りで対応一覧を返す |
 | `/dev/gpio/` | `pins.h`でGPIO指定されたピン |
 | `/dev/adc/` | `pins.h`でADC指定された入力および内部温度センサー |
 | `/dev/pwm/` | `pins.h`でPWM指定された出力と共通周波数 |
@@ -93,6 +94,20 @@ piconix# fbed
 | `q` | 終了 |
 
 行の右側に各バイトを16進数で表示します．起動時にフレームバッファ表示を有効にし，終了後も描画内容と表示状態は保持されます．LED表示中はGP0～GP15が占有されます．表示を停止してGPIOを解放するには`fbctl off`を実行してください．
+
+### 文字・記号表示デバイス（`/dev/fbchar`）
+
+`/dev/fbchar`は，`/dev/fb`と同じ8×8 LEDを，ASCII文字または図柄名で操作するテキストデバイスです．書き込み時にフレームバッファ走査を有効にし，表示は`close()`後も残ります．`/dev/fb`に要求される8バイトのバイナリ形式とは異なります．
+
+```sh
+cat /dev/fbchar
+echo A > /dev/fbchar
+echo heart > /dev/fbchar
+echo clear > /dev/fbchar
+fbctl off
+```
+
+印字可能ASCII（32～126）の**1文字**，または`heart`，`star`，`smile`，`sad`，`up`，`down`，`left`，`right`，`check`，`cross`，`clear`を受け付けます．`clear`は消灯画像を書き込みますが，走査の有効・無効は変更しません．未知の名前，長すぎる入力はエラーになり，表示を変更しません．末尾の改行・復帰は無視されます．読み取りは有限長の使用法・対応一覧で，読み切るとEOFです．詳細はPicoNIX上の`/man/led-patterns`を参照してください．
 
 ## GPIO
 

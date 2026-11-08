@@ -18,6 +18,7 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 | `/dev/net/icmp` | Exclusive ICMP Echo read/write endpoint used by `ping`, Pico W only |
 | `/dev/rand` | Non-cryptographic pseudorandom bytes (read-only; at most 4 bytes per `read()` call) |
 | `/dev/fb` | 64-bit framebuffer for an 8×8 LED matrix |
+| `/dev/fbchar` | Display one ASCII glyph or named LED pattern; read back available names |
 | `/dev/gpio/` | Pins configured for GPIO in `pins.h` |
 | `/dev/adc/` | Enabled ADC inputs and on-chip temperature sensor |
 | `/dev/pwm/` | Enabled PWM outputs and common frequency |
@@ -93,6 +94,20 @@ piconix# fbed
 | `q` | Quit |
 
 Each row's byte is displayed in hexadecimal. The editor enables framebuffer scanning when launched; the image and display remain active after exit. GP0–GP15 are reserved while framebuffer scanning is enabled. Run `fbctl off` to stop scanning and release those pins.
+
+### Text and symbol display (`/dev/fbchar`)
+
+`/dev/fbchar` controls the same 8×8 LED as `/dev/fb`, but accepts text rather than eight binary framebuffer bytes. A successful write automatically enables LED scanning, and the display persists after `close()`.
+
+```sh
+cat /dev/fbchar
+echo A > /dev/fbchar
+echo heart > /dev/fbchar
+echo clear > /dev/fbchar
+fbctl off
+```
+
+Writes accept **one printable ASCII character** (32–126) or one of `heart`, `star`, `smile`, `sad`, `up`, `down`, `left`, `right`, `check`, `cross`, `clear`. `clear` replaces the image with blank pixels but does not turn scanning off. Unknown names and oversized writes fail without updating the display. Trailing CR/LF is ignored. Reading returns a finite usage/pattern list, then EOF. See `/man/led-patterns` on PicoNIX for the ROM reference.
 
 ## GPIO
 

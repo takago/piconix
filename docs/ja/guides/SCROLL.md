@@ -9,7 +9,7 @@
 ```sh
 echo HELLO | scroll
 scroll -u 2001 &
-mcpd &
+mcpd --shell &
 ```
 
 `scroll` は `/dev/fb` を開き，表示を有効にします．UDPを使うにはPico Wとネットワーク接続が必要です．`-u` は全インターフェースのUDP 2001番で待ち受けます．通常の起動では標準入力だけを読みます．`scroll` の実行中はLED用GPIO 0～15を他のアプリと共有しないでください．
@@ -20,7 +20,7 @@ mcpd &
 stdin ─────────────┐
                    ├─ select() ─→ 1024-byte ring ─→ 5×7 font ─→ /dev/fb
 UDP port 2001 ─────┘
-MCP client ─→ mcpd (TCP 8080) ─→ UDP 127.0.0.1:2001
+MCP利用時：`execute_command`から短い非対話コマンドを実行
 ```
 
 受信側は空き容量を確認してからデータを追加します．描画側は5×7フォントの左右の空白列を省き，文字ごとに必要な幅だけを描画します．通常の文字間には消灯列をちょうど1列挿入します．点灯LEDの中心間は2ドットピッチになりますが，間の消灯LEDは1個です．空白を省くと文字が接触するため，これが最小の非接触間隔です．スペース文字は単語の区切りとして計2列の空白を挿入します．表示用の8バイトは各行を表し，毎回1列シフトします．ASCII 0x20～0x7eを受理し，改行などの制御文字は標準入力では無視します．UTF-8日本語は対象外です．
@@ -34,13 +34,13 @@ scroll -u 1234 &
 echo hello | nc -u 127.0.0.1 1234
 ```
 
-MCPの`display_message`は1～128バイトのASCIIテキストをUDP 2001番へ送信します．ACKを待ちません．成功は`sendto()`が要求したバイト数を受け取ったことを示すだけで，受信・キュー格納・LED表示の完了を保証しません．この教材版ではJSONのエスケープや引用符を含むテキストを扱えません．MCPから利用するときは`scroll -u 2001 &`を起動してください．
+現行の`mcpd`には`display_message`ツールはありません．MCPから操作する場合は隔離ネットワークで`mcpd --shell &`を起動し，`execute_command`から`echo HELLO | scroll`を実行します．UDPの実習は`nc -u`を使用してください．
 
 ## 観察課題
 
 1. `echo HELLO | scroll`でパイプとEOFを確認します．
 2. `scroll -u 1234 &`を起動し，`echo hello | nc -u 127.0.0.1 1234`で表示を試します．
-3. `scroll -u 2001 &`と`mcpd &`を起動し，MCPから`display_message`を呼びます．
+3. MCP経由では`mcpd --shell &`で`execute_command`を利用し，非対話の短いコマンドだけを実行します．
 4. `trace`で`select`，`read`，`recvfrom`，`sendto`，`write`を観察します．
 5. 受信が表示より速い場合の文字の破棄と，UDP配送が保証されない理由を考えます．
 

@@ -14,13 +14,16 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 │   ├── ttyS1               UART1 terminal
 │   ├── ttyN0               Wi-Fi terminal (Wi-Fi builds only)
 │   ├── net/
-│   │   └── wifi            STA reconnection control (Wi-Fi builds only)
+│   │   ├── wifi            STA reconnection control (Wi-Fi builds only)
+│   │   ├── packet          IPv4 packet capture (Pico W)
+│   │   └── icmp            ICMP Echo (Pico W)
 │   ├── rand                Simple pseudorandom generator
 │   ├── mem                 Read/write permitted memory regions
 │   ├── shm                 Shared 2-KiB RAM
 │   ├── trace               Binary trace events
+│   ├── fb                  8×8 LED framebuffer (8 bytes)
+│   ├── fbchar              ASCII glyph / named symbol display
 │   ├── gpio/
-│   │   ├── fb              8×8 LED framebuffer
 │   │   ├── N               GPIO value
 │   │   ├── N.dir           GPIO direction
 │   │   └── N.pull          Pull-up/pull-down setting
@@ -46,6 +49,8 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 │       ├── ap              Associated AP clients
 │       ├── arp             ARP cache
 │       └── memory          lwIP heap, pbufs and idle stack
+├── man/                    Read-only XIP Flash manual
+│   └── languages/          C, assembly, and Python references
 ├── tmp/                    Volatile RAM files
 └── etc/                    Volatile configuration files
     ├── rc                  Startup script
@@ -65,12 +70,14 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 | `/dev/mem` | Yes | Restricted | Read permitted XIP flash/SRAM; writes are limited to task slots, SHM and RAM-file payloads; absolute `lseek()` address |
 | `/dev/shm` | Yes | Yes | Shared 2-KiB RAM, indexed from offset zero |
 | `/dev/trace` | Yes | No | Binary records; see the `trace` command |
-| `/dev/fb` | Yes | Yes | Exactly 8 bytes; enable using `ioctl()` |
+| `/dev/fb` | Yes | Yes | Exactly eight binary bytes per transfer; enable using `ioctl()` |
+| `/dev/fbchar` | Yes | Yes | Read a finite pattern list; write one ASCII character or pattern name, enabling the display |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | Yes | Yes | Only pins configured as GPIO in `pins.h` |
 | `/dev/i2c/1` | Yes | Yes | I²C1 bus; transfers use `ioctl()`. See [I²C guide](devices/I2C.md) |
 | `/dev/adc/0`–`2`, `/dev/adc/temp` | Yes | No | Decimal text; 0–2 depend on ADC pin configuration |
 | `/dev/pwm/1/freq`, `a`, `b` | Yes | Yes | Availability depends on PWM configuration |
 | Status files under `/proc` | Yes | No | Kernel status snapshots and related data |
+| `/man` manual pages | Yes | No | Read-only ROM pages stored in XIP Flash (`cat /man/README`) |
 | `/tmp/NAME`, `/etc/NAME` | Yes | Yes | Regular RAM files |
 | Directories | List | No | Enumerate with `getdents()`; cannot `read()` as a regular file |
 

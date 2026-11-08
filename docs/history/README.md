@@ -40,6 +40,6 @@ This directory preserves earlier designs, implementation stages, and debugging n
 
 ## 旧学習コースについて / Retired learning paths
 
-旧学習コース案内と重複した基礎実習は，現行の[Learning roadmap](../en/ROADMAP.md)・[Learning roadmap](../en/ROADMAP.md)へ統合しました．古いファイルを残して混乱を招かないよう，過去版はGitのコミット履歴で参照してください．
+旧学習コース案内と重複した基礎実習は，現行の[日本語ロードマップ](../ja/ROADMAP.md)・[English learning roadmap](../en/ROADMAP.md)へ統合しました．古いファイルを残して混乱を招かないよう，過去版はGitのコミット履歴で参照してください．
 
 Previous learning-path files and duplicated foundational exercises have been integrated into the current learning roadmap. Consult Git history if the older versions are needed.

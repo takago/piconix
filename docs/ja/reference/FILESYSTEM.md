@@ -14,13 +14,16 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 │   ├── ttyS1               UART1端末
 │   ├── ttyN0               Wi-Fi端末（Wi-Fiビルドのみ）
 │   ├── net/
-│   │   └── wifi            STA再接続制御（Wi-Fiビルドのみ）
+│   │   ├── wifi            STA再接続制御（Wi-Fiビルドのみ）
+│   │   ├── packet          IPv4パケット情報（Pico W）
+│   │   └── icmp            ICMP Echo（Pico W）
 │   ├── rand                簡易疑似乱数
 │   ├── mem                 許可されたメモリ領域の読み書き
 │   ├── shm                 2 KiBの共有メモリ
 │   ├── trace               バイナリトレース
+│   ├── fb                  8×8 LEDフレームバッファ（8バイト）
+│   ├── fbchar              ASCII文字・記号表示
 │   ├── gpio/
-│   │   ├── fb              8×8 LEDフレームバッファ
 │   │   ├── N               GPIO値
 │   │   ├── N.dir           GPIO方向
 │   │   └── N.pull          プルアップ／プルダウン設定
@@ -46,6 +49,8 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 │       ├── ap              AP接続端末の情報
 │       ├── arp             ARPキャッシュ
 │       └── memory          lwIPヒープ・pbuf・アイドルスタック
+├── man/                    Flash上の読取専用マニュアル
+│   └── languages/          C・アセンブリ・Pythonの仕様
 ├── tmp/                    揮発性RAMファイル
 └── etc/                    揮発性設定ファイル
     ├── rc                  起動スクリプト
@@ -65,14 +70,18 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 | `/dev/mem` | ○ | 制限付き | XIP Flashと主SRAMの読み取り，ユーザスロット・SHM・RAMファイルデータの書き込み．`lseek()`でアドレス指定 |
 | `/dev/shm` | ○ | ○ | 全タスク共通の2 KiB RAM．先頭からの相対オフセットでアクセス |
 | `/dev/trace` | ○ | × | バイナリレコード．`trace`コマンドを参照 |
-| `/dev/fb` | ○ | ○ | 8バイト単位．有効化は`ioctl()`で行う |
+| `/dev/fb` | ○ | ○ | 8バイト固定のLED画像．有効化は`ioctl()`で行う |
+| `/dev/fbchar` | ○ | ○ | 読取りは対応文字・記号一覧，書込みはASCII 1文字または記号名．書込み時に表示を有効化 |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | ○ | ○ | `pins.h`でGPIOに割り当てたピンのみ |
 | `/dev/i2c/1` | ○ | ○ | I²C1バス．転送は`ioctl()`で実行．[I²Cガイド](devices/I2C.md)を参照 |
 | `/dev/adc/0`〜`2`, `/dev/adc/temp` | ○ | × | 十進テキスト．0〜2はADC割り当て時のみ |
 | `/dev/pwm/1/freq`, `a`, `b` | ○ | ○ | PWM割り当てに依存 |
 | `/proc`配下の情報ファイル | ○ | × | カーネル状態のスナップショットなど |
+| `/man`配下のマニュアル | ○ | × | XIP Flash上の固定ページ．`ls /man`，`cat /man/README`で参照 |
 | `/tmp/NAME`, `/etc/NAME` | ○ | ○ | RAM上の通常ファイル |
 | ディレクトリ | 一覧取得 | × | `getdents()`で列挙．通常ファイルのような`read()`は不可 |
+
+`/dev/fbchar`の使用例は`cat /dev/fbchar`，`echo heart > /dev/fbchar`です．`/dev/fb`とはデータ形式が異なります．
 
 実際の読み書き形式，`ioctl()`の値，ピンの占有・排他条件は[デバイスガイド](devices/DEVICES.md)と[TTY](../guides/TTY.md)を参照してください．`/proc/devices`は固定デバイスの登録表と`gpio/`，`adc/`，`pwm/`，`i2c/`の入口を列挙するもので，すべての動的ノードを列挙するわけではありません．
 
