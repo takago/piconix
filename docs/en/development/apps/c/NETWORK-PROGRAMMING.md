@@ -7,7 +7,7 @@ This tutorial builds **two ordinary C programs** for Pico W: a UDP echo client a
 You need a Pico W, a USB console, a Linux PC on the same AP/STA network, the Pico SDK, and an ARM toolchain. Start with [Setup](../../../setup/SETUP.md) and [Network connection](../../../reference/network/NETWORK.md).
 
 ```text
-Pico W: udp_once   → UDP 12345 → PC: udp_echo_host.py
+Pico W: udp_once   → UDP 12345 → PC: udp_echo.py
 Pico W: tcp_get    → TCP 8000  → PC: python3 -m http.server
 C application → syscalls.c → SVC → kernel.c → net_socket.c → lwIP
 ```
@@ -42,8 +42,8 @@ The implementation is **not** a full BSD/POSIX stack. Errors are returned as neg
 From the **Linux PC, in the repository root**:
 
 ```sh
-cp docs/examples/udp_once.c userland/apps/udp_once.c
-cp docs/examples/tcp_get.c userland/apps/tcp_get.c
+cp userland/examples/c/network/udp_once.c userland/apps/udp_once.c
+cp userland/examples/c/network/tcp_get.c userland/apps/tcp_get.c
 ```
 
 Append `udp_once tcp_get` to the existing `foreach(APP IN ITEMS ...)` list in `CMakeLists.txt`, retaining all old names. Add these declarations alongside other image declarations in `kernel/main.c`:
@@ -75,7 +75,7 @@ Flash the generated UF2 and use `ls /bin` to confirm both new commands exist.
 On the **PC**, start the included Python UDP echo server:
 
 ```sh
-python3 docs/examples/udp_echo_host.py 12345
+python3 host/udp_echo.py 12345
 ```
 
 Its full source code:
@@ -97,7 +97,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.sendto(payload, address)
 ```
 
-The **complete Pico W C client** in `docs/examples/udp_once.c` is:
+The **complete Pico W C client** in `userland/examples/c/network/udp_once.c` is:
 
 ```c
 /* Pico W: send one UDP datagram to an echo server on the PC and read the reply. */
@@ -185,7 +185,7 @@ On the **PC**, start an HTTP server:
 python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
-The **full C client** in `docs/examples/tcp_get.c` is:
+The **full C client** in `userland/examples/c/network/tcp_get.c` is:
 
 ```c
 /* Pico W: minimal TCP client for an HTTP server on the host PC. */

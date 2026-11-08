@@ -52,7 +52,7 @@ RX TCP 192.168.4.2:52000 > 192.168.4.1:80 LEN=60 DATA=16 ACK PSH
 
 - ICMP：2つ目のPicoNIX端末から`ping -c 2 192.168.4.1`を実行して`TYPE=8/0`を探す（[ping](PING.md)）．
 - TCP：PC側で`curl`を実行し`SYN`，`ACK`，`FIN`の順序を考える．
-- UDP：PC上の`udp_echo_host.py`とPico Wの`udp_once`を使い`UDP`の往復を観察する（[ソケット実習](../../development/apps/c/NETWORK-PROGRAMMING.md)）．
+- UDP：PC上の`udp_echo.py`とPico Wの`udp_once`を使い`UDP`の往復を観察する（[ソケット実習](../../development/apps/c/NETWORK-PROGRAMMING.md)）．
 
 **重要：** `-x`はデータの一部を表示するため，個人情報やパスワードの流れる環境で実行しないでください．Telnetも平文なので，隔離した実習ネットワークで使ってください．
 

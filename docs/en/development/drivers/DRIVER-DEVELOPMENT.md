@@ -120,16 +120,6 @@ getuptime: 12399 ms
 
 These are **illustrative outputs**. Confirm read-only opens, short reads, EOF, repeated open/close, unknown-path rejection and no changes to existing devices. The results are not expected to be numerically identical because time advances between calls.
 
-After applying the optional patch, test the virtual driver's **short reads and EOF** on the Linux PC, without the Pico SDK:
-
-```sh
-cc -std=c11 -Wall -Wextra -Werror -Ikernel -Iinclude \
-  docs/examples/test_uptime_device.c kernel/uptime_device.c -o /tmp/test_uptime_device
-/tmp/test_uptime_device
-```
-
-A successful host-side unit test prints `PASS: uptime virtual device short reads and EOF`. This tests the driver logic only, **not** the full kernel VFS or hardware.
-
 ## 7. Extending the pattern to physical hardware
 
 This lab shows a **virtual driver**, not a real GPIO electrical driver. For a physical device, trace existing `kernel/gpio.c` (`gpio_driver_rw`), `kernel/i2c.c`, `kernel/pins.h`, and the VFS dispatch in `kernel/kernel.c`. Before wiring or accessing a physical pin, consult [PINS](../../reference/hardware/PINS.md) and [WIRING](../../reference/hardware/WIRING.md). Avoid reserved pins owned by the LED matrix, UART, I²C or PWM. A production driver needs hardware initialization, ownership/locking, I/O bounds and electrical safety as well as VFS registration.

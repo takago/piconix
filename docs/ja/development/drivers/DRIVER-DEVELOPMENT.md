@@ -126,16 +126,6 @@ getuptime: 12399 ms
 
 上記は**想定表示**であり，実測ログではありません．数値が一致しないのは呼び出し時間が異なるからです．`echo 1 > /dev/uptime`のように書き込みで開こうとすると失敗することも確認してください．`cat /dev/uptime`が空や無限表示なら，FD位置更新，0バイトでのEOF，VFSの振り分けを調べます．
 
-SDKを使わずに**ドライバ単体の短いreadとEOF**をテストする場合は，パッチ適用後のLinux PCで次を実行します．
-
-```sh
-cc -std=c11 -Wall -Wextra -Werror -Ikernel -Iinclude \
-  docs/examples/test_uptime_device.c kernel/uptime_device.c -o /tmp/test_uptime_device
-/tmp/test_uptime_device
-```
-
-成功時は`PASS: uptime virtual device short reads and EOF`と表示します．これは**ホスト側のロジックテスト**であり，カーネルVFSの全動作や実機結果を保証するものではありません．
-
 **確認項目**：`open`の読み取り専用制限／`read`の短いバッファ・EOF／複数回open/close／未知パスの拒否／`ls /dev`での列挙．PicoとPico Wでビルドし，他のデバイス機能に影響がないかも確認します．
 
 ## 7．物理デバイスへ発展させるには

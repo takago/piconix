@@ -7,7 +7,7 @@
 必要なもの：Pico W，USBコンソール，Linux PC，Pico SDKとARMツールチェーン，両者が接続できる隔離された実験用ネットワーク．[セットアップ](../../../setup/SETUP.md)と[ネットワーク接続](../../../reference/network/NETWORK.md)でAPモードまたはSTAモードを準備してください．TelnetやUDPデバイス制御に認証・暗号化はありません．公開ネットワークでは使用しないでください．
 
 ```text
-Pico W上のudp_once        → UDP 12345 → Linux PCのudp_echo_host.py
+Pico W上のudp_once        → UDP 12345 → Linux PCのudp_echo.py
 Pico W上のtcp_get         → TCP 8000  → Linux PCのpython -m http.server
   userland/apps/*.c → socket API → userland/lib/syscalls.c → SVC
      → kernel/kernel.c → kernel/net_socket.c → lwIP → CYW43439
@@ -42,11 +42,11 @@ PicoNIXのC APIは完全なPOSIX互換ではありません．`errno`ではな�
 
 ## 3．新しいコマンドをファームウェアに組み込む
 
-以下のサンプルソースはリポジトリ内の`docs/examples/`に同梱しています．Linux PCの**リポジトリ直下**で実行します．
+以下のサンプルソースはリポジトリ内の`userland/examples/c/network/`に同梱しています．Linux PCの**リポジトリ直下**で実行します．
 
 ```sh
-cp docs/examples/udp_once.c userland/apps/udp_once.c
-cp docs/examples/tcp_get.c userland/apps/tcp_get.c
+cp userland/examples/c/network/udp_once.c userland/apps/udp_once.c
+cp userland/examples/c/network/tcp_get.c userland/apps/tcp_get.c
 ```
 
 `CMakeLists.txt`の`foreach(APP IN ITEMS ... udp_echod)`の**現在の一覧の末尾**へ，`udp_once tcp_get`を追加します（既存のアプリを削除しない）．次に`kernel/main.c`の他の`extern`宣言の近くへ以下を追加します．
@@ -80,10 +80,10 @@ UF2を書き込んだ後，`ls /bin`で両コマンドが現れることを確�
 Linux PC側で起動し，その端末を開いたままにします．`udp_once`から受け取ったバイト列を同じ送信元に送り返すだけです．
 
 ```sh
-python3 docs/examples/udp_echo_host.py 12345
+python3 host/udp_echo.py 12345
 ```
 
-サーバの全ソース（`docs/examples/udp_echo_host.py`）は次のとおりです．
+サーバの全ソース（`host/udp_echo.py`）は次のとおりです．
 
 ```python
 """One-client UDP echo server for the PicoNIX networking tutorial (host PC)."""
@@ -104,7 +104,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 
 ### 4.2 Pico W側のUDPクライアントのソース
 
-`docs/examples/udp_once.c`の**省略のないコード**です．受信の期限を設けるため`O_NONBLOCK`を明示します．`IPv4`引数の4バイトを`sin_addr.s_addr`に配置し，`sendto()`で送信した後，`recvfrom()`を最大約2秒ポーリングします．
+`userland/examples/c/network/udp_once.c`の**省略のないコード**です．受信の期限を設けるため`O_NONBLOCK`を明示します．`IPv4`引数の4バイトを`sin_addr.s_addr`に配置し，`sendto()`で送信した後，`recvfrom()`を最大約2秒ポーリングします．
 
 ```c
 /* Pico W: send one UDP datagram to an echo server on the PC and read the reply. */
@@ -198,7 +198,7 @@ Linux PCで次を実行します（この端末は実習中開いたままにし
 python3 -m http.server 8000 --bind 0.0.0.0
 ```
 
-次は`docs/examples/tcp_get.c`の**完全なソース**です．`connect()`の戻り値0は接続開始を意味し，**接続完了ではありません**．`tcp_status()`で接続を待ってからHTTP/1.0要求を送り，`recv()`を繰り返します．部分送信も考慮します．
+次は`userland/examples/c/network/tcp_get.c`の**完全なソース**です．`connect()`の戻り値0は接続開始を意味し，**接続完了ではありません**．`tcp_status()`で接続を待ってからHTTP/1.0要求を送り，`recv()`を繰り返します．部分送信も考慮します．
 
 ```c
 /* Pico W: minimal TCP client for an HTTP server on the host PC. */
