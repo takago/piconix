@@ -83,14 +83,14 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"python")) puts("python: Tiny Python interpreter\nusage: python [file]");
     else if(!strcmp(argv[1],"hello")) puts("hello: Print a greeting\nusage: hello [name]");
     else if(!strcmp(argv[1],"hexdump")) puts("hexdump: Hex and ASCII dump\nusage: hexdump [file [offset [count]]]");
-    else if(!strcmp(argv[1],"trace")) puts("trace: Trace system calls\nusage: trace on|off|show [PID]|follow [PID]|run CMD [args...]");
+    else if(!strcmp(argv[1],"trace")) puts("trace: Trace system calls and kernel events\nusage: trace on [-s|-a]|off|show [PID]|follow [PID]|run [-s|-a] CMD [args...]\n-s: syscalls only; -a: include all contexts\nTrace buffer overwrites old records when full");
     else if(!strcmp(argv[1],"ps")) puts("ps: Show processes\nusage: ps");
     else if(!strcmp(argv[1],"grep")) puts("grep: Filter matching lines from a file or standard input\nusage: grep PATTERN [file]\nLiteral substring; lines over 128 bytes are skipped");
     else if(!strcmp(argv[1],"ping")) puts("ping: ICMP Echo tests (Pico W)\nusage: ping [-c COUNT] IPv4\nDefault: 4 probes; numerical IPv4 only\nexample: ping -c 2 192.168.4.2");
     else if(!strcmp(argv[1],"tcpdump")) puts("tcpdump: Observe IPv4 packets (Pico W)\nusage: tcpdump [-x] [-c COUNT]\n-x: show DATA length and up to 16 payload bytes in HEX and ASCII on an indented second line\n-c: stop after COUNT packets; Ctrl+C to stop\nexample: tcpdump -c 10");
     else if(!strcmp(argv[1],"cp")) puts("cp: Copy a /tmp or /etc RAM file\nusage: cp SRC DST\nOverwrites DST; refuses the same file\nexample: cp /etc/index.html /tmp/index.html");
     else if(!strcmp(argv[1],"cat")) puts("cat: Display a file or standard input\nusage: cat [-n] [file]\n-n: Number all lines, including empty lines\nexample: cat -n /tmp/test.py\nexample: echo hello | cat -n");
-    else if(!strcmp(argv[1],"fd")) puts("fd: Interactive file browser\nusage: fd [directory]\nArrows: select/navigate, Enter: open, Backspace: parent, e: edit /tmp or /etc, q: quit");
+    else if(!strcmp(argv[1],"fd")) puts("fd: Interactive file browser\nusage: fd [directory]\nUp/Down: select or scroll; Right/Enter: open; Left: close file or parent directory\nBackspace: parent; e: edit /tmp or /etc; q: close viewer or quit");
     else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command\nusage: watch [seconds] command [args...]");
     else if(!strcmp(argv[1],"pwd")) puts("pwd: Print working directory\nusage: pwd");
     else if(!strcmp(argv[1],"tree")) puts("tree: Display directory tree\nusage: tree [-L 0..8] [path]");
