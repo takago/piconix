@@ -24,6 +24,7 @@ typedef struct {
     unsigned rx_ready;
 } udp_slot_t;
 static udp_slot_t udp_slots[NET_SOCKET_UDP_SLOTS];
+/* UDPソケットの番号を検証して対応する固定スロットを返す． */
 NO_TRACE static udp_slot_t *udp_slot_at(int id) {
     return id>=0 && id<NET_SOCKET_UDP_SLOTS ? &udp_slots[id] : NULL;
 }

@@ -165,6 +165,7 @@ static void print_preview(const uint8_t *data, unsigned len, int shortened) {
 
 /* ヘッダとPID切替時の区切りには同じASCII線を使用する． */
 #define TRACE_SEPARATOR "------------------------------------------------------------------------------------------------"
+/* トレース表示の項目名と罫線を出力する． */
 static void header(void) {
     puts("Time   PID Command TTY     Type     Function                           Arg              Ret Info");
     puts(TRACE_SEPARATOR);

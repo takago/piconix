@@ -10,6 +10,7 @@ typedef struct {
     size_t used;
 } echo_buffer_t;
 
+/* 蓄積した標準出力を部分書込みに対応して送出する． */
 static int flush(echo_buffer_t *out) {
     size_t sent=0;
     while(sent<out->used) {

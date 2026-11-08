@@ -22,7 +22,9 @@ static char vars[16][20];
 static int offsets[16], lengths[16], types[16], arrays[16], ptrs[16], frame_used; /* 1=char, 4=int */
 
 static int letter(int c) {return (c>='a'&&c<='z')||(c>='A'&&c<='Z')||c=='_';}
+/* 入力文字が十進数字であるか判定する． */
 static int digit(int c) {return c>='0'&&c<='9';}
+/* 空白とC形式のコメントを読み飛ばす． */
 static void ws(void) {
     for (;;) {
         while(source[at]==' '||source[at]=='\t'||source[at]=='\r'||source[at]=='\n')at++;
@@ -35,13 +37,17 @@ static void ws(void) {
         break;
     }
 }
+/* 指定した予約語を単語境界も確認して読み取る． */
 static int word(const char *w) {
     int n=(int)strlen(w);ws();
     if(strncmp(source+at,w,(size_t)n)||letter(source[at+n])||digit(source[at+n]))return 0;
     at+=n;return 1;
 }
+/* 次の1文字が指定した記号なら消費する． */
 static int token(char c) {ws();if(source[at]==c){at++;return 1;}return 0;}
+/* 指定した記号を要求し，見つからなければエラーにする． */
 static void need(char c) {if(!token(c))failed=1;}
+/* 符号付き十進整数を範囲検査しながら読み取る． */
 static int integer(void) {
     uint32_t v=0;int sign=1;ws();if(source[at]=='-'){sign=-1;at++;}
     if(!digit(source[at])){failed=1;return 0;}
@@ -59,6 +65,7 @@ static int integer(void) {
  * spaces.  emit() also accepts fragments of a line (notably .ascii data).
  * The state therefore follows newlines across separate emit() calls. */
 static int line_start=1;
+/* 生成中のThumbアセンブリを出力領域へ追加する． */
 static void emit(const char *s) {
     while(*s) {
         if(line_start && *s!='\n') {
@@ -85,10 +92,12 @@ static void emit(const char *s) {
     }
     output[used]=0;
 }
+/* 8ビット即値を使う命令を生成する． */
 static void imm(const char *instruction,int v) {
     char line[48];if(v<0||v>255){failed=1;return;}
     snprintf(line,sizeof line,"%s #%d\n",instruction,v);emit(line);
 }
+/* レジスタ番号と8ビット即値を指定して命令を生成する． */
 static void regimm(const char *op,int reg,int value) {
     char line[48]; if(value<0||value>255){failed=1;return;}
     snprintf(line,sizeof line,"%s r%d, #%d\n",op,reg,value);emit(line);
@@ -107,19 +116,24 @@ static void constant(int value) {
         if(bits&(1u<<bit))emit("adds r0, #1\n");
     }
 }
+/* レジスタ間転送命令を生成する． */
 static void regmove(int dst,int src) {
     char line[32];snprintf(line,sizeof line,"mov r%d, r%d\n",dst,src);emit(line);
 }
+/* 指定ラベルへの分岐命令を生成する． */
 static void branch(const char *op,int id) {
     char line[32];snprintf(line,sizeof line,"%s L%d\n",op,id);emit(line);
 }
+/* 分岐先ラベルを出力する． */
 static void mark(int id) {char line[32];snprintf(line,sizeof line,"L%d:\n",id);emit(line);}
+/* C識別子を読み取って名前を保存する． */
 static int identifier(char *out) {
     int n=0;ws();if(!letter(source[at])){failed=1;return 0;}
     while(letter(source[at])||digit(source[at])) {
         if(n>=19){failed=1;return 0;}out[n++]=source[at++];
     }out[n]=0;return 1;
 }
+/* 文字リテラルと一部のエスケープを読み取る． */
 static int character(void) {
     int c; ws(); if(source[at++]!='\''){failed=1;return 0;}
     c=(unsigned char)source[at++];
@@ -127,6 +141,7 @@ static int character(void) {
     if(source[at++]!='\'')failed=1;
     return c;
 }
+/* 変数名からローカル変数表の位置を求める． */
 static int variable(const char *name) {
     for(int i=0;i<nvars;i++)if(!strcmp(name,vars[i]))return i;
     failed=1;return 0;
@@ -170,6 +185,7 @@ static void syscall_buffer(int call) {
     emit("svc #0\n");value_ptr=0;
 }
 
+/* ローカル変数のフレーム内アドレスを生成する． */
 static void address(int index) {
     char line[48];
     emit("mov r0, r4\n");
@@ -201,6 +217,7 @@ static int step_token(void) {
     if(source[at]=='-' && source[at+1]=='-') { at+=2; return -1; }
     return 0;
 }
+/* 配列またはポインタ要素を読み出す命令を生成する． */
 static void load_element(int index) {
     array_address(index);
     emit((ptrs[index]?ptrs[index]:types[index])==1?"ldrb r0, [r0, #0]\n":"ldr r0, [r0, #0]\n");
@@ -242,6 +259,7 @@ static void function_call(const char *name) {
     snprintf(line,sizeof line,"bl f_%s\n",name);emit(line);
     if(count&1)emit("add sp, #4\n");
 }
+/* 式の基本要素を解析して評価コードを生成する． */
 static void primary(void) {
     char name[20];
     if(token('(')){expression(0);need(')');}
@@ -261,6 +279,7 @@ static void primary(void) {
             else {local_access("ldr",0,i);value_ptr=ptrs[i];}
         } else {constant(integer());value_ptr=0;}}
 }
+/* 単項演算子とオペランドを解析する． */
 static void unary(void) {
     int step=step_token();
     if(step) { char name[20]; identifier(name); incdec(variable(name),step,0); }
@@ -281,6 +300,7 @@ static void unary(void) {
     }
     else primary();
 }
+/* 乗除算など乗法優先順位の式を解析する． */
 static void multiply(void) {
     unary();
     while(!failed){
@@ -297,6 +317,7 @@ static void multiply(void) {
         }
     }
 }
+/* 加減算など加法優先順位の式を解析する． */
 static void additive(void) {
     multiply();
     while(!failed){
@@ -310,7 +331,9 @@ static void additive(void) {
         else {if(right)failed=1;emit("subs r1, r0\nmov r0, r1\n");value_ptr=left;}
     }
 }
+/* 式全体を解析して結果のコードを生成する． */
 static void expression(int dst) {additive();if(dst!=0)regmove(dst,0);}
+/* 条件式の評価と分岐を生成する． */
 static void condition(int false_label) {
     char op[3]={0};
     expression(0);emit("push {r0}\n");ws();
@@ -329,13 +352,16 @@ static void condition(int false_label) {
     else if(!strcmp(op,"<="))branch("bgt",false_label);
     else failed=1;
 }
+/* 関数末尾の復帰処理を生成する． */
 static void finish(int status) {
     imm("movs r0,",3);imm("movs r1,",status);emit("svc #0\n");
 }
 static void statement(void);
+/* 中括弧で囲まれた文の列を解析する． */
 static void block(void) {
     need('{');while(!failed){ws();if(token('}'))return;if(!source[at]){failed=1;return;}statement();}
 }
+/* 代入や制御構文などの文を解析する． */
 static void statement(void) {
     /* Support ++i; and --i; as standalone statements. */
     int step=step_token();
@@ -456,6 +482,7 @@ static void statement(void) {
         branch("b",function_end);
     } else failed=1;
 }
+/* 入力Cソースを解析してThumbアセンブリへ変換する． */
 static int compile(void) {
     /* Entry stub uses the normal process-exit syscall after main returns. */
     emit("bl f_main\nmov r1, r0\nmovs r0, #3\nsvc #0\n");
@@ -524,6 +551,7 @@ static int assembly_path(const char *source_path,char *dest,int capacity) {
     return 0;
 }
 
+/* 引数とファイルを処理しCコンパイルを実行する． */
 int main(int argc,char **argv) {
     char dest[128];
     if(argc!=2){puts("usage: cc source.c  (writes source.s)");return 1;}

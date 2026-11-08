@@ -135,6 +135,7 @@ static inline int pin_reserved(unsigned pin) {
     return 0;
 #endif
 }
+/* 指定ピンが予約されておらずGPIOモードであるかを判定する． */
 static inline int pin_gpio(unsigned pin) { return !pin_reserved(pin) && pin_mode(pin)==PIN_GPIO; }
 
 /* 指定チャネルに対応するGPIOがADC用なら真を返す． */

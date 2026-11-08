@@ -106,6 +106,7 @@ static void fb_char_copy(char *dst,size_t max,size_t *done,size_t *skip,
     *skip=0;
 }
 
+/* 文字表示デバイスの使用方法と利用可能な図柄を位置指定で返す． */
 int fb_char_read(void *data,size_t n,uint32_t offset) {
     if(!n) return 0;
     size_t done=0,skip=offset;

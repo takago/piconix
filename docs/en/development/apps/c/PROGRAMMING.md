@@ -68,10 +68,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 Add a call alongside the other `register_image(...)` calls in `main()`:
 
 ```c
-register_image(49, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(52, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**49 is an unused example ID in the supplied current sources (45 is `ping`, 46 is `tcpdump`, 47 is `ip`, and 48 is `cp`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
+**52 is an unused example ID in the current sources (49 is `mcpd`, 50 is `cc`, and 51 is `scroll`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
 
 ## 4. Build and run
 

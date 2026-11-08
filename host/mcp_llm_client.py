@@ -42,6 +42,7 @@ def styled(text, kind):
 
 
 def show(label, value, kind):
+    """Show a labeled message, coloring tool and status lines when supported."""
     line = f"{label} {value}"
     # System activity is colored as a whole; conversational text stays plain.
     print(styled(line, kind) if kind in ("tool", "result", "error", "info")

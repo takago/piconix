@@ -11,11 +11,15 @@ static unsigned head,used;
 static unsigned char pixels[8];
 #include "../../include/font5x7.h"
 #define font piconix_font5x7
+/* 文字待ち行列の残容量を返す． */
 static unsigned free_space(void){return CAP-used;}
+/* 文字列をリングバッファの末尾に追加する． */
 static void enqueue(const unsigned char *s,unsigned n){
     while(n--){queue[(head+used)%CAP]=*s++;used++;}
 }
+/* リングバッファの先頭から1文字を取り出す． */
 static int dequeue(void){int c=queue[head];head=(head+1)%CAP;used--;return c;}
+/* 表示対象の印字可能ASCII文字か判定する． */
 static int valid(unsigned char c){return c>=32 && c<=126;}
 /* The font has five columns, but most glyphs occupy fewer. Remove
  * both empty margins. Insert exactly one dark column between glyphs. */
@@ -27,11 +31,13 @@ static void glyph_bounds(unsigned char c,int *first,int *last){
     *first=left;
     *last=right;
 }
+/* 表示パターンを左へ送って新しい1列を描画する． */
 static void draw_column(int fd,unsigned char column){
     for(unsigned y=0;y<8;y++)/* Bit 0 is the rightmost LED; shift left to scroll toward the left. */
     pixels[y]=(unsigned char)((pixels[y]<<1)|((column>>y)&1u));
     write(fd,pixels,8);
 }
+/* UDP待受ポートの十進文字列を検証し数値へ変換する． */
 static int parse_port(const char *s){unsigned v=0;if(!*s)return -1;while(*s){if(*s<'0'||*s>'9')return -1;v=v*10+(*s++-'0');if(v>65535)return -1;}return v?(int)v:-1;}
 /* UDP datagrams are plain text. Ignore control characters and drop
  * excess bytes when the ring is full; no acknowledgements are sent. */
@@ -43,6 +49,7 @@ static void receive_udp(int fd){
         if(valid(b[i]) && free_space())enqueue(b+i,1);
 }
 
+/* 標準入力と任意のUDP入力を待ち受け文字をスクロール表示する． */
 int main(int argc,char **argv){
     int udp=0,port=PORT;
     if(argc==2 && !strcmp(argv[1],"-u"))udp=1;
