@@ -46,4 +46,15 @@ for lang in ('en', 'ja'):
     assert 'not** a PicoNIX command' not in wifi_modes
     assert 'PicoNIXに`ping`コマンドは実装していません' not in wifi_modes
 
+# The syscall table is the ABI authority. The uptime exercise must never reuse select(40).
+syscalls = (root / 'include/piconix_syscall.h').read_text(encoding='utf-8')
+assert 'X(SYS_SELECT,        40, "select")' in syscalls
+for lang in ('ja', 'en'):
+    specification = (docs/lang/'reference'/'SPECIFICATION.md').read_text(encoding='utf-8')
+    lab = (docs/lang/'development'/'syscalls'/'SYSCALL-DEVELOPMENT.md').read_text(encoding='utf-8')
+    assert '1〜39' not in specification and '1–39' not in specification
+    assert 'SYS_GETUPTIME,    41' in lab
+    assert (docs/lang/'development'/'apps'/'c'/'MCP-DEVELOPMENT.md').exists()
+assert not (docs/'examples'/'uptime_lab.patch').exists(), 'obsolete lab patch must not be restored'
+
 print(f'PASS: {len(ja)} bilingual manual pairs, {count} local links and interface claims')

@@ -275,6 +275,9 @@ The build generates `manual.bin` from `manual/` sources, embeds it with `.incbin
 
 ## Documentation
 
+**For source-level UNIX/OS study:** [日本語：操作からコード読解まで](docs/ja/exercises/READING-PATHS.md) / [English: source-first exercises](docs/en/exercises/READING-PATHS.md). See the [MCP development lab](docs/en/development/apps/c/MCP-DEVELOPMENT.md) ([日本語](docs/ja/development/apps/c/MCP-DEVELOPMENT.md)) for the source implementation, separately from the usage guide.
+
+
 Choose the documentation that matches your purpose. Start with **Setup** if you are new to PicoNIX. The technical references below link directly to the most frequently consulted specifications.
 
 | Category | English | 日本語 |

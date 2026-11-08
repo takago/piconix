@@ -111,7 +111,6 @@ if (dev == DEV_UPTIME) {
 
 ## 6．実行・検証
 
-[システムコール実習](../syscalls/SYSCALL-DEVELOPMENT.md)で追加した`labuptime`と同時に検証できます．全変更箇所と実行コマンドは同梱の[`uptime_lab.patch`](../../../examples/uptime_lab.patch)にもあります．別ブランチで`git apply --check`した後に適用し，[セットアップ](../../setup/SETUP.md)に従ってPico用UF2を作ります．
 
 ```text
 piconix# ls /dev
@@ -155,7 +154,6 @@ cc -std=c11 -Wall -Wextra -Werror -Ikernel -Iinclude \
 
 ## 8．実験後に確認する文書
 
-APIの正式導入時は[デバイス仕様](../../reference/devices/DEVICES.md)・[ファイルシステム仕様](../../reference/FILESYSTEM.md)，[カーネル開発](../kernel/KERNEL-DEVELOPMENT.md)の日英を更新します．例の追加に必要なソース差分は[参考パッチ](../../../examples/uptime_lab.patch)に揃えています．
 
 **検証範囲：** ドライバ単体のC構文は確認済みですが，SDKでの完全ビルド・実機の読み書きは未検証です．
 

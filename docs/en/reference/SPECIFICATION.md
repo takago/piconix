@@ -49,7 +49,7 @@ See `OS_TTY_*` in `include/piconix.h`, [TTY](../guides/TTY.md), and [Terminal](.
 
 ## 5. System calls and ABI
 
-The internal system-call table uses numbers 1–39; numbers 11 and 15 are reserved. Thumb `svc #0` takes the call number in `r0`, arguments in `r1`–`r3`, and returns a result in `r0`. These are PicoNIX ABI numbers, not Linux/POSIX numbers.
+The internal system-call table uses numbers 1–40; numbers 11 and 15 are reserved. Thumb `svc #0` takes the call number in `r0`, arguments in `r1`–`r3`, and returns a result in `r0`. These are PicoNIX ABI numbers, not Linux/POSIX numbers.
 
 See [System calls](SYSCALLS.md). The number definitions are centralized in `PICONIX_SYSCALL_TABLE` in `include/piconix_syscall.h`; the kernel dispatcher and user wrappers use these definitions.
 

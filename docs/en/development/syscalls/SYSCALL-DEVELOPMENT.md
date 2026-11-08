@@ -12,11 +12,11 @@ labuptime.c → getuptime() → userland/lib/syscalls.c: call()
 From the Linux PC in the repository root, inspect the current definitions:
 
 ```sh
-grep -n 'SYS_SHUTDOWN_TCP\|SYS_GETUPTIME' include/piconix_syscall.h
+grep -n 'SYS_SELECT\|SYS_GETUPTIME' include/piconix_syscall.h
 grep -n 'case SYS_FLASH_ID\|case SYS_GETPID' kernel/kernel.c
 ```
 
-In the checked source, 1–39 are allocated; 11 and 15 are reserved. Choose unused number **40** for this exercise, but check conflicts again in a newer tree. The ABI passes the syscall number in r0, arguments in r1–r3, executes `svc #0`, and returns the result in r0.
+In the checked source, 1–40 are defined; 11 and 15 are reserved. Number 40 belongs to `select()`. Choose unused number **41** for this exercise, but check conflicts again in a newer tree. The ABI passes the syscall number in r0, arguments in r1–r3, executes `svc #0`, and returns the result in r0.
 
 ## 2. Extend the common syscall table
 
@@ -24,7 +24,8 @@ Append an entry in `include/piconix_syscall.h`; preserve the trailing backslash 
 
 ```c
     X(SYS_SHUTDOWN_TCP,  39, "shutdown") \
-    X(SYS_GETUPTIME,    40, "getuptime")
+    X(SYS_SELECT,        40, "select") \
+    X(SYS_GETUPTIME,    41, "getuptime")
 ```
 
 Do **not** renumber existing calls. This is the shared source of names and numbers.
@@ -93,14 +94,14 @@ register_image(51,"labuptime",piconix_labuptime_image_start,piconix_labuptime_im
 
 51 was unused in the checked source. Check again if you have added other programs. The full app installation process is explained in [Programming](../apps/c/PROGRAMMING.md).
 
-## 6. Apply the optional tested-to-apply exercise patch
+## 6. Apply and verify the lab on an isolated branch
 
-The included [`docs/examples/uptime_lab.patch`](../../../examples/uptime_lab.patch) contains the **whole source change**: syscall, independent virtual driver, new node and test application. Apply it only in a separate exercise branch, after checking it:
+**The obsolete `uptime_lab.patch` has been removed because it does not apply to this source tree.** Enter the changes from sections 2–5 and the driver development lab manually. Do not apply a patch from an earlier revision.
 
 ```sh
 git switch -c exercise/uptime-lab
-git apply --check docs/examples/uptime_lab.patch
-git apply docs/examples/uptime_lab.patch
+# Edit the files in this guide and the driver exercise.
+git add -N kernel/uptime_device.c kernel/uptime_device.h userland/apps/labuptime.c
 git diff --check
 python3 tools/run_tests.py
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
@@ -108,7 +109,7 @@ PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-**Stop if** `git apply --check` fails: the patch targets the checked source version; newer versions may differ. Optionally build for Pico W as well.
+The example is not part of the stock OS. Verify the SDK build and actual hardware behavior independently.
 
 ## 7. Observe and explain
 

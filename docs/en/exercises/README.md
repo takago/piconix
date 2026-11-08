@@ -1,5 +1,7 @@
 # PicoNIX exercises
 
+- [Source-first reading exercises](READING-PATHS.md): trace observable behavior to code.
+
 Usage guides explain commands and examples, references describe current behavior, and development guides explain source code and implementation. This section collects tasks for learners to investigate and compare independently.
 
 - [Kernel trace exercises](TRACE.md): syscalls, selected functions, and asynchronous events.

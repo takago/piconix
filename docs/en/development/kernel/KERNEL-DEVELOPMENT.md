@@ -47,7 +47,6 @@ Expose the existing boot-time counter through **two different interfaces**: `get
 | Add `/dev/uptime` and a C driver module | [Device node and driver](../drivers/DRIVER-DEVELOPMENT.md) | `ls /dev`, `cat /dev/uptime`, EOF |
 | Register and flash an app | [C programming](../apps/c/PROGRAMMING.md) and [Setup](../../setup/SETUP.md) | `ls /bin`, device execution |
 
-The two dedicated guides contain the full changes, commands, expected observations, failure cases, and the optional `docs/examples/uptime_lab.patch`. Apply the example patch **only on a separate exercise branch**. Avoid repeating long source fragments here; the dedicated labs are authoritative to prevent drift.
 
 **Exercise:** Draw both paths from the 1 ms kernel counter: through SVC returning an integer, and through VFS/FD returning formatted text. No physical hardware is connected in this virtual-driver exercise.
 

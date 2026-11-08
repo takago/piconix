@@ -9,7 +9,7 @@ These materials assume prior knowledge of **UNIX/Linux command-line usage, core 
 
 The central goal is to connect familiar concepts to **their concrete implementation on RP2040**: fixed user slots, a flash-resident kernel and RAM-loaded user images, PIC, SVC/PendSV, VFS and lwIP integration. Similar names do not imply Linux-equivalent protection or virtual-memory semantics; consult [Differences from Linux](reference/DIFFERENCES.md).
 
-**Suggested path:** Observe behavior with a usage guide → consult the PicoNIX-specific reference → follow the corresponding source functions in a development guide → modify and test on a separate branch if appropriate. Investigative questions belong in the [exercise collection](exercises/README.md).
+**Suggested path:** Observe behavior with a usage guide → consult the PicoNIX-specific reference → follow the corresponding source functions in a development guide → modify and test on a separate branch if appropriate. Investigative questions belong in the [exercise collection](exercises/READING-PATHS.md).
  Follow the steps in order if you are new to PicoNIX. Network topics marked optional require Pico W.
 
 ## 1. Use the system

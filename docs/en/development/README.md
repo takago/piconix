@@ -11,7 +11,7 @@ These contain detailed implementation instructions and API information. Follow t
 - [Developing C applications for PicoNIX](apps/c/PROGRAMMING.md)
 - [PicoNIX C library and application APIs](apps/c/LIBC.md)
 - [Socket API and network applications](apps/c/NETWORK-PROGRAMMING.md)
-- [Developing the `mcpd` MCP server](../guides/MCP.md)
+- [Developing the `mcpd` MCP server](apps/c/MCP-DEVELOPMENT.md)
 
 ## Python and assembly
 

@@ -13,12 +13,12 @@ labuptime.c: getuptime() → userland/lib/syscalls.c: call()
 ホストPC上の**PicoNIXリポジトリ**で，変更前に次を確認します．
 
 ```sh
-grep -n 'SYS_SHUTDOWN_TCP\|SYS_GETUPTIME' include/piconix_syscall.h
+grep -n 'SYS_SELECT\|SYS_GETUPTIME' include/piconix_syscall.h
 grep -n 'case SYS_FLASH_ID\|case SYS_GETPID' kernel/kernel.c
 grep -n 'unsigned flash_id' userland/lib/{syscalls.c,unistd.h}
 ```
 
-現行ソースではシステムコール番号は1～39で，11と15は予約済みです．演習では未使用の**40**を使います．番号の衝突を避けるため，改造後の最新版では必ず再確認してください．ABIは**r0＝番号，r1～r3＝引数，SVC実行後r0＝戻り値**です．番号と表示名の正本は`include/piconix_syscall.h`です．
+現行ソースではシステムコール番号は1～40で，11と15は予約済みです．40は`select()`で使用中のため，演習では未使用の**41**を使います．番号の衝突を避けるため，改造後の最新版では必ず再確認してください．ABIは**r0＝番号，r1～r3＝引数，SVC実行後r0＝戻り値**です．番号と表示名の正本は`include/piconix_syscall.h`です．
 
 ## 2．番号表を追加する（共有ヘッダ）
 
@@ -26,7 +26,8 @@ grep -n 'unsigned flash_id' userland/lib/{syscalls.c,unistd.h}
 
 ```c
     X(SYS_SHUTDOWN_TCP,  39, "shutdown") \
-    X(SYS_GETUPTIME,    40, "getuptime")
+    X(SYS_SELECT,        40, "select") \
+    X(SYS_GETUPTIME,    41, "getuptime")
 ```
 
 このマクロはカーネルとユーザ側の両方で利用されます．既存の番号は変更しません．
@@ -95,23 +96,23 @@ register_image(51,"labuptime",piconix_labuptime_image_start,piconix_labuptime_im
 
 詳しい登録位置とUF2書き込み操作は[Cアプリケーション開発](../apps/c/PROGRAMMING.md)の第3～4節を参照してください．登録ID49，50，51を別の演習で使用している場合は衝突を解決してから進めます．
 
-## 6．完成した教材用パッチで再現する
+## 6．学習用ブランチでの適用と検査
 
-手入力のほかに，**変更箇所をすべて収録した参考パッチ**[`docs/examples/uptime_lab.patch`](../../../examples/uptime_lab.patch)を用意しました．パッチにはシステムコール，独立した仮想デバイスドライバ，検証用コマンドの変更が含まれます．**学習用として明示的に適用する場合だけ**使用してください．普段のPicoNIX本体への採用を要求するものではありません．
+**旧`uptime_lab.patch`は現行ソースに適用できないため廃止しました．** この教材では第2〜5節のコードを現在の作業ブランチへ手で追加し，変更内容を`git diff`で検証します．一括適用する古いパッチを使用しないでください．
 
 ```sh
-# ほかの未コミット変更がない作業ブランチで
- git switch -c exercise/uptime-lab
- git apply --check docs/examples/uptime_lab.patch
- git apply docs/examples/uptime_lab.patch
- git diff --check
- python3 tools/run_tests.py
- PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
- PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
- ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
+git switch -c exercise/uptime-lab
+# 第2〜5節とドライバ開発ガイドの内容を編集
+# 追加した新規ソースは git add -N で差分に含める
+git add -N kernel/uptime_device.c kernel/uptime_device.h userland/apps/labuptime.c
+git diff --check
+python3 tools/run_tests.py
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
+./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-`git apply --check`に失敗する場合は**その時点で止めます**．当該パッチはこの教材で確認したソース版を対象としており，後のバージョンでは行の位置や番号が変わる場合があります．また，通常Picoで練習した後にPico Wのビルドも確認すると，両基板への影響を把握できます．
+**重要：** 記載のソースは教材用の追加機能であり，通常版には存在しません．ビルド・実機動作は各自で検証します．
 
 ## 7．実機で確認する
 

@@ -49,7 +49,7 @@ USBコンソール，UART1，Wi-Fi端末は別々のデバイスとして扱い�
 
 ## 5．システムコールとABI
 
-システムコール番号は1〜39番（11番・15番は予約）です．Thumbの `svc #0` を使い，`r0`に番号，`r1`〜`r3`に引数を置き，戻り値を`r0`で受け取ります．番号はPicoNIX内部ABIであり，Linux/POSIXの番号とは異なります．
+システムコール番号は1〜40番（11番・15番は予約）です．Thumbの `svc #0` を使い，`r0`に番号，`r1`〜`r3`に引数を置き，戻り値を`r0`で受け取ります．番号はPicoNIX内部ABIであり，Linux/POSIXの番号とは異なります．
 
 完全な番号表とユーザAPIの対応は[システムコール](SYSCALLS.md)を参照してください．番号の一次資料は`include/piconix_syscall.h`の`PICONIX_SYSCALL_TABLE`であり，`kernel/kernel.c`のディスパッチと`userland/lib/syscalls.c`がそれを使用します．
 

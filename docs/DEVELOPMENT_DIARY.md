@@ -1,5 +1,10 @@
 # PicoNIX Development Diary
 
+### 2026-11-08: Align source-level teaching material with current ABI
+
+Corrected stale syscall-range descriptions and the uptime lab collision with syscall 40 (`select()`). Removed an obsolete patch that did not apply to the current tree; the lab now uses manual changes on a dedicated branch. Separated MCP operation from source-reading exercises and added a source-first reading map. Historical diary entries remain unchanged. Full SDK build and hardware testing were not performed for this documentation revision.
+
+
 This diary records past development states, not necessarily current interfaces. Retired `docs/history/` material remains accessible through Git history; consult the current guides for supported commands and APIs.
 
 ### 2026-11-08: Separate ROM manual from kernel Flash attribution

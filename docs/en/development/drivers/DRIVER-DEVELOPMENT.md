@@ -105,7 +105,6 @@ The common VFS path validates the caller's user buffer; the new backend still ha
 
 ## 6. Build and check from the PicoNIX shell
 
-The optional [`docs/examples/uptime_lab.patch`](../../../examples/uptime_lab.patch) applies **all** source changes, including a syscall and the `labuptime` test application. Apply on a separate exercise branch only after `git apply --check`, then build/flash using [Setup](../../setup/SETUP.md). Example session after flashing:
 
 ```text
 piconix# ls /dev
