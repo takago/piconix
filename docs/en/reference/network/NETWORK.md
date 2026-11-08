@@ -45,7 +45,7 @@ On Linux, install clients as needed (e.g. `sudo apt install telnet socat`). On W
 
 ## Notes and security
 
-Telnet and raw TCP are unencrypted. Use only on a trusted experimental network. The AP password is a published fixed value; do not send secrets. Terminal behavior can vary with the Telnet client. For maintenance notes about DHCP failures, see the [historical DHCP investigation](../../../history/ja/NETWORK-DHCP-NOTES.md).
+Telnet and raw TCP are unencrypted. Use only on a trusted experimental network. The AP password is a published fixed value; do not send secrets. Terminal behavior can vary with the Telnet client. For current Wi-Fi and DHCP diagnostics, see [Wi-Fi modes](WIFI-MODES.md) and [network status](NET.md). Earlier investigations are retained in Git history.
 
 ## TCP/UDP applications and remote device control
 

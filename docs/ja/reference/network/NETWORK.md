@@ -47,7 +47,7 @@ Linuxでは必要に応じて`sudo apt install telnet socat`でクライアン�
 
 Telnetと生TCPのシェル通信は暗号化されません．信頼できる実験用ネットワークでのみ使用してください．APのパスワードは公開された固定値なので，機密情報を送信しないでください．端末の操作性はTelnetクライアントの実装によって異なる場合があります．
 
-開発・保守向けのDHCP障害調査記録は[NETWORK-DHCP-NOTES.md](../../../history/ja/NETWORK-DHCP-NOTES.md)にまとめています．
+現在のWi-Fi接続状態とDHCPの確認方法は[Wi-Fiモード](WIFI-MODES.md)と[ネットワーク状態表示](NET.md)を参照してください．過去の障害調査記録はGitのコミット履歴に残されています．
 
 ## TCP/UDPアプリケーションとリモートデバイス制御
 

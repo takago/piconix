@@ -92,7 +92,7 @@ reset
 
 `reset` enables canonical input and echo and attempts to leave alternate screens, reset text attributes and scrolling regions, show the cursor, and clear the display. It does not modify `O_NONBLOCK`. It cannot help if the user cannot enter commands at all.
 
-Earlier gtkterm/VS Code display issues, troubleshooting procedures, and incremental-build notes have moved to the [development history](../../history/en/TERMINAL-DEBUG.md).
+If terminal rendering is corrupted, use the `reset` procedure above and verify that the terminal supports character-at-a-time input and ANSI escape sequences. Earlier debugging investigations remain available in Git history.
 
 ## 7. Incremental screen updates with `watch`
 

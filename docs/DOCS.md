@@ -40,7 +40,7 @@ Browse by area: [Devices and I/O](en/reference/devices/README.md) | [Hardware / 
 
 - [Function index (Japanese)](FUNCTIONS.md): locating source functions.
 - [Development diary](DEVELOPMENT_DIARY.md): design decisions.
-- [Historical notes](history/README.md): older material may no longer match current behavior.
+For previous design decisions and changes, see the [development diary](DEVELOPMENT_DIARY.md) and Git commit history.
 
 ---
 
