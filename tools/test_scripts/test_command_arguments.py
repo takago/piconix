@@ -8,9 +8,11 @@ shell = (apps / 'shell.c').read_text()
 assert 'path_arg=' not in shell
 assert 'args[path_arg]' not in shell
 assert 'args[argc++]="31"' not in shell
-for name in ('pwd','tty','reset','ps','blink','fbed','gpio','mb','kitesys','httpd','sh'):
+for name in ('pwd','tty','reset','ps','blink','fbed','gpio','mb','kitesys','httpd'):
     s = (apps / (('shell' if name=='sh' else name) + '.c')).read_text()
     assert 'if(argc!=1)' in s, name
+# The shell additionally accepts `sh -c COMMAND` for noninteractive execution.
+assert 'if(argc!=1 && !(argc==3 && !strcmp(argv[1],"-c")))' in shell
 for name in ('python', 'hello', 'omikuji'):
     assert 'if(argc>2)' in (apps / f'{name}.c').read_text(), name
 assert 'value<1 || value>30' in (apps/'omikuji.c').read_text()

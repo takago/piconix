@@ -42,25 +42,25 @@ PicoNIXのC APIは完全なPOSIX互換ではありません．`errno`ではな�
 
 ## 3．新しいコマンドをファームウェアに組み込む
 
-以下のサンプルソースはリポジトリ内の`userland/examples/c/network/`に同梱しています．Linux PCの**リポジトリ直下**で実行します．
+以下のサンプルソースは`userland/examples/c/network/`にあります．**標準アプリではなく，通常のファームウェアには登録されません．** 以下は実習時に限って有効にする手順です．別ブランチで作業し，実習後は`userland/apps/`へのコピーとCMake・カーネル登録を元に戻してください．Linux PCの**リポジトリ直下**で実行します．
 
 ```sh
 cp userland/examples/c/network/udp_once.c userland/apps/udp_once.c
 cp userland/examples/c/network/tcp_get.c userland/apps/tcp_get.c
 ```
 
-`CMakeLists.txt`の`foreach(APP IN ITEMS ... udp_echod)`の**現在の一覧の末尾**へ，`udp_once tcp_get`を追加します（既存のアプリを削除しない）．次に`kernel/main.c`の他の`extern`宣言の近くへ以下を追加します．
+`CMakeLists.txt`の`foreach(APP IN ITEMS ...)`の**現在の一覧の末尾**へ，`udp_once tcp_get`を追加します（既存のアプリを削除しない）．次に`kernel/main.c`の他の`extern`宣言の近くへ以下を追加します．
 
 ```c
 extern const unsigned char piconix_udp_once_image_start[], piconix_udp_once_image_end[];
 extern const unsigned char piconix_tcp_get_image_start[], piconix_tcp_get_image_end[];
 ```
 
-同じ`main()`内で，既存の`register_image()`に続けて登録します．現行ソースでは登録ID49・50が未使用ですが，**改造済みのリポジトリでは空き番号を必ず再確認**してください．
+同じ`main()`内で，既存の`register_image()`に続けて登録します．未改造の現行ソースでは登録ID53・54が未使用です（49は`mcpd`，50は`cc`，51は`scroll`が使用中）．**別の実習などで登録を追加した場合は`kernel/main.c`で空きを再確認**してください．
 
 ```c
-register_image(49, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
-register_image(50, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image_end);
+register_image(53, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
+register_image(54, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image_end);
 ```
 
 新しいコマンドを登録する仕組み，PIC，RAMスロットの意味は[Cアプリケーション開発](PROGRAMMING.md)の第3～4節を参照してください．`-Oz`で生成したユーザアプリが24 KiBスロットに収まることもビルド時に検査されます．
@@ -109,6 +109,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
 ```c
 /* Pico W: send one UDP datagram to an echo server on the PC and read the reply. */
 #include "unistd.h"
+#include "fcntl.h"
 #include "stdio.h"
 #include <stdint.h>
 
@@ -118,9 +119,11 @@ static int ipv4(const char *s, uint32_t *result) {
         unsigned value = 0, digits = 0;
         while (*s >= '0' && *s <= '9') {
             value = value * 10u + (unsigned)(*s++ - '0');
-            if (value > 255u || ++digits > 3) return -1;
+            if (value > 255u || ++digits > 3)
+                return -1;
         }
-        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0')) return -1;
+        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0'))
+            return -1;
         p[i] = (unsigned char)value;
     }
     return 0;
@@ -128,11 +131,14 @@ static int ipv4(const char *s, uint32_t *result) {
 
 static int port_number(const char *s) {
     unsigned n = 0;
-    if (!*s) return -1;
+    if (!*s)
+        return -1;
     for (; *s; ++s) {
-        if (*s < '0' || *s > '9') return -1;
+        if (*s < '0' || *s > '9')
+            return -1;
         n = n * 10u + (unsigned)(*s - '0');
-        if (n > 65535u) return -1;
+        if (n > 65535u)
+            return -1;
     }
     return n ? (int)n : -1;
 }
@@ -146,6 +152,8 @@ int main(int argc, char **argv) {
     }
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) { printf("socket: %d\n", fd); return 1; }
+    /* 受信期限を維持するため，ソケット受信は非ブロッキング． */
+    fcntl(fd, F_SETFL, O_NONBLOCK);
     struct sockaddr_in peer = {0};
     peer.sin_family = AF_INET;
     peer.sin_port = htons((uint16_t)port);
@@ -161,7 +169,8 @@ int main(int argc, char **argv) {
         int n = recvfrom(fd, reply, sizeof(reply), 0, 0, 0);
         if (n >= 0) {
             printf("received %d bytes: ", n);
-            if (n > 0) write(1, reply, (unsigned)n);
+            if (n > 0)
+                write(1, reply, (unsigned)n);
             puts(""); close(fd); return 0;
         }
         if (n != OS_EAGAIN) {
@@ -203,6 +212,7 @@ python3 -m http.server 8000 --bind 0.0.0.0
 ```c
 /* Pico W: minimal TCP client for an HTTP server on the host PC. */
 #include "unistd.h"
+#include "fcntl.h"
 #include "stdio.h"
 #include <stdint.h>
 
@@ -212,9 +222,11 @@ static int ipv4(const char *s, uint32_t *result) {
         unsigned value = 0, digits = 0;
         while (*s >= '0' && *s <= '9') {
             value = value * 10u + (unsigned)(*s++ - '0');
-            if (value > 255u || ++digits > 3) return -1;
+            if (value > 255u || ++digits > 3)
+                return -1;
         }
-        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0')) return -1;
+        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0'))
+            return -1;
         p[i] = (unsigned char)value;
     }
     return 0;
@@ -222,11 +234,14 @@ static int ipv4(const char *s, uint32_t *result) {
 
 static int port_number(const char *s) {
     unsigned n = 0;
-    if (!*s) return -1;
+    if (!*s)
+        return -1;
     for (; *s; ++s) {
-        if (*s < '0' || *s > '9') return -1;
+        if (*s < '0' || *s > '9')
+            return -1;
         n = n * 10u + (unsigned)(*s - '0');
-        if (n > 65535u) return -1;
+        if (n > 65535u)
+            return -1;
     }
     return n ? (int)n : -1;
 }
@@ -249,7 +264,8 @@ int main(int argc, char **argv) {
     int status = 0;
     for (int i = 0; i < 300; ++i) {
         status = tcp_status(fd);
-        if (status != 0) break;
+        if (status != 0)
+            break;
         msleep(10);
     }
     if (status != 1) { printf("not connected: %d\n", status); close(fd); return 1; }
@@ -262,11 +278,14 @@ int main(int argc, char **argv) {
         off += (unsigned)r;
     }
     shutdown(fd, SHUT_WR);
+    /* タイムアウト付きポーリング用．既定のrecv()はブロッキング． */
+    fcntl(fd, F_SETFL, O_NONBLOCK);
     char buf[128];
     int idle = 0;
     for (;;) {
         r = recv(fd, buf, sizeof(buf), 0);
-        if (r == 0) break;
+        if (r == 0)
+            break;
         if (r == OS_EAGAIN) {
             if (++idle > 300) { puts("timeout reading response"); close(fd); return 1; }
             msleep(10); continue;

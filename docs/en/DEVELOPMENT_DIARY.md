@@ -1,5 +1,9 @@
 # PicoNIX Development Diary
 
+### 2026-11-09: Audit documentation against the current source tree
+
+Cross-checked the Japanese and English references, links, development examples, generated function index and registered program IDs against the supplied source. Corrected collisions in the example application IDs (formerly 49–51; examples now use 52–55), distinguished opt-in samples under `userland/examples/` from standard firmware programs, synchronized the C listings in the socket programming tutorial with the actual example files, and updated stale MCP and index descriptions. Adjusted and added regression checks. Static documentation checks and selected tests passed; a full Pico SDK firmware build and hardware verification were not performed in this documentation pass.
+
 ### 2026-11-08: Align source-level teaching material with current ABI
 
 Corrected stale syscall-range descriptions and the uptime lab collision with syscall 40 (`select()`). Removed an obsolete patch that did not apply to the current tree; the lab now uses manual changes on a dedicated branch. Separated MCP operation from source-reading exercises and added a source-first reading map. Historical diary entries remain unchanged. Full SDK build and hardware testing were not performed for this documentation revision.

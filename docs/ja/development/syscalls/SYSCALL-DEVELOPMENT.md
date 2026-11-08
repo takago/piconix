@@ -91,10 +91,10 @@ CMakeの`foreach(APP IN ITEMS ...)`に`labuptime`を追記し，`kernel/main.c`�
 ```c
 extern const unsigned char piconix_labuptime_image_start[], piconix_labuptime_image_end[];
 /* main()のregister_image群の末尾 */
-register_image(51,"labuptime",piconix_labuptime_image_start,piconix_labuptime_image_end);
+register_image(55,"labuptime",piconix_labuptime_image_start,piconix_labuptime_image_end);
 ```
 
-詳しい登録位置とUF2書き込み操作は[Cアプリケーション開発](../apps/c/PROGRAMMING.md)の第3～4節を参照してください．登録ID49，50，51を別の演習で使用している場合は衝突を解決してから進めます．
+詳しい登録位置とUF2書き込み操作は[Cアプリケーション開発](../apps/c/PROGRAMMING.md)の第3～4節を参照してください．現在51番は`scroll`が使用しています．この実習では未使用の55番を例示していますが，ほかの実習を同じブランチで行うときは必ず`kernel/main.c`で衝突を確認します．
 
 ## 6．学習用ブランチでの適用と検査
 

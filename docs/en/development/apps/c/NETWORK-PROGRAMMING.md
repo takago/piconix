@@ -37,9 +37,9 @@ The implementation is **not** a full BSD/POSIX stack. Errors are returned as neg
 - UDP supports one user socket globally and stores at most one incoming datagram. An undersized receive buffer produces `OS_EINVAL` **without consuming** the datagram. A valid zero-length datagram returns 0, distinct from `OS_EAGAIN` when `O_NONBLOCK` is used. Sending before `bind()` assigns an ephemeral local port; a later `bind()` fails. Bind first if a fixed receive port is required.
 - Socket descriptors cannot be passed to `dup()`/`dup2()`. `close()` releases their resources and task termination also reclaims owned sockets. A TCP listening FD and its accepted FD share one management slot, so serve connections sequentially.
 
-## 3. Install and register both programs
+## 3. Opt in to building the examples
 
-From the **Linux PC, in the repository root**:
+The examples under `userland/examples/` are **not standard firmware commands**. To enable them for this exercise only, work on a separate branch and copy their sources into `userland/apps/`. Revert these modifications after the exercise so optional examples are not accidentally shipped as standard applications. From the **Linux PC, in the repository root**:
 
 ```sh
 cp userland/examples/c/network/udp_once.c userland/apps/udp_once.c
@@ -56,11 +56,11 @@ extern const unsigned char piconix_tcp_get_image_start[], piconix_tcp_get_image_
 Add registrations in `main()`:
 
 ```c
-register_image(49, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
-register_image(50, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image_end);
+register_image(53, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
+register_image(54, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image_end);
 ```
 
-49 and 50 are unused in the checked source version. **Check these IDs again if you have made other changes.** See the [C application build tutorial](PROGRAMMING.md) for the PIC/RAM-slot model and flashing instructions.
+53 and 54 are unused in the unmodified source tree (49 = `mcpd`, 50 = `cc`, 51 = `scroll`). **Recheck all registrations in `kernel/main.c` before using them, especially if other exercises were applied.** See the [C application build tutorial](PROGRAMMING.md) for the PIC/RAM-slot model and flashing instructions.
 
 ```sh
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
@@ -102,6 +102,7 @@ The **complete Pico W C client** in `userland/examples/c/network/udp_once.c` is:
 ```c
 /* Pico W: send one UDP datagram to an echo server on the PC and read the reply. */
 #include "unistd.h"
+#include "fcntl.h"
 #include "stdio.h"
 #include <stdint.h>
 
@@ -111,9 +112,11 @@ static int ipv4(const char *s, uint32_t *result) {
         unsigned value = 0, digits = 0;
         while (*s >= '0' && *s <= '9') {
             value = value * 10u + (unsigned)(*s++ - '0');
-            if (value > 255u || ++digits > 3) return -1;
+            if (value > 255u || ++digits > 3)
+                return -1;
         }
-        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0')) return -1;
+        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0'))
+            return -1;
         p[i] = (unsigned char)value;
     }
     return 0;
@@ -121,11 +124,14 @@ static int ipv4(const char *s, uint32_t *result) {
 
 static int port_number(const char *s) {
     unsigned n = 0;
-    if (!*s) return -1;
+    if (!*s)
+        return -1;
     for (; *s; ++s) {
-        if (*s < '0' || *s > '9') return -1;
+        if (*s < '0' || *s > '9')
+            return -1;
         n = n * 10u + (unsigned)(*s - '0');
-        if (n > 65535u) return -1;
+        if (n > 65535u)
+            return -1;
     }
     return n ? (int)n : -1;
 }
@@ -139,6 +145,8 @@ int main(int argc, char **argv) {
     }
     int fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (fd < 0) { printf("socket: %d\n", fd); return 1; }
+    /* 受信期限を維持するため，ソケット受信は非ブロッキング． */
+    fcntl(fd, F_SETFL, O_NONBLOCK);
     struct sockaddr_in peer = {0};
     peer.sin_family = AF_INET;
     peer.sin_port = htons((uint16_t)port);
@@ -154,7 +162,8 @@ int main(int argc, char **argv) {
         int n = recvfrom(fd, reply, sizeof(reply), 0, 0, 0);
         if (n >= 0) {
             printf("received %d bytes: ", n);
-            if (n > 0) write(1, reply, (unsigned)n);
+            if (n > 0)
+                write(1, reply, (unsigned)n);
             puts(""); close(fd); return 0;
         }
         if (n != OS_EAGAIN) {
@@ -190,6 +199,7 @@ The **full C client** in `userland/examples/c/network/tcp_get.c` is:
 ```c
 /* Pico W: minimal TCP client for an HTTP server on the host PC. */
 #include "unistd.h"
+#include "fcntl.h"
 #include "stdio.h"
 #include <stdint.h>
 
@@ -199,9 +209,11 @@ static int ipv4(const char *s, uint32_t *result) {
         unsigned value = 0, digits = 0;
         while (*s >= '0' && *s <= '9') {
             value = value * 10u + (unsigned)(*s++ - '0');
-            if (value > 255u || ++digits > 3) return -1;
+            if (value > 255u || ++digits > 3)
+                return -1;
         }
-        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0')) return -1;
+        if (!digits || (i < 3 ? *s++ != '.' : *s != '\0'))
+            return -1;
         p[i] = (unsigned char)value;
     }
     return 0;
@@ -209,11 +221,14 @@ static int ipv4(const char *s, uint32_t *result) {
 
 static int port_number(const char *s) {
     unsigned n = 0;
-    if (!*s) return -1;
+    if (!*s)
+        return -1;
     for (; *s; ++s) {
-        if (*s < '0' || *s > '9') return -1;
+        if (*s < '0' || *s > '9')
+            return -1;
         n = n * 10u + (unsigned)(*s - '0');
-        if (n > 65535u) return -1;
+        if (n > 65535u)
+            return -1;
     }
     return n ? (int)n : -1;
 }
@@ -236,7 +251,8 @@ int main(int argc, char **argv) {
     int status = 0;
     for (int i = 0; i < 300; ++i) {
         status = tcp_status(fd);
-        if (status != 0) break;
+        if (status != 0)
+            break;
         msleep(10);
     }
     if (status != 1) { printf("not connected: %d\n", status); close(fd); return 1; }
@@ -249,11 +265,14 @@ int main(int argc, char **argv) {
         off += (unsigned)r;
     }
     shutdown(fd, SHUT_WR);
+    /* タイムアウト付きポーリング用．既定のrecv()はブロッキング． */
+    fcntl(fd, F_SETFL, O_NONBLOCK);
     char buf[128];
     int idle = 0;
     for (;;) {
         r = recv(fd, buf, sizeof(buf), 0);
-        if (r == 0) break;
+        if (r == 0)
+            break;
         if (r == OS_EAGAIN) {
             if (++idle > 300) { puts("timeout reading response"); close(fd); return 1; }
             msleep(10); continue;

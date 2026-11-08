@@ -49,8 +49,8 @@
 | やりたいこと | 関連ページ |
 |---|---|
 | traceでシステムコールを追いたい | [trace操作](reference/commands/TRACE.md) · [仕様：システムコール](reference/SYSCALLS.md) |
-| memでRAMやタスクのメモリを見たい | [mem操作](reference/commands/MEM.md) · [仕様：SRAM配置](reference/MEMORY-LAYOUT.md) |
-| FlashとRAMの配置・PICを理解したい | [mem操作](reference/commands/MEM.md) · [仕様：SRAM配置](reference/MEMORY-LAYOUT.md) |
+| memでRAMやタスクのメモリを見たい | [mem操作](reference/commands/MEM.md) · [仕様：ROM・Flash・SRAM配置](reference/MEMORY-LAYOUT.md) |
+| FlashとRAMの配置・PICを理解したい | [mem操作](reference/commands/MEM.md) · [仕様：ROM・Flash・SRAM配置](reference/MEMORY-LAYOUT.md) |
 | カーネルのシンボルを調べたい | [仕様：カーネルシンボル](reference/KERNEL-SYMBOLS.md) · [操作：mem](reference/commands/MEM.md) · [索引：ソース関数一覧](development/FUNCTIONS.md) |
 | VFSとFDの関係を理解したい | [ファイルシステム](reference/FILESYSTEM.md) · [システムコール開発](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
@@ -77,7 +77,7 @@
 | ncでTCP/UDP通信を試したい | [ネットワーク接続](reference/network/NETWORK.md) · [操作：nc](reference/network/NC.md) |
 | httpdでWebページを公開したい | [操作：httpd](reference/network/HTTPD.md) · [仕様：初期ファイルとrc](reference/INITIAL-FILES.md) · [ネットワーク接続](reference/network/NETWORK.md) |
 | ローカルLLMからMCPでPicoNIXを操作したい | [MCP統合ガイド](reference/commands/MCP.md) |
-| MCPサーバを開発・動作確認したい（Pico W） | [MCP統合ガイド（実装・開発実習）](reference/commands/MCP.md) |
+| MCPサーバを開発・動作確認したい（Pico W） | [MCP実装・開発資料](development/apps/c/MCP-DEVELOPMENT.md) |
 | ping・tcpdumpで通信を観察したい | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
 | UDPでデバイスを遠隔制御したい | [仕様：遠隔デバイス制御](reference/network/REMOTE-DEVICE.md) · [実習：遠隔GPIO](reference/network/REMOTE_GPIO.md) · [ネットワーク接続](reference/network/NETWORK.md) |
 

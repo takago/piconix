@@ -2,7 +2,7 @@
 
 This source-level tutorial is separated from the [MCP usage guide](../../../reference/commands/MCP.md). It uses the Pico W user-space MCP server as an example of UNIX-style networking.
 
-## 6. `mcpd` implementation and extension lab
+## 1. `mcpd` implementation and extension
 
 This lab walks through `userland/apps/mcpd.c`, linking TCP, HTTP, JSON-RPC, MCP and file operations using the existing OS APIs.
 
@@ -44,7 +44,7 @@ Use a Pico W, Linux PC, USB console, Pico SDK, and ARM toolchain. Start with [se
 | `host/mcp_client.py` | Linux SDK-based client |
 | `docs/en/reference/commands/MCP.md` | Usage and manual HTTP requests |
 
-The experimental patch registers `mcpd` using **program ID 49**. Always check the current `register_image()` list before adding more applications, to avoid duplicate IDs.
+The current `kernel/main.c` registers the bundled `mcpd` at **program ID 49**. It is already part of the standard Pico W firmware build; no experimental patch or separate application registration is required. Choose another unused ID when adding your own program.
 
 ### Stage A: accept a TCP connection
 

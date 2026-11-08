@@ -32,8 +32,7 @@ Browse by area: [Commands](reference/commands/README.md) | [Devices and I/O](ref
 ## Source index and development records
 
 - [Function index (Japanese)](../ja/development/FUNCTIONS.md): locating source functions.
-- [Development diary](DEVELOPMENT_DIARY.md): design decisions.
-For previous design decisions and changes, see the [development diary](DEVELOPMENT_DIARY.md) and Git commit history.
+- [Development diary](DEVELOPMENT_DIARY.md): chronological project record (not the current specification).
 
 ---
 

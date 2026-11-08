@@ -1,6 +1,6 @@
 # PicoNIX Learning Roadmap
 
-This roadmap connects prior UNIX/OS knowledge to **using PicoNIX → observing behavior → reading source → modifying the system**. It links to practical guides and reference documents rather than duplicating them as a standalone exercises.
+This roadmap connects prior UNIX/OS knowledge to **using PicoNIX → observing behavior → reading source → modifying the system**. It links to practical guides and reference documents without duplicating them as separate exercise documents.
 
 Begin with [Setup](setup/SETUP.md).
 ## Audience and prerequisites
@@ -9,7 +9,7 @@ These materials assume prior knowledge of **UNIX/Linux command-line usage, core 
 
 The central goal is to connect familiar concepts to **their concrete implementation on RP2040**: fixed user slots, a flash-resident kernel and RAM-loaded user images, PIC, SVC/PendSV, VFS and lwIP integration. Similar names do not imply Linux-equivalent protection or virtual-memory semantics; consult [Differences from Linux](reference/DIFFERENCES.md).
 
-**Suggested path:** Observe behavior with a usage guide → consult the PicoNIX-specific reference → follow the corresponding source functions in a development guide → modify and test on a separate branch if appropriate.
+**Suggested path:** Observe behavior with a command reference → consult the PicoNIX-specific reference → follow the corresponding source functions in a development guide → modify and test on a separate branch if appropriate.
 Follow the steps in order if you are new to PicoNIX. Network topics marked optional require Pico W.
 
 ## 1. Use the system
@@ -28,7 +28,7 @@ Follow the steps in order if you are new to PicoNIX. Network topics marked optio
 | Step | What to learn and try | Read |
 |---|---|---|
 | 5 | Understand files, descriptors and VFS | [Filesystem](reference/FILESYSTEM.md) · [Pipes](reference/commands/PIPE.md) |
-| 6 | Inspect memory and processes | [mem guide](reference/commands/MEM.md) · [SRAM layout](reference/MEMORY-LAYOUT.md) |
+| 6 | Inspect memory and processes | [mem guide](reference/commands/MEM.md) · [ROM/Flash/SRAM layout](reference/MEMORY-LAYOUT.md) |
 | 7 | Observe system calls | [trace guide](reference/commands/TRACE.md) · [Syscall reference](reference/SYSCALLS.md) |
 | 8 | Use hardware devices | [Devices](reference/devices/DEVICES.md) · [Pin assignments](reference/hardware/PINS.md) · [Wiring](reference/hardware/WIRING.md) |
 | 9 (optional) | Inspect Pico W networking | [Network connection](reference/network/NETWORK.md) · [ip](reference/network/IP.md) · [ping](reference/network/PING.md) · [tcpdump](reference/network/TCPDUMP.md) |

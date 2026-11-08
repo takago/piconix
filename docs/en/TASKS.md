@@ -49,20 +49,19 @@ Find documentation for **what you want to do**. Each task links to starting expl
 | I want to… | Related pages |
 |---|---|
 | Trace system calls | [trace guide](reference/commands/TRACE.md) · [Reference: syscalls](reference/SYSCALLS.md) |
-| Inspect RAM and tasks with mem | [mem guide](reference/commands/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
-| Understand Flash, RAM, and PIC placement | [mem guide](reference/commands/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
+| Inspect RAM and tasks with mem | [mem guide](reference/commands/MEM.md) · [Reference: ROM/Flash/SRAM layout](reference/MEMORY-LAYOUT.md) |
+| Understand Flash, RAM, and PIC placement | [mem guide](reference/commands/MEM.md) · [Reference: ROM/Flash/SRAM layout](reference/MEMORY-LAYOUT.md) |
 | Inspect kernel symbols | [Reference: kernel symbols](reference/KERNEL-SYMBOLS.md) · [How-to: mem](reference/commands/MEM.md) · [Index: source functions](../ja/development/FUNCTIONS.md) |
 | Understand how VFS and FDs relate | [File system](reference/FILESYSTEM.md) · [System call development](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
-### Devices
-
-Use `/dev/fbchar` to display ASCII characters or icons ([device reference](reference/devices/DEVICES.md)); use [scroll](reference/commands/SCROLL.md) for longer messages and [LLM/MCP](reference/commands/MCP.md) for remote tool calling.
- and electronics
+### Devices and electronics
 
 | I want to… | Related pages |
 |---|---|
 | Check GPIO pins and wiring | [Reference: pin assignments](reference/hardware/PINS.md) · [Reference: wiring](reference/hardware/WIRING.md) · [Device reference](reference/devices/DEVICES.md) |
 | Control GPIO input/output | [Device reference](reference/devices/DEVICES.md) |
+| Display characters with `/dev/fbchar` | [Device reference](reference/devices/DEVICES.md) |
+| Scroll longer text on LEDs | [scroll reference](reference/commands/SCROLL.md) |
 | Control an 8×8 LED matrix | [Device reference](reference/devices/DEVICES.md) · [Reference: LED wiring](reference/hardware/WIRING.md) |
 | Try PWM, buzzer, or servo control | [Device reference](reference/devices/DEVICES.md) · [Reference: wiring](reference/hardware/WIRING.md) |
 | Read ADC inputs or sensors | [Device reference](reference/devices/DEVICES.md) · [Reference: wiring](reference/hardware/WIRING.md) |
@@ -77,7 +76,7 @@ Use `/dev/fbchar` to display ASCII characters or icons ([device reference](refer
 | Use a remote shell over Telnet | [Network reference](reference/network/NETWORK.md) · [How-to: net](reference/network/NET.md) |
 | Try TCP/UDP with nc | [Network reference](reference/network/NETWORK.md) · [How-to: nc](reference/network/NC.md) |
 | Serve a web page with httpd | [How-to: httpd](reference/network/HTTPD.md) · [Reference: initial files and rc](reference/INITIAL-FILES.md) · [Network reference](reference/network/NETWORK.md) |
-| Build and test an MCP server (Pico W) | [Unified MCP guide (including development lab)](reference/commands/MCP.md) |
+| Build and test an MCP server (Pico W) | [MCP source and development](development/apps/c/MCP-DEVELOPMENT.md) |
 | Inspect network traffic with ping or tcpdump | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
 | Control devices remotely over UDP | [Reference: remote device control](reference/network/REMOTE-DEVICE.md) · [Lab: remote GPIO](reference/network/REMOTE_GPIO.md) · [Network reference](reference/network/NETWORK.md) |
 

@@ -9,7 +9,7 @@ UNIX・OSの既習知識をPicoNIXの**操作 → 動作観察 → ソースコ�
 
 学ぶ中心は，既習の概念が**RP2040上の小さな実装でどのように成立するか**です．特に固定長ユーザスロット，Flash上のカーネルとRAM上のユーザプログラム，PIC，SVCとPendSV，VFS，lwIPとの接続を，実行結果とソースコードで対応付けます．Linuxと同じ名前の機能でも，権限保護や仮想記憶などは異なるため，[Linuxとの差異](reference/DIFFERENCES.md)を確認してください．
 
-**推奨する進み方：** 操作ガイドで現象を観察 → リファレンスでPicoNIX固有の仕様を確認 → 開発ガイドで対応する関数を読む → 必要なら別の作業ブランチで変更・検証，という順序です．
+**推奨する進み方：** コマンドリファレンスを使って現象を観察 → リファレンスでPicoNIX固有の仕様を確認 → 開発ガイドで対応する関数を読む → 必要なら別の作業ブランチで変更・検証，という順序です．
 各項目は，上から順に進めることを推奨します．操作の詳細やトラブル対応はリンク先を参照してください．Pico Wが必要な項目は「選択」と明記しています．
 
 ## 1．まず使ってみる
@@ -28,7 +28,7 @@ UNIX・OSの既習知識をPicoNIXの**操作 → 動作観察 → ソースコ�
 | 順序 | 学ぶこと・試すこと | 読む資料 |
 |---|---|---|
 | 5 | ファイルとFD，VFSの関係 | [ファイルシステム](reference/FILESYSTEM.md)・[パイプ](reference/commands/PIPE.md) |
-| 6 | メモリとユーザプロセスの配置 | [mem操作ガイド](reference/commands/MEM.md)・[SRAM配置](reference/MEMORY-LAYOUT.md) |
+| 6 | メモリとユーザプロセスの配置 | [mem操作ガイド](reference/commands/MEM.md)・[ROM・Flash・SRAM配置](reference/MEMORY-LAYOUT.md) |
 | 7 | システムコールを追跡する | [trace操作ガイド](reference/commands/TRACE.md)・[システムコール一覧](reference/SYSCALLS.md) |
 | 8 | GPIOなどのデバイス操作 | [デバイス仕様](reference/devices/DEVICES.md)・[ピン割当](reference/hardware/PINS.md)・[配線](reference/hardware/WIRING.md) |
 | 9（選択） | Pico Wの通信を観察する | [ネットワーク接続](reference/network/NETWORK.md)・[ip](reference/network/IP.md)・[ping](reference/network/PING.md)・[tcpdump](reference/network/TCPDUMP.md) |

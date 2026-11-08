@@ -12,5 +12,5 @@ assert 'ps cat cp grep' in cmake
 assert 'usage: cp SRC DST' in helptext and '  cp         Copy' in helptext
 assert 'O_CREAT|O_TRUNC' in cp and '!strcmp(src,dst)' in cp
 assert 'close(in)' in cp and 'close(out)' in cp
-assert '`cp`' in (r/'README.md').read_text()
+assert '`cp`' in (r/'docs/en/reference/commands/README.md').read_text()
 print('PASS: cp registration, docs and guards')

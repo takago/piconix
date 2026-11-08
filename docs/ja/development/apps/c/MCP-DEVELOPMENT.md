@@ -46,7 +46,7 @@ Pico W，Linux PC，USB端末，Pico SDK・ARMツールチェーンを用意し�
 | `host/mcp_client.py` | Linux側のテスト用MCPクライアント |
 | `docs/ja/reference/commands/MCP.md` | 利用方法，対応範囲，手動HTTPテスト |
 
-現在の登録IDは`kernel/main.c`の`register_image()`で確認してください．以前の試作版のIDを固定の仕様として扱わないでください．ほかのアプリを増やした場合は，必ず現在の`register_image()`一覧で重複を調べてください．
+現行の`kernel/main.c`では，標準アプリ`mcpd`を**登録ID49**で登録しています．実習のために`mcpd`を追加登録する必要はありません．独自アプリを追加する場合は未使用IDを確認してください．
 
 ### 段階A：TCPサーバ
 

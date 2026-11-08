@@ -89,10 +89,10 @@ Add `labuptime` to the existing `foreach(APP IN ITEMS ...)` in `CMakeLists.txt`.
 ```c
 extern const unsigned char piconix_labuptime_image_start[], piconix_labuptime_image_end[];
 /* within main(), after existing registrations */
-register_image(51,"labuptime",piconix_labuptime_image_start,piconix_labuptime_image_end);
+register_image(55,"labuptime",piconix_labuptime_image_start,piconix_labuptime_image_end);
 ```
 
-51 was unused in the checked source. Check again if you have added other programs. The full app installation process is explained in [Programming](../apps/c/PROGRAMMING.md).
+55 is unused in the unmodified source tree; 51 is already used by `scroll`. Recheck `kernel/main.c` after any other exercises. The full app installation process is explained in [Programming](../apps/c/PROGRAMMING.md).
 
 ## 6. Apply and verify the lab on an isolated branch
 
@@ -133,7 +133,7 @@ These are **illustrative outputs**, not captured hardware results. The values ch
 
 If this becomes a supported API, update [SYSCALLS](../../reference/SYSCALLS.md) and [LIBC](../apps/c/LIBC.md) in both languages, including signature, number, return semantics and wrap. Keep the exercise separate from normal development; switch back to your original branch afterward.
 
-**Validation note:** The example patch was checked for application and its standalone C files for syntax. SDK firmware compilation and real-device execution were **not** performed here.
+**Validation:** This is a worked development example, not a prebuilt patch or an installed kernel feature. Compilation and hardware behavior must be verified after adding it.
 
 ---
 
