@@ -12,13 +12,13 @@ scroll -u 2001 &
 mcpd &
 ```
 
-`scroll` は `/dev/gpio/fb` を開き，表示を有効にします．UDPを使うにはPico Wとネットワーク接続が必要です．`-u` は全インターフェースのUDP 2001番で待ち受けます．通常の起動では標準入力だけを読みます．`scroll` の実行中はLED用GPIO 0～15を他のアプリと共有しないでください．
+`scroll` は `/dev/fb` を開き，表示を有効にします．UDPを使うにはPico Wとネットワーク接続が必要です．`-u` は全インターフェースのUDP 2001番で待ち受けます．通常の起動では標準入力だけを読みます．`scroll` の実行中はLED用GPIO 0～15を他のアプリと共有しないでください．
 
 ## データの流れ
 
 ```text
 stdin ─────────────┐
-                   ├─ select() ─→ 1024-byte ring ─→ 5×7 font ─→ /dev/gpio/fb
+                   ├─ select() ─→ 1024-byte ring ─→ 5×7 font ─→ /dev/fb
 UDP port 2001 ─────┘
 MCP client ─→ mcpd (TCP 8080) ─→ UDP 127.0.0.1:2001
 ```

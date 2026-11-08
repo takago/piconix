@@ -116,7 +116,7 @@ static int stub_read(int fd,void *dst,size_t cap) {
         memcpy(dst,s+file_offset,n);file_offset+=(int)n;
         return (int)n;
     }
-    if(strcmp(opened_path,"/dev/gpio/fb")==0){
+    if(strcmp(opened_path,"/dev/fb")==0){
         if(cap<8)return -1;
         memcpy(dst,fb,8);return 8;
     }
@@ -126,7 +126,7 @@ static int stub_read(int fd,void *dst,size_t cap) {
 static int stub_write(int fd,const void *p,size_t n) {
     (void)fd;writes++;
     assert(n<=sizeof(written));memcpy(written,p,n);write_len=(unsigned)n;
-    if(strcmp(opened_path,"/dev/gpio/fb")==0) {
+    if(strcmp(opened_path,"/dev/fb")==0) {
         assert(n==8);memcpy(fb,p,8);
     }
     return (int)n;

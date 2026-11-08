@@ -47,6 +47,6 @@ A; `echo heart > /dev/fbchar` draws a heart; `echo clear > /dev/fbchar`
 clears the 8x8 matrix. The display persists after close(). The device rejects unknown names and does not scroll text.
 Read with `cat /dev/fbchar` to list available patterns and usage;
 the listing is finite and does not change the display.
-Unlike /dev/gpio/fb (8 binary bytes), /dev/fbchar accepts ASCII.
+Unlike /dev/fb (8 binary bytes), /dev/fbchar accepts ASCII.
 Do not run scroll or other framebuffer writers concurrently. Python
 may open the device for writing and call write(fd, "heart").

@@ -11,9 +11,9 @@ Pico Wは，**カーネル側のUDP 2000番ポート**で，一部のデバイ�
 ```sh
 python3 host/piconixctl.py read /dev/adc/temp
 python3 host/piconixctl.py read /dev/gpio/16
-python3 host/piconixctl.py enable /dev/gpio/fb
-python3 host/piconixctl.py write /dev/gpio/fb 183c7effff7e3c18 --hex
-python3 host/piconixctl.py disable /dev/gpio/fb
+python3 host/piconixctl.py enable /dev/fb
+python3 host/piconixctl.py write /dev/fb 183c7effff7e3c18 --hex
+python3 host/piconixctl.py disable /dev/fb
 ```
 
 GPIOピンが予約されている場合，読み取りに失敗することがあります．接続先を変更するときは，コマンド名より前に`--host ADDRESS`を指定します．`--timeout`と`--port`も利用できます．フレームバッファは8バイトのバイナリなので，`--hex`で16進文字列から変換します．連続したLED表示とADCの実験は`python3 host/demo_udp.py --interval 0.2`で試せます．いずれのツールもタイムアウト時に自動再送しません．
@@ -37,7 +37,7 @@ GPIOピンが予約されている場合，読み取りに失敗することが�
 
 | パス | READ | WRITE | ENABLE / DISABLE |
 |---|---|---|---|
-| `/dev/gpio/fb` | 生の8バイト | 生の8バイト（固定長） | LEDマトリクスの動的点灯を有効化／無効化 |
+| `/dev/fb` | 生の8バイト | 生の8バイト（固定長） | LEDマトリクスの動的点灯を有効化／無効化 |
 | `/dev/gpio/<pin>` | ASCII `0\n`または`1\n` | ASCII `0`または`1`（末尾改行可） | 出力／入力への切替 |
 | `/dev/pwm/1/freq` | 改行付き10進数 | 周波数の10進数 | 非対応 |
 | `/dev/pwm/1/a`，`/dev/pwm/1/b` | デューティ値の10進数 | デューティ値の10進数 | 非対応 |

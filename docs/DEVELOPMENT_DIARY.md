@@ -1,5 +1,10 @@
 # PicoNIX Development Diary
 
+### 2026-11-08: Move the 8×8 LED framebuffer to `/dev/fb`
+
+Moved the raw eight-byte LED framebuffer device from `/dev/gpio/fb` to `/dev/fb` to separate the display interface from individual GPIO controls. The `/dev/fbchar` text/icon interface is unchanged. Updated the VFS registry, `fbctl`, `fbed`, `scroll`, `kitesys`, `httpd`, Python samples, UDP remote device service, host clients, ROM manual, Japanese/English documentation and regression tests. The old path has no compatibility alias; historical development diary entries retain their original references.
+
+
 ### 2026-11-08: Batch `echo` writes for `/dev/fbchar`
 
 Investigated `echo heart > /dev/fbchar` showing only `t`: `echo` previously issued one-byte writes, causing each byte to be interpreted as a separate glyph. `echo` now buffers short output (128 bytes) into a single write, while preserving partial-write retries and `-n`/`-e` semantics. GPIO direction and pull configuration writes now accept a trailing newline. Wi-Fi restart retains support for split writes; tests were adjusted. ARM syntax and host output tests passed. Full Pico SDK builds and hardware behavior remain unverified.

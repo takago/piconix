@@ -82,7 +82,7 @@ For `write(fd, pattern)`, **each element is an 8-bit row and exactly eight eleme
 
 ```python
 pattern = bytes([0x3c, 0x42, 0xa5, 0x81, 0xa5, 0x99, 0x42, 0x3c])
-fd = open("/dev/gpio/fb", 2)
+fd = open("/dev/fb", 2)
 ioctl(fd, FB_ENABLE, 0)
 write(fd, pattern)
 close(fd)
@@ -166,7 +166,7 @@ The sample source is [`userland/examples/python/fbwave.py`](../../../../../userl
 # PicoNIX: light-controlled wave (fixed speed without BH1750)
 wave = [3,4,5,6,5,4,3,2]
 fb = [0,0,0,0,0,0,0,0]
-fd = open("/dev/gpio/fb", 2)
+fd = open("/dev/fb", 2)
 if fd >= 0:
     ioctl(fd, FB_ENABLE, 0)
 i2c = open("/dev/i2c/1", 2)

@@ -46,8 +46,10 @@ I2C1 on GP26 SDA / GP27 SCL:
 
 ADC / framebuffer:
   /dev/adc/temp for onboard temperature sensor (read-only).
-  Other /dev/adc and /dev/fb endpoints are platform dependent;
-  check help adc/fbctl and device documentation before access.
+  /dev/fb is the 8-byte 8x8 LED framebuffer. /dev/fbchar is
+  the ASCII character and named-pattern interface.
+  Other /dev/adc endpoints depend on board pin configuration;
+  check fbctl and device documentation before access.
   Framebuffer user tools may require a terminal or own hardware.
 
 After every state-changing command, verify with pwmctl status,
@@ -67,6 +69,6 @@ A; `echo heart > /dev/fbchar` draws a heart; `echo clear > /dev/fbchar`
 clears the 8x8 matrix. The display persists after close(). The device rejects unknown names and does not scroll text.
 Read with `cat /dev/fbchar` to list available patterns and usage;
 the listing is finite and does not change the display.
-Unlike /dev/gpio/fb (8 binary bytes), /dev/fbchar accepts ASCII.
+Unlike /dev/fb (8 binary bytes), /dev/fbchar accepts ASCII.
 Do not run scroll or other framebuffer writers concurrently. Python
 may open the device for writing and call write(fd, "heart").

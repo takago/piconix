@@ -9,7 +9,7 @@ import time
 
 from piconixctl import request
 
-FB = "/dev/gpio/fb"
+FB = "/dev/fb"
 ADC = "/dev/adc/0"
 
 

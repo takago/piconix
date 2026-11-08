@@ -77,7 +77,7 @@ Run `fbctl test` in the shell first to verify wiring and orientation. Each byte 
 
 ```python
 pattern = bytes([0x3c, 0x42, 0xa5, 0x81, 0xa5, 0x99, 0x42, 0x3c])
-fd = open("/dev/gpio/fb", 2)
+fd = open("/dev/fb", 2)
 ioctl(fd, FB_ENABLE, 0)
 write(fd, pattern)
 close(fd)

@@ -47,7 +47,7 @@ static const char *pwm_path(const char *path){
 static void api(int fd,int post,const char *path,const char *body,unsigned count){
     if(same(path,"/api/fb")){
         unsigned char pixels[8];char out[17];
-        int file=open("/dev/gpio/fb",post?O_RDWR:O_RDONLY);
+        int file=open("/dev/fb",post?O_RDWR:O_RDONLY);
         if(file<0){text_reply(fd,404,"Device unavailable\n");return;}
         if(post){
             if(count!=16){close(file);text_reply(fd,400,"Expected 16 hex digits\n");return;}

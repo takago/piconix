@@ -11,9 +11,9 @@ In default AP mode, join the PicoNIX access point and use `192.168.4.1`. In STA 
 ```sh
 python3 host/piconixctl.py read /dev/adc/temp
 python3 host/piconixctl.py read /dev/gpio/16
-python3 host/piconixctl.py enable /dev/gpio/fb
-python3 host/piconixctl.py write /dev/gpio/fb 183c7effff7e3c18 --hex
-python3 host/piconixctl.py disable /dev/gpio/fb
+python3 host/piconixctl.py enable /dev/fb
+python3 host/piconixctl.py write /dev/fb 183c7effff7e3c18 --hex
+python3 host/piconixctl.py disable /dev/fb
 ```
 
 The GPIO read may be unavailable if the selected pin is reserved. To use a different address, add `--host ADDRESS` **before** the command. `host/piconixctl.py` also accepts `--timeout` and `--port`. The 8-byte framebuffer uses binary data; `--hex` converts hexadecimal input/output. For a continuous animation and ADC demo, run `python3 host/demo_udp.py --interval 0.2`. Neither utility automatically retries timed-out requests.
@@ -37,7 +37,7 @@ A successful reply is `OK\n` followed by device bytes for `READ`, or just `OK\n`
 
 | Path | READ | WRITE | ENABLE / DISABLE |
 |---|---|---|---|
-| `/dev/gpio/fb` | 8 raw bytes | Exactly 8 raw bytes | Turn matrix scanning on / off |
+| `/dev/fb` | 8 raw bytes | Exactly 8 raw bytes | Turn matrix scanning on / off |
 | `/dev/gpio/<pin>` | ASCII `0\n` or `1\n` | ASCII `0` or `1` (optional trailing newline) | Set output / input direction |
 | `/dev/pwm/1/freq` | Decimal ASCII with newline | Decimal frequency | Not supported |
 | `/dev/pwm/1/a`, `/dev/pwm/1/b` | Decimal ASCII duty value | Decimal duty value | Not supported |

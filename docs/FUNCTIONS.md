@@ -487,7 +487,7 @@
 | [`pattern()`](../userland/apps/fbctl.c#L15) | 15 | static | 8バイトのフレームバッファパターンをFDへ書き込む． |
 | [`status()`](../userland/apps/fbctl.c#L18) | 18 | static | cat /proc/fbと同じカーネル生成レポートを表示する． |
 | [`usage()`](../userland/apps/fbctl.c#L39) | 39 | static | LED表示の有効化・消灯・テスト操作の使用方法を表示する． |
-| [`main()`](../userland/apps/fbctl.c#L51) | 51 | 外部 | /dev/gpio/fbを介して8×8 LED表示の状態確認や操作を行う． |
+| [`main()`](../userland/apps/fbctl.c#L51) | 51 | 外部 | /dev/fbを介して8×8 LED表示の状態確認や操作を行う． |
 
 ### `userland/apps/fbed.c`（2件）
 

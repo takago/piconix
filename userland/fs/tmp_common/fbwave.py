@@ -1,7 +1,7 @@
 # PicoNIX: BH1750-controlled LED wave (fixed speed as fallback).
 wave = [3,4,5,6,5,4,3,2]
 fb = [0,0,0,0,0,0,0,0]
-fd = open("/dev/gpio/fb", 2)
+fd = open("/dev/fb", 2)
 if fd < 0:
     print("fbwave: framebuffer unavailable")
     exit()

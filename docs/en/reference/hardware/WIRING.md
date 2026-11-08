@@ -83,7 +83,7 @@ GP8 is HIGH to select R0, while GP7 and GP0 are LOW to light the two end pixels.
 | `0x02FD` | Second pixel from right on R1 (C6) |
 | `0x8000` | All eight pixels on R7 |
 
-These are **instantaneous GPIO values for one scan row**, not values that drive all eight rows simultaneously. The kernel advances one row per millisecond, refreshing the full display at about 125 Hz. Applications normally write eight bytes to `/dev/gpio/fb` instead of driving GPIO directly. Use suitable current limiting and a driver circuit for the LED matrix.
+These are **instantaneous GPIO values for one scan row**, not values that drive all eight rows simultaneously. The kernel advances one row per millisecond, refreshing the full display at about 125 Hz. Applications normally write eight bytes to `/dev/fb` instead of driving GPIO directly. Use suitable current limiting and a driver circuit for the LED matrix.
 
 ### Pixel bits versus GPIO output bits
 
@@ -94,7 +94,7 @@ framebuffer      R0: 10000000  (= 0x80, leftmost pixel)
 GPIO GP15..GP0:      00000001 01111111  (= 0x017F)
 ```
 
-**Note:** These values explain what the kernel outputs *during scanning*; they are not instructions to write a raw 16-bit value to GPIO. Use `fbctl` or `/dev/gpio/fb` for display experiments.
+**Note:** These values explain what the kernel outputs *during scanning*; they are not instructions to write a raw 16-bit value to GPIO. Use `fbctl` or `/dev/fb` for display experiments.
 
 
 ## Default wiring overview

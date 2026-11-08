@@ -59,7 +59,7 @@ static int pwm_value(int fd, const char *value) {
 int main(int argc, char **argv) {
     (void)argv;
     if(argc!=1) {puts("usage: kitesys");return 1;}
-    int fb = open("/dev/gpio/fb", O_RDWR);
+    int fb = open("/dev/fb", O_RDWR);
     int left = open("/dev/gpio/16", O_RDONLY);
     int right = open("/dev/gpio/17", O_RDONLY);
     int freq = open("/dev/pwm/1/freq", O_WRONLY);

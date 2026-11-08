@@ -65,7 +65,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 | `/dev/mem` | Yes | Restricted | Read permitted XIP flash/SRAM; writes are limited to task slots, SHM and RAM-file payloads; absolute `lseek()` address |
 | `/dev/shm` | Yes | Yes | Shared 2-KiB RAM, indexed from offset zero |
 | `/dev/trace` | Yes | No | Binary records; see the `trace` command |
-| `/dev/gpio/fb` | Yes | Yes | Exactly 8 bytes; enable using `ioctl()` |
+| `/dev/fb` | Yes | Yes | Exactly 8 bytes; enable using `ioctl()` |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | Yes | Yes | Only pins configured as GPIO in `pins.h` |
 | `/dev/i2c/1` | Yes | Yes | I²C1 bus; transfers use `ioctl()`. See [I²C guide](devices/I2C.md) |
 | `/dev/adc/0`–`2`, `/dev/adc/temp` | Yes | No | Decimal text; 0–2 depend on ADC pin configuration |

@@ -34,7 +34,7 @@ static int net_device_request(const unsigned char *req, unsigned n, unsigned cha
         /* ペイロードの前に区切り文字を一つ置く．改行を使うとバイナリのフレームバッファデータも扱える． */
         ++payload;
     } else if(end!=n && !(end+1==n && req[end]=='\n')) return -1;
-    if(!strcmp(path,"/dev/gpio/fb")) {
+    if(!strcmp(path,"/dev/fb")) {
         if(enable || disable)
             return fb_ioctl(enable ? OS_FB_ENABLE : OS_FB_DISABLE)==0 ? 0 : -1;
         if(writing)

@@ -18,7 +18,7 @@ Python:
   close(fd)
 
 This is a static single-glyph device. For text scrolling use `scroll`.
-The existing /dev/gpio/fb accepts eight binary bytes instead; do not
+The existing /dev/fb accepts eight binary bytes instead; do not
 confuse the two protocols. /dev/fbchar automatically enables scanning.
 Output remains displayed after the process exits. Running multiple
 framebuffer writers simultaneously may change the displayed pattern.

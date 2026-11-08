@@ -17,7 +17,7 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 | `/dev/net/packet` | Read-only IPv4 packet summaries (TCP/UDP/ICMP); 16-byte payload preview, Pico W only |
 | `/dev/net/icmp` | Exclusive ICMP Echo read/write endpoint used by `ping`, Pico W only |
 | `/dev/rand` | Non-cryptographic pseudorandom bytes (read-only; at most 4 bytes per `read()` call) |
-| `/dev/gpio/fb` | 64-bit framebuffer for an 8×8 LED matrix |
+| `/dev/fb` | 64-bit framebuffer for an 8×8 LED matrix |
 | `/dev/gpio/` | Pins configured for GPIO in `pins.h` |
 | `/dev/adc/` | Enabled ADC inputs and on-chip temperature sensor |
 | `/dev/pwm/` | Enabled PWM outputs and common frequency |
@@ -28,7 +28,7 @@ PicoNIX exposes hardware through virtual files under `/dev`. These are not store
 
 ## 8×8 LED framebuffer
 
-PicoNIX provides a monochrome 8×8 LED-matrix framebuffer connected to GP0–15. Its device path is **`/dev/gpio/fb`**, not `/dev/fb` or `/dev/fb0`. The default wiring assumes the main console uses USB CDC.
+PicoNIX provides a monochrome 8×8 LED-matrix framebuffer connected to GP0–15. Its device path is **`/dev/fb`**, not `/dev/gpio/fb` or `/dev/fb0`. The default wiring assumes the main console uses USB CDC.
 
 ### Data layout
 
@@ -50,7 +50,7 @@ The first command displays a heart. The second prints the eight stored pixel row
 
 ### Reading, writing, and control
 
-Open the device with `open("/dev/gpio/fb", O_RDWR)`. Both **`read()` and `write()` require exactly 8 bytes**; other sizes return an error. Updating the data and enabling the display are separate operations.
+Open the device with `open("/dev/fb", O_RDWR)`. Both **`read()` and `write()` require exactly 8 bytes**; other sizes return an error. Updating the data and enabling the display are separate operations.
 
 | `ioctl()` command | Meaning |
 |---|---|
@@ -79,7 +79,7 @@ The `kitesys` demo displays digits, uses buttons on GP16/17 to shift the image, 
 
 ### Interactive Framebuffer Editor (`fbed`)
 
-`fbed` edits the 8×8, 64-bit (8-byte) framebuffer at `/dev/gpio/fb`. Each byte represents a row, with bit 7 at the left. It reads the current image and writes all eight bytes after each edit.
+`fbed` edits the 8×8, 64-bit (8-byte) framebuffer at `/dev/fb`. Each byte represents a row, with bit 7 at the left. It reads the current image and writes all eight bytes after each edit.
 
 ```text
 piconix# fbed

@@ -49,7 +49,7 @@ int main(int argc,char **argv){
     else if(argc==3 && !strcmp(argv[1],"-u")){udp=1;port=parse_port(argv[2]);}
     else if(argc!=1){puts("usage: scroll [-u [PORT]]");return 1;}
     if(port<0){puts("scroll: invalid port");return 1;}
-    int fb=open("/dev/gpio/fb",O_RDWR);
+    int fb=open("/dev/fb",O_RDWR);
     if(fb<0 || ioctl(fb,OS_FB_ENABLE,0)<0){puts("scroll: framebuffer unavailable");return 1;}
     int sock=-1;
     if(udp){

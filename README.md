@@ -60,6 +60,7 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Terminals | `getty`, `tty`, `stty`, `reset` |
 | Programming | `edit`, `vi`, `as`, `cc`, `python` |
 | Board outputs | GP18 buzzer / GP19 servo motor (shared PWM frequency) |
+| Raw LED framebuffer | `/dev/fb` (8 bytes, 8×8 pixels; `fbctl` enables scanning) |
 | LED character display | `echo A > /dev/fbchar`, `echo heart > /dev/fbchar`, `echo clear > /dev/fbchar` (ASCII, persistent; `cat /dev/fbchar` lists patterns) |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink`, `scroll` |
 | Networking | `ip`, `net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod`, `mcpd` |

@@ -20,7 +20,7 @@ enum {
 /* X(path, id)はビルド条件に依存しない固定エントリを展開する． */
 #define PICONIX_FIXED_DEVICES(X) \
     X("/dev/console", DEV_CONSOLE) \
-    X("/dev/gpio/fb", DEV_FB) \
+    X("/dev/fb", DEV_FB) \
     X("/dev/fbchar", DEV_FBCHAR) \
     X("/dev/ttyS1", DEV_UART1) \
     X("/dev/rand", DEV_RAND) \

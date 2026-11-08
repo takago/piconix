@@ -47,7 +47,7 @@ static void usage(void){
     puts("  test    Blink heart three times");
 }
 
-/* /dev/gpio/fbを介して8×8 LED表示の状態確認や操作を行う． */
+/* /dev/fbを介して8×8 LED表示の状態確認や操作を行う． */
 int main(int argc,char **argv){
     if(argc==1){usage();return 0;}
     if(argc==2 && (same(argv[1],"help") || same(argv[1],"-h") || same(argv[1],"--help"))){usage();return 0;}
@@ -59,7 +59,7 @@ int main(int argc,char **argv){
                    !same(argv[1],"clear") && !same(argv[1],"test"))){
         usage();return 1;
     }
-    int fd=open("/dev/gpio/fb",O_RDWR);
+    int fd=open("/dev/fb",O_RDWR);
     if(fd<0){puts("fbctl: cannot open framebuffer");return 1;}
     int rc=0;
     if(same(argv[1],"on"))

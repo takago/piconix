@@ -10,13 +10,13 @@ scroll -u 2001 &
 mcpd &
 ```
 
-`-u` binds UDP port 2001 on all interfaces (Pico W). The LED framebuffer is `/dev/gpio/fb`; avoid concurrent GPIO 0–15 use. Without `-u`, only stdin is used. Canonical terminal input may require Enter.
+`-u` binds UDP port 2001 on all interfaces (Pico W). The LED framebuffer is `/dev/fb`; avoid concurrent GPIO 0–15 use. Without `-u`, only stdin is used. Canonical terminal input may require Enter.
 
 ## Data flow
 
 ```text
 stdin ─────────────┐
-                   ├─ select() ─→ 1024-byte ring ─→ 5×7 font ─→ /dev/gpio/fb
+                   ├─ select() ─→ 1024-byte ring ─→ 5×7 font ─→ /dev/fb
 UDP port 2001 ─────┘
 MCP client ─→ mcpd TCP 8080 ─→ UDP 127.0.0.1:2001
 ```

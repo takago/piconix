@@ -49,7 +49,7 @@ def main() -> int:
         print(f"piconixctl: {exc}", file=sys.stderr)
         return 1
     if args.command == "read":
-        if args.hex or args.path == "/dev/gpio/fb":
+        if args.hex or args.path == "/dev/fb":
             print(result.hex())
         else:
             sys.stdout.buffer.write(result)

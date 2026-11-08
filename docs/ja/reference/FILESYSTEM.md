@@ -65,7 +65,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 | `/dev/mem` | ○ | 制限付き | XIP Flashと主SRAMの読み取り，ユーザスロット・SHM・RAMファイルデータの書き込み．`lseek()`でアドレス指定 |
 | `/dev/shm` | ○ | ○ | 全タスク共通の2 KiB RAM．先頭からの相対オフセットでアクセス |
 | `/dev/trace` | ○ | × | バイナリレコード．`trace`コマンドを参照 |
-| `/dev/gpio/fb` | ○ | ○ | 8バイト単位．有効化は`ioctl()`で行う |
+| `/dev/fb` | ○ | ○ | 8バイト単位．有効化は`ioctl()`で行う |
 | `/dev/gpio/N`, `N.dir`, `N.pull` | ○ | ○ | `pins.h`でGPIOに割り当てたピンのみ |
 | `/dev/i2c/1` | ○ | ○ | I²C1バス．転送は`ioctl()`で実行．[I²Cガイド](devices/I2C.md)を参照 |
 | `/dev/adc/0`〜`2`, `/dev/adc/temp` | ○ | × | 十進テキスト．0〜2はADC割り当て時のみ |
