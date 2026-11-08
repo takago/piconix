@@ -52,4 +52,4 @@ Look up OS behavior, APIs, and limitations by topic. For sequential UNIX lessons
 
 ---
 
-**Related links:** [Documentation](../../DOCS.md) | [日本語](../../ja/reference/README.md)
+**Related links:** [Documentation](../README.md) | [日本語](../../ja/reference/README.md)

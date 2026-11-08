@@ -54,5 +54,5 @@ For a particular goal use the [Task index](TASKS.md). See [Command reference](re
 
 ---
 
-[Documentation index](../DOCS.md) | [日本語](../ja/ROADMAP.md)
+[Documentation index](README.md) | [日本語](../ja/ROADMAP.md)
 

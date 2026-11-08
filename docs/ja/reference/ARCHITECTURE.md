@@ -53,4 +53,4 @@
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/ARCHITECTURE.md) ｜ [内部構造](INTERNAL.md) ｜ [文書案内](../../DOCS.ja.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/ARCHITECTURE.md) ｜ [内部構造](INTERNAL.md) ｜ [文書案内](../README.md)

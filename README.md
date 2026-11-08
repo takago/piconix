@@ -6,9 +6,9 @@ PicoNIX is an experimental UNIX-like OS for RP2040 microcontrollers. It combines
 
 Unlike firmware that exposes only a built-in network service, PicoNIX lets user applications create TCP and UDP clients and servers through familiar socket APIs.
 
-**Development and authorship.** The design principles and specifications of PicoNIX are determined by its creator based on their knowledge and experience. The source code and documentation are generated and refined using ChatGPT in accordance with these decisions. The creator reviews the results and carries out build and hardware verification as development proceeds. See the [development diary](docs/DEVELOPMENT_DIARY.md) ([日本語](docs/DEVELOPMENT_DIARY.ja.md)) for the development process.
+**Development and authorship.** The design principles and specifications of PicoNIX are determined by its creator based on their knowledge and experience. The source code and documentation are generated and refined using ChatGPT in accordance with these decisions. The creator reviews the results and carries out build and hardware verification as development proceeds. See the [development diary](docs/en/DEVELOPMENT_DIARY.md) ([日本語](docs/ja/DEVELOPMENT_DIARY.md)) for the development process.
 
-**開発体制について．** PicoNIXの設計方針と仕様は，作成者の知識と経験に基づいて決定しています．ソースコードとドキュメントは，これらの方針に従ってChatGPTを用いて生成・改良したものです．開発の経緯は[開発日誌](docs/DEVELOPMENT_DIARY.ja.md)をご覧ください．
+**開発体制について．** PicoNIXの設計方針と仕様は，作成者の知識と経験に基づいて決定しています．ソースコードとドキュメントは，これらの方針に従ってChatGPTを用いて生成・改良したものです．開発の経緯は[開発日誌](docs/ja/DEVELOPMENT_DIARY.md)をご覧ください．
 
 ## Features
 
@@ -75,7 +75,7 @@ These resources assume basic UNIX/Linux knowledge and focus on **reading, buildi
 | **Device driver extensions** | [Driver development](docs/en/development/drivers/DRIVER-DEVELOPMENT.md) | [デバイスドライバ開発](docs/ja/development/drivers/DRIVER-DEVELOPMENT.md) |
 | **Network implementation** | [Network development](docs/en/development/network/NETWORK-DEVELOPMENT.md) | [ネットワーク実装](docs/ja/development/network/NETWORK-DEVELOPMENT.md) |
 
-To find a document by task, see [Tasks](docs/en/TASKS.md) / [目的別索引](docs/ja/TASKS.md). The [development diary](docs/DEVELOPMENT_DIARY.md) / [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) records the project history, not the normative current specification.
+To find a document by task, see [Tasks](docs/en/TASKS.md) / [目的別索引](docs/ja/TASKS.md). The [development diary](docs/en/DEVELOPMENT_DIARY.md) / [開発日誌](docs/ja/DEVELOPMENT_DIARY.md) records the project history, not the normative current specification.
 
 ## Security and scope
 

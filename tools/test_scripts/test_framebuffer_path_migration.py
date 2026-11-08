@@ -43,7 +43,7 @@ for path in root.rglob('*'):
     if not path.is_file() or path.suffix in ('.png', '.bin', '.zip', '.pyc'):
         continue
     relative = path.relative_to(root).as_posix()
-    if relative.startswith('docs/DEVELOPMENT_DIARY') or relative.endswith('reference/devices/DEVICES.md') or relative == 'tools/test_scripts/test_framebuffer_path_migration.py':
+    if relative in ('docs/ja/DEVELOPMENT_DIARY.md', 'docs/en/DEVELOPMENT_DIARY.md') or relative.endswith('reference/devices/DEVICES.md') or relative == 'tools/test_scripts/test_framebuffer_path_migration.py':
         continue
     try:
         contents = path.read_text()

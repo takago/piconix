@@ -54,5 +54,5 @@ UNIX・OSの既習知識をPicoNIXの**操作 → 動作観察 → ソースコ�
 
 ---
 
-[文書案内](../DOCS.ja.md) ｜ [English](../en/ROADMAP.md)
+[文書案内](README.md) ｜ [English](../en/ROADMAP.md)
 

@@ -32,4 +32,4 @@ Physical GPIO resources cannot be used by multiple features simultaneously. When
 
 ---
 
-**Related links:** [Hardware index](README.md) | [日本語](../../../ja/reference/hardware/HARDWARE.md) | [Documentation index](../../../DOCS.md) | [Setup](../../setup/SETUP.md)
+**Related links:** [Hardware index](README.md) | [日本語](../../../ja/reference/hardware/HARDWARE.md) | [Documentation index](../../README.md) | [Setup](../../setup/SETUP.md)

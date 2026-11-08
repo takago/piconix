@@ -2,7 +2,7 @@
 
 *Technical reference*
 
-This document summarizes the **current implementation and fixed resource limits** for developers. For usage instructions, see the [documentation index](../../DOCS.md). PicoNIX does not claim full POSIX compatibility. The source code of the relevant revision takes precedence if behavior differs from this document.
+This document summarizes the **current implementation and fixed resource limits** for developers. For usage instructions, see the [documentation index](../README.md). PicoNIX does not claim full POSIX compatibility. The source code of the relevant revision takes precedence if behavior differs from this document.
 
 [Architecture](ARCHITECTURE.md) maps the responsibilities to source files.
 

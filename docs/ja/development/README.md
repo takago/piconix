@@ -38,7 +38,7 @@
 - [ネットワーク開発ガイド目次](network/README.md)
 - [Wi-Fi・lwIP・ソケット・カーネル常駐サービスの実装](network/NETWORK-DEVELOPMENT.md)
 
-**ソース索引：** [関数一覧（日本語）](../../FUNCTIONS.md)．番号や行位置はコード変更で変わり得ます．
+**ソース索引：** [関数一覧（日本語）](FUNCTIONS.md)．番号や行位置はコード変更で変わり得ます．
 
 **実際にコードを変更する演習：** [CでUDP/TCPクライアントを作る](apps/c/NETWORK-PROGRAMMING.md) ／ [新しいシステムコールを追加する](syscalls/SYSCALL-DEVELOPMENT.md) ／ [新しいデバイスノードとドライバを作る](drivers/DRIVER-DEVELOPMENT.md)．いずれも準備，ソース，ビルド，実行，確認まで記載しています．
 

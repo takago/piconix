@@ -37,4 +37,4 @@
 
 ---
 
-**関連リンク：** [パイプ操作](PIPE.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../../en/reference/commands/VI.md) ｜ [文書一覧](../../../DOCS.ja.md) ｜ [edit](EDIT.md)
+**関連リンク：** [パイプ操作](PIPE.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../../en/reference/commands/VI.md) ｜ [文書一覧](../../README.md) ｜ [edit](EDIT.md)

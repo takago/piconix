@@ -52,4 +52,4 @@ OSの仕様，API，機能の制限などを分野別に調べられます．順
 
 ---
 
-**関連リンク：** [文書案内](../../DOCS.ja.md) ｜ [English](../../en/reference/README.md)
+**関連リンク：** [文書案内](../README.md) ｜ [English](../../en/reference/README.md)

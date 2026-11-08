@@ -145,4 +145,4 @@ Pico Wではネットワーク予約16 KiBにlwIPヒープ10 KiBとアイドル�
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [文書案内](../../DOCS.ja.md) ｜ [操作ガイド一覧](commands/README.md) ｜ [English](../../en/reference/INTERNAL.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [文書案内](../README.md) ｜ [操作ガイド一覧](commands/README.md) ｜ [English](../../en/reference/INTERNAL.md)

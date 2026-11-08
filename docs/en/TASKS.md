@@ -51,7 +51,7 @@ Find documentation for **what you want to do**. Each task links to starting expl
 | Trace system calls | [trace guide](reference/commands/TRACE.md) · [Reference: syscalls](reference/SYSCALLS.md) |
 | Inspect RAM and tasks with mem | [mem guide](reference/commands/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
 | Understand Flash, RAM, and PIC placement | [mem guide](reference/commands/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
-| Inspect kernel symbols | [Reference: kernel symbols](reference/KERNEL-SYMBOLS.md) · [How-to: mem](reference/commands/MEM.md) · [Index: source functions](../FUNCTIONS.md) |
+| Inspect kernel symbols | [Reference: kernel symbols](reference/KERNEL-SYMBOLS.md) · [How-to: mem](reference/commands/MEM.md) · [Index: source functions](../ja/development/FUNCTIONS.md) |
 | Understand how VFS and FDs relate | [File system](reference/FILESYSTEM.md) · [System call development](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
 ### Devices
@@ -96,7 +96,7 @@ Use `/dev/fbchar` to display ASCII characters or icons ([device reference](refer
 | Add a device driver | [Driver development](development/drivers/DRIVER-DEVELOPMENT.md) · [Reference: devices](reference/devices/DEVICES.md) |
 | Modify Wi-Fi, lwIP, or kernel networking (Pico W) | [Develop: kernel networking](development/network/NETWORK-DEVELOPMENT.md) · [Reference: networking](reference/network/README.md) |
 | Make and validate a small kernel change | [Kernel development](development/kernel/KERNEL-DEVELOPMENT.md) · [Read: kernel](development/kernel/KERNEL-READING-GUIDE.md) |
-| Find source code by function name | [Index: source functions](../FUNCTIONS.md) · [Read: kernel](development/kernel/KERNEL-READING-GUIDE.md) |
+| Find source code by function name | [Index: source functions](../ja/development/FUNCTIONS.md) · [Read: kernel](development/kernel/KERNEL-READING-GUIDE.md) |
 
 ## Other ways to navigate
 
@@ -117,4 +117,4 @@ Use `/dev/fbchar` to display ASCII characters or icons ([device reference](refer
 | Add a syscall | [getuptime lab](development/syscalls/SYSCALL-DEVELOPMENT.md) | [SVC reference](reference/SYSCALLS.md) |
 | Add a node and driver | [/dev/uptime lab](development/drivers/DRIVER-DEVELOPMENT.md) | [Devices](reference/devices/DEVICES.md) |
 
-[日本語](../ja/TASKS.md) | [Documentation directory](../DOCS.md)
+[日本語](../ja/TASKS.md) | [Documentation directory](README.md)

@@ -21,7 +21,7 @@ Before starting, read [Architecture](../../reference/ARCHITECTURE.md), [Memory l
 
 ## How to follow the code
 
-Assume prior knowledge of UNIX processes, FDs, syscalls and C. The aim is not to review their definitions, but to follow their **PicoNIX-specific implementation**. For each stage: observe an operation, locate its entry point, trace state changes and return paths, then compare with the reference. The [function index](../../../FUNCTIONS.md) helps locate definitions; line numbers may shift.
+Assume prior knowledge of UNIX processes, FDs, syscalls and C. The aim is not to review their definitions, but to follow their **PicoNIX-specific implementation**. For each stage: observe an operation, locate its entry point, trace state changes and return paths, then compare with the reference. The [function index](../../../ja/development/FUNCTIONS.md) helps locate definitions; line numbers may shift.
 
 ### Steps 1–2: Boot, image registration and task slots
 
@@ -140,8 +140,8 @@ echo hello | grep hello | cat
 ```
 
 
-Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../reference/commands/TRACE.md), [Memory inspection](../../reference/commands/MEM.md), [TTY](../../reference/commands/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../FUNCTIONS.md).
+Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../reference/commands/TRACE.md), [Memory inspection](../../reference/commands/MEM.md), [TTY](../../reference/commands/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../ja/development/FUNCTIONS.md).
 
 ---
 
-**Related links:** [Development guide index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [Documentation](../../../DOCS.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)
+**Related links:** [Development guide index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [Documentation](../../README.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)

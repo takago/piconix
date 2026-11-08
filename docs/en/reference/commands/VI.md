@@ -34,4 +34,4 @@ If there are unsaved changes, `:q` displays a warning instead of quitting. Use `
 
 ---
 
-**Related links:** [Pipe guide](PIPE.md) | [Guide index](README.md) | [日本語](../../../ja/reference/commands/VI.md) | [Documentation](../../../DOCS.md) | [edit](EDIT.md)
+**Related links:** [Pipe guide](PIPE.md) | [Guide index](README.md) | [日本語](../../../ja/reference/commands/VI.md) | [Documentation](../../README.md) | [edit](EDIT.md)

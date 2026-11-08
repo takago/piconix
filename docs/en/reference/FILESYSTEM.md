@@ -122,4 +122,4 @@ See [Initial RAM Files and /etc/rc](INITIAL-FILES.md) for host layout, file regi
 
 ---
 
-**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/FILESYSTEM.md) | [Documentation index](../../DOCS.md)
+**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/FILESYSTEM.md) | [Documentation index](../README.md)

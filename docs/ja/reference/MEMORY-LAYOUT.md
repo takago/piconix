@@ -120,4 +120,4 @@ dd if=/dev/shm of=- bs=1 count=4 | hexdump
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [日本語文書案内](../../DOCS.ja.md) ｜ [English](../../en/reference/MEMORY-LAYOUT.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [日本語文書案内](../README.md) ｜ [English](../../en/reference/MEMORY-LAYOUT.md)

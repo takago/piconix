@@ -7,7 +7,7 @@
 Review C functions, arrays and command-line arguments first. Run the existing `hello` program before adding `greet.c`. Edit the source on the build PC; changes require a new UF2 firmware flash.
 
 
-[日本語](../../../../ja/development/apps/c/PROGRAMMING.md) | [Documentation guide](../../../../DOCS.md) | [C library](LIBC.md)
+[日本語](../../../../ja/development/apps/c/PROGRAMMING.md) | [Documentation guide](../../../README.md) | [C library](LIBC.md)
 
 This guide shows how to add a **new C command** to PicoNIX, build it on a host computer, and run it on a board. It documents the build mechanism in the current source tree. For the toolchain and board setup, first see [Setup](../../../setup/SETUP.md).
 

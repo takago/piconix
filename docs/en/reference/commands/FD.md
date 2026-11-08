@@ -69,4 +69,4 @@ Select a writable RAM file directly under `/tmp` or `/etc` and press `e`; you ca
 
 ---
 
-**Related links:** [Setup](../../setup/SETUP.md) | [Guide index](README.md) | [edit](EDIT.md) | [日本語](../../../ja/reference/commands/FD.md) | [Documentation](../../../DOCS.md)
+**Related links:** [Setup](../../setup/SETUP.md) | [Guide index](README.md) | [edit](EDIT.md) | [日本語](../../../ja/reference/commands/FD.md) | [Documentation](../../README.md)

@@ -124,4 +124,4 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/FILESYSTEM.md) ｜ [ドキュメント案内](../../DOCS.ja.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/FILESYSTEM.md) ｜ [ドキュメント案内](../README.md)

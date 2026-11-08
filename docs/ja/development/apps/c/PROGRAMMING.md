@@ -7,7 +7,7 @@
 C言語の関数，配列，コマンドライン引数を復習してから始めてください．最初は既存の`hello`を実行し，次に`greet.c`を追加します．編集するソースはPC側にあり，反映にはUF2の再書き込みが必要です．
 
 
-[English](../../../../en/development/apps/c/PROGRAMMING.md) | [文書案内](../../../../DOCS.ja.md) | [Cライブラリ](LIBC.md)
+[English](../../../../en/development/apps/c/PROGRAMMING.md) | [文書案内](../../../README.md) | [Cライブラリ](LIBC.md)
 
 この文書では，ホストPC上で**新しいCコマンドを作成し，ファームウェアに組み込んで実行するまで**を説明します．ツールチェーンの導入と実機の準備については，先に[セットアップ](../../../setup/SETUP.md)を参照してください．
 

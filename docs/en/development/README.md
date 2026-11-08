@@ -38,7 +38,7 @@ These contain detailed implementation instructions and API information. Follow t
 - [Network development guide index](network/README.md)
 - [Wi-Fi, lwIP, sockets and kernel service implementation](network/NETWORK-DEVELOPMENT.md)
 
-**Source index:** [Function list (Japanese)](../../FUNCTIONS.md). Line locations change with code revisions.
+**Source index:** [Function list (Japanese)](../../ja/development/FUNCTIONS.md). Line locations change with code revisions.
 
 **Complete code labs:** [Build UDP/TCP clients](apps/c/NETWORK-PROGRAMMING.md) / [Add a system call](syscalls/SYSCALL-DEVELOPMENT.md) / [Add a device node and driver](drivers/DRIVER-DEVELOPMENT.md). Each includes preparation, source, build, execution and checks.
 

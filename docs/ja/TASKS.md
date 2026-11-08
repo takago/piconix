@@ -51,7 +51,7 @@
 | traceでシステムコールを追いたい | [trace操作](reference/commands/TRACE.md) · [仕様：システムコール](reference/SYSCALLS.md) |
 | memでRAMやタスクのメモリを見たい | [mem操作](reference/commands/MEM.md) · [仕様：SRAM配置](reference/MEMORY-LAYOUT.md) |
 | FlashとRAMの配置・PICを理解したい | [mem操作](reference/commands/MEM.md) · [仕様：SRAM配置](reference/MEMORY-LAYOUT.md) |
-| カーネルのシンボルを調べたい | [仕様：カーネルシンボル](reference/KERNEL-SYMBOLS.md) · [操作：mem](reference/commands/MEM.md) · [索引：ソース関数一覧](../FUNCTIONS.md) |
+| カーネルのシンボルを調べたい | [仕様：カーネルシンボル](reference/KERNEL-SYMBOLS.md) · [操作：mem](reference/commands/MEM.md) · [索引：ソース関数一覧](development/FUNCTIONS.md) |
 | VFSとFDの関係を理解したい | [ファイルシステム](reference/FILESYSTEM.md) · [システムコール開発](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
 ### デバイス・電子工作
@@ -96,7 +96,7 @@
 | デバイスドライバを追加したい | [ドライバ開発](development/drivers/DRIVER-DEVELOPMENT.md) · [仕様：デバイス](reference/devices/DEVICES.md) |
 | Wi-Fi・lwIP・ネットワークカーネルを改造したい（Pico W） | [開発：ネットワーク実装](development/network/NETWORK-DEVELOPMENT.md) · [仕様：ネットワーク](reference/network/README.md) |
 | カーネルを小さく改造し検証したい | [カーネル拡張](development/kernel/KERNEL-DEVELOPMENT.md) · [読解：カーネル](development/kernel/KERNEL-READING-GUIDE.md) |
-| 関数名からソースコードを探したい | [索引：ソース関数一覧](../FUNCTIONS.md) · [読解：カーネル](development/kernel/KERNEL-READING-GUIDE.md) |
+| 関数名からソースコードを探したい | [索引：ソース関数一覧](development/FUNCTIONS.md) · [読解：カーネル](development/kernel/KERNEL-READING-GUIDE.md) |
 
 ## ほかの探し方
 
@@ -119,4 +119,4 @@
 
 ---
 
-[English](../en/TASKS.md) ｜ [文書案内](../DOCS.ja.md)
+[English](../en/TASKS.md) ｜ [文書案内](README.md)

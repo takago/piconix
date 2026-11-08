@@ -313,7 +313,7 @@ The primary period is **October 24 through November 6, 2026**. The sequence is r
 ### 2026-11-06 — Improve C readability and audit the documentation
 
 - Reformatted simple single-line `if`, `for`, and `while` statements across C source and headers to make control flow easier to read. Preserved macros, C tokens, and existing behavior; compared the token streams before and after formatting.
-- Added missing function summaries in the networking, MCP, tracing, and host utilities; regenerated `docs/FUNCTIONS.md` from the current source.
+- Added missing function summaries in the networking, MCP, tracing, and host utilities; regenerated `docs/ja/development/FUNCTIONS.md` from the current source.
 - Checked the bilingual manual pairs, internal Markdown links, generated function index, and documented interface contracts. Kept obsolete commands in historical diary entries to preserve the chronology of development.
 - Ran available host-side regression checks. ARM firmware, PIC, and SRAM layout validation remain unverified without the required cross-toolchain.
 
@@ -369,7 +369,7 @@ The existing `trace run hello` exposed system-call entries and exits, but not **
 
 The trace display in `userland/apps/trace.c` was refined through several iterations. The `Type` column distinguishes `SYSCALL`, `KERNEL`, and other event categories; the `Function` column renders an entry as `vfs_rw` and its exit as `vfs_rw/`. Kernel calls are indented by two spaces per level under their system call, helping students follow the call hierarchy. `Arg`, `Ret`, and `Info` were clarified, with `--` for values **not actually recorded**, rather than invented kernel-function arguments or return values. `trace kernel -d 0..8 command` limits **display depth only**; it does not reduce instrumentation or ring-buffer usage. Compiler optimization and overwritten records can make the displayed hierarchy incomplete.
 
-Examples include `trace kernel cat /tmp/test.txt`, connecting `open` and `read` to VFS and RAM-file operations, and `trace kernel omikuji`, following `/dev/rand` reads through `vfs_rw`, `device_rw_rand`, and `rand32`. Relevant sources include the hooks and recording logic in `kernel/kernel.c`, command execution and presentation in `userland/apps/trace.c`, and the event declarations in `include/piconix_trace.h`. Usage and limitations are described in the [tracing guide](en/reference/commands/TRACE.md).
+Examples include `trace kernel cat /tmp/test.txt`, connecting `open` and `read` to VFS and RAM-file operations, and `trace kernel omikuji`, following `/dev/rand` reads through `vfs_rw`, `device_rw_rand`, and `rand32`. Relevant sources include the hooks and recording logic in `kernel/kernel.c`, command execution and presentation in `userland/apps/trace.c`, and the event declarations in `include/piconix_trace.h`. Usage and limitations are described in the [tracing guide](reference/commands/TRACE.md).
 
 Because compiler instrumentation affects even functions that are not ultimately recorded, enabling the feature increases Flash use, execution overhead, and stack use. The ordinary build therefore retains `OFF`; teaching or debugging builds can explicitly enable `-DPICONIX_KERNEL_FUNCTION_TRACE=ON`. The conversation included revisions and tests of output formatting and depth filtering, but **this diary does not claim exhaustive on-device verification across boards and code paths**. The displayed call hierarchy is generated from events; it is not a dump of raw MSP stack frames.
 
@@ -381,7 +381,7 @@ The task-switching path was mapped to `isr_pendsv` in `kernel/context.S` and `os
 
 A central question was **how blocking I/O works without a separate kernel stack per process**. For TTY input, `device_rw_tty()` records the wait buffer and conditions in task state, blocks the task, and lets the kernel call return without retaining its call frames. When input arrives, `wake_readers()` and `task_unblock()` deliver data and update the return value in the saved SVC exception frame. `wait_frame_ready` helps prevent wake-up processing before the saved frame is ready. This does **not** establish that every device operation is asynchronous or free of short polling waits.
 
-The discussion contrasted this approach with Research UNIX V5/V6 and Linux, where a process may sleep within a kernel function and later resume the same kernel call chain using its own kernel stack. **The need for per-process kernel stacks is not solely about kernel preemption; it also depends on whether blocked kernel execution must be preserved.** The explanation and source-reading exercises were added to the Japanese and English [kernel reading guides](en/development/kernel/KERNEL-READING-GUIDE.md). This was a documentation update only; it did not modify the kernel or include new on-device verification.
+The discussion contrasted this approach with Research UNIX V5/V6 and Linux, where a process may sleep within a kernel function and later resume the same kernel call chain using its own kernel stack. **The need for per-process kernel stacks is not solely about kernel preemption; it also depends on whether blocked kernel execution must be preserved.** The explanation and source-reading exercises were added to the Japanese and English [kernel reading guides](development/kernel/KERNEL-READING-GUIDE.md). This was a documentation update only; it did not modify the kernel or include new on-device verification.
 
 ## November 5: Explicit I²C file descriptors in Python
 
@@ -441,7 +441,7 @@ For teaching, it is useful to contrast direct descriptor I/O (`read()` and `writ
 
 ## November 4: Documenting differences from Linux and implementation limits
 
-The [Differences from Linux and limits](en/reference/DIFFERENCES.md) reference was added to distinguish PicoNIX from a full Linux/POSIX system. It explains the custom process-launch mechanism rather than `fork()`/`exec()`, the absence of POSIX process groups and full signal semantics, the absence of user accounts and filesystem permissions (all programs are effectively privileged), the RAM/device/pseudo-file VFS, USB CDC/UART1/Pico W Telnet terminals, and fixed limits on slots and descriptors. It also distinguishes absent features from deliberately simplified implementations.
+The [Differences from Linux and limits](reference/DIFFERENCES.md) reference was added to distinguish PicoNIX from a full Linux/POSIX system. It explains the custom process-launch mechanism rather than `fork()`/`exec()`, the absence of POSIX process groups and full signal semantics, the absence of user accounts and filesystem permissions (all programs are effectively privileged), the RAM/device/pseudo-file VFS, USB CDC/UART1/Pico W Telnet terminals, and fixed limits on slots and descriptors. It also distinguishes absent features from deliberately simplified implementations.
 
 These sections record design discussions and generated patches. They **do not establish a v1.3.0 release or prove that all changes passed hardware testing**; consult the actual source, tests, and Git history for authoritative status.
 
@@ -476,7 +476,7 @@ The developer decided **to prioritize a small, straightforward kernel over Flash
 
 With the v1.3.0 features and documentation reorganized, the next goal was to make **the source code itself easier for students to read**. Work used only the latest ZIP supplied that day, without copying files from older versions. Comments across C sources, headers, assembly, and Python tools were reviewed in Japanese. Process management, PIC execution, system calls, VFS, TTYs, pipes, networking, and memory management received particular attention to design choices and fixed-resource limits, rather than merely restating each operation. Obvious code was not intended to receive redundant commentary; function purpose, important arguments and return values, and constraints were explained where useful.
 
-As a starting point for reading the implementation, `tools/gen_functions.py` was added to extract function definitions and their preceding descriptions into the file-by-file [`FUNCTIONS.md`](FUNCTIONS.md). It records function names, source line numbers, linkage scope such as `static`, and summaries, with links to the relevant lines. The first generated index showed descriptions for only **285 of 729 functions**. After checking extraction gaps and missing comments, descriptions were supplied for the remaining **444 functions**, giving all 729 indexed functions a summary. A regression test was also updated to flag missing descriptions. The lightweight source parser and summary coverage do **not** prove that every explanation is semantically correct.
+As a starting point for reading the implementation, `tools/gen_functions.py` was added to extract function definitions and their preceding descriptions into the file-by-file [`FUNCTIONS.md`](../ja/development/FUNCTIONS.md). It records function names, source line numbers, linkage scope such as `static`, and summaries, with links to the relevant lines. The first generated index showed descriptions for only **285 of 729 functions**. After checking extraction gaps and missing comments, descriptions were supplied for the remaining **444 functions**, giving all 729 indexed functions a summary. A regression test was also updated to flag missing descriptions. The lightweight source parser and summary coverage do **not** prove that every explanation is semantically correct.
 
 The added comments made some function boundaries harder to see, so spacing was standardized: **one blank line separates a function from the following function's description, while the description remains adjacent to its definition**. Interior formatting and boundaries involving intervening type or constant definitions were left alone. The formatting pass adjusted **536 boundaries across 58 source files**, then regenerated `FUNCTIONS.md` to update source line links.
 
@@ -522,7 +522,7 @@ The Pico W lwIP configuration gained the `lo0` loopback interface for local TCP/
 
 The small Python interpreter gained `socket()`, `connect()`, `listen()`, `accept()`, `bind()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` using existing socket system calls on Pico W. String literals also gained escapes including `\n`, `\r`, `\t`, and `\xHH`. No temperature-specific Python built-ins were retained: `/dev/adc/temp` is accessed through the existing `open()` and `read()` APIs. The TCP and UDP temperature servers were organized as `userland/examples/python/temp_tcp.py` and `temp_udp.py`, while the initial `/tmp/test.py` example was changed to sample the temperature five times. Hardware verification of the network examples was still pending at this stage.
 
-To avoid reopening the ADC device for each sample, the ADC read logic was changed so that a new measurement is taken on the next `read()` after the previous textual result has been consumed; partial reads continue the same measurement. Rather than adding another system call, the existing **system call 21, `lseek()`**, gained `SEEK_CUR` and `SEEK_END`. Ordinary `/tmp` files and `/dev/shm` support all three origins, while `/dev/mem` retains only `SEEK_SET`. Host-side compilation and static tests were performed, but these do not establish comprehensive hardware behavior. For current APIs, see [Python](en/development/apps/python/PYTHON.md), [System calls](en/reference/SYSCALLS.md), and [C library](en/development/apps/c/LIBC.md).
+To avoid reopening the ADC device for each sample, the ADC read logic was changed so that a new measurement is taken on the next `read()` after the previous textual result has been consumed; partial reads continue the same measurement. Rather than adding another system call, the existing **system call 21, `lseek()`**, gained `SEEK_CUR` and `SEEK_END`. Ordinary `/tmp` files and `/dev/shm` support all three origins, while `/dev/mem` retains only `SEEK_SET`. Host-side compilation and static tests were performed, but these do not establish comprehensive hardware behavior. For current APIs, see [Python](development/apps/python/PYTHON.md), [System calls](reference/SYSCALLS.md), and [C library](development/apps/c/LIBC.md).
 
 ## November 3: Standardizing user programs on `-Oz` and repairing the PIC runtime
 
@@ -591,7 +591,7 @@ Japanese and English documentation for I²C and Python was expanded. Initially t
 
 A small modal `vi` editor was added alongside `edit`. At this point, movement uses `h`, `j`, `k`, and `l`; arrow-key navigation remains a future improvement. The new `dd` utility can copy files and raw memory through `/dev/mem`. Its `if=-` and `of=-` options use standard input and output, while the TCP half-close behavior of `nc -N` makes binary pipelines between Linux and PicoNIX practical.
 
-Hardware tests reported successful RAM-to-`/tmp` dumps and file/memory-data transfers using `dd`, `nc`, and shell pipelines. The combined `DD-VI.md` document was retired in favor of separate bilingual `DD.md` and `VI.md` guides, with `NC.md` updated accordingly. See [dd and binary transfer](en/reference/commands/DD.md).
+Hardware tests reported successful RAM-to-`/tmp` dumps and file/memory-data transfers using `dd`, `nc`, and shell pipelines. The combined `DD-VI.md` document was retired in favor of separate bilingual `DD.md` and `VI.md` guides, with `NC.md` updated accordingly. See [dd and binary transfer](reference/commands/DD.md).
 
 ## November 2: SRAM reorganization, independent RAM files, and shared memory
 
@@ -599,7 +599,7 @@ The RAM-file data bytes were separated from kernel-owned file metadata and place
 
 The new 256 KiB main SRAM layout assigns 56 KiB to the kernel, 6 × 24 KiB to user slots, 2 KiB to SHM, 22 KiB to RAM files, 16 KiB to trace, and 16 KiB to networking. Trace and memory inspection address references, PIC slot placement, the lwIP heap pointer, and layout verification scripts were updated together. **The Pico W ELF audit reported 41,460 allocated kernel bytes, 15,884 bytes of linker-address headroom, and PASS for the static layout checks.** Linker headroom is not runtime free heap.
 
-On hardware, `/proc/memory` showed the expected layout and `/proc/ramfiles` showed file data addresses spaced by 2 KiB. After writing `hello` to `/dev/shm`, the 16-byte reads through `/dev/shm` and `/dev/mem` at `0x20032000` matched. Regular file reads and physical-address reads of RAM-file contents also matched; raw memory edits appeared in file reads. Both `mem` and `trace` were reported to work, and Pico W communication was reported functional. These reports do not establish an exhaustive AP/STA regression test. See [Memory layout](en/reference/MEMORY-LAYOUT.md).
+On hardware, `/proc/memory` showed the expected layout and `/proc/ramfiles` showed file data addresses spaced by 2 KiB. After writing `hello` to `/dev/shm`, the 16-byte reads through `/dev/shm` and `/dev/mem` at `0x20032000` matched. Regular file reads and physical-address reads of RAM-file contents also matched; raw memory edits appeared in file reads. Both `mem` and `trace` were reported to work, and Pico W communication was reported functional. These reports do not establish an exhaustive AP/STA regression test. See [Memory layout](reference/MEMORY-LAYOUT.md).
 
 ## November 2: Python strings, bitwise operators, and memory limits
 
@@ -627,7 +627,7 @@ On hardware, the developer verified that replacing arrays and retaining other ar
 
 The assembler's source maximum was likewise raised to **2,048 bytes**. The machine-code/data output maximum was expanded to **2,040 bytes**, leaving 8 bytes for the `PNX1` header within a 2 KiB RAM file. The developer reported successful operation after this change. The six 24 KiB user slots and their 4 KiB stack reservations remain unchanged.
 
-These changes prioritize predictable fixed memory usage for OS education rather than expanding PicoNIX Python toward full Python compatibility. See [Python](en/development/apps/python/PYTHON.md) and [Assembler](en/development/apps/asm/ASM.md) for the current limits.
+These changes prioritize predictable fixed memory usage for OS education rather than expanding PicoNIX Python toward full Python compatibility. See [Python](development/apps/python/PYTHON.md) and [Assembler](development/apps/asm/ASM.md) for the current limits.
 
 ## October 31–November 1: Pipes, TTY recovery, and documentation
 
@@ -701,8 +701,8 @@ The initial shell, RAM files, device access, UART and USB I/O also revealed hard
 
 This is a narrative reconstruction from conversations, not an exhaustive Git audit. A code change proposed or produced by ChatGPT is not, by itself, evidence of a successful hardware test. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.
 
-For the current behavior and usage, consult [Internal architecture](en/reference/INTERNAL.md), [Networking](en/reference/network/NETWORK.md), [TTY](en/reference/commands/TTY.md), [Pipes](en/reference/commands/PIPE.md), [Tracing](en/reference/commands/TRACE.md), and [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md), and the [Kernel reading guide](en/development/kernel/KERNEL-READING-GUIDE.md).
+For the current behavior and usage, consult [Internal architecture](reference/INTERNAL.md), [Networking](reference/network/NETWORK.md), [TTY](reference/commands/TTY.md), [Pipes](reference/commands/PIPE.md), [Tracing](reference/commands/TRACE.md), and [Kernel development](development/kernel/KERNEL-DEVELOPMENT.md), and the [Kernel reading guide](development/kernel/KERNEL-READING-GUIDE.md).
 
 ---
 
-**Related links:** [Documentation index](DOCS.md) | [Project overview](../README.md) | [日本語](DEVELOPMENT_DIARY.ja.md)
+**Related links:** [Documentation index](README.md) | [Project overview](../../README.md) | [日本語](../ja/DEVELOPMENT_DIARY.md)

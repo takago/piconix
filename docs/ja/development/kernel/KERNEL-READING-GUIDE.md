@@ -27,7 +27,7 @@ UNIX/Linuxの利用経験とOS基礎，Cの関数・構造体・ポインタを�
 | 8 | デバイス | `kernel/gpio.c`，`kernel/fb.c`など | VFSとデバイスドライバの役割分担 |
 | 9（任意） | ネットワーク（Pico W） | `kernel/net.c`，`kernel/net_socket.c`など | Wi-Fi，lwIP，ソケットの役割分担 |
 
-> **ファイルの探し方：** 関数定義と概説は[関数一覧](../../../FUNCTIONS.md)を利用してください．同一覧の行番号はソースを編集すると変わるため，本ガイドでは固定の行番号を記しません．
+> **ファイルの探し方：** 関数定義と概説は[関数一覧](../FUNCTIONS.md)を利用してください．同一覧の行番号はソースを編集すると変わるため，本ガイドでは固定の行番号を記しません．
 
 ## 第1段階：カーネルの起動
 
@@ -203,7 +203,7 @@ Research UNIX V5/V6では，カーネル内の`sleep()`で待機したプロセ�
 
 ## 次に読む文書
 
-- [関数一覧](../../../FUNCTIONS.md)：定義箇所と処理概要の索引
+- [関数一覧](../FUNCTIONS.md)：定義箇所と処理概要の索引
 - [内部構造](../../reference/INTERNAL.md)：メモリ・スケジューラ・SVCの補足
 - [システムコール一覧](../../reference/SYSCALLS.md)：番号，引数と動作
 - [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md)：自分で呼び出しを追加する
@@ -211,4 +211,4 @@ Research UNIX V5/V6では，カーネル内の`sleep()`で待機したプロセ�
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [文書案内](../../../DOCS.ja.md) ｜ [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)
+**関連リンク：** [開発ガイド一覧](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [文書案内](../../README.md) ｜ [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)

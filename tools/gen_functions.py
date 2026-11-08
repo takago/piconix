@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "docs/FUNCTIONS.md"
+OUTPUT = ROOT / "docs/ja/development/FUNCTIONS.md"
 # PicoNIXの実装関数を用途別に分類する．
 # tools/ はビルド・テスト用であり，userland/examples/ と userland/fs/ は
 # 実行例・初期ファイルなので，関数索引には含めない．
@@ -227,7 +227,7 @@ def render():
             out.extend((f"### `{relative}`（{len(entries)}件）", "", "| 関数 | 行 | 範囲 | 概要 |", "|---|---:|---|---|"))
             for name, line, scope, comment in entries:
                 # 相対パスリンクはGitHub上でもソースの該当行に移動できる．
-                link = f"../{relative}#L{line}"
+                link = f"../../../{relative}#L{line}"
                 synopsis = (comment or "—").replace("|", "\\|").replace("`", "\\`")
                 out.append(f"| [`{name}()`]({link}) | {line} | {scope} | {synopsis} |")
             out.append("")
@@ -246,8 +246,8 @@ def main():
     content = render()
     if args.check:
         if not OUTPUT.exists() or OUTPUT.read_text(encoding="utf-8") != content:
-            parser.exit(1, "FAIL: docs/FUNCTIONS.md は古くなっています．python3 tools/gen_functions.py で更新してください．\n")
-        print("PASS: docs/FUNCTIONS.md は現行ソースと一致")
+            parser.exit(1, "FAIL: docs/ja/development/FUNCTIONS.md は古くなっています．python3 tools/gen_functions.py で更新してください．\n")
+        print("PASS: docs/ja/development/FUNCTIONS.md は現行ソースと一致")
     else:
         if not OUTPUT.exists() or OUTPUT.read_text(encoding="utf-8") != content:
             OUTPUT.write_text(content, encoding="utf-8")

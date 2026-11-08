@@ -71,4 +71,4 @@ fd /man
 
 ---
 
-**関連リンク：** [セットアップ](../../setup/SETUP.md) ｜ [操作ガイド一覧](README.md) ｜ [edit](EDIT.md) ｜ [English](../../../en/reference/commands/FD.md) ｜ [文書一覧](../../../DOCS.ja.md)
+**関連リンク：** [セットアップ](../../setup/SETUP.md) ｜ [操作ガイド一覧](README.md) ｜ [edit](EDIT.md) ｜ [English](../../../en/reference/commands/FD.md) ｜ [文書一覧](../../README.md)

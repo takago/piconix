@@ -93,4 +93,4 @@ head -c 256 data.bin | nc -N 192.168.4.1 9000
 
 ---
 
-**関連リンク：** [パイプ操作](PIPE.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../../en/reference/commands/DD.md) ｜ [文書一覧](../../../DOCS.ja.md) ｜ [nc](../network/NC.md) ｜ [デバイス](../devices/DEVICES.md)
+**関連リンク：** [パイプ操作](PIPE.md) ｜ [操作ガイド一覧](README.md) ｜ [English](../../../en/reference/commands/DD.md) ｜ [文書一覧](../../README.md) ｜ [nc](../network/NC.md) ｜ [デバイス](../devices/DEVICES.md)

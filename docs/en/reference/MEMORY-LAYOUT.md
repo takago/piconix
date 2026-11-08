@@ -120,4 +120,4 @@ If the initial value was zero, the first four bytes after three runs are `03 00 
 
 ---
 
-**Related links:** [Reference index](README.md) | [Documentation index](../../DOCS.md) | [日本語](../../ja/reference/MEMORY-LAYOUT.md)
+**Related links:** [Reference index](README.md) | [Documentation index](../README.md) | [日本語](../../ja/reference/MEMORY-LAYOUT.md)
