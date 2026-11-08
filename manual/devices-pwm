@@ -1,0 +1,40 @@
+PWM LAB: OBSERVE -> CHANGE -> VERIFY -> RESTORE
+
+Current pwmctl.c syntax:
+  pwmctl status
+  pwmctl freq HZ      frequency 8..100000 Hz
+  pwmctl a DUTY       GP18 channel A duty 0..100 percent
+  pwmctl b DUTY       GP19 channel B duty 0..100 percent
+  pwmctl off          both channel duties to 0
+
+On this teaching setup GP18 is connected to a BUZZER and GP19
+is connected to a SERVO MOTOR. Both channels use PWM slice 1 and
+SHARE the frequency. Duty has 0.1 percent steps. Changing the
+frequency affects BOTH devices; it is not safe to treat them as
+independent PWM outputs.
+
+READ-ONLY CHECK (safe default with servo connected)
+  pins
+  pwmctl status
+
+DO NOT execute a 523 Hz buzzer example with the servo attached:
+frequency changes affect both outputs. Servo control needs a
+servo-specific period and pulse width; duty alone is insufficient
+to describe a safe position. Determine electrical/mechanical limits
+and obtain approval before modifying either PWM channel.
+'off' does not restore previous duty/frequency automatically.
+If the test is not approved, run 'pwmctl status' ONLY.
+
+TROUBLESHOOTING
+  'value out of range': verify HZ or DUTY syntax and bounds.
+  'cannot write PWM device': verify current pin ownership and
+  that the expected device nodes exist.
+  No audible tone: check wiring, channel, duty, active framebuffer
+  or another demo; software success does not prove hardware output.
+  GP19 servo: requires device-specific pulse width, period and
+  safe mechanical range. GP18 buzzer cannot use an independent
+  frequency while the servo shares the same PWM slice.
+
+OBSERVATION VS CONTROL
+  'pwmctl status' reads state; 'freq', 'a', 'b', 'off' change it.
+  An LLM must not run a state-changing command as a discovery step.

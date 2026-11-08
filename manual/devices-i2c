@@ -1,0 +1,32 @@
+I2C WORKFLOW: TRANSACTIONS AND SIDE EFFECTS
+
+I2C1: /dev/i2c/1 (GP26 SDA, GP27 SCL).
+Current i2cctl.c accepted command forms:
+  i2cctl scan
+  i2cctl read ADDR COUNT
+  i2cctl write ADDR BYTE...
+  i2cctl xfer ADDR READ_COUNT [BYTE...]
+ADDR is 7-bit 0x08..0x77. COUNT is 1..32. Transfer size <=32.
+Numerical arguments may use decimal or 0x-prefixed hex.
+
+CAUTION: scan performs a REAL one-byte read at each address.
+Some devices may respond with a side effect. Obtain approval before
+scanning an unknown bus; do not repeat scans as polling.
+
+EXAMPLE FOR A KNOWN, COMPATIBLE DEVICE ONLY
+  i2cctl read 0x23 2
+  i2cctl xfer 0x23 2 0x10
+Those are syntax examples, NOT a universal sensor procedure.
+Check the specific device's datasheet for address, register layout,
+write/read ordering and conversion delay. Don't invent registers.
+
+OUTPUT
+  On success with a read length, i2cctl prints hexadecimal bytes.
+  The caller must know sensor encoding and endianness before
+  computing temperature, light level, etc.
+  'transfer failed (N)' indicates ioctl failure; inspect wiring,
+  power, device address and expected protocol, not just the code.
+
+SAFER AGENT SEQUENCE
+  pins -> identify sensor -> verify wiring/datasheet -> authorize
+  -> one bounded read/transaction -> check output -> stop.

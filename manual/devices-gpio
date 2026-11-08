@@ -1,0 +1,38 @@
+GPIO WORKFLOW: PIN OWNERSHIP AND LIVE READ HAZARDS
+
+GPIO device files expose hardware states, not ordinary disk bytes.
+The exact available control commands depend on firmware version;
+check 'help' and /dev for supported operations.
+
+DISCOVERY
+  pins
+  ls /dev/gpio
+  help gpio
+  help pins
+
+INTERACTIVE VS FINITE
+  pins prints a finite pin map and exits; preferred via MCP.
+  gpio is a full-screen UI and should run on a local TTY only.
+  Reading a GPIO node with an unbounded cat may repeatedly return
+  the same digit forever; this is normal for a live level source.
+  hexdump requires lseek if given an offset, which some device
+  endpoints reject. Do not assume 'hexdump /dev/gpio/25 0 1' works.
+
+CONTROL CHECKLIST
+  1. Confirm connector pin mapping and voltage domain.
+  2. Identify current owner in pins (fb, UART, PWM, I2C, etc.).
+  3. Decide desired direction, value and maximum duration.
+  4. Obtain authorization for changes.
+  5. Use a documented command or device control operation.
+  6. Recheck pins and external hardware status; restore if needed.
+
+PIN EXAMPLES
+  GP16/17: input switches with pull-ups on teaching board.
+  GP18: connected buzzer; GP19: connected servo motor. Both share
+  PWM slice 1 frequency. Do not repurpose either as a spare GPIO
+  while the attached hardware is in use.
+  GP20/21: UART1. GP26/27: I2C1.
+  GP25: board LED on standard Pico; board variations matter.
+
+No generic write command is given here: a pin's direction and
+hardware owner must be established before constructing an action.

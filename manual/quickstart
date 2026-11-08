@@ -1,0 +1,49 @@
+AGENT QUICK START - MINIMUM SAFE SEQUENCE
+
+Goal: inspect, program, trace and control PicoNIX via MCP.
+Do not assume CPython, GNU as, ISO C, Linux shell or POSIX semantics.
+Each execute_command call must be finite, noninteractive, and short.
+
+INITIAL INSPECTION (no state changes)
+  get_manual()                discover manual topics
+  ps                          inspect six task slots
+  ls /man                     list available reference pages
+  ls /tmp                     inspect existing RAM files
+  cat /proc/memory            inspect kernel memory status
+  pins                        inspect board/pin assignment
+  help cc                     check CLI before writing code
+
+BEFORE CODING
+  get_manual(topic='languages/c')      C syntax + limits
+  get_manual(topic='c-examples')       correct C examples
+  get_manual(topic='c-debug')          debugging checklist
+  get_manual(topic='languages/python') Python subset
+  get_manual(topic='asm-examples')     Thumb-1 examples
+Do NOT generate gcc commands, #include, import or arbitrary libc.
+
+BEFORE HARDWARE CONTROL
+  pins
+  pwmctl status
+  get_manual(topic='gpio-workflow')
+  get_manual(topic='pwm-workflow')
+  get_manual(topic='i2c-workflow')
+Read-only queries first; ask for user approval before changing pins,
+PWM frequency, connected actuators, network or persistent settings.
+
+BEFORE TRACING
+  ps
+  trace on -s
+  trace show
+  trace on
+Use 'trace follow' only on an interactive terminal, never over MCP.
+
+OUTPUT AND TIME LIMITS
+  MCP command execution ~3 seconds, output <=4096 bytes.
+  Use hexdump FILE OFFSET COUNT (e.g. 64 or 128 bytes).
+  A long-running command or continuous /dev reader may stall.
+  Repeated HTTP incomplete chunked read is a transport problem;
+  retry a smaller bounded command rather than assume command failed.
+
+MCP tools are different from Linux shell commands. get_manual() is
+an MCP tool; 'cat /man/README' is a PicoNIX shell command.
+The --shell switch is required when starting mcpd for shell tools.

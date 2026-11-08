@@ -11,10 +11,12 @@
 #define NO_TRACE __attribute__((no_instrument_function))
 /* ボード上のLEDとスイッチを含むGPIOの初期設定を行う． */
 NO_TRACE void gpio_driver_init(void) {
-    /* 標準ボード入出力：GP25のLEDとLow有効のGP16/17ボタン． */
+    /* 通常PicoのGP25 LEDと，両ボード共通のGP16/17ボタン．Pico WのGP25はCYW43が使用する． */
+#if !PICONIX_WIFI
     gpio_init(25);
     gpio_put(25, 0);
     gpio_set_dir(25, GPIO_OUT);
+#endif
     gpio_init(16);
     gpio_set_dir(16, GPIO_IN);
     gpio_pull_up(16);
@@ -34,8 +36,10 @@ int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
         if(kind==1) {
             if(writing) {
                 const uint8_t *b=p;
-                if(n==2 && b[0]=='i' && b[1]=='n') {gpio_init(pin);gpio_set_dir(pin,GPIO_IN);return (int)n;}
-                if(n==3 && b[0]=='o' && b[1]=='u' && b[2]=='t') {gpio_init(pin);gpio_set_dir(pin,GPIO_OUT);return (int)n;}
+                size_t len=n;
+                if(len && b[len-1]=='\n') len--;
+                if(len==2 && b[0]=='i' && b[1]=='n') {gpio_init(pin);gpio_set_dir(pin,GPIO_IN);return (int)n;}
+                if(len==3 && b[0]=='o' && b[1]=='u' && b[2]=='t') {gpio_init(pin);gpio_set_dir(pin,GPIO_OUT);return (int)n;}
                 return OS_EINVAL;
             }
             const char *v=gpio_get_dir(pin)==GPIO_OUT?"out":"in";
@@ -46,9 +50,11 @@ int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing) {
         }
         if(writing) {
             const uint8_t *b=p;
-            if(n==2 && b[0]=='u' && b[1]=='p') {gpio_pull_up(pin);return (int)n;}
-            if(n==4 && !memcmp(b,"down",4)) {gpio_pull_down(pin);return (int)n;}
-            if(n==4 && !memcmp(b,"none",4)) {gpio_disable_pulls(pin);return (int)n;}
+            size_t len=n;
+            if(len && b[len-1]=='\n') len--;
+            if(len==2 && b[0]=='u' && b[1]=='p') {gpio_pull_up(pin);return (int)n;}
+            if(len==4 && !memcmp(b,"down",4)) {gpio_pull_down(pin);return (int)n;}
+            if(len==4 && !memcmp(b,"none",4)) {gpio_disable_pulls(pin);return (int)n;}
             return OS_EINVAL;
         }
         const char *v=gpio_is_pulled_up(pin)?"up":gpio_is_pulled_down(pin)?"down":"none";

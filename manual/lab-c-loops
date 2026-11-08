@@ -1,0 +1,29 @@
+C LAB 2 - INTEGER LOOPS AND CONDITIONS
+
+GOAL: Exercise variables, while, if/else, and write().
+Write /tmp/count.c via MCP write_file:
+
+  int main() {
+      int n = 0;
+      while (n < 3) {
+          if (n == 1) {
+              write(1, "B", 1);
+          } else {
+              write(1, "A", 1);
+          }
+          n = n + 1;
+      }
+      write(1, "\n", 1);
+      return 0;
+  }
+
+Run separately:
+  cc /tmp/count.c
+  as /tmp/count.s
+  /tmp/a.out
+Expected stdout: ABA and newline.
+
+The C subset supports while and if/else, not for or ++.
+Comparisons belong to conditions; avoid boolean operators and casts.
+If cc accepts the file but as rejects output, inspect the generated
+assembly and simplify the program or branches (source/output limits).

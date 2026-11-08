@@ -1,0 +1,37 @@
+DEVICE DISCOVERY AND READ-ONLY BASELINE
+
+Before touching a device, identify real attached hardware, pin
+ownership, controller mode, and the current measured state.
+
+SAFE INITIAL COMMANDS
+  pins
+  ls /dev
+  ls /dev/gpio
+  ls /dev/adc
+  ls /dev/i2c
+  pwmctl status
+  fbctl status
+  help pwmctl
+  help i2cctl
+
+INTERPRETATION
+  pins is a finite live pin map: free, input, output, framebuffer,
+  UART, I2C, ADC or PWM as appropriate. It is not a wiring diagram.
+  GPIO numbers are SoC pin indices, not physical header positions.
+  An assigned pin may already be driven by a background program.
+  GP0..15 are used by the teaching board's LED matrix, GP16/17
+  input switches, GP18 buzzer, GP19 servo motor, GP20/21 UART1, and GP26/27 I2C1
+  on this teaching setup. GP25 is the LED only on standard Pico;
+  Pico W uses wireless-chip LED control instead.
+
+DO NOT
+  - Run 'cat /dev/gpio/N' without a bound: a live digital device
+    may supply 0/1 indefinitely.
+  - Assume a read from a live GPIO node supports lseek.
+  - Start interactive gpio/fbed/mem/watch from MCP.
+  - Write to a physical output merely to test whether it works.
+
+BEFORE STATE CHANGE
+  Confirm which device and pin, electrical limits, user intent,
+  expected result and rollback. If any of these are unknown, ask
+  or restrict actions to read-only inspection.

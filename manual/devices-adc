@@ -1,0 +1,27 @@
+ADC / ONBOARD TEMPERATURE: RAW VS DECODED VALUES
+
+A safe first MCP example is the direct get_temperature() tool.
+  get_temperature()
+This is a decoded numerical temperature from the onboard sensor.
+The die temperature is not necessarily ambient air temperature.
+
+Device path:
+  /dev/adc/temp
+Do not assume the raw device returns ASCII decimal degrees.
+Inspect the matching implementation or documented encoding before
+interpreting a raw read. A device may not support arbitrary seek.
+
+CHECK
+  pins
+  ls /dev/adc
+  get_temperature()   (MCP)
+
+TROUBLESHOOTING
+  The temperature may vary with CPU load and board enclosure.
+  A rapid oscillation in the value is not proof of an ADC fault.
+  Missing /dev/adc entries may reflect board/firmware configuration.
+  External ADC GPIO inputs must respect electrical limits; no
+  speculative voltage measurements through unknown wiring.
+
+Agent reporting: state whether a value came from the MCP tool or
+from raw bytes, the unit if known, and any conversion uncertainty.

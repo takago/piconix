@@ -11,4 +11,13 @@ SECTIONS
         . = ALIGN(4);
         __piconix_app_images_end = .;
     } > TEXT_STORE
+    /* Packed manual index and pages live in XIP, not SRAM. */
+    .manual :
+    {
+        . = ALIGN(4);
+        __manual_start = .;
+        KEEP(*(.manual))
+        . = ALIGN(4);
+        __manual_end = .;
+    } > TEXT_STORE
 }

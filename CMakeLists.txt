@@ -210,6 +210,20 @@ else()
   endif()
   message(STATUS "PicoNIX XIP linker: ${PICONIX_CUSTOM_LD}")
 endif()
+# /man lives in a dedicated XIP-only .manual section, not a generated C array.
+file(GLOB_RECURSE PICONIX_MAN_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/manual/*")
+set(PICONIX_MAN_BIN "${CMAKE_CURRENT_BINARY_DIR}/manual.bin")
+add_custom_command(OUTPUT "${PICONIX_MAN_BIN}"
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/make_manual_rom.py"
+          "${PICONIX_MAN_BIN}"
+  DEPENDS "${CMAKE_CURRENT_LIST_DIR}/tools/make_manual_rom.py" ${PICONIX_MAN_FILES}
+  COMMENT "Packing PicoNIX .manual XIP image"
+  VERBATIM)
+configure_file("${CMAKE_CURRENT_LIST_DIR}/cmake/embed_manual.S.in"
+               "${CMAKE_CURRENT_BINARY_DIR}/embed_manual.S" @ONLY)
+set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_manual.S"
+  PROPERTIES OBJECT_DEPENDS "${PICONIX_MAN_BIN}")
+list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_manual.S")
 add_executable(piconix kernel/net.c kernel/net_capture.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 set_source_files_properties(kernel/kernel.c PROPERTIES OBJECT_DEPENDS "${PICONIX_INITIAL_FS_HEADER}")

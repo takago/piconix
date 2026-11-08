@@ -1,0 +1,44 @@
+SYSCALL REFERENCE: PROCESS, TIME, TERMINAL
+
+PicoNIX is educational and only partially POSIX-like. User code
+must use actual PicoNIX wrappers; do not assume full exec(),
+wait groups, signals, fork semantics or Linux /proc/pid content.
+
+getpid()
+  Query current process PID. Useful for trace correlation.
+
+exit / _exit
+  Terminate current task; release FD/resources through kernel.
+  On-device 'cc' supports return from main and a narrow builtin
+  list; do not assume libc exit() callable from cc C source.
+
+yield()
+  Voluntarily let scheduler run another ready task. It is not
+  a substitute for select() when waiting on multiple sockets.
+
+msleep(milliseconds)
+  Sleep/schedule without busy-looping. Do not sleep for long in
+  commands run through MCP (~3 s timeout).
+
+fork/spawn/waitpid
+  The shell and trace start child programs using PicoNIX's own
+  process APIs. Check userland wrappers for signature and behavior
+  before writing a native app. Task slots are limited to six.
+
+TERMINAL MODE
+  stty raw
+  stty cooked
+  tty
+The terminal has its own line-editing and echo behavior.
+Interactive programs should use a terminal, not MCP pipes.
+
+OBSERVE, THEN ACT
+  ps
+  lsof [PID]
+  trace show [PID]
+  kill PID  # only if explicitly authorized; may kill active server
+
+C COMPILER WARNING
+  The on-device cc is NOT a general C compiler for these APIs.
+  Use native, host-built user programs for full syscall wrappers.
+  See /man/languages/c.

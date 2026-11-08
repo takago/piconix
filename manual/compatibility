@@ -1,0 +1,17 @@
+PICONIX DIFFERENCES THAT MATTER TO LLM AGENTS
+
+- PicoNIX is not Linux, bash, GCC, GNU as, or CPython.
+- sh -c blocks all '&' including &&; no &&, ||, ;, glob,
+  command substitution, or environment expansion. See shell-syntax.
+- rm accepts one PATH per invocation. Check help rm.
+- The cc C subset has int-local ++/-- (prefix and postfix).
+  Pointer and indexed increments are NOT implemented.
+- The as Thumb-1 subset accepts movs r0, #9 but NOT
+  movs r0, r1; use mov r0, r1 for register transfer.
+- .ascii, .space, adr have alignment and displacement limits.
+- Python supports for i in range(...), not for b in data.
+- 6 user process slots are distinct from 11 RAM-file entries.
+- Each RAM file has a 2048-byte limit, even if slots are free.
+- Flash ROM /man pages do not occupy user RAM-file entries.
+- Pico W GP23/24/25 are CYW43-owned; GP25 is NOT the LED.
+- A successful device write is not evidence of physical movement.

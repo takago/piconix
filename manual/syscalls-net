@@ -1,0 +1,45 @@
+SYSCALL REFERENCE: NETWORK AND SELECT
+
+Socket wrappers exist in userland libraries for native C programs;
+the tiny 'cc' compiler cannot call arbitrary socket functions.
+The Python-like interpreter provides its own simplified socket API.
+
+socket(domain/type...) / bind / listen / accept / connect
+  Prepare TCP listeners/clients and UDP sockets. Exact native
+  signatures are in userland/lib headers (do not guess Linux ABI).
+
+send/recv, sendto/recvfrom
+  Return byte counts or error. TCP is a byte stream; a single
+  recv() need not return all sent data. UDP preserves datagrams.
+  Close sockets after use. Use numeric IPv4 addresses as supported.
+
+select(...)
+  Wait for FD readiness; use it to multiplex several sockets on
+  a single thread. Nonblocking reads may return immediately when
+  no data is available. See userland examples for concrete ABI.
+
+PYTHON SUBSET'S NETWORK API
+  s = socket(2)
+  sendto(s, "HI", "127.0.0.1", 2000)
+  close(s)
+  # UDP, type 2; TCP uses socket(1)
+  # socket object is an integer descriptor, not CPython socket.
+
+OBSERVE NETWORK STATE
+  ip
+  net
+  net -a
+  net -r
+  cat /proc/net/wifi
+  cat /proc/net/memory
+  ping -c 2 127.0.0.1
+  tcpdump -c 5
+
+BOUND RECEIVE OPERATIONS
+  UDP listeners, accept loops, recv loops and tcpdump without
+  -c can block indefinitely. Start long-running services from
+  interactive shell and send finite test requests via MCP.
+
+SECURITY
+  mcpd --shell exposes remote shell/file operations on TCP 8080
+  without authentication or TLS. Use isolated trusted lab LAN.

@@ -1,0 +1,15 @@
+PICONIX SHELL SYNTAX (NOT BASH)
+
+Interactive sh: finite single command lines, optional simple pipelines
+(up to three stages), and file redirections <, >, >>.
+A trailing & requests background execution in the interactive shell.
+MCP execute_command runs sh -c: ANY '&' character is rejected,
+including && (the rejection text is 'background disabled').
+Do not use &&, ||, ;, command substitution, $VAR expansion,
+globbing, or 2>&1 as if this were bash.
+
+To run steps with MCP, issue separate execute_command calls,
+inspect each result before continuing, and do not spawn jobs.
+A literal '||' may be interpreted as pipes, not boolean OR.
+'/' in paths and '-' in command options are NOT shell operators.
+Command options are app-specific: use help COMMAND.

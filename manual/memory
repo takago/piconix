@@ -1,0 +1,40 @@
+MEMORY AND PROCESS INVESTIGATION (MCP SAFE)
+
+Pico W RP2040 architecture: kernel executes from Flash XIP;
+user programs are RAM-resident position-independent images.
+Six 24 KiB task slots, 4 KiB reserved stack each. Kernel and
+network buffers also use SRAM. Do not treat /dev/mem as a RAM file.
+
+START READ-ONLY:
+  ps                        active processes and PIDs
+  mem -s                    list symbol tables
+  mem -s kernel             kernel symbols
+  mem -s sh                 shell symbol offsets
+  hexdump /dev/shm 0 64     bounded shared-memory bytes
+  hexdump /dev/mem 0x20000000 32
+  cat /proc/net/memory      network memory diagnostics
+
+'mem' without -s is interactive/full-screen; never use it with
+MCP execute_command. 'watch' is likewise interactive. Symbol
+information: /proc/sym/kernel shows kernel symbol addresses;
+user-app symbol tables are slot-relative; do not interpret
+those offsets as absolute addresses without a load base.
+
+hexdump usage:
+  hexdump [file [offset [count]]]
+  /dev/mem requires explicit offset and count.
+  Offsets accept decimal and 0x-prefixed values.
+  For MCP: prefer 16, 32 or 64 bytes. 512 raw bytes may print
+  several KiB of text, stressing the 4096-byte response limit.
+  Large reads may expose secrets/uninitialized data.
+
+Investigation sequence:
+  1. ps -> identify process and slot occupancy.
+  2. mem -s -> discover symbols, not guessed offsets.
+  3. hexdump /dev/mem ADDRESS 32 -> read just target bytes.
+  4. Compare with /proc/sym/kernel or user symbol offset.
+  5. Use trace to correlate memory behavior with syscalls.
+
+Writes to arbitrary /dev/mem are dangerous and may crash the OS.
+Never attempt via MCP without explicit authorization and a safe
+verified region. Don't probe unmapped addresses blindly.

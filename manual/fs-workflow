@@ -1,0 +1,42 @@
+FILES AND DIRECTORY WORKFLOW - READ BEFORE MODIFYING
+
+PicoNIX has ROM programs under /bin, read-only /man, dynamic /proc,
+devices /dev, and small RAM-backed writable /tmp and /etc.
+This is not a persistent Linux disk filesystem.
+
+READ-ONLY RECONNAISSANCE
+  pwd
+  ls -la /
+  ls -la /tmp
+  tree -L 2 /man
+  cat /man/README
+  cat -n /tmp/demo.py
+  grep socket /man/network
+  find /tmp -name demo.py
+  hexdump /tmp/demo.py 0 64
+
+WRITE/DELETE ONLY WHEN ASKED
+  write_file(path='/tmp/demo.py', content='print(123)\n')
+  python /tmp/demo.py
+  cp /tmp/demo.py /tmp/copy.py
+  rm /tmp/copy.py
+MCP write_file is restricted to /tmp and ASCII, RAM file <=2048
+bytes. Avoid overwriting the user's current test scripts.
+
+REDIRECTION AND PIPES
+  echo hello > /tmp/message
+  cat /tmp/message
+  echo hello | grep he
+  echo more >> /tmp/message
+Redirection opens a real file; many /dev nodes provide an infinite
+stream. Do NOT use unbounded cat on /dev/gpio/N or /dev/mem.
+'grep' matches literal substrings and has no -i, regex engine,
+or GNU-style options. Lines longer than 128 bytes are skipped.
+
+ROM MANUAL
+  ls /man
+  cat /man/limits
+  cat /man/languages/c
+  grep write /man/syscalls
+Use get_manual(topic) if a tool call needs one page returned directly.
+The /man pages are ROM data: they cannot be edited using write_file.

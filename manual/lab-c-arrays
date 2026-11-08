@@ -1,0 +1,21 @@
+C LAB 4 - CHAR ARRAYS, INDEXING, ADDRESSING
+
+GOAL: Write bytes from local storage instead of a literal buffer.
+Write /tmp/buf.c via write_file:
+
+  int main() {
+      char s[4] = "ABC";
+      s[1] = 'x';
+      write(1, s, 3);
+      write(1, "\n", 1);
+      return 0;
+  }
+
+Run: cc /tmp/buf.c; as /tmp/buf.s; /tmp/a.out.
+Expected stdout: AxC and newline.
+
+This is a single-dimensional char array. The string initializer
+requires sufficient storage for the terminator. No dynamic
+allocation, string library, memcpy or printf are available here.
+Avoid writing past the declared array; no runtime bounds check.
+Inspect generated assembly with cat /tmp/buf.s if necessary.

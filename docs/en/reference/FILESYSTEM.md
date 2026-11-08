@@ -78,7 +78,7 @@ See the [device guide](devices/DEVICES.md) and [TTY guide](../guides/TTY.md) for
 
 ## 3. GPIO and peripheral availability
 
-In the default `kernel/pins.h`, GP0–17 and GP22–25 are configured as GPIO, GP18/19 as PWM, GP20/21 as UART1, and GP26/27 as I²C1 (SDA/SCL), and GP28 as ADC2. **On Pico W, GP23–25 have board-internal functions and should not be treated as external GPIO pins.** GP0–15 are reserved while the LED framebuffer is enabled. Node availability changes with pin and build configuration.
+In the default `kernel/pins.h`, GP0–17 and GP22–25 are configured as GPIO, GP18/19 as PWM, GP20/21 as UART1, and GP26/27 as I²C1 (SDA/SCL), and GP28 as ADC2. **On Pico W, GP23–25 are reserved for CYW43 and not exposed as generic GPIO devices.** GP0–15 are reserved while the LED framebuffer is enabled. Node availability changes with pin and build configuration.
 
 ## 4. Limits of `/tmp` and `/etc`
 

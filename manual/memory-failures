@@ -1,0 +1,36 @@
+MEMORY CHECK: SYMPTOM-DRIVEN TRIAGE
+
+SYMPTOM: cannot start program
+  ps
+  cat /proc/memory
+  cat /proc/ramfiles
+  ls /tmp
+A user slot may be unavailable, or image/stack may exceed the
+24-KiB slot. Do not assume a single error has one cause.
+
+SYMPTOM: suspicious process or file growth
+  ps
+  lsof
+  cat /proc/ramfiles
+  hexdump /tmp/NAME 0 64
+Read a bounded preview, then compare with expected file content.
+/tmp RAM-file size limit and user-program slot limit are DIFFERENT.
+
+SYMPTOM: changing memory bytes
+  hexdump /dev/shm 0 32
+  hexdump /dev/shm 0 32
+If changes persist, inspect whether another process owns the shared
+region. Do not claim a leak from two snapshots.
+
+SYMPTOM: network allocation pressure
+  cat /proc/net/memory
+  ps
+  lsof
+Correlate network heap, pbuf and PCB counters with socket owners.
+A counter snapshot cannot establish a leak; repeated controlled
+measurements and a terminating test workload are needed.
+
+STOP CONDITIONS
+  Unknown address range, unknown live hardware ownership, output
+  truncation, or repeated MCP transport failures: stop raw probing
+  and report observations. Avoid full-screen mem and watch over MCP.

@@ -1,0 +1,45 @@
+MCP AGENT OPERATING RULES
+
+SESSION: First get_manual() or cat /man/README; then relevant page;
+then help COMMAND, if needed. Avoid guessing GNU/Linux options.
+
+MCP execute_command sends a command to sh -c, NOT a real terminal.
+It has no interactive PTY or keyboard. Command <=119 ASCII bytes,
+output <=4096 bytes, nominal child execution timeout 3 seconds.
+Calls create extra processes; PicoNIX has only six 24 KiB user slots.
+Use ps before complex operations. Never kill mcpd accidentally.
+
+DO NOT RUN via execute_command: full-screen or interactive mem,
+mb, watch, edit, vi, fd, fbed, gpio, pong, interactive python,
+trace follow, or indefinite foreground servers. Use finite commands
+instead: ps, hexdump, mem -s, trace show, cat, ip, pwmctl status.
+Trace run may spawn more processes and consume much output: prefer
+trace on -s, execute a short command, trace show, then trace on.
+
+READ-ONLY -> MUTATE -> VERIFY:
+  1. Identify path, pin, device ownership and output size.
+  2. Read current value; avoid unbounded cat of streaming devices.
+  3. Explain risk, request authorization for hardware or destructive
+     file changes, and issue one short modifying command.
+  4. Verify with another short read-only command.
+  5. Report observed result; don't claim success from tool invocation.
+
+write_file creates/overwrites a /tmp/NAME ASCII file, max 2048 B.
+Use distinct names to avoid destroying work. C cc input <=1024 B.
+The assembler writes /tmp/a.out; do not run a stale binary after
+an as failure. Ensure successful compiler/assembler outputs first.
+
+mcpd (without --shell) exposes temperature only.
+mcpd --shell enables get_manual, execute_command and write_file;
+these services have NO authentication or TLS. Use isolated trusted LAN.
+
+On 'incomplete chunked read', connection closed before HTTP response
+completed. Check mcpd is alive with ps from a physical terminal,
+check process slots, and retry read-only operations cautiously.
+A modifying command might have executed before the response failed.
+Use bounded hexdump and trace; don't fill TCP with endless output.
+
+Before changing hardware, read gpio-board and check pins. Pico W
+GP25 is NOT the board LED. Report command success separately from
+physical observation. Never remove files not created for this task.
+Read shell-syntax/compatibility before issuing composite commands.

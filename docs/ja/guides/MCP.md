@@ -88,3 +88,20 @@ SDKの `mode=auto` は `server/discover` を試し，対応しなければ旧形
 ネットワーク・LEDの操作例は[エージェントガイド](AGENT-GUIDE.md)の内蔵マニュアル節を参照してください．
 
 **エージェントの注意：** `execute_command`は非対話コマンド専用です．`mem`，`watch`，`vi`，`edit`，`fd`，`pong`などの対話・全画面コマンドを使わず，`ps`，`cat /proc/...`，`help`などを使ってください．詳細は[エージェントガイド](AGENT-GUIDE.md)を参照してください．
+
+## ROMマニュアル（`/man`）
+
+LLMの操作手順，C・Thumb-1アセンブリ・Pythonの対応仕様，メモリ検査，トレース，GPIO・PWM・I2C・ネットワーク制御を，カーネルXIP Flash上の読み取り専用ファイルとして収録します．
+
+```sh
+ls /man
+cat /man/README
+cat /man/agent
+cat /man/languages/c
+cat /man/memory
+cat /man/trace
+```
+
+`mcpd --shell`が公開する`get_manual()`は目次`/man/README`を返します．`get_manual({"topic":"languages/c"})`などの`topic`指定で該当ページだけ取得します．全マニュアル一括送信は廃止し，RAMバッファとMCP通信量を抑えます．既存の`mcpd`通常起動では温度取得のみを公開する仕様を維持します．無認証のシェル操作は隔離ネットワークに限定してください．
+
+詳細なタスク別ページとして，`/man/workflows`，`/man/limits`，`/man/c-examples`，`/man/asm-examples`，`/man/python-examples`，`/man/syscalls`，`/man/troubleshooting`も用意しています．LLMは必ず処理系の制限と非対話型の実行例を確認してください．

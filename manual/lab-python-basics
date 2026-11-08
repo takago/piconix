@@ -1,0 +1,22 @@
+PYTHON LAB 1 - ARITHMETIC, LOOP, CONDITIONAL
+
+The built-in interpreter is a small Python-like subset, NOT CPython.
+Create /tmp/math.py through MCP write_file:
+
+  total = 0
+  for i in range(1, 5):
+      total = total + i
+  print(total)
+  if total == 10:
+      print("OK")
+  else:
+      print("BAD")
+
+Run: python /tmp/math.py
+Expected two output lines: 10 and OK.
+
+Use spaces for indentation and script file invocation through MCP.
+Never launch interactive 'python' without a file over execute_command.
+No import, def, classes, dictionaries, modules or list comprehension.
+Source <=2048 B, <=64 nonempty lines, <=16 variables.
+See /man/languages/python for other limits.

@@ -1,0 +1,43 @@
+FAILURE TRIAGE FOR MCP AND ON-DEVICE DEVELOPMENT
+
+COMMAND NOT FOUND / INCORRECT FLAGS
+  help COMMAND
+  ls /bin
+  cat /man/README
+PicoNIX is not full Linux; grep -i is not supported in the
+current grep implementation. Use 'grep PATTERN [FILE]'.
+
+CC FAILURE
+  cc: unsupported C syntax or output too large
+  Check <=1024 B source; no #include/global/for/printf;
+  local frame <=256 B, <=16 vars, functions <=16; see /man/languages/c.
+
+ASSEMBLER FAILURE
+  as: invalid instruction, label or size
+  Check Thumb-1 forms, word alignment, branch span, 32 labels,
+  source <=2048 B and output <=2040 code bytes.
+  Do NOT run old /tmp/a.out when as fails.
+
+PYTHON FAILURE
+  python: syntax/runtime error at statement N
+  No import/def/classes/CPython libraries. Check indentation,
+  max 2048 B, 64 lines, 16 vars, string/list limits.
+  A bare 'python' is REPL and must not run in MCP shell.
+
+MCP RESPONSE BREAKS
+  incomplete chunked read = connection closed mid-response.
+  May be intermittent with heavy output. Reduce to bounded
+  hexdump /dev/shm 0 64 or trace show; check ps and network.
+  State-changing command may have already taken effect: verify
+  current state before retrying.
+
+NO TASK SLOTS
+  ps shows occupied slots. Six user slots total.
+  mcpd -> sh -> command can consume several simultaneously.
+  Do not kill mcpd if remote access is the only control path.
+
+NO OUTPUT / TIMEOUT
+  Check command requires a TTY or keeps running (mem, watch,
+  gpio, python REPL, trace follow, servers).
+  Replace with a short noninteractive inspection command.
+  Command can exceed MCP 3-second timeout or 4096-byte output.

@@ -1,0 +1,58 @@
+LLM TASK RECIPES (READ-ONLY FIRST)
+
+A. Discover capability
+  get_manual() -> get_manual(topic='devices') -> help pwmctl
+  ps
+  ip
+  pins
+Read only the relevant page. A missing Linux option is not a bug.
+
+B. Compile a C program
+  get_manual(topic='languages/c')
+  get_manual(topic='c-examples')
+  write_file(path='/tmp/demo.c', content='...')
+  cc /tmp/demo.c
+  cat /tmp/demo.s
+  as /tmp/demo.s
+  /tmp/a.out
+Check compiler and assembler success independently; as always
+replaces /tmp/a.out. cc accepts no #include. Keep source <=1024 B.
+
+C. Assemble hand-written Thumb-1
+  get_manual(topic='languages/asm')
+  write_file(path='/tmp/demo.s', content='...')
+  as /tmp/demo.s
+  /tmp/a.out
+Use only implemented instructions; emitted PNX1 binary is PIC.
+
+D. Run a Python-like script without a REPL
+  get_manual(topic='languages/python')
+  write_file(path='/tmp/demo.py', content='print(1 + 2)\n')
+  python /tmp/demo.py
+Do not launch bare 'python' via MCP: that enters a REPL.
+
+E. Inspect memory
+  ps
+  mem -s
+  mem -s sh
+  hexdump /dev/shm 0 64
+  hexdump /dev/mem 0x20000000 32
+Read /man/memory before using hardware addresses. /dev/mem
+requires offset + count; addresses have architecture meanings.
+
+F. Investigate system calls
+  trace on -s
+  ps
+  trace show
+  trace on
+Use trace on -a only when full internal events are needed.
+trace show disables recording; restore with trace on afterwards.
+
+G. Device control after user authorization
+  pins
+  pwmctl status
+  pwmctl freq 523
+  pwmctl status
+  pwmctl off
+Never change assigned communication pins or drive outputs before
+checking owners and connected hardware. See /man/devices.

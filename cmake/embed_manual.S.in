@@ -1,0 +1,6 @@
+/* Index and UTF-8 manual pages in one ROM-only .manual section. */
+.section .manual,"a",%progbits
+.balign 4
+.incbin "@PICONIX_MAN_BIN@"
+.balign 4
+.section .note.GNU-stack,"",%progbits

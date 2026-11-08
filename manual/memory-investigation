@@ -1,0 +1,39 @@
+MEMORY FORENSICS: IDENTIFY BEFORE READING
+
+The RP2040 has Flash XIP code and SRAM for kernel state and users.
+Pico W commonly reserves six 24-KiB user slots; each slot also
+contains a reserved 4-KiB stack. Verify actual layout per build.
+Never infer a live PID's slot from its PID number.
+
+READ-ONLY START
+  ps
+  cat /proc/memory
+  cat /proc/ramfiles
+  lsof
+  ls /proc/sym
+  grep pwm /proc/sym/kernel
+  mem -s kernel
+
+BOUNDED READS
+  hexdump /dev/shm 0 64
+  hexdump /tmp/a.out 0 64
+  hexdump /dev/mem 0x2000e000 32
+Last address is the FIRST slot's start in an example Pico W map,
+NOT the automatically determined address of a particular task.
+Confirm allocation using the current memory report before probing.
+
+HEXDUMP FORMAT
+  2000e000  01 02 ...  | ...
+Left: byte address/offset. Middle: unsigned byte values in hex.
+Right: printable ASCII only; '.' means nonprintable, not corruption.
+Each output line covers up to 16 bytes. 64 source bytes usually
+expand to several hundred text bytes. MCP output is capped at 4 KiB.
+An all-zero area does not prove a free region, and an ASCII string
+does not prove a valid pointer or object.
+
+REPEATABILITY
+  Capture a short range twice, comparing specific offsets.
+  If bytes change, consider counters, stack, concurrent task I/O or
+  live buffers before alleging memory corruption.
+  Never write /dev/mem as a diagnostic shortcut. Unsafe reads may
+  fault if a range is invalid or inaccessible.

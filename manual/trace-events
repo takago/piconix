@@ -1,0 +1,41 @@
+TRACE RECORD FIELDS AND EVENT INTERPRETATION
+
+Current trace.c column headings:
+  Time  PID  Command  TTY  Type  Function  Arg  Ret  Info
+Time is the captured event timestamp; PID identifies the displayed
+process; Command is the mapped /bin image when known; TTY may be
+console, ttyS1 or ttyN0. Unknown executable IDs may show '?'.
+Do not interpret a missing name as a failed operation.
+
+TYPE / FUNCTION
+  SYSCALL  name    entering the system-call wrapper
+  SYSCALL  name/   returning from that syscall
+  KERNEL   func    instrumented kernel-function entry
+  KERNEL   func/   kernel-function return
+  SWITCH   SWITCH  scheduler transition; Info is old -> new PID
+  TIMER    TICKx1K  SysTick event
+  OTHER    UNKNOWN  unrecognized event code
+
+The '/' after Function marks a return, NOT a file path. Indentation
+is a display-only nesting view, not an actual stack dump. The trace
+renderer can combine same-timestamp function entry/exit pairs.
+
+ARG / RET / INFO
+  Arg: a numeric syscall argument, FD target, pathname prefix, or
+       program name depending on the syscall. It is not always a
+       complete argument list.
+  Ret: '--' at entry, actual signed return at syscall exit.
+  Info: up to 16 data bytes for selected read/write exits; '--'
+        otherwise. A preview does not guarantee complete payload.
+  File names are cached in a small table and may be truncated.
+  Tracing records are finite: overwritten events may be reported.
+
+EXAMPLE, ILLUSTRATIVE (not a captured hardware log)
+  ... SYSCALL open     /tmp/x       --  --
+  ... SYSCALL open/    /tmp/x        3  --
+  ... SYSCALL read     3            --  --
+  ... SYSCALL read/    3             0  --
+The open returned FD 3; read returned EOF (0), not an error.
+A negative result on read/open is an error indicator; inspect the
+preceding operation, FD lifetime, path and permissions/availability.
+Use /man/trace-investigation for the repeatable debugging workflow.

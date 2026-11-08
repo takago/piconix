@@ -5,6 +5,7 @@
 enum {
     DEV_CONSOLE = 0,
     DEV_FB = 128,
+    DEV_FBCHAR = 146,
     DEV_UART1 = 30,
     DEV_WIFI_TTY = 97,
     DEV_WIFI_CTRL = 138,
@@ -20,6 +21,7 @@ enum {
 #define PICONIX_FIXED_DEVICES(X) \
     X("/dev/console", DEV_CONSOLE) \
     X("/dev/gpio/fb", DEV_FB) \
+    X("/dev/fbchar", DEV_FBCHAR) \
     X("/dev/ttyS1", DEV_UART1) \
     X("/dev/rand", DEV_RAND) \
     X("/dev/mem", DEV_MEM) \

@@ -1,0 +1,23 @@
+PYTHON LAB 5 - UDP SEND (ONLY WITH AUTHORIZATION)
+
+Network operations can affect actual devices. Inspect /man/network,
+check the target service and obtain authorization before sending.
+Create /tmp/udp.py:
+
+  s = socket(2)
+  if s < 0:
+      print("socket failed")
+  else:
+      n = sendto(s, "hello", "127.0.0.1", 9000)
+      print(n)
+      close(s)
+
+Run: python /tmp/udp.py
+Expected: byte count or error status, NOT proof of UDP reception.
+
+In this interpreter numeric socket(2) means datagram; names such as
+SOCK_DGRAM are not automatically defined Python expression values.
+127.0.0.1 is loopback. Port 9000 is an EXAMPLE, not a guaranteed
+listener. Do not send to UDP 2000 without verifying device-control
+protocol and user intent. For interactive/blocking servers, use a
+physical terminal instead of MCP's 3-second execute_command.

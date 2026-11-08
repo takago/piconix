@@ -1,0 +1,51 @@
+FRAMEBUFFER / LED MATRIX CONTROL AND VERIFICATION
+
+Current fbctl.c commands:
+  fbctl status      read /proc/fb
+  fbctl on          enable matrix framebuffer
+  fbctl off         disable and release GPIO resources
+  fbctl clear       clear framebuffer
+  fbctl test        blink heart three times
+
+The 8x8 LED matrix uses GPIO resources also used by display demos.
+Beware simultaneous use by fbctl, scroll and other programs.
+
+READ-ONLY START
+  pins
+  fbctl status
+  help fbctl
+
+ILLUSTRATIVE CONTROL (explicitly approved only)
+  fbctl on
+  fbctl clear
+  fbctl status
+  fbctl off
+'clear' and 'off' change display state; they are not read-only.
+The test animation is intentionally visible and changes the LEDs.
+
+SCROLL
+  echo HELLO | scroll
+This finite stdin pipeline is preferable to 'scroll -u 2001',
+which starts a long-running UDP listener. A foreground scrolling
+operation may still exceed MCP's 3-second command timeout.
+Avoid starting long-running UI or server programs through MCP.
+
+TROUBLESHOOTING
+  No LEDs: examine pins, /proc/fb, board orientation/polarity,
+  framebuffer ownership and physical power/wiring.
+  Unexpected patterns: check whether a prior demo is active.
+  Do not treat successful command exit as proof of optical output.
+
+
+FBCHAR fixed-display device (/dev/fbchar)
+----------------------------------------
+Write exactly one printable ASCII character (32..126), or one of the
+case-sensitive pattern names: heart, star, smile, sad, up, down, left,
+right, check, cross, clear. The command `echo A > /dev/fbchar` displays
+A; `echo heart > /dev/fbchar` draws a heart; `echo clear > /dev/fbchar`
+clears the 8x8 matrix. The display persists after close(). The device rejects unknown names and does not scroll text.
+Read with `cat /dev/fbchar` to list available patterns and usage;
+the listing is finite and does not change the display.
+Unlike /dev/gpio/fb (8 binary bytes), /dev/fbchar accepts ASCII.
+Do not run scroll or other framebuffer writers concurrently. Python
+may open the device for writing and call write(fd, "heart").

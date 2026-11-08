@@ -1,0 +1,39 @@
+LLM DIAGNOSTIC DECISION TREE
+
+1) MCP TOOL FAILED TO RUN
+  Is mcpd started with --shell? Run tools/list.
+  Is the command noninteractive and <3 seconds?
+  Are all six process slots occupied? ps on console.
+
+2) COMMAND RETURNS usage:
+  Run help COMMAND. Most PicoNIX commands have fewer switches
+  than GNU equivalents; grep has no -i and no regex mode.
+
+3) FILE NOT FOUND / CANNOT OPEN
+  ls /tmp ; ls /man ; pwd
+  Ensure program is in /bin or RAM file exists.
+  /proc, /man, /dev and /tmp have different semantics.
+
+4) C/ASM BUILD FAILED
+  get_manual(topic='languages/c') and get_manual(topic='c-debug')
+  Check output filename /tmp/foo.s, source size, Thumb-1 forms.
+  'cc' success is NOT an executable until 'as' succeeds.
+
+5) PYTHON PROGRAM FAILED
+  get_manual(topic='languages/python') and get_manual(topic='python-debug')
+  Remove CPython-only imports, methods, defs or classes.
+  Check 16 vars, 64 lines, 2048 source bytes, pool limit.
+
+6) APPLICATION RUNS BUT NOT EXPECTED RESULT
+  Check input/result sizes and return values; trace on -s,
+  execute one short operation; trace show, then trace on.
+  Inspect ps/lsof and bounded memory.
+
+7) NETWORK / MCP STREAM INTERRUPTED
+  HTTP incomplete chunked read is transport incomplete, not
+  necessarily command abort. Reconnect, inspect state, and only
+  repeat safe reads. For large output use smaller chunks.
+
+8) DEVICE DID NOT RESPOND
+  Check pins, supply/wiring, I2C address, PWM channel and
+  shared frequency. Do not randomly write registers or GPIO.

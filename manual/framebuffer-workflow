@@ -1,0 +1,33 @@
+LED MATRIX / FRAMEBUFFER CONTROL
+
+The teaching board has an 8x8 LED matrix. Multiple programs may
+compete for its GPIOs; stop conflicting demos before changes.
+
+INSPECT
+  pins
+  help fbctl
+  fbctl status
+
+BOUNDED OPERATIONS
+  fbctl on
+  fbctl clear
+  fbctl test
+  fbctl off
+Run a state-changing operation only after approval and verify
+when possible. Test patterns may temporarily take over LEDs.
+
+TEXT SCROLLING
+  echo HELLO | scroll
+  scroll -u 2001       UDP listener; long-running
+Simple stdin piping is preferable to starting a UDP server via
+MCP. Still verify the foreground command completes within the
+MCP tool timeout before relying on it.
+
+INTERACTIVE EDITORS
+  fbed, gpio, mem, vi, edit, fd and watch use a terminal.
+  Never start these in MCP execute_command.
+
+LIMITATIONS
+  Framebuffer control and text scroll may claim the matrix pins.
+  A second app can conflict or cause unexpected appearance.
+  Check /dev/fb availability and console before operation.

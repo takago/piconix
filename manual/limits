@@ -1,0 +1,41 @@
+IMPLEMENTATION LIMITS (NOT POSIX / NOT CPYTHON)
+
+Execution and RAM
+  6 user-process slots; each slot 24 KiB including 4 KiB stack.
+  MCP execute_command itself uses sh and a child program.
+  File descriptors are limited (typically 16 per process).
+  RAM FS files are small: max 2048 bytes; check free space.
+
+MCP shell mode
+  execute_command <=119 ASCII bytes; output capped at 4096 B;
+  typical command timeout 3000 ms; no PTY for full-screen tools.
+  write_file: /tmp/NAME ASCII only, <=2048 B, overwrites file.
+  get_manual: individual ROM pages via topic; not all pages at once.
+
+C compiler cc
+  source 1024 B; generated assembly buffer 4096 B;
+  up to 16 functions; up to 4 parameters per function;
+  up to 16 variables per function; local frame <=256 B;
+  up to 64 elements per local array; no full C stdlib/preprocessor.
+  A large generated .s may exceed as input capacity.
+
+Assembler as
+  source <=2048 B; output code <=2040 B + 8-byte PNX1 header;
+  up to 32 local labels; only implemented subset of Thumb-1.
+  Destination is /tmp/a.out.
+
+Python-like interpreter
+  script <=2048 B; <=64 nonempty lines; no tabs for indentation;
+  <=16 variables; identifiers stored in max 15 characters;
+  string <=64 bytes; list/bytes <=64 elements;
+  shared value pool 256 32-bit words; block nesting <=8;
+  while/for iterations each <=10000; msleep <=60000 ms.
+
+These constraints are from current source, not a stable API contract.
+Read /man/languages/c, /man/languages/asm, /man/languages/python
+before generating code. If tool reports failure, inspect first.
+
+IMPORTANT: 56 KiB kernel is RESERVED SRAM REGION, not measured used
+bytes. Six process slots and eleven RAM-file entries are separate.
+RAM files max 2048 bytes each; cc may generate .s >2048 bytes even
+from a C source <=1024 bytes. See process-resources and c-debug.

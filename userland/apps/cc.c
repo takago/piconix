@@ -12,8 +12,9 @@
 
 #define SOURCE_MAX 1024
 #define ASM_MAX 4096
+#define ASM_FILE_MAX 2048 /* RAM file and as source limit */
 static char source[SOURCE_MAX+1], output[ASM_MAX+1];
-static int at, used, labels, failed, nvars;
+static int at, used, labels, failed, nvars, output_overflow;
 static int function_end, function_void;
 static char functions[16][20], calls[32][20];
 static int function_args[16], call_args[32], param_kinds[16][4], call_kinds[32][4], nfunctions, ncalls, have_main;
@@ -71,13 +72,13 @@ static void emit(const char *s) {
                 }
             }
             if(*s!='.' && !label) {
-                if(used+2>=ASM_MAX){failed=1;return;}
+                if(used+2>=ASM_MAX){failed=1;output_overflow=1;return;}
                 output[used++]=' ';
                 output[used++]=' ';
             }
             line_start=0;
         }
-        if(used+1>=ASM_MAX){failed=1;return;}
+        if(used+1>=ASM_MAX){failed=1;output_overflow=1;return;}
         output[used++]=*s;
         if(*s=='\n')line_start=1;
         s++;
@@ -183,6 +184,23 @@ static void array_address(int index) {
     if(size==4)emit("adds r0, r0\nadds r0, r0\n");
     emit("pop {r1}\nadds r0, r1\n");
 }
+/* Increment/decrement an int local. r0 holds old or new expression value.
+ * Pointers, arrays and char lvalues are intentionally unsupported. */
+static void incdec(int index,int delta,int postfix) {
+    if(arrays[index] || ptrs[index] || types[index]!=4) { failed=1; return; }
+    local_access("ldr",0,index);
+    emit(delta>0 ? "adds r0, #1\n" : "subs r0, #1\n");
+    local_access("str",0,index);
+    if(postfix) emit(delta>0 ? "subs r0, #1\n" : "adds r0, #1\n");
+    value_ptr=0;
+}
+/* Parse ++ or -- as a single token, never as two unary operators. */
+static int step_token(void) {
+    ws();
+    if(source[at]=='+' && source[at+1]=='+') { at+=2; return 1; }
+    if(source[at]=='-' && source[at+1]=='-') { at+=2; return -1; }
+    return 0;
+}
 static void load_element(int index) {
     array_address(index);
     emit((ptrs[index]?ptrs[index]:types[index])==1?"ldrb r0, [r0, #0]\n":"ldr r0, [r0, #0]\n");
@@ -235,6 +253,8 @@ static void primary(void) {
             identifier(name);ws();
             if(source[at]=='(') {function_call(name);value_ptr=0;return;}
             int i=variable(name);
+            int post=step_token();
+            if(post) { incdec(i,post,1); return; }
             if(source[at]=='[' || (ws(),source[at]=='[')) {load_element(i);value_ptr=0;}
             else if(arrays[i]){address(i);value_ptr=types[i];}
             else if(types[i]==1 && !ptrs[i]){address(i);emit("ldrb r0, [r0, #0]\n");value_ptr=0;}
@@ -242,7 +262,9 @@ static void primary(void) {
         } else {constant(integer());value_ptr=0;}}
 }
 static void unary(void) {
-    if(token('+'))unary();
+    int step=step_token();
+    if(step) { char name[20]; identifier(name); incdec(variable(name),step,0); }
+    else if(token('+'))unary();
     else if(token('-')){unary();if(value_ptr)failed=1;emit("movs r1, #0\nsubs r1, r0\nmov r0, r1\n");}
     else if(token('&')) {
         char name[20];identifier(name);int i=variable(name);
@@ -315,6 +337,9 @@ static void block(void) {
     need('{');while(!failed){ws();if(token('}'))return;if(!source[at]){failed=1;return;}statement();}
 }
 static void statement(void) {
+    /* Support ++i; and --i; as standalone statements. */
+    int step=step_token();
+    if(step) { char name[20]; identifier(name); incdec(variable(name),step,0); need(';'); return; }
     int type=word("int")?4:(word("char")?1:0);
     if(type) {
         int ptr=token('*')?type:0;
@@ -371,6 +396,8 @@ static void statement(void) {
         char name[20];identifier(name);ws();
         if(source[at]=='(') {function_call(name);need(';');return;}
         int slot=variable(name);
+        int post=step_token();
+        if(post) { incdec(slot,post,1); need(';'); return; }
         int indexed=token('[');if(indexed){at--; /* defer index parsing until RHS */}
         if(indexed){ /* preserve index address across expression evaluation */
             array_address(slot);emit("push {r0}\n");need('=');expression(0);
@@ -505,10 +532,22 @@ int main(int argc,char **argv) {
     int n=read(fd,source,SOURCE_MAX);char extra;int overflow=read(fd,&extra,1);close(fd);
     if(n<=0||overflow>0){puts("cc: source exceeds 1024 bytes or is empty");return 1;}
     source[n]=0;
-    if(compile()<0){puts("cc: unsupported C syntax or output too large");return 1;}
+    if(compile()<0){
+        puts(output_overflow ? "cc: generated assembly exceeds internal buffer (4096 bytes)" :
+                               "cc: unsupported C syntax or compiler limit");
+        return 1;
+    }
+    if(used>ASM_FILE_MAX){
+        puts("cc: generated assembly exceeds RAM file limit (2048 bytes)");
+        return 1;
+    }
     fd=open(dest,O_WRONLY|O_CREAT|O_TRUNC);
     if(fd<0){puts("cc: cannot create assembly file");return 1;}
     int ok=write(fd,output,(size_t)used)==used;close(fd);
-    if(!ok){puts("cc: write failed");return 1;}
+    if(!ok){
+        unlink(dest); /* never leave truncated assembly behind */
+        puts("cc: cannot write complete assembly file (removed partial output)");
+        return 1;
+    }
     printf("cc: %d bytes -> %s\n",used,dest);return 0;
 }

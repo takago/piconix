@@ -10,6 +10,8 @@
 #include "../lib/screen.h"
 
 #define MAX_ENTRIES 48
+#define FILTER_CAP 32
+#define TEXT_FIND_CAP 32
 #define PATH_CAP 128
 #define VIEW_CAP 2048
 #define MIN_ROWS 12
@@ -18,10 +20,14 @@
 
 typedef struct { char name[32]; unsigned char dir; } entry_t;
 static entry_t entries[MAX_ENTRIES];
-static char current[PATH_CAP]="/tmp";
+static char current[PATH_CAP];
 static char path[PATH_CAP];
 static char file_data[VIEW_CAP+1], old_data[VIEW_CAP+1];
-static int count, selected, scroll, total_entries, rows=24, cols=80;
+static int count, selected, scroll, total_entries, list_offset, rows=24, cols=80;
+static char filter[FILTER_CAP], filter_saved[FILTER_CAP];
+static int searching;
+static char text_find[TEXT_FIND_CAP], text_saved[TEXT_FIND_CAP];
+static int text_searching, found_line=-1;
 static int original_canon=-1, original_echo=-1, original_flags=-1;
 static int mode_view, old_len=-1, old_error=1;
 static int view_top, view_lines, view_more, old_more, old_top=-1;
@@ -73,6 +79,79 @@ static void parent_dir(void) {
     current[n]=0;
 }
 
+/* ASCII大文字・小文字を区別せず，名前の一部との一致を判定する． */
+static int name_matches(const char *name) {
+    if(!filter[0])return 1;
+    for(int i=0;name[i];i++){
+        int j=0;
+        while(filter[j]&&name[i+j]){
+            char a=name[i+j],b=filter[j];
+            if(a>='A'&&a<='Z')a=(char)(a+('a'-'A'));
+            if(b>='A'&&b<='Z')b=(char)(b+('a'-'A'));
+            if(a!=b)break;
+            j++;
+        }
+        if(!filter[j])return 1;
+    }
+    return 0;
+}
+
+/* ASCII大文字・小文字を区別せずに文字を比較する． */
+static unsigned char lower_ascii(unsigned char c) {
+    return c>='A' && c<='Z' ? (unsigned char)(c+('a'-'A')) : c;
+}
+
+/* テキストを逐次走査して検索する．全体をRAMへ展開しない．
+ * direction=1 は現在行から前方，-1 は現在行より前方の最後の一致を探す．
+ * 最後まで一致しなければ先頭へ折り返す．検索は行単位の部分一致． */
+static int find_text_line(int from,int direction) {
+    int len=(int)strlen(text_find);
+    if(!len)return -1;
+    int fd=open(path,O_RDONLY);
+    if(fd<0)return -1;
+    char block[128], window[TEXT_FIND_CAP];
+    int line=0, used=0, first=-1, last=-1, first_after=-1, last_before=-1;
+    int n;
+    while((n=read(fd,block,sizeof(block)))>0) {
+        for(int i=0;i<n;i++) {
+            unsigned char c=(unsigned char)block[i];
+            if(c=='\n') {line++;used=0;continue;}
+            if(c=='\r')continue;
+            if(used<len)window[used++]=(char)lower_ascii(c);
+            else {
+                for(int j=1;j<len;j++)window[j-1]=window[j];
+                window[len-1]=(char)lower_ascii(c);
+            }
+            if(used==len) {
+                int ok=1;
+                for(int j=0;j<len;j++)
+                    if(window[j]!=lower_ascii((unsigned char)text_find[j])){ok=0;break;}
+                if(ok) {
+                    if(first<0)first=line;
+                    last=line;
+                    if(line>=from && first_after<0)first_after=line;
+                    if(line<from)last_before=line;
+                    /* 同一行の一致を重複して記録しても結果は変わらない． */
+                }
+            }
+        }
+    }
+    close(fd);
+    if(n<0)return -1;
+    if(direction>0)return first_after>=0?first_after:first;
+    return last_before>=0?last_before:last;
+}
+
+static void refresh_view(void);
+
+/* ビューア内の検索結果へ移動する．見つからない場合は現在位置を保持する． */
+static void go_to_match(int from,int direction) {
+    int line=find_text_line(from,direction);
+    if(line>=0){view_top=line;found_line=line;old_len=-1;}
+    else found_line=-1;
+    refresh_view();
+}
+
 /* getdentsでディレクトリを列挙し，表示用の項目を保持する． */
 static int directory_load(void) {
     int fd=open(current,O_RDONLY);
@@ -84,7 +163,8 @@ static int directory_load(void) {
         if(!strcmp(e.name,".")) continue;
         if(!strcmp(e.name,"..") && !strcmp(current,"/"))
             continue;
-        ++total_entries;
+        if(filter[0] && (!strcmp(e.name,"..") || !name_matches(e.name)))continue;
+        if(total_entries++ < list_offset)continue;
         if(count<MAX_ENTRIES) {
             int k=count++;
             snprintf(entries[k].name,sizeof(entries[k].name),"%s",e.name);
@@ -98,13 +178,17 @@ static int directory_load(void) {
 }
 
 /* 現在ディレクトリのエントリをVFSから読み直し，選択位置を更新する． */
-static void refresh_dir(void){count=0;selected=0;scroll=0;notice="";if(directory_load()<0)notice="Cannot open directory";}
+static void refresh_dir(void){
+    count=0;selected=0;scroll=0;notice="";
+    if(directory_load()<0){notice="Cannot open directory";return;}
+    if(!count && list_offset>0){list_offset=0;directory_load();}
+}
 
 /* ファイル一覧と選択位置を端末画面へ表示する． */
 static void draw_dir(void) {
     char title[112];clipped(title,current,cols-15);
     printf("\033[?25l\033[H\033[2J\033[7m PicoNIX fd  %s\033[K\033[0m",title);
-    screen_move(2,1);printf(" Enter: open   e: edit   Backspace: parent   r: reload   q: quit\033[K");
+    screen_move(2,1);printf(" Enter: open  /: find  e: edit  Backspace: parent  q: quit\033[K");
     int visible=rows-5;
     if(selected<scroll)scroll=selected;
     if(selected>=scroll+visible)scroll=selected-visible+1;
@@ -120,15 +204,19 @@ static void draw_dir(void) {
         } else printf("\033[K");
     }
     screen_move(rows-1,1);
-    if(total_entries>MAX_ENTRIES)printf(" Showing first %d of %d entries\033[K",count-(strcmp(current,"/")!=0),total_entries);
+    if(total_entries>MAX_ENTRIES || list_offset)
+        printf(" %d-%d / %d entries (Up/Down: next page)\033[K",count?list_offset+1:0,list_offset+count,total_entries);
     else printf(" %d entries\033[K",count);
-    screen_move(rows,1);printf(" %s\033[K",notice);
+    screen_move(rows,1);
+    if(searching)printf(" Find: %s_  (Enter: apply  Esc: cancel)\033[K",filter);
+    else if(filter[0])printf(" Find: %s  (/: edit  c: clear)\033[K",filter);
+    else printf(" %s\033[K",notice);
 }
 
 /* 既知のテキスト系ファイルだけを閲覧する．/devのreadは消費的・待機的・バイナリの場合があるため実行しない． */
 static int safe_view(const char *p) {
     return !strncmp(p,"/tmp/",5) || !strncmp(p,"/etc/",5) ||
-           !strncmp(p,"/proc/",6);
+           !strncmp(p,"/proc/",6) || !strncmp(p,"/man/",5);
 }
 
 /* ファイルの対象範囲を読み取り，現在のページ表示を準備する． */
@@ -143,7 +231,7 @@ static int view_load(void){
     view_more=0;
     int line=0, x=0, n=0, error=0, done=0;
     long byte_offset=0;
-    int indexed=!strcmp(path,"/proc/sym/kernel") && indexed_lines>0;
+    int indexed=(!strcmp(path,"/proc/sym/kernel") || !strncmp(path,"/man/",5)) && indexed_lines>0;
     if(indexed) {
         /* 古いカーネルはseekに未対応の場合があるので，実際に試して判定する． */
         if(lseek(fd,0,SEEK_CUR)<0)
@@ -198,12 +286,31 @@ static int view_load(void){
     return n;
 }
 
+/* 表示行の検索語だけを反転表示する． */
+static void print_matched_line(char *line) {
+    int len=(int)strlen(text_find);
+    if(!len){printf("%s",line);return;}
+    char *start=line, *p=line;
+    while(*p) {
+        int j=0;
+        while(j<len && p[j] && lower_ascii((unsigned char)p[j])==
+              lower_ascii((unsigned char)text_find[j]))j++;
+        if(j==len) {
+            char saved=*p;*p=0;printf("%s",start);*p=saved;
+            saved=p[len];p[len]=0;
+            printf("\033[7m%s\033[0m",p);
+            p[len]=saved;p+=len;start=p;
+        } else p++;
+    }
+    printf("%s",start);
+}
+
 /* 現在のファイルページを端末へ描画する． */
 static void paint_view(int len,int error){
     char title[112];clipped(title,path,cols-15);
     printf("\033[?25l\033[H\033[2J\033[7m PicoNIX fd: %s\033[K\033[0m",title);
     screen_move(2,1);
-    printf(" Up/Down: scroll   PgUp/PgDn: page   e: edit   q/Esc: back\033[K");
+    printf(" Up/Down: scroll  /: search  n/N: next/prev  q/Esc: back\033[K");
     int y=3;
     if(error){screen_move(y,1);printf(" Cannot read file\033[K");}
     else {
@@ -212,7 +319,7 @@ static void paint_view(int len,int error){
             if(i==len || file_data[i]=='\n'){
                 if(i>start || i<len){
                     char saved=file_data[i];file_data[i]=0;
-                    screen_move(y++,1);printf("%s\033[K",file_data+start);
+                    screen_move(y++,1);print_matched_line(file_data+start);printf("\033[K");
                     file_data[i]=saved;
                 } else if(i==len && len==0) { /* 空ファイルまたはEOFを越えた位置． */ }
                 start=i+1;
@@ -222,7 +329,12 @@ static void paint_view(int len,int error){
     while(y<rows-1){screen_move(y++,1);printf("\033[K");}
     screen_move(rows-1,1);
     printf(" Line %d%s   (%d lines shown)\033[K",view_top+1,view_more?" +":" (end)",view_lines);
-    screen_move(rows,1);printf(" Live refresh: 1 s   Read-only; /dev is not previewed\033[K");
+    screen_move(rows,1);
+    if(text_searching)printf(" Search text: %s_  (Enter: find  Esc: cancel)\033[K",text_find);
+    else if(text_find[0])printf(" Search: %s   %s   (n: next  N: previous)\033[K",text_find,
+                                found_line>=0?"match":"not found");
+    else if(!strncmp(path,"/man/",5))printf(" ROM manual (read-only)\033[K");
+    else printf(" Live refresh: 1 s   Read-only; /dev not previewed\033[K");
 }
 
 /* ファイルの表示領域を読み直す．固定長バッファ内だけを表示に使う． */
@@ -287,7 +399,9 @@ static int key_event(int c,int *state){
 /* 端末を設定してファイルブラウザの操作ループを実行する． */
 int main(int argc,char **argv){
     if(argc>2){puts("usage: fd [directory]");return 1;}
-    if(argc==2){
+    if(argc==1){
+        if(!getcwd(current,sizeof current)){puts("fd: cannot get cwd");return 1;}
+    } else {
         if(argv[1][0]=='/'){
             if(strlen(argv[1])>=PATH_CAP){puts("fd: path too long");return 1;}
             strcpy(current,argv[1]);
@@ -322,10 +436,16 @@ int main(int argc,char **argv){
         int n=read(0,&c,1);
         if(n==OS_EAGAIN||n==0){
             msleep(20);
-            if(state==1&&++idle>=3){state=0;if(mode_view){mode_view=0;draw_dir();}else {parent_dir();refresh_dir();draw_dir();}}
+            if(state==1&&++idle>=3){
+                state=0;
+                if(text_searching){strcpy(text_find,text_saved);text_searching=0;old_len=-1;refresh_view();}
+                else if(searching){strcpy(filter,filter_saved);searching=0;list_offset=0;refresh_dir();draw_dir();}
+                else if(mode_view){mode_view=0;draw_dir();}
+                else {parent_dir();list_offset=0;filter[0]=0;refresh_dir();draw_dir();}
+            }
             else if(n==OS_EAGAIN||n==0){
                 static unsigned elapsed;
-                if(mode_view&&++elapsed>=50){elapsed=0;refresh_view();}
+                if(mode_view && !text_searching && strncmp(path,"/man/",5) && ++elapsed>=50){elapsed=0;refresh_view();}
             }
             continue;
         }
@@ -333,8 +453,28 @@ int main(int argc,char **argv){
         if(n<0)break;
         int key=key_event((unsigned char)c,&state);
         if(!key)continue;
-        if(key==3||key=='Q'){active=0;break;}
+        if(key==3||(!searching && !text_searching && !mode_view && key=='Q')){active=0;break;}
+        if(text_searching){
+            if(key==27){strcpy(text_find,text_saved);text_searching=0;old_len=-1;refresh_view();}
+            else if(key=='\r'||key=='\n'){
+                text_searching=0;
+                if(text_find[0])go_to_match(view_top,1);
+                else {found_line=-1;old_len=-1;refresh_view();}
+            } else if(key==8||key==127){int k=(int)strlen(text_find);if(k>0){text_find[k-1]=0;old_len=-1;refresh_view();}}
+            else if(key>=32&&key<=126 && strlen(text_find)<TEXT_FIND_CAP-1){int k=(int)strlen(text_find);text_find[k]=(char)key;text_find[k+1]=0;old_len=-1;refresh_view();}
+            continue;
+        }
+        if(searching){
+            if(key==27){strcpy(filter,filter_saved);searching=0;list_offset=0;refresh_dir();draw_dir();}
+            else if(key=='\r'||key=='\n'){searching=0;list_offset=0;refresh_dir();draw_dir();}
+            else if(key==8||key==127){int n=(int)strlen(filter);if(n>0){filter[n-1]=0;list_offset=0;refresh_dir();draw_dir();}}
+            else if(key>=32&&key<=126 && strlen(filter)<FILTER_CAP-1){int n=(int)strlen(filter);filter[n]=(char)key;filter[n+1]=0;list_offset=0;refresh_dir();draw_dir();}
+            continue;
+        }
         if(mode_view){
+            if(key=='/') {strcpy(text_saved,text_find);text_searching=1;old_len=-1;refresh_view();continue;}
+            if(key=='n'&&text_find[0]){go_to_match(view_top+1,1);continue;}
+            if(key=='N'&&text_find[0]){go_to_match(view_top,-1);continue;}
             if(key==1001 && view_top>0){view_top--;refresh_view();continue;}
             if(key==1002 && (view_more || view_lines>1)){
                 if(view_more){view_top++;refresh_view();}
@@ -355,23 +495,34 @@ int main(int argc,char **argv){
             continue;
         }
         if(key=='q'){active=0;break;}
+        if(key=='/'){strcpy(filter_saved,filter);searching=1;draw_dir();continue;}
+        if(key=='c' && filter[0]){filter[0]=0;list_offset=0;refresh_dir();draw_dir();continue;}
         if(key=='r'){refresh_dir();draw_dir();continue;}
-        if(key==8||key==127||key==27||key==1004){parent_dir();refresh_dir();draw_dir();continue;}
-        if(key==1001&&selected>0){selected--;draw_dir();continue;}
-        if(key==1002&&selected+1<count){selected++;draw_dir();continue;}
+        if(key==8||key==127||key==27||key==1004){parent_dir();list_offset=0;filter[0]=0;refresh_dir();draw_dir();continue;}
+        if(key==1001){
+            if(selected>0)selected--;
+            else if(list_offset>0){list_offset-=MAX_ENTRIES;if(list_offset<0)list_offset=0;refresh_dir();selected=count?count-1:0;}
+            draw_dir();continue;
+        }
+        if(key==1002){
+            if(selected+1<count)selected++;
+            else if(list_offset+count<total_entries){list_offset+=count;refresh_dir();}
+            draw_dir();continue;
+        }
         if(key=='e'){if(edit_selected()<0){notice="Only /tmp or /etc files can be edited";draw_dir();}continue;}
         if(key=='\r'||key=='\n'||key==1003){
             if(count==0)continue;
             if(join(current,entries[selected].name,path)<0){notice="Path too long";draw_dir();continue;}
             if(entries[selected].dir){
-                if(!strcmp(entries[selected].name,"..")){parent_dir();refresh_dir();draw_dir();continue;}
+                if(!strcmp(entries[selected].name,"..")){parent_dir();list_offset=0;filter[0]=0;refresh_dir();draw_dir();continue;}
                 char previous[PATH_CAP];strcpy(previous,current);
-                strcpy(current,path);refresh_dir();
-                if(*notice){strcpy(current,previous);refresh_dir();notice="Cannot open directory";}
+                strcpy(current,path);list_offset=0;filter[0]=0;refresh_dir();
+                if(*notice){strcpy(current,previous);list_offset=0;refresh_dir();notice="Cannot open directory";}
                 draw_dir();
             } else if(safe_view(path)){
-                mode_view=1;view_top=0;reset_view_index();old_len=-1;old_error=-1;refresh_view();
-            } else {notice="Preview: /tmp, /etc, /proc only";draw_dir();}
+                mode_view=1;view_top=0;text_find[0]=0;text_searching=0;found_line=-1;
+                reset_view_index();old_len=-1;old_error=-1;refresh_view();
+            } else {notice="Preview: /tmp, /etc, /proc, /man only";draw_dir();}
         }
     }
     screen_leave();

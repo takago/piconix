@@ -1,0 +1,20 @@
+PYTHON LAB 4 - READ THE ONBOARD TEMPERATURE DEVICE
+
+Create /tmp/temp.py:
+
+  fd = open("/dev/adc/temp", 0)
+  if fd < 0:
+      print("sensor unavailable")
+  else:
+      data = read(fd, 32)
+      print(data)
+      close(fd)
+
+Run: python /tmp/temp.py
+Expected: a byte-list containing the device's textual output,
+which depends on hardware and environment. Do not assume a fixed C.
+
+Alternative MCP tool: get_temperature() returns a sensor reading
+without starting a child interpreter. The script teaches the file
+API and the device node. For more precise sensor semantics inspect
+help adc or /man/adc-workflow. Never assume standard Python APIs.

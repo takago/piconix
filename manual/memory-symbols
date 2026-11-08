@@ -1,0 +1,35 @@
+SYMBOL TABLES, ADDRESS SPACES AND OFFSETS
+
+The kernel exposes symbol catalogs under /proc/sym. These are
+NOT automatically mapped onto every executing address space.
+
+EXAMINE
+  ls /proc/sym
+  grep pwm /proc/sym/kernel
+  mem -s kernel
+  mem -s sh
+
+KERNEL VS USER
+  Kernel symbols may be absolute XIP Flash addresses (0x100...)
+  or absolute SRAM addresses (0x200...). Compare only with the
+  exact running firmware image; rebuilds change addresses.
+  User app symbols are slot-relative offsets; add the actual
+  loaded slot base only after identifying the program's slot.
+  'mem -s sh' shows a symbol list; plain 'mem' is interactive.
+
+HOW TO CORRELATE
+  1. Use ps / memory map to identify the task and region.
+  2. Use mem -s APP for the app symbol offset.
+  3. Confirm the actual task slot load base.
+  4. Add offset to slot base, if this is the format in the current
+     app catalog; then inspect a short, valid memory range.
+  5. For kernel XIP symbols, compare an address from the trace or
+     firmware map against /proc/sym/kernel. Do not assume every
+     trace function name supplies a program counter.
+
+WARNINGS
+  Duplicate function names can appear in catalogs from different
+  build units. A name match alone is not a unique location.
+  A disassembly of Thumb code requires correct halfword alignment
+  and Thumb instruction encoding. Raw hexadecimal bytes are not
+  automatically instruction text.

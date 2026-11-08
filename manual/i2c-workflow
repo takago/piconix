@@ -1,0 +1,40 @@
+I2C1 CONTROL - SCAN AND TRANSACTIONS
+
+Device /dev/i2c/1 uses GP26 SDA, GP27 SCL. The i2cctl command
+uses a 7-bit address between 0x08 and 0x77, transfer <=32 B.
+
+DISCOVERY AND VALIDATION
+  pins
+  i2cctl scan              read-based address probing
+  help i2cctl
+
+EXACT COMMANDS (userland/apps/i2cctl.c)
+  i2cctl read ADDR COUNT
+  i2cctl write ADDR BYTE...
+  i2cctl xfer ADDR READ_COUNT [BYTE...]
+  i2cctl scan
+  i2cctl read 0x23 2
+  i2cctl xfer 0x23 2 0x10
+The last two are only examples; they require a compatible device.
+Bytes may be decimal or 0x-prefixed hex. COUNT in 1..32.
+A scan sends a one-byte read to each candidate; it is not a
+zero-length/side-effect-free address probe for all devices.
+
+BEFORE A WRITE
+  1) verify sensor identity, supply and 7-bit address;
+  2) read its data sheet for command/register meanings;
+  3) identify whether the target supports raw read vs combined
+     write+read, and any required delay;
+  4) obtain consent before setting registers;
+  5) perform a bounded read to verify.
+
+SENSOR COMMAND
+  bh1750 [count]          example light sensor utility
+  0 count may mean continuous running: avoid through MCP.
+
+PYTHON API
+  i2c_write(fd, addr, list)
+  i2c_read(fd, addr, count)
+  i2c_xfer(fd, addr, list, count)
+  Python APIs require an open device descriptor; consult
+  /man/languages/python for the limited assignment syntax.

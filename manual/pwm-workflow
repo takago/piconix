@@ -1,0 +1,36 @@
+PWM CONTROL - GP18 BUZZER AND GP19 SERVO
+
+On this teaching setup, GP18 connects to a buzzer (channel A) and
+GP19 connects to a servo motor (channel B). Both use PWM slice 1
+and share ONE frequency; changing it affects both devices.
+
+READ FIRST
+  pins
+  pwmctl status
+  help pwmctl
+
+COMMANDS (from userland/apps/pwmctl.c)
+  pwmctl freq HZ        shared frequency, 8..100000 Hz
+  pwmctl a DUTY         GP18 buzzer duty, 0..100 percent
+  pwmctl b DUTY         GP19 servo duty, 0..100 percent
+  pwmctl off            stop both channels' duty
+  pwmctl status         report current configuration
+Duty supports fractional tenths of percent per CLI parser.
+
+READ-ONLY PROCEDURE
+  1) confirm the buzzer on GP18 and servo on GP19;
+  2) run pins and pwmctl status; record frequency and both duties;
+  3) determine servo period, allowable pulse widths and travel range;
+  4) request authorization before ANY frequency/duty change;
+  5) verify command result AND externally observed actuator state.
+  Note: pwmctl off sets BOTH duties to zero, not just one.
+
+PITFALLS
+  There is no independent frequency per channel in slice 1.
+  A 523 Hz audible buzzer tone is NOT a safe servo configuration
+  while GP19 is attached. Servo pulses need a compatible period
+  and width; never assume generic duty values are safe.
+  'pwmctl a 100' is not a harmless diagnostic command.
+  Changing PWM can affect other currently running demos.
+  Use the /dev/pwm/1 virtual files only after reading driver
+  documentation; prefer the tested pwmctl CLI for beginners.

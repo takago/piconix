@@ -4,6 +4,7 @@
 #ifndef PICONIX_DEVICES_H
 #define PICONIX_DEVICES_H
 #include <stddef.h>
+#include <stdint.h>
 #include "../include/piconix_i2c.h"
 void i2c_driver_init(void);
 int i2c_driver_transfer(piconix_i2c_transfer_t *t);
@@ -13,6 +14,8 @@ void fb_tick(void);
 int fb_active(void);
 int fb_ioctl(int cmd);
 int fb_rw(void *p, size_t n, int writing);
+int fb_char_write(const void *p, size_t n);
+int fb_char_read(void *p, size_t n, uint32_t offset);
 int gpio_driver_rw(int kind, unsigned pin, void *p, size_t n, int writing);
 int gpio_driver_ioctl(unsigned pin, int cmd);
 void adc_driver_init(void);

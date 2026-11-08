@@ -54,7 +54,7 @@ for i in range(5):
 close(fd)
 ```
 
-この例はGP25を出力として利用できる標準構成を前提とします．ボード実装によってはGP25がユーザ可視LEDと直結していないため，`/dev/gpio/25`への書込みとLED点灯が必ず一致するとは限りません．GPIOの方向やプル設定は`/dev/gpio/<pin>.dir`，`/dev/gpio/<pin>.pull`で管理します．[ピン割当](../../../reference/hardware/PINS.md)と[GPIOリファレンス](../../../reference/devices/DEVICES.md)を確認してください．
+この例は通常のPicoでGP25をLED出力に利用する場合を前提とします．Pico WではGP25はCYW43用に予約され，`/dev/gpio/25`から操作できません．Pico WのオンボードLEDは`WL_GPIO0`に接続されています．GPIOの方向やプル設定は`/dev/gpio/<pin>.dir`，`/dev/gpio/<pin>.pull`で管理します．[ピン割当](../../../reference/hardware/PINS.md)と[GPIOリファレンス](../../../reference/devices/DEVICES.md)を確認してください．
 
 ## 3．PWM
 

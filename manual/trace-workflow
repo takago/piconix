@@ -1,0 +1,45 @@
+TRACE WORKFLOW FOR MCP AGENTS
+
+Use trace for evidence about syscalls, process switches, timer and
+kernel events. It has overhead and finite buffering.
+
+SHORT, LOW-NOISE INVESTIGATION
+  ps
+  trace on -s
+  hello
+  trace show
+  trace on
+Default trace is enabled in recent builds; 'trace show' stops it.
+Always restore the requested trace mode after collecting output.
+
+EVENT LEVELS
+  trace on       default/standard event selection
+  trace on -s    syscall-only capture
+  trace on -a    all supported events
+  trace off      stop capture
+  trace show [PID]    bounded snapshot of current buffer
+  trace run -s hello  trace one command, may exceed MCP limits
+  trace run -a hello  adds non-syscall contexts; higher volume
+  trace follow [PID] continuous view (NEVER via MCP)
+
+OUTPUT MANAGEMENT
+  trace show PID       filter output to a known PID
+  trace on -s          less noisy capture than -a
+  trace show           finite, but may still exceed 4096 output
+Use terminal directly if the trace result is too large.
+Do not assume host HTTP failure indicates the traced command failed.
+
+INTERPRETATION
+  ENTER and EXIT identify call boundaries.
+  Ret identifies returned number, often negative on error.
+  SWITCH relates scheduler transitions, not user-level function call.
+  TIMER events may dominate -a captures.
+  Symbol names in /proc/sym/kernel can help map kernel addresses.
+Trace alters timing. Intermittent bugs can change under tracing.
+
+DEBUGGING LOOP
+  1) reproduce without trace;
+  2) take a syscall-only trace;
+  3) identify unexpected return or missing expected syscall;
+  4) correlate with lsof, ps, bounded dumps;
+  5) restore trace mode; report observed facts vs hypotheses.

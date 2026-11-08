@@ -1,0 +1,87 @@
+PicoNIX ON-DEVICE MANUAL - AGENT-FIRST INDEX
+
+This ROM manual is for humans and MCP-driven LLM agents that inspect,
+program, debug, trace, and control PicoNIX. It describes a small OS;
+Linux/ISO C/CPython behavior must not be assumed.
+
+START HERE
+  agent          MCP limits, safe tool sequence, recovery
+  workflows      Task recipes: compile, memory, trace, devices
+  programming    Write -> compile/interpret -> execute -> check
+  limits         Memory, process, file, interpreter limits
+  compatibility  Non-Linux command/language differences
+  shell-syntax   Exact interactive vs MCP shell operators
+  process-resources  Reserved vs used, slots vs RAM files
+  gpio-board     Pico vs Pico W safe pin access
+
+LANGUAGE SPECIFICATIONS (read before writing code)
+  languages/c       Actual cc C subset, syntax, errors
+  languages/asm     Actual as Thumb-1 subset and directives
+  languages/python  Actual Python subset and built-ins
+
+LANGUAGE RECIPES
+  c-examples, asm-examples, python-examples  Basic program examples
+
+HANDS-ON PROGRAMMING LABS (copy source, execute, verify)
+  lab-c-hello          Minimal C stdout + cc/as pipeline
+  lab-c-loops          C while/if/else and exact output
+  lab-c-functions      C pointer parameter and local update
+  lab-c-arrays         Char array indexing and output
+  lab-asm-hello        Thumb-1 SVC write and PC-relative data
+  lab-asm-stack        Thumb-1 push/pop and exit
+  lab-asm-pid          Source-based PID decimal printing exercise
+  lab-python-basics    Python subset arithmetic/loops/conditions
+  lab-python-arrays    Fixed lists and bytes
+  lab-python-files     Bounded read of /proc
+  lab-python-temperature  Read /dev/adc/temp
+  lab-python-udp       Authenticated-intent loopback UDP demo
+  lab-agent-verify     LLM create/build/execute/verify/recover sequence
+
+OPERATING AND DEBUGGING
+  memory          Safe bounded inspection, symbols, slots
+  trace           Trace modes, display and failure diagnosis
+  devices         Device ownership, GPIO, PWM, ADC, I2C
+  network         TCP/UDP, Wi-Fi, loopback, diagnostics
+  syscalls        System-call/API overview and FD handling
+  troubleshooting Common command, MCP and runtime failures
+
+
+EXTENDED TASK-ORIENTED REFERENCES
+  quickstart          First read-only probes + tool sequence
+  command-reference   CLI classification, safe finite commands
+  fs-workflow         Filesystem, redirects and bounded inspection
+  process-workflow    Processes, slots and FDs
+  memory-map          RAM map, symbols and safe dumps
+  trace-workflow      Syscall tracing and interpretation
+  c-debug             Compile/assemble/debug tiny C programs
+  asm-debug           Debug Thumb-1 assembler and PIC issues
+  python-debug        Interpreter limitations and diagnostics
+  syscalls-files      FD, open/read/write/lseek/ioctl
+  syscalls-process    Process, timing and terminal APIs
+  syscalls-net        Socket and select semantics
+  gpio-workflow       Pin ownership and GPIO safety
+  pwm-workflow        GP18 buzzer / GP19 servo, shared PWM safety
+  i2c-workflow        I2C scan, read/write/xfer limits
+  adc-workflow        Temperature and ADC handling
+  framebuffer-workflow LED matrix and scroll
+  network-workflow    Network, listeners and diagnostics
+  mcp-workflow        MCP tools, transport, timeouts
+  safety-recovery     Safe retries and sensitive commands
+  debug-checklist    Error classification and next steps
+
+
+DEEP-DIVE TROUBLESHOOTING
+  trace-events, trace-investigation, trace-select
+  memory-investigation, memory-symbols, memory-failures
+  devices-discovery, devices-gpio, devices-pwm, devices-i2c
+  devices-adc, devices-framebuffer, agent-diagnostic-cases
+Examples of access:
+  ls /man
+  cat /man/languages/c
+  cat /man/c-examples
+  grep socket /man/network
+
+get_manual() lists pages; get_manual(topic) retrieves one page.
+Use 'help COMMAND' for CLI usage. Manuals live in XIP ROM and
+may exceed RAM file limits. Read one page at a time.
+  led-patterns   /dev/fbchar ASCII glyph and symbol display

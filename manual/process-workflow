@@ -1,0 +1,44 @@
+PROCESSES, TASK SLOTS, FILE DESCRIPTORS
+
+PicoNIX has a small fixed number of user task slots. A newly run
+command, its shell and extra children occupy separate slots. There
+is no full Linux process-group/session machinery.
+
+OBSERVE
+  ps
+  lsof
+  lsof PID
+  cat /proc/tasks
+  cat /proc/memory
+  cat /proc/ramfiles
+  cat /proc/uptime
+  cat /proc/context_switches
+
+A PROCESS SLOT IS NOT A FILE
+  Six 24 KiB user slots (platform configuration), each with a
+  reserved 4 KiB stack. Code + static data + stack must fit.
+  Running interactive or network daemons may exhaust slots.
+  Start programs only if slots are available.
+
+SHELL EXECUTION
+  hello
+  hello &
+  echo hello | cat
+Background '&' continues after the shell prompt; it does not mean
+that a command is harmless or will terminate. Avoid daemons in an
+MCP execute_command call unless explicitly planned.
+
+CONTROL
+  kill PID        changes process state; requires confirmation
+  ps              verify effect
+Do not guess PID. Never kill mcpd from the connection you need.
+Avoid recursively spawning shells or tracing the shell while slots
+are exhausted.
+
+FD DIAGNOSTICS
+  lsof [PID]      list open descriptors
+  /proc/tasks    task status
+FDs are finite (configured per task). Close sockets and files after
+use. Blocking read/accept can prevent a command from finishing.
+For terminal-sensitive tools (vi, edit, fd, watch, mem, gpio,
+trace follow) use an interactive console instead of MCP.

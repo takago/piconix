@@ -1,0 +1,44 @@
+NETWORK DIAGNOSTICS AND REMOTE CONTROL
+
+Run short, bounded read-only checks first.
+  ip
+  net
+  net -a
+  net -r
+  cat /proc/net/wifi
+  cat /proc/net/memory
+  ping -c 2 127.0.0.1
+  tcpdump -c 5
+
+PORTS AND SERVICES
+  mcpd      TCP 8080 Streamable HTTP MCP
+  httpd     TCP 80 (user program, not kernel daemon)
+  Telnet    TCP 23 (kernel service on Pico W)
+  UDP control service   UDP 2000 (kernel service)
+  scroll -u 2001        optional UDP LED text listener
+Not all services are always started. Check ps and network mode.
+
+LISTENER TESTING
+  tcp_echod [PORT]
+  udp_echod [PORT]
+  nc -u -N 127.0.0.1 PORT
+  nc -l PORT
+Listener/echo server/long-running nc commands should be started
+in an interactive terminal, not directly from MCP.
+
+ADDRESSING
+  127.0.0.1 is PicoNIX's loopback address. A host's own
+  127.0.0.1 is NOT PicoNIX; it refers to the host.
+  DHCP, STA vs AP mode, and link status affect remote access.
+  Inspect /proc/net/wifi before changing network settings.
+
+DEBUGGING CONNECTIONS
+  1) check network mode, IP and RSSI;
+  2) check process slots and server status;
+  3) try a short get_temperature MCP call;
+  4) avoid large output and indefinite commands;
+  5) distinguish tool command failure from HTTP transport error.
+
+SECURITY WARNING
+  No MCP authentication/TLS: --shell is for isolated trusted LAN
+  only. Never expose TCP 8080 unfiltered to the public internet.

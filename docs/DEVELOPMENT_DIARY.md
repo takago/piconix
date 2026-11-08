@@ -1,5 +1,75 @@
 # PicoNIX Development Diary
 
+### 2026-11-08: Batch `echo` writes for `/dev/fbchar`
+
+Investigated `echo heart > /dev/fbchar` showing only `t`: `echo` previously issued one-byte writes, causing each byte to be interpreted as a separate glyph. `echo` now buffers short output (128 bytes) into a single write, while preserving partial-write retries and `-n`/`-e` semantics. GPIO direction and pull configuration writes now accept a trailing newline. Wi-Fi restart retains support for split writes; tests were adjusted. ARM syntax and host output tests passed. Full Pico SDK builds and hardware behavior remain unverified.
+
+### 2026-11-08: Clarify GP18 buzzer and GP19 servo connections in ROM manual
+
+Updated the ROM manual to state that GP18 drives a buzzer and GP19 a servo motor. Both pins share a PWM slice frequency, so buzzer tone settings can also affect servo timing.
+
+### 2026-11-08: Readable `/dev/fbchar` pattern catalog
+
+Added a finite, read-only listing via `cat /dev/fbchar` with printable ASCII range, supported icon names and usage examples. The icon names are enumerated from the same table used for drawing. Each descriptor maintains its own read offset and returns EOF at the end; reads never modify the LED display. Existing write behavior is preserved. Hardware validation is pending.
+
+### 2026-11-08: Add `/dev/fbchar` fixed character and icon display
+
+Added a `/dev/fbchar` device for persistent 8x8 LED display of single ASCII glyphs or named icons (heart/star/smile/sad/arrows/check/cross/clear). Moved the scroll 5x7 font to a shared header consumed by both user-space scroll and the kernel renderer. Preserved the existing eight-byte `/dev/gpio/fb` framebuffer protocol; the new text interface requires no additional syscall and works from shell and Python. Hardware validation remains pending.
+
+
+### 2026-11-08: LLM field-test improvements to C, Pico W GPIO protection, and ROM manual
+
+- Added prefix and postfix ++/-- for integer scalar locals to the small C compiler; pointers, arrays, and char lvalues remain unsupported. Integrated the earlier 2048-byte assembly output-limit diagnostics and partial-file prevention.
+- Reserved Pico W radio-owned GPIO 23/24/25 (and 29) from generic GPIO access, skipped Pico-only GP25 LED initialization on Pico W, and marked pins as reserved in status output.
+- Expanded the ROM manual with shell operator differences, process slot vs RAM-file resource constraints, allocated vs actual kernel SRAM, interpreter-specific incompatibilities, and board-specific GPIO safety.
+- Based the changes on LLM agent experiments in C, tracing, memory, GPIO, Python temperature reading, and shell behavior. No task-specific successful programs were added to the reference. Complete Pico SDK firmware builds and on-device validation remain outstanding.
+
+### 2026-11-08: Enabled ROM manual browsing and filename search in `fd`
+
+- Allowed read-only previews of `/man` pages in the full-screen `fd` browser. Static ROM manuals are not periodically refreshed.
+- Replaced the previous first-48-entry limitation with on-demand 48-entry batches, allowing navigation through all 64 manual pages.
+- Added case-insensitive substring filename filtering via `/`; press Enter to accept, Esc to cancel, or `c` to clear. This filters the current directory only; use `grep` for file content.
+- Checked ARMv6-M compilation, a two-address PIC comparison, and slot capacity using link-time arithmetic stubs. Full Pico SDK build and hardware operation remain untested.
+
+
+### 2026-11-08: Moved ROM manuals into a dedicated XIP `.manual` section
+
+- Replaced the large generated C array in `kernel/man_rom.h` with a single packed `manual.bin` holding the 64-page index and texts. The build generates this binary and embeds it with `.incbin` in an XIP-only `.manual` section.
+- Updated both legacy and modular Pico SDK linker integration. The `/man` VFS reads the packed index and page bytes by offset; MCP `get_manual()` behavior is unchanged.
+- The 90,570 bytes of manual source text plus the index produce a 93,232-byte ROM image. Verified deterministic generation, byte-for-byte page/index correspondence, and section placement in a minimal ARM link. Full Pico SDK firmware builds and hardware execution remain unverified.
+- The old generated `kernel/man_rom.h` should be removed.
+
+
+### 2026-11-08: Added detailed tracing, memory and device investigation references
+
+- Added 13 `/man` pages covering actual trace columns/events/return values, select/socket analysis, symbol addressing, symptom-driven memory inspection, and discovery/control/verification/recovery for GPIO, PWM, I2C, ADC and the LED matrix.
+- Cross-checked `trace.c`, `hexdump.c`, `mem.c`, `pins.c`, `pwmctl.c`, `i2cctl.c` and `fbctl.c`. Noted that I2C scanning performs real one-byte reads, `trace show` stops recording, and MCP has time/output limits.
+- Marked illustrative traces as examples and stressed authorization before hardware changes. ROM generation and static checks completed; end-to-end hardware execution remains unverified.
+
+### 2026-11-08: Added runnable-oriented language labs to ROM manual
+
+- Added four C, three Thumb-1 assembly, five Python-like interpreter labs, and an MCP agent verification workflow. Each gives source, command sequence, expectations, limits, and troubleshooting.
+- Cross-checked the examples with the current language implementations and existing assembly examples; updated the ROM index.
+- ROM generation and static checks passed. Full firmware build and hardware execution of all examples remain unverified.
+
+
+### 2026-11-08: Expanded agent-first ROM manual workflows
+
+- Added 21 task-oriented `/man` pages for MCP programming, compilation, memory inspection, tracing, GPIO/PWM/I2C and networking.
+- Documented noninteractive execution, the MCP three-second / 4 KiB limits, cautious recovery after transport failures, and verification before hardware changes.
+- Added troubleshooting guidance for the limited on-device C compiler, Thumb-1 assembler and Python interpreter.
+- ROM generation and static consistency are tested; the new examples have not all been exercised on hardware.
+
+
+### 2026-11-08 — Expand ROM manuals for hands-on LLM agent work (hardware unverified)
+
+Expanded `/man` into a task-driven reference for agents developing programs, inspecting memory, tracing system activity and controlling devices on PicoNIX. Checked the actual parsers, buffers and supported APIs of `cc`, `as` and the Python-like interpreter; documented language subsets, unsupported features, short examples, build/run/verify workflows and error recovery. Added `/man/workflows`, `/man/limits`, language-specific examples, `/man/syscalls` and `/man/troubleshooting`; revised the original pages. The generated ROM manual now has 17 pages (~29 KiB of text). Deterministic generation and static consistency checks passed. Full Pico SDK linking and execution of all examples on physical hardware remain unverified.
+
+
+### 2026-11-08 — Expose agent-focused ROM manuals under `/man` (hardware unverified)
+
+Added task-oriented manuals for LLM-driven programming, memory inspection, tracing and device control. At build time, the manual text is converted into a ROM index and exposed as read-only `/man` and `/man/languages` files. `get_manual()` returns the index; an optional `topic` reads one page over HTTP chunked transfer. `help` points to `/man`. Optional `mcpd --shell` remains unchanged. Full target build and hardware networking are not yet verified.
+
 ## 2026-11-08 — Improved intermittent MCP HTTP response failures (no recurrence reported on hardware)
 
 The host MCP client intermittently aborted with `incomplete chunked read` while `mcpd --shell` ran commands such as `trace run -a pwmctl freq 523` and `hexdump /dev/shm 0 512`. Updated `mcpd` to wait approximately 3 seconds rather than 0.6 seconds on TCP send `EAGAIN`, read command output in 256-byte rather than 64-byte units, and expand the JSON-escaping send buffer from 256 to 768 bytes. Preserved the 4 KiB command-output cap, MCP tool behavior, and 24 KiB user-slot limit. Provisional ARM linking and two-address PIC comparison passed. The developer reported that the previously intermittent error stopped occurring on the device after applying the patch. Because several parameters changed together, the individual root cause and reliability under all conditions remain unproven.

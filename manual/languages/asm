@@ -1,0 +1,60 @@
+THUMB-1 ASSEMBLER as - EXACT ACCEPTED INPUT (asm.c)
+
+  as /tmp/foo.s      -> /tmp/a.out (PNX1: 8-byte header + code)
+  /tmp/a.out
+  Source <=2048 bytes, binary code <=2040 bytes, <=32 labels.
+  Two-pass symbol resolution. Instructions are Thumb-1 subset.
+
+SYNTAX
+  one instruction/directive per line; label: (may share line)
+  comments start @ or ; ; whitespace separates mnemonic/operands
+  registers r0..r7 are low registers, sp and lr also available
+  decimal and 0x-prefixed hex numeric operands (inspect number())
+
+DIRECTIVES
+  .ascii "Hello\n"  string bytes, no automatic NUL terminator
+  .byte 65            one byte
+  .word 42            little-endian 32-bit word; 4-byte alignment
+  .space 8            zero-filled bytes
+  .align 2            align next item to four-byte boundary
+  Do not assume .global, .text, .data, .equ, .asciz, .thumb
+  or GNU assembler macros are supported.
+
+SUPPORTED INSTRUCTION FORMS
+  nop                 bx lr
+  push {r4,lr}        pop {r4,pc}
+  bl label            b label
+  beq/bne/bcc/bcs/blt/bge/bgt/ble label
+  movs r0, #12       mov r0, r1
+  adds r0, #1        adds r0, r1
+  subs r0, #1        subs r0, r1
+  muls r0, r1        cmp r0, #5      cmp r0, r1
+  ldr r0, [r4, #0]  str r0, [r4, #0]
+  ldrb r0, [r4, #1] strb r0, [r4, #1]
+  ldr r0, [sp, #4]  str r0, [sp, #4]
+  adr r2, label      addsp r4, 0
+  sub sp, 8          add sp, 8
+  svc #0
+
+ENCODING BOUNDS
+  8-bit immediates generally 0..255; aligned word offsets <=124;
+  byte offsets <=31; sp word offset <=1020; add/sub sp <=508;
+  branch target distances restricted by Thumb-1 encoding.
+  'adr' requires forward 4-byte aligned target within 1020 bytes.
+  Do not use raw absolute RAM pointers in generated PIC code.
+  Use labels/PC-relative references and correct registers.
+
+SYSCALL CALLING CONVENTION
+  movs r0, #SYSCALL_NUMBER
+  arguments normally in r1, r2, r3; svc #0
+  ABI details and syscall numbers: /man/syscalls and source
+  include/piconix_syscall.h. Never invent syscall numbers.
+
+On error: 'invalid instruction, label or size'. Check exact operand
+syntax, offsets, branch reach, line length and 2048-byte source.
+See /man/asm-examples for a working minimal program.
+
+EXACT OPERAND WARNING: movs r0, #9 is valid; movs r0, r1 is NOT.
+Use mov r0, r1 for a register-to-register move. Validate adr label
+position, .align 2, .ascii bytes and .space padding together: adr
+requires a forward, word-aligned, reachable address. See asm-debug.

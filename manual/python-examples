@@ -1,0 +1,40 @@
+PYTHON-LIKE SCRIPT EXAMPLES (noninteractive)
+
+Write to /tmp/demo.py via MCP write_file, then:
+  python /tmp/demo.py
+
+1. Arithmetic and iteration
+  total = 0
+  for i in range(1, 5):
+      total = total + i
+  print(total)
+Expected: 10
+
+2. Inspect a small part of shared memory
+  fd = open("/dev/shm", O_RDONLY)
+  data = read(fd, 16)
+  print(data)
+  close(fd)
+Read is assigned to a variable; length <=64. Shared memory
+contains live bytes; do not modify unless authorized.
+
+3. Send a UDP message to an existing listener
+  s = socket(2)
+  n = sendto(s, "hello", "127.0.0.1", 2000)
+  print(n)
+  close(s)
+Only run if a service is expected at the destination/port.
+This example can have side effects if it targets device-control UDP.
+Inspect current services and get approval before sending.
+
+4. Read a few bytes from a virtual file
+  f = open("/proc/net/wifi", O_RDONLY)
+  b = read(f, 32)
+  print(b)
+  close(f)
+Read from fixed virtual paths may be time-varying.
+
+Do not use import time, socket library, pathlib, file objects,
+with/open context managers, def, classes or CPython packages.
+For longer scripts split files into smaller tasks rather than
+exceeding the 2048-byte source limit.

@@ -52,7 +52,7 @@ for i in range(5):
 close(fd)
 ```
 
-This assumes GP25 is available as an output in the standard configuration. On some boards, GP25 is not directly connected to a visible LED; writing the GPIO does not guarantee visible light. GPIO direction and pull configuration use `/dev/gpio/<pin>.dir` and `/dev/gpio/<pin>.pull`. Check the [pin map](../../../reference/hardware/PINS.md) and [GPIO reference](../../../reference/devices/DEVICES.md).
+This example applies to the original Pico where GP25 drives the board LED. On Pico W, GP25 is reserved for CYW43 and `/dev/gpio/25` is not available. The Pico W onboard LED is on `WL_GPIO0`. GPIO direction and pull configuration use `/dev/gpio/<pin>.dir` and `/dev/gpio/<pin>.pull`. Check the [pin map](../../../reference/hardware/PINS.md) and [GPIO reference](../../../reference/devices/DEVICES.md).
 
 ## 3. PWM
 

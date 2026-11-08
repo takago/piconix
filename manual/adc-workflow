@@ -1,0 +1,31 @@
+ADC AND TEMPERATURE SENSOR WORKFLOW
+
+The RP2040 provides an onboard temperature sensor. PicoNIX maps
+it to a device and also exposes get_temperature via MCP.
+
+PREFERRED AGENT PATH
+  get_temperature()       MCP direct sensor reading
+  pins                    see mapped input/peripheral pins
+  ls /dev/adc
+
+RAW DEVICE
+  /dev/adc/temp          sensor-facing virtual device
+  hexdump /dev/adc/temp 0 4
+Raw bytes are not automatically a text decimal temperature.
+Use the published device encoding before interpreting output.
+
+WHAT IS SAFE
+  Reading onboard temperature is non-destructive and makes a
+  good MCP introductory exercise. Repeated rapid polling still
+  uses CPU and consumes connection bandwidth.
+
+WHAT NEEDS CHECKING
+  Other ADC inputs require correct electrical wiring and voltage
+  range. Do not connect or sample unknown high-voltage sources.
+  If a device is not listed under /dev/adc, do not invent a path.
+
+FOR AUTOMATED TESTS
+  Call get_temperature twice separated by a short interval.
+  Confirm both calls return, then compare only broad plausibility.
+  Do not infer precise physical room temperature from the CPU die
+  sensor; it measures chip temperature under load.

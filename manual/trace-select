@@ -1,0 +1,36 @@
+TRACING SOCKET / SELECT / PIPE BEHAVIOR
+
+The trace recorder can show syscall entries and exits for socket,
+read, write, select, accept and other operations supported by the
+current kernel. Not every underlying lwIP action is a syscall.
+
+INVESTIGATION
+  ps
+  lsof
+  trace on -s
+  ip
+  trace show
+  trace on
+For an actual socket workload, start the trace on one console,
+perform a bounded network request from another, then inspect it.
+Do not start a permanent server through MCP and wait for it.
+
+READING A SELECT TRACE
+  select entry: application asked to wait for readiness.
+  select/ exit: inspect return count; 0 may mean timeout, a
+  positive value means descriptor readiness, negative means error.
+  Repeated immediate select returns may indicate a polling loop,
+  but only compare with timeout and FD set behavior if known.
+  A read after select may still return a short count or EOF.
+
+COMMON MISINTERPRETATIONS
+  - A successful accept does not mean a complete HTTP request.
+  - A TCP write returning N does not guarantee peer processed data.
+  - SWITCH does not prove what kernel function caused blocking.
+  - A missing event may have been overwritten or disabled.
+  - Kernel symbols are not stack traces; correlate addresses only
+    with the matching firmware build.
+
+If MCP reports incomplete chunked read, first verify the actual
+state (ps, socket listeners, prior write effects). Do not blindly
+repeat any state-changing operation.

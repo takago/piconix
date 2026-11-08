@@ -76,3 +76,18 @@ See [Calling MCP tools from an LLM](MCP-LLM-CLIENT.md) and `host/mcp_llm_client.
 For network and LED commands, refer to the embedded-manual section of the [agent guide](AGENT-GUIDE.md).
 
 **Agent note:** `execute_command` is for non-interactive commands only. Avoid `mem`, `watch`, `vi`, `edit`, `fd`, `pong` and other full-screen tools; use `ps`, `cat /proc/...`, or `help` instead. See the [agent guide](AGENT-GUIDE.md).
+
+## ROM manuals (`/man`)
+
+PicoNIX stores an agent-oriented manual in kernel XIP flash as read-only VFS files. It covers safe LLM workflows, the supported C/Thumb-1/Python language subsets, memory inspection, tracing, devices, and networking.
+
+```sh
+ls /man
+cat /man/README
+cat /man/languages/c
+cat /man/memory
+```
+
+In `mcpd --shell` mode, `get_manual()` returns the index (`/man/README`); `get_manual({"topic":"languages/c"})` returns one manual page. The previous all-in-one response is replaced with page-oriented reads to avoid excessive memory and MCP traffic. Normal `mcpd` mode remains temperature-only. Shell access is unauthenticated: only use it on an isolated trusted network.
+
+Additional task-oriented pages: `/man/workflows`, `/man/limits`, `/man/c-examples`, `/man/asm-examples`, `/man/python-examples`, `/man/syscalls` and `/man/troubleshooting`. Agents should consult the language restrictions and noninteractive examples before acting.

@@ -2,10 +2,6 @@
 
 Open WebUIなどのホスト側LLMエージェントから，MCP経由で**PicoNIX**を操作するためのガイドです．PicoNIXはRP2040上で動作する教育用UNIX風OSであり，**Linuxではありません**．`bash`，`sudo`，`apt`，`gcc`，`ssh`，完全なPOSIXシェルや標準Cライブラリが存在するとは仮定しないでください．
 
-## 内蔵マニュアルを使う
-
-`mcpd --shell`で公開する`get_manual()`は引数なしで簡易操作マニュアル全文を返します．エージェントは操作を始める前に一度呼び出し，詳細なオプションは`execute_command("help trace")`のように`help`で調べてください．例えば`execute_command("ip")`や`execute_command("cat /proc/net/wifi")`を利用します．LEDスクロールは`execute_command("echo HELLO | scroll")`などを利用できます．コマンド実行には追加プロセススロットが必要です．
-
 ## コマンド実行ツールの有効化
 
 信頼できる隔離された実験用ネットワークでのみ，次のように起動します．
@@ -14,19 +10,13 @@ Open WebUIなどのホスト側LLMエージェントから，MCP経由で**PicoN
 mcpd --shell &
 ```
 
-`mcpd --shell`では`get_temperature`に加え，`execute_command`，`write_file`，`get_manual`が利用できます．ネットワーク情報やLED表示は専用MCPツールではなくシェルコマンドから行います．通常の`mcpd &`ではコマンド実行は公開されません．接続先は`http://<Pico-WのIP>:8080/mcp`です．現行実装はMCP `2026-07-28`の限定的なJSON応答方式で，SSEは実装していません．Open WebUIのバージョンによって直接接続できない場合があるため，既存のホストクライアントや互換ブリッジも検討してください．**認証，TLS，コマンド単位の権限管理はありません．** TCP 8080をインターネットや信頼できないネットワークに公開しないでください．
+`execute_command`と`write_file`が`get_temperature`，`get_wifi_info`，`display_message`に追加されます．通常の`mcpd &`ではコマンド実行は公開されません．接続先は`http://<Pico-WのIP>:8080/mcp`です．現行実装はMCP `2026-07-28`の限定的なJSON応答方式で，SSEは実装していません．Open WebUIのバージョンによって直接接続できない場合があるため，既存のホストクライアントや互換ブリッジも検討してください．**認証，TLS，コマンド単位の権限管理はありません．** TCP 8080をインターネットや信頼できないネットワークに公開しないでください．
 
 ## `execute_command`の仕様
 
 入力例：`{"command": "ps"}`．呼び出しごとに新しい非対話`sh -c`プロセスを起動し，パイプで標準出力と標準エラー出力を回収します．作業ディレクトリは毎回`/tmp`から始まり，`cd`の状態は保持されません．コマンド文字列は印字可能なASCIIで最大119バイト，出力は最大4,096バイト，タイムアウトは公称3秒です．出力の切り詰めは応答に明記します．HTTP/1.1のchunked転送を利用してJSONを逐次送信するため，`mcpd`内に4 KiBの出力バッファを確保しません．クライアントはchunked転送に対応する必要があります．接続が途中で切れた場合，JSON応答が不完全になる可能性があります．タイムアウト時には子孫プロセスが残る可能性があるため，必要なら`ps`で確認してください．**返り値は個々のコマンドの正確な終了コードを保証しません．** 端末入力を要求するコマンドは避けてください．
 
 これは**サンドボックスではありません**．シェルはデバイス，RAMファイル，ネットワークにアクセスできます．ファイルの上書き，プロセスの終了，リセット，GPIOの変更などの前には利用者の許可を求めてください．
-
-### 対話型コマンドの禁止（MCP経由）
-
-`execute_command`は短時間で自動終了する**非対話コマンド専用**です．`mem`，`watch`，`vi`，`edit`，`fd`，`pong`，`gpio`，`fbed`，対話モードの`python`を呼び出さないでください．全画面表示・キー入力を必要とするコマンドはMCP経由で操作できず，タイムアウトやプロセススロットの占有を引き起こします．代わりに`ps`，`ls`，`cat /proc/...`，`ip`，`help`，`trace show`など，実行後に終了する操作を選んでください．`mem -s`も画面型なので，対話端末のないMCPからは実行しないでください．`trace follow`など継続監視モードも避けてください．
-
-マニュアルの注意事項はLLMへの指示であり，カーネルによる実行禁止機能ではありません．`execute_command`側で該当コマンドを自動的に拒否するわけではありません．
 
 ## `write_file`によるソースファイル作成
 
@@ -81,7 +71,7 @@ execute_command({"command":"/tmp/a.out"})
 1. Pico WのIPアドレスと，`mcpd --shell &`が実験用ネットワークで起動していることを確認します．
 2. Open WebUIの管理者として **Settings → Admin → Integrations → External Tool Servers → Add Connection** を開きます．
 3. Typeに **MCP (Streamable HTTP)** を選択し，Server URLに`http://<Pico-WのIP>:8080/mcp`を指定して保存します．**OpenAPI**ではありません．DockerでOpen WebUIを動かしている場合は，コンテナからPico WのIPへ通信できる必要があります．
-4. 接続先のツール一覧に`get_temperature`，`execute_command`，`write_file`，`get_manual`が現れることを確認します．利用するモデル・チャットでツール呼び出しを有効にし，必要なツールへのアクセス権を設定します．
+4. 接続先のツール一覧に`get_wifi_info`，`display_message`，`execute_command`，`write_file`などが現れることを確認します．利用するモデル・チャットでツール呼び出しを有効にし，必要なツールへのアクセス権を設定します．
 
 > **互換性の注意：** PicoNIXの`mcpd`はMCPの限定的な実装です．使用中のOpen WebUIが直接接続できない場合があります．その場合は`host/mcp_llm_client.py`など既存のホスト側クライアントで先に通信を確認し，必要に応じて互換ブリッジを検討してください．接続に失敗しただけでPicoNIXの故障とは判断しないでください．
 
@@ -106,14 +96,10 @@ Open WebUI公式資料： [Knowledge](https://docs.openwebui.com/features/worksp
 - `/tmp`はRAMファイルです．`/proc`や`/dev`で状態の確認・物理デバイス操作ができます．
 - `cc`はC言語のサブセットからThumb-1アセンブリを生成し，`as`が実行イメージに変換します．
 - `mcpd`はユーザプロセスです．`sh`とその子プロセスを起動する空きスロットが必要です．
-- `get_wifi_info`と`display_message`は廃止しました．`get_manual()`で全体の操作方法を確認してください．基本操作は`execute_command("echo HELLO | scroll")`です．この処理にはパイプ用プロセススロットが必要で，表示完了前にタイムアウトする場合があります．UDP受信は別の利用方法として残っています．
+- `display_message`は`scroll -u 2001 &`へのUDP送信だけを行い，表示完了を保証しません．
 
 ## ログと検証
 
 エージェントの判断理由，実行コマンド，日時，出力，エラーや切り詰めの状態は**ホスト側で記録**してください．PicoNIXの`trace`はシステムコールやスケジューリングの別の視点を提供します．ホストとPicoNIXの時計は同期しているとは限りません．
 
 この機能は新しく追加した実験的な実装です．ARM向けの構文検査が成功しても，実機動作を保証しません．`execute_command({"command":"ps"})`から実機で確認し，まず読み取り専用の操作を試してください．
-
-## 内蔵マニュアルと詳細ヘルプ
-
-MCPの`get_manual()`は引数なしで全文を返します．詳細は`execute_command`で`help NAME`を実行してください．特に`help trace`には`on -s`，`on -a`，`show [PID]`，`follow [PID]`，`run [-s|-a] CMD`と記録動作の違いを説明しています．

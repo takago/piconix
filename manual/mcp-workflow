@@ -1,0 +1,39 @@
+MCP TOOLS, COMMAND LIMITS AND ERROR CLASSIFICATION
+
+DEFAULT SERVER
+  mcpd &                temperature-only MCP service
+  mcpd --shell &        enable shell/manual/file tools
+Shell mode has no authentication or TLS. Use trusted isolated LAN.
+
+TOOLS
+  get_temperature()        read RP2040 onboard temperature
+  get_manual()             return index
+  get_manual({topic: ...})  read one ROM manual page
+  execute_command({command: ...})  run short shell command
+  write_file({path: '/tmp/name', content: ASCII_TEXT})
+Read actual tools/list schema; do not assume an argument name.
+
+MCP-EXECUTABLE TASK SEQUENCE
+  get_manual()
+  get_manual({topic:'languages/python'})
+  write_file({path:'/tmp/test.py',content:'print(42)\n'})
+  execute_command({command:'python /tmp/test.py'})
+  execute_command({command:'ps'})
+
+LIMITS
+  command string must fit the 119-character server command limit;
+  output <=4096 bytes; command wait ~3000 ms.
+  write_file maximum RAM file 2048 bytes; ASCII input only.
+  Six process slots; shell and command consume task slots.
+  Long-running full-screen and interactive tools are unsuitable.
+
+HTTP CHUNKED ERROR
+  'incomplete chunked read' means HTTP response ended too early;
+  it does not prove the executed command did or did not run.
+  After reconnecting, inspect ps and target state, then retry a
+  read-only bounded command. Do NOT blindly retry state changes.
+
+AGENT INSTRUCTIONS
+  Prefer help, ls, cat /man and short finite commands.
+  Preserve user files; do not call rm/kill/device writes unless asked.
+  Report exact tool output and distinguish errors from conjecture.

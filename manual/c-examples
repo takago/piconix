@@ -1,0 +1,48 @@
+C EXAMPLES FOR MCP write_file + cc + as
+
+Workflow for each example:
+  write_file('/tmp/demo.c', CONTENT)
+  cc /tmp/demo.c
+  as /tmp/demo.s
+  /tmp/a.out
+Use separate calls, inspect errors. The output is overwritten.
+
+1. Hello stdout (string literal form supported by cc)
+  int main() {
+      write(1, "Hello\n", 6);
+      return 0;
+  }
+Expected: Hello
+
+2. Loop and signed comparisons
+  int main() {
+      int i = 0;
+      while (i < 3) {
+          write(1, "*", 1);
+          i = i + 1;
+      }
+      write(1, "\n", 1);
+      return 0;
+  }
+Expected: ***
+
+3. Local pointer and function call
+  void set(int *p) {
+      *p = 65;
+      return;
+  }
+  int main() {
+      int a = 0;
+      char b[2] = "X";
+      set(&a);
+      if (a == 65) {
+          write(1, b, 1);
+      }
+      return 0;
+  }
+Expected: X
+
+Limitations: no printf; no standard #include; no global variables;
+no for loop; comparisons in if/while; <=1024 B total C source.
+A successful cc only writes .s: you MUST still run as. The final
+binary is always /tmp/a.out. Program may fault on bad pointers.

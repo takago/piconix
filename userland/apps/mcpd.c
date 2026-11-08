@@ -453,76 +453,33 @@ finish:
     return 0;
 }
 
-/* エージェント向けの簡易操作説明．長い文書はホスト側ガイドを使用する． */
-static const char *manual_text(const char *topic) {
-    if (!strcmp(topic, "overview"))
-        return "PicoNIX: tiny educational UNIX-like OS on Raspberry Pi Pico/Pico W; NOT Linux. "
-               "Read this guide before using commands; do not guess Linux flags. "
-               "With mcpd --shell, execute_command runs a separate sh -c and returns output. "
-               "Only use on an isolated trusted network; no auth or TLS.";
-    if (!strcmp(topic, "commands"))
-        return "Use help for supported commands/options. Inspection: pwd, ls, cat, ps, lsof, "
-               "trace show, ip, ping, tcpdump, find, grep, tree. Files: echo, cp, rm. "
-               "Processes: kill PID (inspect ps first). Shell supports pipes and redirection. "
-               "Non-interactive commands ONLY: do NOT run mem, watch, vi, edit, fd, "
-               "pong, gpio, fbed, or interactive python. Use ps, cat /proc, help. "
-               "Each sh -c plus child needs two free process slots.";
-    if (!strcmp(topic, "files"))
-        return "RAM files under /tmp and /etc; each RAM file max 2048 bytes. "
-               "Read /proc for live OS/network status and /dev for devices. "
-               "write_file(path,content) replaces ASCII text under /tmp/NAME only. "
-               "Ask before overwriting, removing, or writing device nodes. "
-               "Do not assume Linux permissions, persistence, or standard utilities.";
-    if (!strcmp(topic, "programming"))
-        return "Native cc supports a subset of C (not full ISO C): functions, recursion, "
-               "basic pointers and arrays, read/write. Use write_file('/tmp/test.c',source), "
-               "then execute_command('cc /tmp/test.c'), "
-               "execute_command('as /tmp/test.s'), "
-               "execute_command('/tmp/a.out'). Inspect errors at every step. "
-               "Generated assembly also uses RAM files (2048-byte limit).";
-    if (!strcmp(topic, "limits"))
-        return "Six user slots of 24 KiB each, 4 KiB stack reserved per slot. "
-               "Stop idle httpd/scroll if slots are scarce; never kill mcpd by mistake. "
-               "execute_command: 119 ASCII bytes, max 4096 output bytes, nominal 3 seconds. "
-               "No memory protection, shell authentication, or TLS. "
-               "Get permission before destructive operations; limit untrusted network access.";
-    if (!strcmp(topic, "network"))
-        return "Use execute_command('ip') for interfaces, "
-               "execute_command('cat /proc/net/wifi') for Wi-Fi, "
-               "execute_command('cat /proc/net/memory') for lwIP use. "
-               "Use ping and nc only after checking help. Loopback: 127.0.0.1. "
-               "MCP server listens on TCP 8080. "
-               "Avoid exposing mcpd --shell beyond an isolated trusted LAN.";
-    if (!strcmp(topic, "display"))
-        return "scroll is a USER program, not an MCP tool. "
-               "Start once: scroll -u 2001 & (consumes one process slot). "
-               "For short text use execute_command('echo HELLO | scroll'). "
-               "This pipeline needs free process slots; stop idle services if needed. "
-               "Scrolling may outlast the timeout; avoid long-running jobs.";
-    return 0;
-}
-/* 全項目を一括で返す．HTTPとJSONを分割送信し，大きなRAM配列を使わない． */
-static void send_full_manual(int fd, const char *id) {
+/* ROM内の/manファイルをMCPへストリーミング転送する．
+ * 引数なしはREADME(目次)，topic指定は該当ページ．大きなRAM配列を使わない． */
+static int send_full_manual(int fd,const char *id,const char *topic) {
+    char path[80];
+    snprintf(path,sizeof path,"/man/%s",topic);
+    int file=open(path,O_RDONLY);
+    if(file<0) {
+        rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Unknown manual topic; use get_manual() for index\"}],\"isError\":true}");
+        return 200;
+    }
     const char *headers="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n";
-    /* NUL-separated topic names: no absolute pointer table in the PIC image. */
-    static const char topics[] =
-        "overview\0commands\0files\0programming\0limits\0network\0display";
     char prefix[160];
     int n=snprintf(prefix,sizeof prefix,
         "{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"",id);
-    if(n<0 || (unsigned)n>=sizeof prefix) return;
-    if(send_all(fd,headers,(unsigned)strlen(headers))<0 ||
-       send_chunk(fd,prefix,(unsigned)n)<0) return;
-    for(const char *t=topics; *t; t+=strlen(t)+1) {
-        const char *body=manual_text(t);
-        if(t!=topics && send_escaped_chunk(fd,"\n",1)<0) return;
-        if(send_escaped_chunk(fd,t,(unsigned)strlen(t))<0 ||
-           send_escaped_chunk(fd,": ",2)<0 ||
-           send_escaped_chunk(fd,body,(unsigned)strlen(body))<0) return;
-    }
+    if(n<0 || (unsigned)n>=sizeof prefix) { close(file); return -1; }
+    if(send_all(fd,headers,(unsigned)strlen(headers))<0 || send_chunk(fd,prefix,(unsigned)n)<0) goto finish;
+    char part[192];
+    int got;
+    while((got=read(file,part,sizeof part))>0)
+        if(send_escaped_chunk(fd,part,(unsigned)got)<0) goto finish;
+    if(got<0) goto finish;
     const char *suffix="\"}],\"isError\":false}}";
-    if(send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) return;
+    if(send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto finish;
     send_all(fd,"0\r\n\r\n",5);
+finish:
+    close(file);
+    return -1;
 }
 
 /* MCPのJSON要求を解析して処理する． */
@@ -601,7 +558,7 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
     }
     if (!strcmp(method, "tools/list")) {
         if (allow_shell)
-            rpc_result(id, "{\"resultType\":\"complete\",\"tools\":[{\"name\":\"get_temperature\",\"description\":\"Read onboard temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},{\"name\":\"write_file\",\"description\":\"Overwrite /tmp/NAME with <=2048 ASCII bytes\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"],\"additionalProperties\":false}},{\"name\":\"execute_command\",\"description\":\"Run short non-interactive commands only. No mem, watch, vi, edit, fd, pong or interactive python. Call get_manual first\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"],\"additionalProperties\":false}},{\"name\":\"get_manual\",\"description\":\"Read entire PicoNIX agent manual before operating commands\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}}],\"ttlMs\":0,\"cacheScope\":\"private\"}");
+            rpc_result(id, "{\"resultType\":\"complete\",\"tools\":[{\"name\":\"get_temperature\",\"description\":\"Read onboard temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},{\"name\":\"write_file\",\"description\":\"Overwrite /tmp/NAME with <=2048 ASCII bytes\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"],\"additionalProperties\":false}},{\"name\":\"execute_command\",\"description\":\"Run short non-interactive commands only. No mem, watch, vi, edit, fd, pong or interactive python. Call get_manual first\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"],\"additionalProperties\":false}},{\"name\":\"get_manual\",\"description\":\"Read /man/README index or one topic from /man (e.g. languages/c, memory, trace)\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"}},\"additionalProperties\":false}}],\"ttlMs\":0,\"cacheScope\":\"private\"}");
         else
             rpc_result(id, "{\"resultType\":\"complete\",\"tools\":[{\"name\":\"get_temperature\",\"description\":\"Read onboard temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}}],\"ttlMs\":0,\"cacheScope\":\"private\"}");
         return 200;
@@ -615,8 +572,27 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
             if (strcmp(http_name, "get_manual")) {
                 rpc_error(id, -32020, "HeaderMismatch"); return 400;
             }
-            send_full_manual(fd,id);
-            return -1; /* chunked HTTP応答を送信済み． */
+            const char *args_end,*args=params?member(params,params_end,"arguments",&args_end):0;
+            const char *topic_end,*topic_value=args?member(args,args_end,"topic",&topic_end):0;
+            char topic[64]="README";
+            if(topic_value) {
+                int len=(int)(topic_end-topic_value-2);
+                if(*topic_value!='"' || len<1 || len>=(int)sizeof topic) {
+                    rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Invalid topic\"}],\"isError\":true}");
+                    return 200;
+                }
+                for(int i=0;i<len;i++) {
+                    char c=topic_value[i+1];
+                    if(!((c>='a'&&c<='z') || (c>='A'&&c<='Z') ||
+                         (c>='0'&&c<='9') || c=='/' || c=='_' || c=='-')) {
+                        rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Invalid topic\"}],\"isError\":true}");
+                        return 200;
+                    }
+                    topic[i]=c;
+                }
+                topic[len]=0;
+            }
+            return send_full_manual(fd,id,topic); /* 成功時はchunked応答を送信済み． */
         }
         if (allow_shell && json_equals(v,v_end,"write_file")) {
             if (strcmp(http_name,"write_file")) {

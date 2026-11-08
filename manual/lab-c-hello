@@ -1,0 +1,24 @@
+C LAB 1 - HELLO: WRITE, COMPILE, ASSEMBLE, RUN
+
+GOAL: Write one line without printf or any C library.
+Preflight: get_manual(topic='languages/c'); help cc; help as.
+Create /tmp/hello.c using MCP write_file (path=/tmp/hello.c,
+content is the following plain ASCII source, WITHOUT fences):
+
+  int main() {
+      write(1, "Hello\n", 6);
+      return 0;
+  }
+
+Then run these as THREE separate execute_command calls:
+  cc /tmp/hello.c
+  as /tmp/hello.s
+  /tmp/a.out
+Expected stdout: Hello followed by a newline.
+
+WHY: cc translates to Thumb-1 assembly; as creates /tmp/a.out.
+The C compiler does NOT create an executable by itself.
+A new 'as' run overwrites /tmp/a.out: check its success before run.
+On error: inspect /tmp/hello.s with cat; see /man/c-debug.
+Constraints: source <=1024 B; no #include or printf.
+MCP: do not combine all commands until individual outcomes are known.

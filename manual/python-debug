@@ -1,0 +1,47 @@
+PYTHON SUBSET - PRACTICAL DEBUGGING AND LIMITS
+
+Use python /tmp/file.py over MCP. Bare 'python' is interactive.
+PicoNIX is a Python-like interpreter, not CPython.
+
+LIMITS FROM IMPLEMENTATION
+  source <=2048 B, <=64 nonempty lines, variables <=16,
+  identifier names <=15 chars, string <=64 bytes, list/bytes
+  <=64 elements, pool 256 words, indentation depth <=8.
+  Some loops are limited to 10000 iterations to avoid hangs.
+
+GOOD START
+  x = 2
+  y = x * 3
+  print(y)
+  exit()
+  # Save as /tmp/example.py then execute:
+  python /tmp/example.py
+
+WHAT TO AVOID
+  import os, import time, from ... import ...
+  def, lambda, class, try/except, with, f-strings
+  open() as a Python file object, .read() or .write()
+  list comprehensions, slicing, dict and sets
+  CPython socket objects: socket(2) returns integer descriptor.
+  hardcoded SOCK_DGRAM symbolic constant in expression;
+  use socket(2) for UDP or socket(1) for TCP.
+
+DEVICE ACCESS
+  fd = open("/dev/adc/temp", O_RDONLY)
+  b = read(fd, 4)
+  close(fd)
+A successful read returns a byte list. Do not assume the result
+is a float; sensor device's protocol must be understood separately.
+
+NETWORK DEBUGGING
+  s = socket(2)
+  sendto(s, "HI", "127.0.0.1", 2000)
+  close(s)
+The destination must exist and command must finish in 3 seconds.
+To debug a network listener, run it separately on an interactive
+console, then invoke short client scripts via MCP.
+
+TOO LARGE OR UNSUPPORTED
+  Shorten source, split experiments, inspect syntax against
+  /man/languages/python, confirm exact built-in names and args.
+  Do not respond by adding CPython imports.

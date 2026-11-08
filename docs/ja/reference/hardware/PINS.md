@@ -13,11 +13,11 @@
 | GP18・GP19 | `PIN_PWM` | PWMスライス1 A/B．周波数は共通 |
 | GP20・GP21 | `PIN_UART` | UART1 TX/RX．UART0コンソールは使用しない |
 | GP22 | `PIN_GPIO` | 汎用GPIO |
-| GP23～25 | `PIN_GPIO`（`pins.h`上） | Pico Wでは基板内部の機能がある．外部端子として安易に使用しない |
+| GP23～25 | `PIN_GPIO`（`pins.h`上） | Pico WではCYW43無線用に予約され，GPIOデバイスから操作できない |
 | GP26・GP27 | `PIN_I2C` | I²C1 SDA/SCL．現在はADC0/1として使わない |
 | GP28 | `PIN_ADC` | ADC2（外部アナログ入力） |
 
-**Pico Wでの注意：** `pins.h`で`PIN_GPIO`と記述されていても，そのGPIOを外部配線に使えるとは限りません．GP23～25は40ピンヘッダに出ておらず，基板内の用途もPicoとは異なります．
+**Pico Wでの注意：** `pins.h`の`GP23_MODE`〜`GP25_MODE`が`PIN_GPIO`でも，Pico Wビルドでは無線チップが使用するため汎用GPIOとして扱いません．`/dev/gpio/23`〜`25`は公開されず，`pins`では予約状態として表示されます．GP29も無線用の内部ピンです．Pico WのオンボードLEDはGP25ではなくCYW43の`WL_GPIO0`に接続されています．
 
 ### 標準ピン配置図（Pico / Pico W）
 
@@ -49,7 +49,7 @@
               +-------------------+
 ```
 
-Pico WのGP23/24は無線機能などに使用されるため，通常の外部配線用GPIOとは扱いません．GP25はPicoでは基板上LED用で，40ピンヘッダには出ていません（Pico Wでは使い方が異なります）．
+Pico WのGP23～25は無線チップが使用するため，PicoNIXの汎用GPIO操作から保護します．PicoではGP25が基板上LED用ですが，Pico WのLEDはCYW43側の`WL_GPIO0`です．
 
 ## 設定の変更
 

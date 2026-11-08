@@ -16,10 +16,10 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Flash-resident PIC applications** — User programs are stored as position-independent code (PIC) images in Flash and copied into fixed RAM slots for execution.
 - **Pico W Wi-Fi hardware** — On Pico W, PicoNIX uses the onboard Infineon CYW43439 Wi-Fi chip through the Raspberry Pi Pico SDK, with access-point (AP) and station (STA) modes.
 - **Open-source TCP/IP networking** — On Pico W, PicoNIX uses lwIP, a lightweight open-source TCP/IP stack, and provides user applications with a compact BSD-style IPv4 socket API (`socket()`, `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()`).
-- **LED text ticker** — `scroll` renders printable ASCII on the 8×8 LED matrix from stdin or UDP 2001, with a 1 KiB ring buffer, `select()` and plain-text UDP reception. LLM agents can use `execute_command` to operate `scroll` and `nc -u` (delivery is not confirmed). See [scroll tutorial](docs/en/guides/SCROLL.md) ([日本語](docs/ja/guides/SCROLL.md)).
+- **LED text ticker** — `scroll` renders printable ASCII on the 8×8 LED matrix from stdin or UDP 2001, with a 1 KiB ring buffer, `select()` and plain-text UDP reception. LED output can also be driven using ordinary shell commands and pipes. See [scroll tutorial](docs/en/guides/SCROLL.md) ([日本語](docs/ja/guides/SCROLL.md)).
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, `udp_echod`, and the experimental MCP server `mcpd` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
 - **Experimental agent shell tool** — Opt-in `mcpd --shell` exposes `execute_command` and `write_file` for small source files and short non-interactive `sh -c` commands over MCP, streaming up to 4 KiB of output using HTTP/1.1 chunked transfer. No authentication or process isolation: use **only** on an isolated laboratory network. See the [agent guide](docs/en/guides/AGENT-GUIDE.md) ([日本語](docs/ja/guides/AGENT-GUIDE.md)).
-- **MCP and local LLM demo (Pico W)** — `mcpd` exposes temperature and optional shell/file/manual tools through Streamable HTTP/JSON-RPC on TCP port 8080. Wi-Fi and LED operations now use shell commands, not dedicated MCP tools. On November 7, 2026, the developer confirmed on real hardware that an LLM could obtain the IP address with `get_wifi_info` and display it on the 8×8 LED matrix using `display_message` and `scroll`. See the [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)).
+- **MCP and local LLM demo (Pico W)** — `mcpd` on TCP 8080 exposes a temperature tool by default; opt-in `--shell` provides ROM manual lookup, command execution and RAM-file creation for LLM agents. The client supports streaming text and Ollama low-effort reasoning.
 - **Concurrent UDP clients and servers** — Up to three user UDP sockets with independent receive buffers enable local communication between `scroll` and `nc` (Pico W; the developer confirmed the integrated MCP-to-LED demonstration on real hardware on November 7, 2026).
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
 - **UNIX-like environment** — A shell and familiar commands including `ls`, `cat`, `cp`, `grep`, `ps`, `kill`, `find`, and `tree`, with `/bin`, `/dev`, `/proc`, `/tmp`, and `/etc`. Binary transfer with `dd` is also supported.
@@ -38,17 +38,16 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 
 ## LLM-to-LED demo (Pico W)
 
-The developer confirmed an end-to-end hardware demonstration on **November 7, 2026**: a local LLM called the MCP tool `get_wifi_info` to obtain the Pico W IP address, then used `display_message` to scroll that address across the 8×8 LED matrix.
+A local LLM was used with PicoNIX and the 8×8 LED matrix on real hardware in November 2026. Earlier prototypes used the MCP tools `get_wifi_info` and `display_message`; **these tools were subsequently removed** in favor of ordinary shell commands through `execute_command` in `mcpd --shell` mode. Historical demonstrations are not instructions for the current MCP tool interface.
 
-Start the LED ticker from the PicoNIX shell:
+For current use, inspect the network configuration and display short text with commands such as:
 
 ```sh
-scroll -u 2001 &
+ip
+echo HELLO | scroll
 ```
 
-The historical November 7 demo used **LLM → MCP client → `mcpd` → `display_message` → UDP → `scroll` → LED matrix**. Current agent mode uses **`execute_command` → `sh` → `nc -u` → `scroll` → LED matrix** instead. `mcpd` sends plain text via UDP and does not wait for an acknowledgement; a successful send alone does not guarantee that text has been displayed. `scroll` may also receive text through standard input or a plain-text UDP sender.
-
-This example demonstrates composition of two MCP tools, user-space networking, `select()`-based I/O multiplexing, and physical device output. See the [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)) and [scroll guide](docs/en/guides/SCROLL.md) ([日本語](docs/ja/guides/SCROLL.md)).
+To keep the ticker available as an independent process, Pico W can run `scroll -u 2001 &`, then send text to UDP 2001 using a separate client. See [scroll guide](docs/en/guides/SCROLL.md) ([日本語](docs/ja/guides/SCROLL.md)). Short-lived commands are preferable inside MCP `execute_command`; a long-running foreground `scroll` or full-screen program can exceed its timeout.
 
 ## Commands
 
@@ -60,6 +59,8 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Processes & diagnostics | `ps`, `kill`, `lsof`, `trace`, `mem`, `hexdump`, `watch` |
 | Terminals | `getty`, `tty`, `stty`, `reset` |
 | Programming | `edit`, `vi`, `as`, `cc`, `python` |
+| Board outputs | GP18 buzzer / GP19 servo motor (shared PWM frequency) |
+| LED character display | `echo A > /dev/fbchar`, `echo heart > /dev/fbchar`, `echo clear > /dev/fbchar` (ASCII, persistent; `cat /dev/fbchar` lists patterns) |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink`, `scroll` |
 | Networking | `ip`, `net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod`, `mcpd` |
 | Games & demos | `mb`, `pong`, `omikuji`, `hello`, `kitesys` |
@@ -174,22 +175,36 @@ To send a one-shot UDP message in the other direction, run `nc -u -l 12345` on L
 
 ### MCP server and LLM demo (Pico W)
 
-PicoNIX can run `mcpd` as an **experimental network programming example in user space**. It does not require an MCP-specific kernel service and does not replace `httpd` on TCP port 80. Start it from the PicoNIX shell:
+`mcpd` is an experimental **user-space MCP Streamable HTTP / JSON-RPC server** on TCP 8080 (`POST /mcp`). It supports a subset of protocol version 2026-07-28 with JSON responses (no SSE). Its two launch modes are deliberately distinct:
 
 ```sh
-mcpd &
+mcpd &          # beginner example: get_temperature only
+mcpd --shell &  # agent mode: all four tools
 ```
 
-The server listens on **TCP 8080** at `POST /mcp` and implements a limited subset of MCP **2026-07-28** over Streamable HTTP (JSON responses; no SSE). Its read-only tools are:
-
-| Tool | Data source | Purpose |
+| Tool | Availability | Purpose |
 |---|---|---|
-| `get_temperature` | `/dev/adc/temp` | Read RP2040 internal temperature |
-| `execute_command` (opt-in) | New non-interactive `sh -c` process | Up to 4 KiB streamed via HTTP chunked transfer; only with `mcpd --shell` |
-| `write_file` (opt-in) | `/tmp/NAME` RAM text file | Overwrite at most 2,048 bytes of ASCII; only with `mcpd --shell` |
-| `get_manual` (opt-in) | Embedded guide | Returns all seven sections at once; use help NAME for detail |
+| `get_temperature` | Both modes | Read the internal sensor (`/dev/adc/temp`) |
+| `get_manual(topic?)` | `--shell` | Read `/man/README` (index) or an individual ROM manual page |
+| `execute_command(command)` | `--shell` | Run short **non-interactive** `sh -c` commands; output limited to 4 KiB, timeout about 3 seconds |
+| `write_file(path, content)` | `--shell` | Write up to 2,048 ASCII bytes to a RAM file directly under `/tmp` |
 
-On a Linux PC connected to the Pico W AP, use the official MCP Python SDK v2 to list and call tools **without an LLM**:
+`get_wifi_info` and `display_message` were removed from the current tool set. Use `execute_command("cat /proc/net/wifi")`, `execute_command("ip")`, or shell/UDP commands for equivalent operations. The MCP shell is not an interactive PTY: avoid `vi`, `edit`, `mem`, `watch`, `fd`, interactive `python` and other commands that wait for keyboard input. Use `hexdump`, `ps`, `trace show` and other bounded operations for diagnosis. Communication errors can occur; verify system state before retrying commands with side effects.
+
+The built-in reference manual lives in **read-only `/man` on XIP Flash**, independently of `mcpd`:
+
+```sh
+ls /man
+cat /man/README
+cat /man/languages/c
+cat /man/trace-events
+cat /man/memory-investigation
+cat /man/devices-pwm
+```
+
+It currently contains 69 task-oriented pages (roughly 100 KiB including the ROM index; the exact size depends on the generated manual content), addressing C, Thumb-1 assembly and Python language subsets, programming workflows, memory inspection, tracing, and device control. `help` points users to `/man`. MCP `get_manual()` returns the index and `get_manual({"topic":"languages/c"})` retrieves one page. The manual is generated from text files under `manual/` and packed into a dedicated XIP **`.manual` linker section**; it is not compiled as a giant C header. Changes to the manual require a firmware rebuild. Full Pico SDK build and hardware validation of this new ROM integration remain pending.
+
+On a Linux host, install the Python MCP client:
 
 ```sh
 python3 -m venv .venv
@@ -198,20 +213,16 @@ pip install "mcp>=2,<3"
 python host/mcp_client.py http://192.168.4.1:8080/mcp
 ```
 
-For **local LLM integration**, install `openai` and configure the LLM URL, model and API key placeholders in `host/mcp_llm_client.py` before running it:
+For a local OpenAI-compatible LLM server such as Ollama, install `openai`, configure the endpoint/model in `host/mcp_llm_client.py`, and run:
 
 ```sh
 pip install openai
 python host/mcp_llm_client.py
 ```
 
-On **November 6, 2026**, hardware testing verified tool discovery, temperature/Wi-Fi readings, and natural-language tool selection by a local LLM using the official MCP Python SDK v2. For example, a question about PicoNIX status triggered both read-only tools. This is a proof of basic interoperability, **not** validation of complete MCP compliance or long-term reliability.
+The LLM client always streams responses, requests `reasoning_effort="low"` by default, and displays reasoning text when the server provides it. Relevant instructions: [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)), [LLM client guide](docs/en/guides/MCP-LLM-CLIENT.md) ([日本語](docs/ja/guides/MCP-LLM-CLIENT.md)), and [MCP server development guide](docs/en/development/apps/c/MCP-SERVER-DEVELOPMENT.md) ([日本語](docs/ja/development/apps/c/MCP-SERVER-DEVELOPMENT.md)).
 
-See the [MCP usage guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)), [LLM client tutorial](docs/en/guides/MCP-LLM-CLIENT.md) ([日本語](docs/ja/guides/MCP-LLM-CLIENT.md)), and [MCP server development lab](docs/en/development/apps/c/MCP-SERVER-DEVELOPMENT.md) ([日本語](docs/ja/development/apps/c/MCP-SERVER-DEVELOPMENT.md)).
-
-**MCP security:** `mcpd` has no authentication or TLS. Run it only on an isolated, trusted experimental network; do not expose TCP 8080 to the Internet.
-
-**Security:** The built-in Telnet and remote device-control services do not provide authentication or encryption. Use them only on a trusted experimental network.
+**Security:** There is no MCP authentication or TLS; `--shell` allows arbitrary command execution and file changes. Run it only on isolated, trusted networks and never expose TCP 8080 to the Internet. Telnet and the remote device-control service are likewise unauthenticated.
 
 ## Build
 
@@ -250,6 +261,17 @@ This approach saves scarce SRAM by keeping kernel instructions in Flash while al
 The socket API is intentionally small rather than fully POSIX-compatible. `send()` and `recv()` currently support `flags = 0` only.
 
 The volatile `/tmp` and `/etc` directories share a pool of up to eleven RAM files, each limited to 2 KiB. A separate 2 KiB region is exposed as `/dev/shm`; on Pico W, lwIP has a 10 KiB heap inside the 16 KiB network reservation and supports loopback to `127.0.0.1`. Use `cat /proc/net/memory` to inspect network allocation statistics. PicoNIX provides `ping` and `tcpdump` on Pico W, but does not provide a `curl` command (the examples in the HTTP guide run `curl` on a host PC). Initial files come from `userland/fs/` at build time; the PID 1 shell runs `/etc/rc` once on boot.
+
+## On-device ROM manual
+
+The `fd` file viewer can browse `/man`, search page text with `/` and move between matches with `n` / `N`; when invoked without a directory argument it opens the current working directory. Directory-list `/` is a separate **filename filter**. See [fd guide](docs/en/guides/FD.md) ([日本語](docs/ja/guides/FD.md)).
+
+On Pico W, internal GPIO 23, 24, 25 and 29 are reserved from ordinary GPIO use (GP25 is not the Pico W onboard LED). The small `cc` compiler supports integer-variable prefix and postfix `++` / `--`, and checks its 2,048-byte generated-assembly RAM-file limit before writing; pointer and array-element increment/decrement remain unsupported. See `/man/gpio-board`, `/man/languages/c`, and `/man/compatibility`.
+
+
+PicoNIX contains a read-only manual file tree at `/man` for both human shell users and LLM agents. The manual covers commands, C / Thumb-1 / Python subsets, debugging, trace interpretation, SRAM and symbol inspection, peripherals and network operations. Start with `cat /man/README` or invoke `get_manual()` from an MCP client in `mcpd --shell` mode.
+
+The build generates `manual.bin` from `manual/` sources, embeds it with `.incbin` in a Flash-only `.manual` linker section, and exposes its index through the VFS. The obsolete generated `kernel/man_rom.h` must be removed from older worktrees. The SDK build and real-hardware behavior of this integration still require verification.
 
 ## Documentation
 
@@ -297,3 +319,12 @@ The educational `cc` now supports 32-bit `int`, byte-sized `char`, local fixed-s
 ### Experimental C function definitions
 
 The educational `cc` now emits Thumb-1 calls for user-defined `int`/`void` functions with up to four `int` parameters, per-call stack frames, nested calls, and recursion. See [日本語](docs/ja/development/apps/c/CC.md) / [English](docs/en/development/apps/c/CC.md). Assembly tests pass; RP2040 execution and full AAPCS stack alignment remain unverified.
+
+
+### LLM field-test compatibility notes (2026-11-08)
+
+PicoNIX has an intentionally small C, Python, Thumb-1 assembler and shell implementation.
+Read `/man/compatibility`, `/man/shell-syntax` and `/man/process-resources` before automated code generation.
+The C compiler supports integer-local prefix/postfix `++` and `--`; the generated assembly RAM-file limit is 2048 bytes.
+Pico W uses internal GP23/24/25 for CYW43, so they are not exposed as generic GPIO; GP25 is not the Pico W onboard LED.
+The reserved 56-KiB kernel SRAM region is a capacity, not measured runtime usage.

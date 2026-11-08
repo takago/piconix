@@ -1,0 +1,42 @@
+TRACE-BASED ROOT CAUSE ANALYSIS FOR MCP AGENTS
+
+GENERAL PROCEDURE
+  1. Save non-trace evidence: ps, lsof, and one bounded command.
+  2. Use trace on -s for a low-noise syscall capture.
+  3. Run ONE finite operation, or issue it from a separate console.
+  4. Use trace show [PID] to snapshot the trace and stop capture.
+  5. Pair each SYSCALL name entry with matching name/ return.
+  6. Identify unexpected return values and missing expected calls.
+  7. Inspect relevant paths with ls, hexdump, /proc and symbols.
+  8. Restore trace mode (trace on, on -s, on -a, or off) as needed.
+
+FINITE COMMAND EXAMPLE
+  trace on -s
+  hello
+  trace show
+  trace on
+If the output is larger than MCP's 4096-byte cap, use a known PID:
+  ps
+  trace show 12
+The PID 12 above is only an example; never assume it is current.
+
+TRACE RUN AND NESTING
+  trace run -s hello
+  trace run -a hello
+run starts its target as a separate child and can exceed the 3-second
+MCP timeout or 6-process capacity. It may be better run locally.
+run /tmp programs cannot accept additional arguments in this build.
+A transport error DOES NOT establish whether the command ran.
+
+EXAMPLE DIAGNOSTIC QUESTIONS
+  open fails: Did an open entry occur? Which path prefix? What Ret?
+  read returns 0: Is EOF expected? Does the FD refer to a stream?
+  write fails: Was the FD closed? Can the device accept writes?
+  accept/select: Is a wait or repeated readiness check visible?
+  process stalls: Are SWITCH/TIMER records present in -a mode?
+
+LIMITS
+  trace show turns recording OFF. trace follow is continuous and is
+  not suitable for execute_command. -a can flood the ring with TIMER
+  and KERNEL events; prefer -s and short intervals. Trace changes
+  timing, so conclusions about races remain hypotheses.

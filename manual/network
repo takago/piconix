@@ -1,0 +1,38 @@
+NETWORK OPERATIONS AND DIAGNOSTICS (PICO W)
+
+Inspect without changing state:
+  ip                        loopback lo0, Wi-Fi wan0, RSSI
+  cat /proc/net/wifi        mode, link, DHCP, IP, MAC, RSSI
+  cat /proc/net/memory      lwIP memory, pbuf/PCB usage
+  ping 127.0.0.1           verify local loopback
+  ps                        users of process slots
+
+127.0.0.1 is supported for local TCP/UDP tests. TCP 23 Telnet,
+UDP 2000 device-control service are kernel facilities; HTTP
+TCP 80 runs as user httpd. mcpd is an additional user server.
+Access point SSID/hostnames depend on board Flash ID.
+
+Use 'help nc', 'help ip', 'help ping', 'help tcpdump' to avoid
+assuming Linux command flags. tcpdump and network servers can
+run continuously: avoid indefinite foreground use over MCP.
+
+Python-like socket functions:
+  socket(1) [TCP], socket(2) [UDP]
+  connect(fd, "127.0.0.1", port)
+  listen(fd, port); accept(fd)
+  bind(fd, port)  # UDP
+  send(fd, "abc"), recv(fd, 32)
+  sendto(fd, "abc", "127.0.0.1", port)
+  x = recvfrom(fd, 32); peerport()
+See /man/languages/python for data types and exact restrictions.
+
+MCP web transport:
+  mcpd --shell enables remote command execution and file write;
+  no authentication/TLS. Only expose on trusted isolated LAN.
+  MCP HTTP replies may be chunked. 'incomplete chunked read'
+  indicates broken/incomplete response, not a Python syntax error.
+  Reduce command output and inspect process/network resources.
+
+On network failures: confirm link with ip and /proc/net/wifi,
+then ping loopback and target, then check TCP/UDP server presence.
+Do not change Wi-Fi configuration without authorization.

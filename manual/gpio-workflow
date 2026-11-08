@@ -1,0 +1,52 @@
+GPIO CONTROL - SAFE AGENT DECISION PROCEDURE
+
+Inspect wiring and device ownership before changing output.
+This board uses GP0..GP15 for 8x8 LED matrix, GP16/17 switches,
+GP18 buzzer, GP19 servo motor, GP20/21 UART1, and GP26/27 I2C1.
+GP25 drives the LED on standard Pico only, not on Pico W. These
+attachments describe the teaching setup, not all Pico boards.
+
+DISCOVER
+  pins
+  ls /dev/gpio
+  ls /dev
+  help pins
+  help gpio
+
+GPIO DEVICE NODES
+  /dev/gpio/N can be a live digital input or output.
+  A read may produce a continuous 0/1 stream, so use
+  Use a bounded read tool if available. A hexdump offset may
+  require lseek which streaming GPIO nodes might not support.
+  Do NOT use an unbounded cat.
+  Do NOT write to a pin without knowing direction, board wiring,
+  and whether that pin is already claimed by an active driver.
+
+INTERACTIVE TOOL
+  gpio         full-screen UI, not safe through MCP execute_command
+  pins         finite read-only text status: preferred
+
+PROCEDURE
+  1) identify the exact attached module and pin;
+  2) call pins and list /dev devices;
+  3) read relevant /man/devices or help for exact command syntax;
+  4) get user's approval before setting outputs;
+  5) apply one bounded operation;
+  6) verify via pins or a bounded read.
+
+A GP NUMBER IS NOT AN I/O VOLTAGE RATING.
+Never use software guesses to drive an unknown physical circuit.
+
+
+FBCHAR fixed-display device (/dev/fbchar)
+----------------------------------------
+Write exactly one printable ASCII character (32..126), or one of the
+case-sensitive pattern names: heart, star, smile, sad, up, down, left,
+right, check, cross, clear. The command `echo A > /dev/fbchar` displays
+A; `echo heart > /dev/fbchar` draws a heart; `echo clear > /dev/fbchar`
+clears the 8x8 matrix. The display persists after close(). The device rejects unknown names and does not scroll text.
+Read with `cat /dev/fbchar` to list available patterns and usage;
+the listing is finite and does not change the display.
+Unlike /dev/gpio/fb (8 binary bytes), /dev/fbchar accepts ASCII.
+Do not run scroll or other framebuffer writers concurrently. Python
+may open the device for writing and call write(fd, "heart").

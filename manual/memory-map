@@ -1,0 +1,48 @@
+MEMORY MAP AND SAFE INSPECTION
+
+Address ranges depend on Pico vs Pico W and current build. Do not
+assume the example addresses always match the running image.
+Typical RP2040/Pico W layout used by PicoNIX:
+  0x20000000..0x2000dfff  kernel region (56 KiB)
+  0x2000e000..0x20031fff  six user slots x 24 KiB
+  Remaining areas include shared memory, RAM files, trace and
+  network reservation. Confirm the actual build report.
+
+INITIAL READ-ONLY CHECK
+  cat /proc/memory
+  cat /proc/ramfiles
+  ps
+  lsof
+  ls /proc/sym
+  grep pwm /proc/sym/kernel
+
+BOUNDED RAW READ
+  hexdump /dev/mem 0x2000e000 64
+  hexdump /dev/mem 0x2000e040 64
+Never read arbitrary memory unless the address is known valid.
+A memory dump is not a license to write to /dev/mem.
+
+FILE DUMPS VS RAW MEMORY
+  hexdump /tmp/a.out 0 64
+  hexdump /dev/shm 0 64
+  hexdump /dev/shm 0 128
+Use explicit offset and count. A 512-byte binary dump expands to
+much more than 512 text bytes. MCP output limit is 4096 bytes.
+
+SYMBOLS
+  grep pwm /proc/sym/kernel
+  mem -s kernel
+'mem -s' prints symbol list, but interactive 'mem' starts a
+full-screen viewer: do not use it through MCP. Kernel symbols may
+have XIP flash or SRAM addresses; inspect the prefix/address.
+
+INTERPRETING RESULTS
+  00 bytes: not proof that memory is unused or uninitialized.
+  changing values: may be timer, stack, ring buffer or concurrency.
+  fixed addresses: need the current ELF/map to attribute precisely.
+  a heap or stack overrun can corrupt adjacent data before failure.
+
+Reserved SRAM area size is not current consumption. A 56-KiB
+kernel allocation does NOT imply 56 KiB actually in use.
+ps reports a time-specific snapshot; short-lived sh and commands
+may disappear when execute_command returns. See process-resources.

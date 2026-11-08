@@ -1,0 +1,18 @@
+PYTHON LAB 2 - FIXED ARRAYS AND PRINT
+
+Create /tmp/seq.py:
+
+  a = [1, 2, 3]
+  print(a)
+  print(len(a))
+  b = bytes([65, 66])
+  print(b)
+
+Run: python /tmp/seq.py
+Expected: one representation of [1,2,3], then length 3, then
+the byte-sequence display. Exact rendering is interpreter-specific;
+compare the observed representation rather than assuming CPython repr.
+
+Lists and bytes are fixed-size integer sequences (<=64 elements).
+No slicing, methods, .append(), enumerate(), imports or dynamic
+memory allocation. Strings share a small fixed storage pool.

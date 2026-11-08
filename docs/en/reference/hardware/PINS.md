@@ -13,11 +13,11 @@
 | GP18, GP19 | `PIN_PWM` | PWM slice 1 A/B; share a frequency |
 | GP20, GP21 | `PIN_UART` | UART1 TX/RX; no UART0 console |
 | GP22 | `PIN_GPIO` | General-purpose GPIO |
-| GP23–25 | `PIN_GPIO` in `pins.h` | On Pico W these have onboard uses; do not treat them as exposed header pins |
+| GP23–25 | `PIN_GPIO` in `pins.h` | On Pico W, reserved for CYW43 and blocked from generic GPIO device access |
 | GP26, GP27 | `PIN_I2C` | I²C1 SDA/SCL; ADC0/1 are not enabled |
 | GP28 | `PIN_ADC` | ADC2 external input |
 
-**Pico W caution:** A `PIN_GPIO` declaration in `pins.h` does not mean the pin is externally accessible. GP23–25 are not brought out on the 40-pin header, and onboard functions differ across boards.
+**Pico W caution:** Even when GP23–25 have `PIN_GPIO` in `pins.h`, the Pico W build reserves them for CYW43. The `/dev/gpio/23`–`25` nodes are not exposed and `pins` reports reserved status. GP29 is also used internally. The Pico W onboard LED uses CYW43 `WL_GPIO0`, not RP2040 GP25.
 
 ### Default pinout (Pico / Pico W)
 
@@ -49,7 +49,7 @@ The 40-pin header below is viewed from the **component side with USB at the top*
               +-------------------+
 ```
 
-On Pico W, GP23/24 are used for onboard wireless-related functions and are not general external wiring pins. GP25 is not exposed on the 40-pin header; its onboard LED usage differs between Pico and Pico W.
+On Pico W, GP23–25 are controlled by the wireless interface and protected from generic GPIO access. GP25 directly controls the onboard LED only on the original Pico. The Pico W LED is connected through CYW43 `WL_GPIO0`.
 
 ## Changing pin modes
 

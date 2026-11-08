@@ -14,6 +14,7 @@ LLM_URL = "http://######:11434/v1"
 LLM_MODEL = "######"
 LLM_API_KEY = "######"
 LLM_REASONING_EFFORT = "low"  # Ollama: none / low / medium / high
+SHOW_THINKING = False  # True: display thinking / False: hide thinking
 
 # PicoNIX Pico W access point (unchanged).
 MCP_URL = "http://192.168.4.1:8080/mcp"
@@ -71,6 +72,15 @@ async def stream_reply(messages, tools):
     content = []
     tool_parts = {}
     active = None
+    thinking_chars = 0
+    progress_width = 0
+
+    def clear_progress():
+        """Remove the in-place indicator before printing answer text."""
+        nonlocal progress_width
+        if progress_width and sys.stdout.isatty():
+            print("\r" + " " * progress_width + "\r", end="", flush=True)
+        progress_width = 0
 
     async for chunk in stream:
         if not chunk.choices:
@@ -81,8 +91,23 @@ async def stream_reply(messages, tools):
         for kind, fragment in (("think", thought), ("llm", reply)):
             if not fragment:
                 continue
+            if kind == "think" and not SHOW_THINKING:
+                if active not in (None, "progress"):
+                    print(flush=True)
+                thinking_chars += len(fragment)
+                indicator = f"...thinking ({thinking_chars})"
+                if sys.stdout.isatty():
+                    print("\r" + indicator.ljust(progress_width), end="", flush=True)
+                    progress_width = len(indicator)
+                elif active != "progress":
+                    # Keep redirected logs free of repeated carriage returns.
+                    print("...thinking", flush=True)
+                active = "progress"
+                continue
             if kind != active:
-                if active is not None:
+                if active == "progress":
+                    clear_progress()
+                elif active is not None:
                     print(flush=True)
                 print(styled("[THINK] " if kind == "think" else "LLM > ", kind),
                       end="", flush=True)
@@ -104,7 +129,11 @@ async def stream_reply(messages, tools):
                 if call.function.arguments:
                     state["arguments"] += call.function.arguments
 
-    if active is not None:
+    if active == "progress":
+        clear_progress()
+        if not sys.stdout.isatty():
+            print(f"...thinking ({thinking_chars} chars received)", flush=True)
+    elif active is not None:
         print(flush=True)
     calls = [{"id": part["id"], "type": "function",
               "function": {"name": part["name"],
@@ -118,87 +147,82 @@ async def stream_reply(messages, tools):
 
 async def main():
     """MCPクライアントとLLMの対話を実行する．"""
-    async with Client(MCP_URL, mode="auto") as mcp:
-        show("[MCP] protocol:", mcp.protocol_version, "info")
-        available = (await mcp.list_tools()).tools
-        tools = [{
-            "type": "function",
-            "function": {
-                "name": t.name,
-                "description": t.description or "",
-                "parameters": t.input_schema,
-            },
-        } for t in available]
-        show("[MCP] available tools:", ", ".join(t.name for t in available) or "(none)", "info")
-
-        messages = [{
-            "role": "system",
-            "content": (
-                "あなたは親切なAIアシスタントです．"
-                "必要に応じてツールを利用して回答してください．"
-                "ツールで確認していない測定値や状態は推測しないでください．"
-                "複数のツールが必要なら，先に情報を取得し，結果を確認してから次のツールを呼び出してください．"
-                "PicoNIXはLinuxではありません．MCPツール一覧にget_manualがあれば，"
-                "PicoNIX操作の前に引数なしで一度呼び出し，内蔵マニュアル全体を確認してください．"
-                "詳しい使い方はexecute_commandからhelpで調べてください．"
-                "execute_commandでは非対話型コマンドだけを使用してください．"
-                "mem，watch，vi，edit，fd，pongなどの全画面アプリは起動しないでください．"
-                "ネットワーク情報はipやcat /proc/net/wifiを利用できます．"
-                "LED表示は標準入力を利用するecho HELLO | scrollが基本です．"
-                "6プロセスの制限に留意し，必要のない常駐サービスは起動しないでください．"
-            ),
-        }]
-
-        while True:
-            try:
-                question = input("\n" + styled("User >", "user") + " ").strip()
-            except (EOFError, KeyboardInterrupt):
-                print()
-                break
-            if question.lower() in ("exit", "quit"):
-                break
-            if not question:
-                continue
-
-            messages.append({"role": "user", "content": question})
-            # Keep calling the LLM until it produces a final answer.
+    connected = False
+    try:
+        async with Client(MCP_URL, mode="auto") as mcp:
+            show("[MCP] protocol:", mcp.protocol_version, "info")
+            available = (await mcp.list_tools()).tools
+            tools = [{
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description or "",
+                    "parameters": t.input_schema,
+                },
+            } for t in available]
+            show("[MCP] available tools:", ", ".join(t.name for t in available) or "(none)", "info")
+            connected = True
+    
+            messages = []  # No system prompt; use MCP tools and manuals as needed.
+    
             while True:
-                message, calls = await stream_reply(messages, tools)
-                messages.append(message)
-
-                if not calls:
-                    if not message["content"]:
-                        print(styled("[INFO] No response text from model", "info"))
+                try:
+                    question = input("\n" + styled("User >", "user") + " ").strip()
+                except (EOFError, KeyboardInterrupt):
+                    print()
                     break
-
-                for call in calls:
-                    name = call["function"]["name"]
-                    failed = False
-                    try:
-                        args = json.loads(call["function"]["arguments"] or "{}")
-                        if not isinstance(args, dict):
-                            raise ValueError("Tool arguments must be an object")
-                        print()
-                        show("[TOOL]", f"{name}({json.dumps(args, ensure_ascii=False)})", "tool")
-                        result = await mcp.call_tool(name, arguments=args)
-                        output = "\n".join(
-                            item.text for item in result.content
-                            if item.type == "text"
-                        )
-                        if result.is_error:
+                if question.lower() in ("exit", "quit"):
+                    break
+                if not question:
+                    continue
+    
+                messages.append({"role": "user", "content": question})
+                # Keep calling the LLM until it produces a final answer.
+                while True:
+                    message, calls = await stream_reply(messages, tools)
+                    messages.append(message)
+    
+                    if not calls:
+                        if not message["content"]:
+                            print(styled("[INFO] No response text from model", "info"))
+                        break
+    
+                    for call in calls:
+                        name = call["function"]["name"]
+                        failed = False
+                        try:
+                            args = json.loads(call["function"]["arguments"] or "{}")
+                            if not isinstance(args, dict):
+                                raise ValueError("Tool arguments must be an object")
+                            print()
+                            show("[TOOL]", f"{name}({json.dumps(args, ensure_ascii=False)})", "tool")
+                            result = await mcp.call_tool(name, arguments=args)
+                            output = "\n".join(
+                                item.text for item in result.content
+                                if item.type == "text"
+                            )
+                            if result.is_error:
+                                failed = True
+                                output = "Tool error: " + output
+                        except Exception as exc:
                             failed = True
-                            output = "Tool error: " + output
-                    except Exception as exc:
-                        failed = True
-                        output = f"Tool error: {exc}"
-                    show("[ERROR]" if failed else "[RESULT]", output,
-                         "error" if failed else "result")
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": call["id"],
-                        "content": output,
-                    })
+                            output = f"Tool error: {exc}"
+                        show("[ERROR]" if failed else "[RESULT]", output,
+                             "error" if failed else "result")
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": call["id"],
+                            "content": output,
+                        })
+    except Exception as exc:
+        if not connected:
+            show("[ERROR]", "MCPサーバに接続できません．PicoNIXでmcpdは起動していますか？", "error")
+            show("[DETAIL]", str(exc), "error")
+        else:
+            show("[ERROR]", f"MCP通信でエラーが発生しました: {exc}", "error")
+        return False
+    return True
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    raise SystemExit(0 if asyncio.run(main()) else 1)

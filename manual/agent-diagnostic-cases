@@ -1,0 +1,47 @@
+AGENT DECISION CASES: EVIDENCE BEFORE ACTION
+
+CASE A: 'Why did the program not start?'
+  ps
+  cat /proc/memory
+  ls /tmp
+  hexdump /tmp/a.out 0 32
+Look for unavailable process slots, missing/oversized images, and
+build errors. Do not repeatedly spawn on a full process table.
+
+CASE B: 'Why is a file read failing?'
+  ls /tmp
+  lsof
+  trace on -s
+  cat /tmp/KNOWN
+  trace show
+  trace on
+'KNOWN' is a placeholder for an existing file, not a command.
+Compare open/ and read/ return values. Trace capture has side effects
+on the global tracing state; restore the prior mode as appropriate.
+
+CASE C: 'Which device is currently controlling the display?'
+  pins
+  fbctl status
+  ps
+Inspect only. Do not issue fbctl off or kill without authorization.
+
+CASE D: 'Why did a network MCP call fail?'
+  ps
+  lsof
+  cat /proc/net/memory
+  cat /proc/net/wifi
+Distinguish transport failure from command failure. Before retrying
+a write, check state and whether the first operation took effect.
+
+CASE E: 'Explain a suspicious memory location'
+  cat /proc/memory
+  mem -s kernel
+  hexdump /dev/mem VERIFIED_ADDRESS 32
+VERIFIED_ADDRESS must be replaced with a confirmed mapped address.
+Never invent addresses or write arbitrary memory.
+
+RULES FOR REPORTING
+  Separate observed output from inference. Preserve small excerpts,
+  include command names and PID only if actually observed. Respect
+  3-second execution and 4096-byte output limits. Avoid interactive
+  or continuous commands. If hardware may be damaged, ask first.

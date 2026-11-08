@@ -1,0 +1,37 @@
+SAFETY AND RECOVERY FOR REMOTE LLM AGENTS
+
+READ-ONLY FIRST
+  help COMMAND, ps, pins, pwmctl status, cat /proc/memory,
+  grep TEXT /proc/sym/kernel, bounded hexdump FILE OFFSET COUNT.
+
+COMMANDS THAT CAN CHANGE STATE
+  write_file, rm, kill, dd with of=..., echo > file,
+  i2cctl write/xfer, pwmctl freq/a/b/off, framebuffer control,
+  server startup/shutdown, raw memory access.
+Ask the user before irreversible or hardware-affecting changes.
+
+DO NOT EXECUTE THROUGH MCP
+  bare python, edit, vi, fd, mem, gpio, fbed, pong, mb,
+  watch, trace follow, interactive omikuji -i, indefinite tcpdump,
+  raw cat on infinite /dev nodes, long-running network listeners.
+
+RECOVER FROM A FAILED CALL
+  1) identify if the tool returned a normal result or transport
+     failure (HTTP reset/incomplete chunked read);
+  2) reopen MCP connection if needed;
+  3) check ps, lsof and state without changing it;
+  4) retry only idempotent, bounded read commands;
+  5) warn the user before repeating a non-idempotent action.
+
+WHEN OUTPUT IS TOO BIG
+  hexdump FILE OFFSET 64
+  trace show PID
+  grep substring /man/PAGE
+  get_manual(topic) one page rather than every page
+If a single /man page exceeds the MCP output cap, use cat/grep
+with a bounded transfer strategy; prefer keeping pages small.
+
+REPORT RESULTS PRECISELY
+  command issued, output received, exit/result when known,
+  observed side effect, what remains unverified.
+Avoid declaring success solely because a tool did not raise error.

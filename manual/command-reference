@@ -1,0 +1,44 @@
+PICONIX FINITE COMMAND REFERENCE FOR AGENTS
+
+READ-ONLY, USUALLY FINITE
+  help [CMD]             command syntax or index
+  ps                     process table
+  lsof [PID]             FD table
+  ls [-la] [PATH]        directory entries
+  tree [-L 0..8] [PATH]  tree, depth limit
+  find [PATH] [-name P]  entry lookup
+  cat [-n] [FILE]        finite files only
+  grep PATTERN [FILE]    literal, case-sensitive, no -i
+  hexdump [F [O [N]]]   bounded when count supplied
+  ip [addr]              IPv4 interface snapshot
+  net [-a|-r]            Wi-Fi status, clients, ARP
+  pins                   pin snapshot
+  pwmctl status          PWM snapshot
+  trace show [PID]       stops recording
+  cat /proc/memory       kernel memory summary
+
+SIDE EFFECTS / POTENTIAL BLOCKING
+  cc /tmp/foo.c          writes generated .s
+  as /tmp/foo.s          overwrites /tmp/a.out
+  python /tmp/foo.py     executes user program
+  rm FILE                deletes RAM file
+  cp SRC DST             overwrites destination
+  dd ...                 binary read/write; check flags
+  pwmctl freq HZ         affects both PWM channels
+  i2cctl scan            issues actual I2C read probes
+  i2cctl write           changes sensor/device registers
+  kill PID               ends a task
+  trace on/off           changes trace capture mode
+
+INTERACTIVE / LONG-RUNNING
+  fd, edit, vi, mem, gpio, fbed, watch, pong, mb,
+  trace follow, bare python, indefinite tcpdump and listeners.
+Do not launch these via MCP execute_command.
+
+SHELL LIMITS
+  Supports simple pipelines and redirections, not full bash.
+  No assumptions about GNU flags, POSIX job control, globbing,
+  command substitution, environment expansion or shell scripts.
+
+SHELL: see shell-syntax for exact operators in interactive sh and
+MCP sh -c. rm accepts exactly one path, not GNU rm a b c.

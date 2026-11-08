@@ -48,6 +48,9 @@ Some other important usage details: `ls -a` shows `.` and `..`; `ls -l` shows ty
 
 `echo -e` interprets `\n`, `\r`, `\t`, `\\`, `\033` (octal), and `\x1b` (hex). `echo -n` suppresses the trailing newline. The shell has limited quoting, but `echo -e '\033[?1049l'` works.
 
+
+`echo` batches short output into a single `write()` call, so named device operations such as `echo heart > /dev/fbchar` work. Use `echo -n` for destinations that do not accept a trailing newline.
+
 ## Pico W network commands
 
 `ping [-c COUNT] IPv4` sends four Echo Requests by default; use a numeric address such as `192.168.4.2`. `tcpdump [-x] [-c COUNT]` shows IPv4 TCP/UDP/ICMP packet summaries; use `-x` to show the data length and up to 16 payload bytes (HEX and ASCII) on an indented second line. These commands require Pico W. See the [Network connection](../reference/network/NETWORK.md).

@@ -1,0 +1,37 @@
+THUMB-1 ASSEMBLY DEBUGGING REFERENCE
+
+The on-device 'as' is a tiny two-pass assembler for RP2040 Thumb-1.
+This is not GNU as. Refer to /man/languages/asm.
+
+WORKFLOW
+  write_file('/tmp/t.s', 'movs r0, #3\nmovs r1, #0\nsvc #0\n')
+  as /tmp/t.s
+  hexdump /tmp/a.out 0 32
+  /tmp/a.out
+Output includes 8-byte PNX1 header; program code follows.
+
+REGISTER/INSTRUCTION RULES
+  Most data-processing operands are r0..r7. PC-relative addressing
+  is restricted; 'bx lr', 'push {r4,lr}', 'pop {r4,pc}' accepted.
+  movs r0, #255 is supported; a 32-bit immediate usually needs
+  multiple instructions. No movw/movt or literal pools.
+  svc #0 enters kernel (syscall number in r0, args in r1..r3).
+  Branches have Thumb-1 distance limits and labels <=32.
+  Comments use @ or ;. Label and directive syntax is restricted.
+
+READING 'invalid instruction, label or size'
+  Check spelling and accepted instruction forms.
+  Check .align 2 for ADR's word-aligned forward data target.
+  Check memory offsets: word accesses aligned and scaled.
+  Check missing label and duplicate label.
+  Check source <=2048 bytes and emitted code <=2040 bytes.
+
+POSITION INDEPENDENCE
+  ADR and relative labels are preferred over absolute references.
+  Code must be valid in any user slot, not only 0x2000e000.
+  The host build PIC test compares two linked addresses for
+  native user binaries; on-device code should follow the same rule.
+
+SYSCALL NUMBERS
+  See /man/asm-examples and actual include/piconix_syscall.h.
+  Do not invent syscalls from Linux's ARM EABI table.

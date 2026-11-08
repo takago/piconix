@@ -1,0 +1,61 @@
+C COMPILER cc - EXACT SUPPORTED SUBSET (cc.c)
+
+USAGE
+  cc /tmp/foo.c     -> /tmp/foo.s
+  as /tmp/foo.s     -> /tmp/a.out
+  /tmp/a.out
+Source <=1024 bytes. Output .s buffer <=4096 bytes, but as input
+must be <=2048 bytes. No preprocessor, #include, headers or linker.
+
+TOP LEVEL
+  int main() { ... }              main required, must return int
+  int sum(int a, int b) { ... }
+  void helper(int *p) { ... }
+  Up to 16 functions, up to 4 parameters each, supported parameter
+  types int, int*, char*. Parameter names are identifiers <=19 chars.
+  Function calls/recursion supported; fixed 256-byte local frame.
+  Return values int; void functions may use return;.
+
+LOCAL DECLARATIONS (inside a block/function)
+  int n = 2;          char ch = 'A';
+  int a[8];          char s[8] = "hi";
+  int *p = &n;       char *q = &ch;
+  Up to 16 variable names and local frame <=256 B per function.
+  Arrays 1..64 elements, one dimension. Cannot declare pointer array.
+  String initializer is supported for char arrays only.
+  No global variables, struct, union, enum, typedef, const, static.
+
+STATEMENTS
+  assignment: n = n + 1;    a[0] = 3;    *p = 7;
+  control: if (a < b) { ... } else { ... }
+           while (n != 0) { ... }
+  function call: helper(&n); return expr; or return; for void
+  built-in: getpid(); read(fd,buffer,n); write(fd,buffer,n);
+  write(1, "Hello\n", 6);  (special string-literal form)
+  Expressions are small: + - * / %, unary + - & *, indexing,
+  parentheses, constants, variables, sizeof(variable).
+  Comparisons == != < <= > >= only in if/while conditions.
+  Avoid &&, ||, !, ++, +=, for, switch, ternary, casts.
+
+POINTERS AND NUMBERS
+  Local int* and char* pointers, address-of local variable or
+  array element, dereference and indexing. int* arithmetic scales
+  by 4 bytes. No pointer-to-pointer, pointer return, pointer bounds
+  checking or pointer-pointer subtraction. No arbitrary libc calls.
+  Signed 32-bit constants accepted. Division/modulo implemented
+  by repeated subtraction for nonnegative operands, not fast;
+  division by zero returns 0 (do not rely on this).
+
+ERRORS
+  'unsupported C syntax or output too large' covers grammar,
+  limits and assembly-buffer overflow. Split functions/source,
+  use only supported syntax, and inspect generated foo.s.
+  No runtime bounds checks: wrong addresses can corrupt memory.
+  See /man/c-examples for full runnable snippets.
+
+INCREMENT/DECREMENT: int scalar locals support i++, i--, ++i, --i.
+Prefix yields the new value; postfix yields the old value. Pointer,
+char, dereference and array-element increments are unsupported.
+Generated .s files have a 2048-byte RAM-file limit independently of
+1024-byte C source input and the 4096-byte internal code buffer.
+An over-limit output is rejected before file creation; no partial .s.

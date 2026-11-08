@@ -44,6 +44,17 @@ def transform(source):
     } > FLASH
 
 '''
+    app += '''    /* Packed manual in a dedicated Flash section; no SRAM copy. */
+    .manual :
+    {
+        . = ALIGN(4);
+        __manual_start = .;
+        KEEP(*(.manual))
+        . = ALIGN(4);
+        __manual_end = .;
+    } > FLASH
+
+'''
     # このセクションは.dataのFlashロードイメージより前に置く必要がある．
     return '/* PicoNIX XIP: flash code/const, 56-KiB kernel RAM. */\n' + source[:match.start()] + app + source[match.start():]
 

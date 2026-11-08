@@ -1,0 +1,74 @@
+PICONIX PYTHON-LIKE INTERPRETER - ACTUAL SUBSET
+
+  python /tmp/script.py    run script (best for MCP)
+  python                   interactive REPL (DO NOT start via MCP)
+  Script <=2048 B; <=64 nonempty lines; use spaces, not tabs.
+  Variables <=16, identifiers <=15 characters; strings <=64 B;
+  list/bytes <=64 elements; shared pool <=256 x 32-bit words.
+  Indented block depth <=8, loops <=10000 iterations each.
+  This is NOT CPython: no import, def, class, dictionaries,
+  exceptions, files/modules in standard Python form.
+
+BASICS
+  x = 10
+  y = 0x20 + x * 2
+  z = 0b1010
+  s = "hello"           ASCII/escaped strings
+  a = [1, 2, 3]        list of integers
+  data = bytes([65, 66])
+  print(x, y)
+  print(s)
+  print(a)
+  print(len(a))
+  x = int(input())      interactive: avoid via MCP
+  s = str(x)            conversion on assignment
+  exit()                exit interpreter
+  msleep(100)           sleep 100 ms (max 60000)
+
+CONTROL FLOW
+  if x > 0:
+      print(x)
+  else:
+      print(0)
+  for i in range(0, 3):
+      print(i)
+  while x > 0:
+      x = x - 1
+  break and continue valid only inside loops.
+  Conditions: comparisons, not, and, or; integers as truth values.
+  Integers are signed 32-bit; bitwise ~, &, ^, |, <<, >>.
+
+FILE AND DEVICE OPERATIONS (subset-specific)
+  fd = open("/dev/adc/temp", O_RDONLY)
+  data = read(fd, 4)       # byte list on success; -1 on failure
+  close(fd)
+  write(fd, "TEXT")       # also accepts a list/bytes payload
+  pos = lseek(fd, 0, SEEK_SET)
+  fcntl(fd, F_SETFL, O_NONBLOCK)
+  ioctl(fd, CMD, ARG)
+  i2c_write(fd, addr, [bytes...]) returns status
+  x = i2c_read(fd, addr, count)  # assigned list
+  x = i2c_xfer(fd, addr, [bytes...], count)
+
+NETWORK OPERATIONS
+  socket(1) [TCP] / socket(2) [UDP] -> fd
+  Numeric type is required; SOCK_STREAM/DGRAM names are NOT built-in
+  expression constants in this interpreter.
+  connect(fd, "127.0.0.1", port)
+  bind(fd, port) / listen(fd, port) / accept(fd)
+  send(fd, "data") / recv(fd, n) -> assigned byte list
+  sendto(fd, "data", "127.0.0.1", port)
+  x = recvfrom(fd, n); peerport() returns last UDP peer port
+  status(fd), close(fd); failures often reported as -1.
+
+Syntax and APIs are intentionally limited. 'read', 'recv', and
+'recvfrom' must be assigned (e.g. x = read(fd, 4)).
+List/bytes are not Python library objects: no methods, slicing,
+comprehensions, dynamic imports or full Python type system.
+See /man/python-examples for correct short scripts.
+
+ITERATION: for i in range(0,n) works. for b in data is NOT supported.
+read(fd,n) returns bytes/list-like values; index with data[j], and
+check actual length before assuming indexes exist. /dev/adc/temp
+returns ASCII decimal temperature text with a newline, not a float.
+Do not assume fixed digit count, positive sign, or standard CPython.

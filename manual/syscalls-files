@@ -1,0 +1,48 @@
+SYSCALL REFERENCE: FILES, DIRECTORY AND FD
+
+This is a high-level reference for the userland wrappers. For
+exact constants/structs use include/piconix_syscall.h and
+userland/lib headers in the PicoNIX source tree.
+
+open(path, flags)
+  Opens a file or VFS node, returns FD or negative on failure.
+  Flags include O_RDONLY, O_WRONLY and O_RDWR; not all nodes are
+  writable. /man and /proc are read-only interfaces.
+
+read(fd, buf, count)
+  Returns bytes consumed, 0 on EOF, negative on error.
+  A device may be endless or blocking. Use bounded count.
+
+write(fd, buf, count)
+  Returns bytes written; may write fewer than requested.
+  For critical outputs, retry remaining data and close fd.
+
+close(fd)
+  Frees FD and device/socket resources; errors must be checked.
+
+lseek(fd, offset, whence)
+  Seekable RAM files and selected virtual files support SEEK_SET,
+  SEEK_CUR, SEEK_END. Streaming devices may reject seeking.
+  /man pages and /proc/sym/kernel support offset access.
+
+fcntl(fd, F_SETFL, flags)
+  O_NONBLOCK changes blocking behavior where supported.
+  fcntl(fd,F_GETFL,0) queries current flags.
+
+ioctl(fd, cmd, arg)
+  Device-specific command; wrong command/argument may fail.
+  See /man/i2c-workflow and /man/pwm-workflow.
+
+pipe(fds), dup2(old,new)
+  Used by shell pipelines, redirects streams, and MCP command
+  output capture. Close unused pipe ends to avoid stalled readers.
+
+getdents(fd,...)
+  Enumerates directory entries. ls/tree/find use it; not every
+  VFS object is a real disk file. Directory offsets are synthetic.
+
+DIAGNOSTICS
+  lsof
+  ps
+  hexdump /tmp/foo 0 64
+  trace on -s; trace show

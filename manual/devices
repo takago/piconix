@@ -1,0 +1,72 @@
+DEVICE INSPECTION AND CONTROL (CHECK OWNER FIRST)
+
+PicoNIX exposes device nodes through /dev. Paths and ownership
+are platform-specific; 'pins' provides a live read-only snapshot.
+Hardware control can harm connected devices: obtain approval,
+check wiring and currently assigned pins before modifying output.
+
+DISCOVER:
+  pins                 snapshot of pin ownership/status
+  ls /dev
+  ls /dev/gpio
+  cat /proc/net/wifi   network/connection status on Pico W
+
+GPIO:
+  /dev/gpio/N endpoints exist for supported pins.
+  GP0..GP15 are attached to the 8x8 LED matrix on the teaching
+  board; GP16/GP17 are switches; GP18 has a buzzer, and GP19 has a
+  servo motor on this teaching setup. GP25 drives the onboard LED
+  on standard Pico only (not Pico W).
+  UART1 uses GP20/GP21; I2C1 uses GP26/GP27.
+  Avoid driving pins reserved for active peripherals.
+  Bare 'gpio' is a full-screen editor: DO NOT run via MCP.
+  Prefer 'pins', documented gpioctl/pinsctl commands or bounded
+  device access after inspecting 'help COMMAND'.
+
+PWM (actual pwmctl CLI):
+  pwmctl status         inspect first
+  pwmctl freq HZ       sets shared frequency 8..100000 Hz
+  pwmctl a DUTY        GP18 buzzer duty (0..100 percent)
+  pwmctl b DUTY        GP19 servo duty (0..100 percent)
+  pwmctl off           sets BOTH duties to zero
+  GP18/GP19 share PWM slice 1 and the SAME frequency. An audible
+  buzzer frequency (e.g. 523 Hz) is not suitable for a servo motor.
+  Do not change frequency or duty while the servo is attached
+  without confirming its rated pulse period, pulse width and travel
+  limits. Fractional duty supports 0.1 percent steps.
+
+I2C1 on GP26 SDA / GP27 SCL:
+  i2cctl scan
+  i2cctl read 0x23 2
+  i2cctl write 0x23 0x10
+  i2cctl xfer 0x23 2 0x10
+  Scan/read/write/xfer must match actual device protocol.
+  Use 7-bit addresses 0x08..0x77, max transfer 32 bytes.
+  Do not scan continuously or write random registers.
+
+ADC / framebuffer:
+  /dev/adc/temp for onboard temperature sensor (read-only).
+  Other /dev/adc and /dev/fb endpoints are platform dependent;
+  check help adc/fbctl and device documentation before access.
+  Framebuffer user tools may require a terminal or own hardware.
+
+After every state-changing command, verify with pwmctl status,
+pins, or a bounded read. Never run 'cat /dev/gpio/25' unbounded:
+repeated reads can produce an endless stream of '1'/'0'.
+
+Pico W GPIO ownership: see gpio-board. RP2040 GP25 is not the
+Pico W board LED and must not be controlled as a generic GPIO.
+
+
+FBCHAR fixed-display device (/dev/fbchar)
+----------------------------------------
+Write exactly one printable ASCII character (32..126), or one of the
+case-sensitive pattern names: heart, star, smile, sad, up, down, left,
+right, check, cross, clear. The command `echo A > /dev/fbchar` displays
+A; `echo heart > /dev/fbchar` draws a heart; `echo clear > /dev/fbchar`
+clears the 8x8 matrix. The display persists after close(). The device rejects unknown names and does not scroll text.
+Read with `cat /dev/fbchar` to list available patterns and usage;
+the listing is finite and does not change the display.
+Unlike /dev/gpio/fb (8 binary bytes), /dev/fbchar accepts ASCII.
+Do not run scroll or other framebuffer writers concurrently. Python
+may open the device for writing and call write(fd, "heart").

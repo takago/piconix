@@ -1,0 +1,17 @@
+PROCESS SLOTS AND RAM FILES
+
+RP2040 SRAM is 256 KiB: kernel region 56 KiB (reserved capacity,
+NOT actual kernel SRAM consumption), six 24-KiB user slots, 2-KiB
+shared memory, 22-KiB RAM files, 16-KiB trace, 16-KiB network reserve.
+Use ps and cat /proc/memory to inspect a snapshot.
+User programs, including mcpd/sh/short commands, consume process
+slots WHILE running. MCP execute_command may need slots for mcpd,
+sh and the command, plus any descendants.
+
+RAM files use a separate pool: 11 entries, each at most 2048 bytes.
+write_file allocates RAM-file storage; it does not create a persistent
+process slot. A full table (11/11) prevents creating new files.
+A file of 2048 bytes truncated mid-instruction indicates a separate
+per-file size limit. Never conflate either with 24-KiB process slots.
+Remove ONLY temporary files made for the current task; never erase
+/etc files or unknown files without explicit permission.

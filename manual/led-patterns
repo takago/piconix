@@ -1,0 +1,28 @@
+LED matrix fixed display via /dev/fbchar
+
+/dev/fbchar is a text device: reading lists supported patterns and usage;
+writing displays one character or named pattern. One write accepts one character
+from printable ASCII (32..126), or one pattern name:
+  heart star smile sad up down left right check cross clear
+
+Shell:
+  cat /dev/fbchar  # finite list of supported patterns, then EOF
+  echo A > /dev/fbchar
+  echo 9 > /dev/fbchar
+  echo heart > /dev/fbchar
+  echo clear > /dev/fbchar
+
+Python:
+  fd = open("/dev/fbchar", 1)
+  write(fd, "heart")
+  close(fd)
+
+This is a static single-glyph device. For text scrolling use `scroll`.
+The existing /dev/gpio/fb accepts eight binary bytes instead; do not
+confuse the two protocols. /dev/fbchar automatically enables scanning.
+Output remains displayed after the process exits. Running multiple
+framebuffer writers simultaneously may change the displayed pattern.
+Unknown names and unsupported multi-character text are rejected.
+
+Reading does not alter the display. Each open has an independent read
+position; successive reads return EOF after the complete text.

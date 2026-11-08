@@ -17,6 +17,7 @@ typedef struct { unsigned mode,level,pull,duty,freq; } pins_record_t;
 #define PINS_GPIO_IN GPIO_STATUS_IN
 #define PINS_GPIO_OUT GPIO_STATUS_OUT
 #define PINS_FREE GPIO_STATUS_FREE
+#define PINS_RESERVED GPIO_STATUS_RESERVED
 
 /* GPIOの割当状態から使用用途の表示文字列を求める． */
 static void describe(char *dst, unsigned size, int pin, const pins_record_t *r) {
@@ -30,6 +31,7 @@ static void describe(char *dst, unsigned size, int pin, const pins_record_t *r) 
     case PINS_GPIO_IN: snprintf(dst,size,"in %s%s",r->level?"HIGH":"LOW",r->pull==1?" pull-up":r->pull==2?" pull-down":""); break;
     case PINS_GPIO_OUT: snprintf(dst,size,"out %s",r->level?"HIGH":"LOW"); break;
     case PINS_FREE: snprintf(dst,size,"free"); break;
+    case PINS_RESERVED: snprintf(dst,size,"reserved"); break;
     default: snprintf(dst,size,"other"); break;
     }
 }
@@ -77,7 +79,7 @@ int main(int argc,char **argv) {
     static const int right[20]={-1,-1,-1,-1,-1,-1,28,-1,27,26,-1,22,-1,21,20,19,18,-1,17,16};
     /* 文字列ポインタの配列はPIC内で絶対アドレスを生成するため避ける． */
 
-    puts("Raspberry Pi Pico / PicoNIX pins (live snapshot)");
+    puts("PicoNIX GPIO pins (live snapshot)");
     puts("                          +------- USB -------+");
     for(int i=0;i<20;i++) {
         char l[60],r[60];
@@ -112,6 +114,7 @@ int main(int argc,char **argv) {
     }
     puts("                          +-------------------+");
     puts("fb = framebuffer in use; PWM duty/frequency are live settings.");
-    puts("GP23..25 are internal (not on the Pico header).");
+    puts("GP23..25 are internal. On Pico W they are reserved for CYW43 Wi-Fi.");
+    puts("Pico W board LED uses CYW43 WL_GPIO0, not GP25.");
     return 0;
 }

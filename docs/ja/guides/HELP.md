@@ -50,6 +50,9 @@ piconix# fbed
 
 `echo -e` は `\n`，`\r`，`\t`，`\\`，`\033`（8進），`\x1b`（16進）を解釈します．`echo -n` は末尾の改行を省略します．シェルの引用符処理は限定的ですが，`echo -e '\033[?1049l'` の形式が使えます．
 
+
+`echo`は短い出力をまとめて1回の`write()`で送るため，`echo heart > /dev/fbchar`のような名前付きデバイス操作も利用できます．末尾の改行を許さない書込み先には`echo -n`を使用してください．
+
 ## Pico Wのネットワークコマンド
 
 `ping [-c COUNT] IPv4`は既定で4回のEcho Requestを送ります．`192.168.4.2`のような数値のIPv4アドレスを指定してください．`tcpdump [-x] [-c COUNT]`はIPv4のTCP/UDP/ICMPを観察します．`-x`を指定すると字下げした2行目にデータ長と先頭最大16バイト（HEX・ASCII）を表示します．どちらもPico W専用です．詳しくは[ネットワーク接続](../reference/network/NETWORK.md)を参照してください．

@@ -1,0 +1,41 @@
+BUILD AND RUN PROGRAMS ON PICONIX
+
+PicoNIX has small on-device programs, NOT a desktop toolchain.
+The compilers write short files in RAM FS; the generated binary
+is always /tmp/a.out (PNX1 header + Thumb machine code).
+
+C pipeline:
+  cc /tmp/hello.c       # writes /tmp/hello.s
+  as /tmp/hello.s       # writes /tmp/a.out
+  /tmp/a.out            # run only after both succeed
+
+Direct assembly:
+  as /tmp/blink.s
+  /tmp/a.out
+
+Python-like scripts:
+  python /tmp/check.py
+
+Use MCP write_file for a source; it overwrites target /tmp path.
+Source must be ASCII for write_file. C input <=1024 B, generated
+assembly <=4096 B internally, but as source input <=2048 B.
+Some legal C source can therefore generate assembly too large
+for as. Simplify the code. Assembler output <=2040 code bytes.
+Python input <=2048 B with <=64 nonempty program lines.
+
+Do not use #include, import, malloc, regular Python modules or
+GNU build commands unless a particular interpreter documents them.
+Compilation errors are usually 'unsupported C syntax or output too
+large', or 'invalid instruction, label or size'. See language pages.
+
+Execution slots: 6 slots x 24 KiB, 4 KiB per-task stack reserved;
+not all of 24 KiB is available for code/data. Applications built
+into the image are different from code generated on the device.
+
+Verification pattern:
+  1. Verify file exists: ls /tmp
+  2. Run cc/as; inspect their output and return status.
+  3. Execute /tmp/a.out; compare stdout to expected result.
+  4. If unexpected, inspect assembly or use trace on/show.
+  5. Never assume a previous /tmp/a.out is the new build.
+See /man/c-examples, /man/asm-examples, /man/python-examples.

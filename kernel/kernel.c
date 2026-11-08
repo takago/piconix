@@ -26,6 +26,7 @@
 #include "../include/piconix_select.h"
 #include "pico/stdio_usb.h"
 #include "tusb.h"
+#include "manual.h"
 
 /* 関数トレース対象以外にはコンパイラの計測フックを挿入しない． */
 #define NO_TRACE __attribute__((no_instrument_function))
@@ -77,7 +78,7 @@ enum {
 };
 enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
        VDIR_PWM, VDIR_PWM1, VDIR_PROC, VDIR_TASK, VDIR_SYM,
-       VDIR_USERLAND, VDIR_NET, VDIR_TMP, VDIR_ETC, VDIR_DEV_NET, VDIR_I2C };
+       VDIR_USERLAND, VDIR_NET, VDIR_TMP, VDIR_ETC, VDIR_DEV_NET, VDIR_I2C, VDIR_MAN, VDIR_MAN_LANG };
 
 static int path_match(const char *p, const char *s);
 
@@ -115,13 +116,18 @@ static int vfs_fixed_path_id(const char *path) {
     for(unsigned i=0;i<VFS_REGISTRY_COUNT;i++)
         if(path_match(path,vfs_registry[i].path))
             return vfs_registry[i].id;
+    if(!strncmp(path,"/man/",5)) {
+        for(unsigned i=0;i<MAN_COUNT;i++)
+            if(!strcmp(path+5,man_entries[i].name))
+                return MAN_BASE+(int)i;
+    }
     return -1;
 }
 
 static const char *const vdir_paths[] = {
     "/", "/bin", "/dev", "/dev/gpio", "/dev/adc",
     "/dev/pwm", "/dev/pwm/1", "/proc", "/proc/task",
-    "/proc/sym", "/proc/sym/userland", "/proc/net", "/tmp", "/etc", "/dev/net", "/dev/i2c"
+    "/proc/sym", "/proc/sym/userland", "/proc/net", "/tmp", "/etc", "/dev/net", "/dev/i2c", "/man", "/man/languages"
 };
 /* 固定ディレクトリ名をIDへ変換する．一致しなければ-1． */
 static int vfs_directory_id(const char *path) {
@@ -133,7 +139,7 @@ static int vfs_directory_id(const char *path) {
 
 /* 固定ディレクトリIDから絶対パスを求める．該当IDがなければNULLを返す． */
 NO_TRACE static const char *vfs_directory_path(int id) {
-    return id>=VDIR_ROOT && id<=VDIR_I2C ? vdir_paths[id-VDIR_ROOT] : 0;
+    return id>=VDIR_ROOT && id<=VDIR_MAN_LANG ? vdir_paths[id-VDIR_ROOT] : 0;
 }
 
 /* 登録済みのデバイス・仮想ファイルIDをパスに戻す．見つからなければNULL． */
@@ -1615,7 +1621,16 @@ NO_TRACE static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
     EMIT(".",1); EMIT("..",1);
     switch(dir) {
     case VDIR_ROOT:
-        EMIT("bin",1); EMIT("dev",1); EMIT("proc",1); EMIT("tmp",1); EMIT("etc",1); break;
+        EMIT("bin",1); EMIT("dev",1); EMIT("proc",1); EMIT("tmp",1); EMIT("etc",1); EMIT("man",1); break;
+    case VDIR_MAN:
+        EMIT("languages",1);
+        for(unsigned i=0;i<MAN_COUNT;i++)
+            if(!strchr(man_entries[i].name,'/')) EMIT(man_entries[i].name,0);
+        break;
+    case VDIR_MAN_LANG:
+        for(unsigned i=0;i<MAN_COUNT;i++)
+            if(!strncmp(man_entries[i].name,"languages/",10)) EMIT(man_entries[i].name+10,0);
+        break;
     case VDIR_BIN: case VDIR_USERLAND:
         for(int i=1;i<PROGRAM_CAPACITY;i++)
             if(programs[i].entry && programs[i].name) { EMIT(programs[i].name,0); }
@@ -1702,7 +1717,8 @@ NO_TRACE static uint16_t vdir_entry_device_id(int dir, const char *name, int is_
     if(is_dir || (dir!=VDIR_DEV && dir!=VDIR_DEV_NET && dir!=VDIR_GPIO &&
                   dir!=VDIR_I2C && dir!=VDIR_ADC && dir!=VDIR_PWM1 &&
                   dir!=VDIR_PROC && dir!=VDIR_NET && dir!=VDIR_TASK &&
-                  dir!=VDIR_SYM && dir!=VDIR_USERLAND)) return 0xffff;
+                  dir!=VDIR_SYM && dir!=VDIR_USERLAND &&
+                  dir!=VDIR_MAN && dir!=VDIR_MAN_LANG)) return 0xffff;
     const char *parent=vfs_directory_path(dir);
     if(!parent)
         return 0xffff;
@@ -1728,7 +1744,7 @@ static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
     if(fd<0 || fd>=OS_FD_MAX)
         return OS_EBADF;
     int dir=tasks[current].fd[fd];
-    if(dir<VDIR_ROOT || dir>VDIR_I2C)
+    if(dir<VDIR_ROOT || dir>VDIR_MAN_LANG)
         return OS_EBADF;
     if(n<sizeof(*out) || !in_task_range(out,sizeof(*out)))
         return OS_EINVAL;
@@ -1785,9 +1801,10 @@ static int vfs_open(const char *p, int flags) {
        (dev==DEV_PWM_18 && !pin_pwm(18)) ||
        (dev==DEV_PWM_19 && !pin_pwm(19))) dev=-1;
     if(dev<0 || (((dev>=DEV_ADC_BASE && dev<=DEV_ADC_END) ||
-                   proc_device(dev) || dev==DEV_RAND || dev==DEV_SYMS_KERNEL ||
+                   (dev>=MAN_BASE && dev<MAN_BASE+(int)MAN_COUNT) || proc_device(dev) || dev==DEV_RAND || dev==DEV_SYMS_KERNEL ||
                    (dev>DEV_SYMS_USER_BASE && dev<DEV_SYMS_USER_BASE+PROGRAM_CAPACITY) || dev==DEV_TRACE) &&
                   (flags & 3)!=OS_O_RDONLY)) return OS_EINVAL;
+    /* 読出しは利用可能パターンの有限リストを返す． */
     if(dev==DEV_WIFI_CTRL && (flags & 3)!=OS_O_WRONLY)
         return OS_EINVAL;
     if(dev==DEV_NET_PACKET && (flags & 3)!=OS_O_RDONLY)
@@ -1907,8 +1924,12 @@ NO_TRACE static int proc_fb_read(int fd, void *dst, size_t n) {
 
 /* FDの表示名はカーネルが管理するデバイスIDから求める． */
 NO_TRACE static const char *fd_path(int dev, int task_pid, int tcp_id, char *buf, size_t size) {
-    if(dev>=VDIR_ROOT && dev<=VDIR_I2C)
+    if(dev>=VDIR_ROOT && dev<=VDIR_MAN_LANG)
         return vfs_directory_path(dev);
+    if(dev>=MAN_BASE && dev<MAN_BASE+(int)MAN_COUNT) {
+        snprintf(buf,size,"/man/%s",man_entries[dev-MAN_BASE].name);
+        return;
+    }
     const char *fixed=vfs_fixed_id_path(dev);
     if(fixed)
         return fixed;
@@ -2211,8 +2232,18 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         int r=writing ? net_socket_tcp_write(id,p,(unsigned)n) : net_socket_tcp_read(id,p,(unsigned)n);
         return r==-2 ? (writing ? OS_EIO : 0) : r<0 ? OS_EIO : r==0 ? OS_EAGAIN : r;
     }
-    if(dev>=VDIR_ROOT && dev<=VDIR_I2C)
+    if(dev>=VDIR_ROOT && dev<=VDIR_MAN_LANG)
         return OS_EBADF;
+    if(dev>=MAN_BASE && dev<MAN_BASE+(int)MAN_COUNT) {
+        if(writing) return OS_EBADF;
+        const man_entry_t *m=&man_entries[dev-MAN_BASE];
+        uint32_t pos=tasks[current].fd_pos[fd];
+        if(pos>=m->size) return 0;
+        if(n>m->size-pos) n=m->size-pos;
+        memcpy(p,man_data(m)+pos,n);
+        tasks[current].fd_pos[fd]=pos+(uint32_t)n;
+        return (int)n;
+    }
     if(dev>=DEV_TMP_FIRST && dev<DEV_TMP_FIRST+TMP_FILES)
         return tmp_rw(fd,p,n,writing);
     if(dev==DEV_NET_PACKET) {
@@ -2379,6 +2410,15 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         tasks[current].fd_pos[fd] = pos + (uint32_t)n;
         return (int)n;
     }
+    if(dev==DEV_FBCHAR) {
+        int mode=tasks[current].fd_flags[fd] & 3;
+        if((writing && mode==OS_O_RDONLY) || (!writing && mode==OS_O_WRONLY))
+            return OS_EBADF;
+        if(writing) return fb_char_write(p,n);
+        int count=fb_char_read(p,n,tasks[current].fd_pos[fd]);
+        if(count>0) tasks[current].fd_pos[fd]+=(uint32_t)count;
+        return count;
+    }
     if(dev==DEV_FB)
         return fb_rw(p,n,writing);
     if(dev>=DEV_ADC_BASE && dev<=DEV_ADC_END)
@@ -2461,7 +2501,9 @@ NO_TRACE static int device_ioctl_gpio_status(int fd,int cmd) {
     unsigned pin=(unsigned)(cmd-OS_GPIO_STATUS_BASE);
     unsigned mode=GPIO_STATUS_OTHER;
     unsigned level=0, pull=0;
-    if(pin<16 && fb_active())
+    if(pin_reserved(pin))
+        mode=GPIO_STATUS_RESERVED;
+    else if(pin<16 && fb_active())
         mode=GPIO_STATUS_FB;
     else {
         gpio_function_t fn=gpio_get_function(pin);
@@ -2995,6 +3037,8 @@ void os_svc_dispatch(uint32_t *f) {
             int32_t end;
             if(dev==DEV_SHM)
                 end=SHM_BYTES;
+            else if(dev>=MAN_BASE && dev<MAN_BASE+(int)MAN_COUNT)
+                end=(int32_t)man_entries[dev-MAN_BASE].size;
             else if(dev==DEV_SYMS_KERNEL) {
                 /* カーネルの埋込みシンボル表はXIP Flash内に長さ接頭辞を付けて格納する． */
                 size_t reserved=(size_t)(piconix_kernel_syms_end-piconix_kernel_syms_start);
@@ -3016,7 +3060,7 @@ void os_svc_dispatch(uint32_t *f) {
             else { result=OS_EINVAL; break; }
             int64_t pos=(int64_t)base+(int32_t)b;
             int32_t limit=(dev==DEV_SHM)?SHM_BYTES:
-                          (dev==DEV_SYMS_KERNEL)?end:TMP_BYTES;
+                          (dev==DEV_SYMS_KERNEL || (dev>=MAN_BASE && dev<MAN_BASE+(int)MAN_COUNT))?end:TMP_BYTES;
             if(pos<0 || pos>limit) { result=OS_EINVAL; break; }
             tasks[current].fd_pos[a]=(uint32_t)pos;
             result=(int)pos;

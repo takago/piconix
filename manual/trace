@@ -1,0 +1,37 @@
+TRACING AND DEBUGGING SYSTEM ACTIVITY
+
+Available syntax (from trace.c):
+  trace on             enable default tracing (SVC focus)
+  trace on -s          record syscall events only
+  trace on -a          record all supported contexts/events
+  trace off            stop recording
+  trace show [PID]     print stored records; STOPS recording
+  trace follow [PID]   continuous interactive monitor
+  trace run [-s|-a] command [args...]
+
+Use trace show/trace on from MCP. Avoid trace follow (never exits
+under normal use). trace run starts a child and may hit MCP's
+3-second timeout, limited process slots and 4096-byte output cap.
+Trace buffers are finite; events may be overwritten under load.
+
+Recommended bounded MCP investigation:
+  ps
+  trace on -s
+  cat /proc/net/memory
+  trace show
+  trace on
+If needed capture a short command while tracing. 'trace show'
+turns recording off, even if it was enabled previously. Re-enable.
+
+Event interpretation:
+  SYSCALL entry/exit identifies number, FD, target, result.
+  SWITCH/TIMER/KERNEL contexts appear in -a mode, if compiled.
+  A negative return indicates failure in many syscall wrappers.
+  For fd paths, open/close can alter a descriptor's meaning;
+  trace uses a small path-name cache, not a full audit trail.
+  Symbol addresses in /proc/sym/kernel can help correlate PCs.
+
+Trace itself changes timing: a high-volume trace may alter
+scheduling, memory use, and UART/network output. Prefer -s first.
+Use /man/memory for symbol mapping and bounded hexdump.
+If output gets large, filter trace show PID or reduce workload.

@@ -1,0 +1,21 @@
+ASSEMBLY LAB 2 - REGISTER SAVE/RESTORE
+
+Source adapted from userland/examples/asm/03-stack.s.
+Write /tmp/stack.s:
+
+  movs r4, #7
+  push {r4}
+  movs r4, #0
+  pop {r4}
+  movs r0, #3
+  movs r1, #0
+  svc #0
+
+Run: as /tmp/stack.s ; then /tmp/a.out.
+Expected: no stdout; returns with status 0.
+
+The demo saves r4 onto the task stack and restores it.
+Do not omit the exit syscall: there is no ordinary main() return.
+The stack has a 4 KiB reservation, shared with call frames.
+Do not perform intentionally unbalanced push/pop on real hardware.
+See /man/languages/asm for accepted register lists.

@@ -1,0 +1,14 @@
+BOARD-SPECIFIC GPIO OWNERSHIP
+
+Raspberry Pi Pico: on-board LED is directly connected to GP25.
+Raspberry Pi Pico W: LED is on CYW43 WL_GPIO0, NOT RP2040 GP25.
+Pico W reserves RP2040 GP23/24/25 for wireless-chip functions;
+GP29 also serves an internal wireless-chip function.
+PicoNIX blocks generic GPIO access to these reserved pins on Pico W.
+Use pins, ls /dev/gpio, and the documented device interfaces.
+Do not attempt to reconfigure or probe reserved pins via GPIO/PWM.
+A successful echo to a GPIO node only proves that the write was
+accepted; it does not prove the LED, buzzer or attached circuit moved.
+Request an external observation when physical verification matters.
+On this teaching setup GP18 has a buzzer and GP19 has a servo.
+They share PWM slice 1 frequency: see /man/pwm-workflow.

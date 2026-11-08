@@ -127,7 +127,15 @@ GP0_MODE, GP1_MODE, GP2_MODE, GP3_MODE, GP4_MODE, GP5_MODE, GP6_MODE, GP7_MODE, 
 }
 
 /* 指定ピンが汎用GPIOとして利用可能なら真を返す． */
-static inline int pin_gpio(unsigned pin) { return pin_mode(pin)==PIN_GPIO; }
+static inline int pin_reserved(unsigned pin) {
+#if PICONIX_WIFI
+    return pin==23 || pin==24 || pin==25 || pin==29;
+#else
+    (void)pin;
+    return 0;
+#endif
+}
+static inline int pin_gpio(unsigned pin) { return !pin_reserved(pin) && pin_mode(pin)==PIN_GPIO; }
 
 /* 指定チャネルに対応するGPIOがADC用なら真を返す． */
 static inline int pin_adc(unsigned ch) { return ch<3 && pin_mode(26u+ch)==PIN_ADC; }

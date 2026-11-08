@@ -1,0 +1,37 @@
+SYSTEM CALLS AND SMALL LIBRARY API - AGENT REFERENCE
+
+The system-call numbers are defined in include/piconix_syscall.h;
+the userland wrappers in userland/lib. This page is a guide, not
+a replacement for the syscall table or exact C declarations.
+
+File descriptors:
+  open(path, flags)           O_RDONLY/O_WRONLY/O_RDWR, etc.
+  read(fd, buf, count)       returns byte count, 0 EOF, -1 error
+  write(fd, buf, count)      returns bytes actually written
+  close(fd)                  release FD
+  lseek(fd, offset, whence)  SEEK_SET, SEEK_CUR, SEEK_END
+  fcntl(fd, cmd, value)      e.g. F_GETFL, F_SETFL, O_NONBLOCK
+  ioctl(fd, cmd, arg)        device-specific operations
+  pipe(fds) / dup2 / getdents for shell and directory operations.
+
+Processes and synchronization:
+  getpid(), fork/spawn-like facilities per available wrappers,
+  waitpid(), exit/_exit(), yield(), msleep().
+  Limited process count; no full POSIX process groups/signals.
+
+Network:
+  socket, bind, listen, accept, connect, send, recv, sendto,
+  recvfrom, select and associated address structures.
+  /man/network gives workflow and diagnostics.
+
+IMPORTANT
+  C program produced by on-device cc does NOT link against libc.
+  Its recognized call syntax is much narrower: getpid, read,
+  write, user-defined functions, with numeric values as supported.
+  Do not copy a full libc example into cc and expect it to compile.
+  In assembly, syscall number in r0 and args in r1..r3, svc #0.
+  Obtain exact numbers from source; do not invent them.
+
+FD lifecycle: close everything opened in code; short writes may
+occur. Guard against unbounded reads on streaming devices.
+Use lseek on seekable /proc/sym and /man objects when necessary.

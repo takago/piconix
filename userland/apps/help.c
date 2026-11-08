@@ -69,6 +69,8 @@ int main(int argc, char **argv) {
         puts("  pong       Pong game");
         puts("  omikuji    Countdown fortune");
         puts("  kitesys    Kanazawa Institute of Tech. Embedded System Test Program");
+        puts("\nManual: ls /man ; cat /man/README ; cat /man/agent");
+        puts("Languages: /man/languages/c, /man/languages/asm, /man/languages/python");
         puts("\nShell: CMD &, CMD < file, CMD > file, CMD >> file");
         return 0;
     }
@@ -81,18 +83,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"python")) puts("python: Tiny Python interpreter\nusage: python [file]");
     else if(!strcmp(argv[1],"hello")) puts("hello: Print a greeting\nusage: hello [name]");
     else if(!strcmp(argv[1],"hexdump")) puts("hexdump: Hex and ASCII dump\nusage: hexdump [file [offset [count]]]");
-    else if(!strcmp(argv[1],"trace")) puts("trace: Kernel/system call event recorder (/dev/trace)\n"
-"  trace run [-s|-a] CMD [args...]  Run and display events for that PID\n"
-"  trace on [-s|-a]               Clear log and enable recording\n"
-"  trace off                      Stop recording\n"
-"  trace show [PID]               Stop and display saved events\n"
-"  trace follow [PID]             Show NEW events until stopped\n"
-"  -s: syscalls only; -a: also include functions outside SVC\n"
-"  default: syscall, timer, switch and selected SVC functions\n"
-"Examples: trace run hello; trace run -s ls; trace on -a\n"
-"  trace show 3; trace follow 3\n"
-"show stops capture; run restores prior state; follow waits for events.\n"
-"Trace buffer overwrites old events when full.");
+    else if(!strcmp(argv[1],"trace")) puts("trace: Trace system calls\nusage: trace on|off|show [PID]|follow [PID]|run CMD [args...]");
     else if(!strcmp(argv[1],"ps")) puts("ps: Show processes\nusage: ps");
     else if(!strcmp(argv[1],"grep")) puts("grep: Filter matching lines from a file or standard input\nusage: grep PATTERN [file]\nLiteral substring; lines over 128 bytes are skipped");
     else if(!strcmp(argv[1],"ping")) puts("ping: ICMP Echo tests (Pico W)\nusage: ping [-c COUNT] IPv4\nDefault: 4 probes; numerical IPv4 only\nexample: ping -c 2 192.168.4.2");
@@ -100,15 +91,15 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"cp")) puts("cp: Copy a /tmp or /etc RAM file\nusage: cp SRC DST\nOverwrites DST; refuses the same file\nexample: cp /etc/index.html /tmp/index.html");
     else if(!strcmp(argv[1],"cat")) puts("cat: Display a file or standard input\nusage: cat [-n] [file]\n-n: Number all lines, including empty lines\nexample: cat -n /tmp/test.py\nexample: echo hello | cat -n");
     else if(!strcmp(argv[1],"fd")) puts("fd: Interactive file browser\nusage: fd [directory]\nArrows: select/navigate, Enter: open, Backspace: parent, e: edit /tmp or /etc, q: quit");
-    else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command, updating changed screen lines\nusage: watch [seconds] command [args...]\nexample: watch ip");
+    else if(!strcmp(argv[1],"watch")) puts("watch: Repeat a command\nusage: watch [seconds] command [args...]");
     else if(!strcmp(argv[1],"pwd")) puts("pwd: Print working directory\nusage: pwd");
     else if(!strcmp(argv[1],"tree")) puts("tree: Display directory tree\nusage: tree [-L 0..8] [path]");
     else if(!strcmp(argv[1],"tcp_echod")) puts("tcp_echod [PORT]: TCP echo server (default 7)");
     else if(!strcmp(argv[1],"udp_echod")) puts("udp_echod [PORT]: UDP echo server (default 7)");
     else if(!strcmp(argv[1],"httpd")) puts("httpd: HTTP/1.0 server on TCP 80 (HTML, framebuffer/PWM APIs)");
-    else if(!strcmp(argv[1],"scroll")) puts("scroll: LED text ticker from stdin or UDP\nusage: scroll [-u [PORT]] (default UDP 2001)\nexample: echo HELLO | scroll");
-    else if(!strcmp(argv[1],"cc")) puts("cc: Compile a subset of C to Thumb assembly\nusage: cc source.c  (writes source.s in same directory)\nthen: as source.s ; /tmp/a.out");
-    else if(!strcmp(argv[1],"mcpd")) puts("mcpd: Experimental MCP HTTP server, TCP 8080\nusage: mcpd [--shell]\n--shell: enable get_manual(), execute_command and write_file\nWARNING: no authentication; use isolated trusted network only");
+    else if(!strcmp(argv[1],"scroll")) puts("scroll: LED text ticker\nusage: scroll [-u [PORT]] (default UDP 2001)");
+    else if(!strcmp(argv[1],"cc")) puts("cc: compile a tiny C subset to Thumb assembly\nusage: cc source.c\nthen: as /tmp/cc.s ; ./a.out");
+    else if(!strcmp(argv[1],"mcpd")) puts("mcpd: Experimental Streamable HTTP MCP server (Pico W)\nusage: mcpd [--shell] (TCP 8080)\nAgent manual: cat /man/agent");
     else if(!strcmp(argv[1],"ip")) puts("ip: Interface addresses (Pico W)\nusage: ip [addr]\nShows loopback and actual Wi-Fi interface names; no configuration support");
     else if(!strcmp(argv[1],"net")) puts("net: Wi-Fi network status\nusage: net [-a|-r]\n-a: AP clients, -r: ARP cache");
     else if(!strcmp(argv[1],"nc")) puts("nc: Minimal IPv4 netcat\nusage: nc [-u] [-N] -l PORT | nc [-u] [-N] IPv4 PORT\n-N: exit on stdin EOF in UDP mode (not TCP)");
@@ -134,7 +125,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"gpio")) puts("gpio: Interactive GPIO editor\nusage: gpio\nArrows: select; i/o: input/output; h/l/SPACE: output level\nu/d/n: pull up/down/none for input; q: quit");
     else if(!strcmp(argv[1],"fbed")) puts("fbed: Interactive framebuffer editor\nusage: fbed\narrows: select, SPACE: toggle, c: clear, q: quit");
     else if(!strcmp(argv[1],"as")) puts("as: Assemble Thumb source\nusage: as file.s  -> /tmp/a.out");
-    else if(!strcmp(argv[1],"help")) puts("help: Command list and usage\nusage: help [command]");
+    else if(!strcmp(argv[1],"help")) puts("help: Command list and usage\nusage: help [command]\nDetailed manual: cat /man/README");
     else if(!strcmp(argv[1],"cd")) puts("cd: Change working directory\nusage: cd [path]");
     else if(!strcmp(argv[1],"getty")) puts("getty: Attach shell to terminal\nusage: getty /dev/ttyS1 sh|python [&]");
     else if(!strcmp(argv[1],"exit")) puts("exit: Leave shell\nusage: exit");
