@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Chat with a local LLM and access PicoNIX through MCP (non-streaming)."""
+"""Stream a local LLM's replies, reasoning, and MCP tool calls."""
 
 import asyncio
 import json
@@ -13,6 +13,7 @@ from openai import AsyncOpenAI
 LLM_URL = "http://######:11434/v1"
 LLM_MODEL = "######"
 LLM_API_KEY = "######"
+LLM_REASONING_EFFORT = "low"  # Ollama: none / low / medium / high
 
 # PicoNIX Pico W access point (unchanged).
 MCP_URL = "http://192.168.4.1:8080/mcp"
@@ -24,6 +25,7 @@ USE_COLOR = sys.stdout.isatty() and "NO_COLOR" not in os.environ and os.environ.
 COLORS = {
     "user": "\033[36m",      # cyan: interactive prompt
     "llm": "\033[32m",       # green: assistant reply
+    "think": "\033[90m",    # gray: reasoning text
     "tool": "\033[33m",      # yellow: tool invocation
     "result": "\033[34m",    # blue: tool response
     "info": "\033[2m",       # dim: connection information
@@ -43,6 +45,75 @@ def show(label, value, kind):
     # System activity is colored as a whole; conversational text stays plain.
     print(styled(line, kind) if kind in ("tool", "result", "error", "info")
           else f"{styled(label, kind)} {value}")
+
+
+def reasoning_from_delta(delta):
+    """Ollama can expose thinking as reasoning_content or reasoning."""
+    for key in ("reasoning_content", "reasoning"):
+        value = getattr(delta, key, None)
+        if value is None:
+            value = (getattr(delta, "model_extra", None) or {}).get(key)
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
+async def stream_reply(messages, tools):
+    """Print streamed reasoning/content and reassemble fragmented tool calls."""
+    stream = await llm.chat.completions.create(
+        model=LLM_MODEL,
+        messages=messages,
+        tools=tools or None,
+        tool_choice="auto" if tools else "none",
+        reasoning_effort=LLM_REASONING_EFFORT,
+        stream=True,
+    )
+    content = []
+    tool_parts = {}
+    active = None
+
+    async for chunk in stream:
+        if not chunk.choices:
+            continue  # e.g. final usage-only chunk
+        delta = chunk.choices[0].delta
+        thought = reasoning_from_delta(delta)
+        reply = getattr(delta, "content", None) or ""
+        for kind, fragment in (("think", thought), ("llm", reply)):
+            if not fragment:
+                continue
+            if kind != active:
+                if active is not None:
+                    print(flush=True)
+                print(styled("[THINK] " if kind == "think" else "LLM > ", kind),
+                      end="", flush=True)
+                active = kind
+            # Color the reasoning itself too, but not the assistant's answer.
+            print(styled(fragment, kind) if kind == "think" else fragment,
+                  end="", flush=True)
+            if kind == "llm":
+                content.append(fragment)
+
+        for call in (getattr(delta, "tool_calls", None) or []):
+            idx = call.index
+            state = tool_parts.setdefault(idx, {"id": "", "name": "", "arguments": ""})
+            if call.id:
+                state["id"] = call.id
+            if call.function:
+                if call.function.name:
+                    state["name"] += call.function.name
+                if call.function.arguments:
+                    state["arguments"] += call.function.arguments
+
+    if active is not None:
+        print(flush=True)
+    calls = [{"id": part["id"], "type": "function",
+              "function": {"name": part["name"],
+                           "arguments": part["arguments"] or "{}"}}
+             for _, part in sorted(tool_parts.items())]
+    message = {"role": "assistant", "content": "".join(content)}
+    if calls:
+        message["tool_calls"] = calls
+    return message, calls
 
 
 async def main():
@@ -67,8 +138,14 @@ async def main():
                 "必要に応じてツールを利用して回答してください．"
                 "ツールで確認していない測定値や状態は推測しないでください．"
                 "複数のツールが必要なら，先に情報を取得し，結果を確認してから次のツールを呼び出してください．"
-                "LED表示を求められた場合はdisplay_messageを使ってください．"
-                "display_messageのUDP送信成功は，LEDへの配送や表示完了を保証しません．"
+                "PicoNIXはLinuxではありません．MCPツール一覧にget_manualがあれば，"
+                "PicoNIX操作の前に引数なしで一度呼び出し，内蔵マニュアル全体を確認してください．"
+                "詳しい使い方はexecute_commandからhelpで調べてください．"
+                "execute_commandでは非対話型コマンドだけを使用してください．"
+                "mem，watch，vi，edit，fd，pongなどの全画面アプリは起動しないでください．"
+                "ネットワーク情報はipやcat /proc/net/wifiを利用できます．"
+                "LED表示は標準入力を利用するecho HELLO | scrollが基本です．"
+                "6プロセスの制限に留意し，必要のない常駐サービスは起動しないでください．"
             ),
         }]
 
@@ -86,25 +163,19 @@ async def main():
             messages.append({"role": "user", "content": question})
             # Keep calling the LLM until it produces a final answer.
             while True:
-                response = await llm.chat.completions.create(
-                    model=LLM_MODEL,
-                    messages=messages,
-                    tools=tools or None,
-                    tool_choice="auto" if tools else "none",
-                )
-                message = response.choices[0].message
-                messages.append(message.model_dump(exclude_none=True))
+                message, calls = await stream_reply(messages, tools)
+                messages.append(message)
 
-                if not message.tool_calls:
-                    print()
-                    show("LLM >", message.content or "", "llm")
+                if not calls:
+                    if not message["content"]:
+                        print(styled("[INFO] No response text from model", "info"))
                     break
 
-                for call in message.tool_calls:
-                    name = call.function.name
+                for call in calls:
+                    name = call["function"]["name"]
                     failed = False
                     try:
-                        args = json.loads(call.function.arguments or "{}")
+                        args = json.loads(call["function"]["arguments"] or "{}")
                         if not isinstance(args, dict):
                             raise ValueError("Tool arguments must be an object")
                         print()
@@ -124,7 +195,7 @@ async def main():
                          "error" if failed else "result")
                     messages.append({
                         "role": "tool",
-                        "tool_call_id": call.id,
+                        "tool_call_id": call["id"],
                         "content": output,
                     })
 

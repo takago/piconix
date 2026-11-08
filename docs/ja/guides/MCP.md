@@ -9,11 +9,12 @@
 - MCP仕様 `2026-07-28` のStreamable HTTPの一部に対応．HTTP POSTとJSON-RPC応答を使用します．
 - `server/discover`，`tools/list`，`tools/call` の3メソッドを実装しています．
 - `get_temperature` は `/dev/adc/temp` から温度を読み取ります．
-- `get_wifi_info` は `/proc/net/wifi` を読み取ります（長い出力は先頭255バイトまで）．
-- `display_message` はUDPで`scroll`へ文字列を送ります．
+- ネットワーク情報は`execute_command("ip")`，`execute_command("cat /proc/net/wifi")`で取得します．
+- LEDスクロール表示は`scroll`と`nc -u`を使います．専用MCPツールはありません．
+- `get_manual()`は簡易操作マニュアルの全7項目を一括して返します（`--shell`時）．
 - `execute_command` は非対話`sh -c`の出力を最大4 KiBまで返す実験用ツールです．HTTP/1.1のchunked転送に対応するクライアントが必要です．通常起動では無効で，`mcpd --shell`を指定した場合のみ公開します．
 - SSE，古いMCPの `initialize`，認証・TLS，通知，複数クライアント同時処理，完全なJSON/HTTP検証には対応していません．公式MCP Python SDK v2との基本的なツール列挙・実行は実機で確認済みです．
-- 固定長のHTTP要求バッファは3072バイト，JSON本文の上限は1536バイトです．1接続ずつ処理します．
+- 固定長のHTTP要求バッファは3600バイト，JSON本文の上限は3200バイトです．1接続ずつ処理します．
 
 ## 起動
 
@@ -83,3 +84,7 @@ SDKの `mode=auto` は `server/discover` を試し，対応しなければ旧形
 [LLMからMCPツールを呼び出す実習](MCP-LLM-CLIENT.md)では，`host/mcp_llm_client.py`を使用します．2026-11-06にLinux上のローカルLLMから温度・Wi-Fi情報を取得する実機実験に成功しました．LLMサーバのIP・モデル名・APIキーはプレースホルダです．
 
 `mcpd --shell`では`write_file`も公開する．`/tmp`直下のASCIIテキストを最大2,048バイトまで上書きできる．JSON本文の上限は3,200バイトであり，エスケープを含む場合は実データ2 KiBを一度に送れないことがある．
+
+ネットワーク・LEDの操作例は[エージェントガイド](AGENT-GUIDE.md)の内蔵マニュアル節を参照してください．
+
+**エージェントの注意：** `execute_command`は非対話コマンド専用です．`mem`，`watch`，`vi`，`edit`，`fd`，`pong`などの対話・全画面コマンドを使わず，`ps`，`cat /proc/...`，`help`などを使ってください．詳細は[エージェントガイド](AGENT-GUIDE.md)を参照してください．

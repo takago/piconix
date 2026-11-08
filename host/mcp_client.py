@@ -18,14 +18,14 @@ def parse_args():
         help="PicoNIX MCP endpoint (default: %(default)s)",
     )
     parser.add_argument(
-        "--tool", choices=("get_temperature", "get_wifi_info", "display_message", "all", "none"),
+        "--tool", choices=("get_temperature", "get_manual", "all", "none"),
         default="all", help="Tool(s) to call after listing (default: %(default)s)",
     )
     parser.add_argument(
         "--mode", choices=("auto", "2026-07-28"), default="auto",
         help="MCP protocol mode (default: %(default)s)",
     )
-    parser.add_argument("--text", default="HELLO PICONIX", help="ASCII text for display_message")
+    parser.add_argument("--text", default="HELLO PICONIX", help="Reserved for compatibility")
     return parser.parse_args()
 
 
@@ -48,7 +48,7 @@ async def run(url, mode, tool_selection, text):
 
         if tool_selection == "none":
             return
-        wanted = ("get_temperature", "get_wifi_info", "display_message") if tool_selection == "all" else (tool_selection,)
+        wanted = tuple(name for name in ("get_temperature", "get_manual") if name in names) if tool_selection == "all" else (tool_selection,)
         failed = False
         for name in wanted:
             if name not in names:
@@ -57,7 +57,7 @@ async def run(url, mode, tool_selection, text):
                 continue
             print(f"\n{name}:")
             print(f"Request: tools/call ({name})", flush=True)
-            answer = await client.call_tool(name, {"text": text} if name == "display_message" else {})
+            answer = await client.call_tool(name, {})
             for item in answer.content:
                 if item.type == "text":
                     print(item.text)

@@ -1,5 +1,34 @@
 # PicoNIX開発日誌
 
+## 2026-11-08 — MCPの断続的なHTTP応答切断を改善（実機で再現しなくなったことを確認）
+
+`mcpd --shell`の`execute_command`で`trace run -a pwmctl freq 523`や`hexdump /dev/shm 0 512`を実行した際，ホストのMCPクライアントが`incomplete chunked read`で終了する現象が断続的に発生した．`mcpd`のTCP送信処理を見直し，`EAGAIN`時の送信待ちを約0.6秒から約3秒へ，コマンド出力の読み取り単位を64バイトから256バイトへ，JSONエスケープ用送信バッファを256バイトから768バイトへ変更した．4 KiBの出力上限，MCPツール構成，24 KiBのユーザスロット制限は維持した．検査用ARMリンクと2アドレスPIC比較が通過し，開発者から修正版の実機使用で従来のエラーが発生しなくなったとの報告があった．複数の変更を同時に行ったため，個々の変更の寄与やすべての通信条件での安定性までは未確定．
+
+## 2026-11-08 — ホスト側MCP・LLMクライアントをストリーミングとThinking lowに対応
+
+`host/mcp_llm_client.py`を常時`stream=True`で応答を受ける方式に変更し，OllamaのOpenAI互換APIへ`reasoning_effort="low"`を既定で指定した．モデルが公開する`reasoning_content`または`reasoning`を`[THINK]`としてグレーで逐次表示し，通常回答，ツール呼び出し，実行結果を区別する．ストリーム中で断片化されたツール名・引数・IDを再構成してMCP呼び出しを維持した．Python構文と模擬ストリームの検査は通過．実際のOllamaモデルによるThinking表示はAPIの応答形式に依存する．対応する日英ガイドも更新した．
+
+## 2026-11-08 — MCPホストクライアントを新しいツール仕様に同期
+
+`host/mcp_client.py`の`get_manual`呼び出しから廃止済みの`topic`引数を削除した．`host/mcp_llm_client.py`の案内を更新し，`get_manual()`による一括参照，`help`による詳細確認，非対話型コマンドの利用を推奨した．MCPツール一覧はサーバから取得する仕組みを維持する．`mcpd`の起動モードは変更せず，通常起動では`get_temperature`のみ，`mcpd --shell`で`get_manual`，`execute_command`，`write_file`も公開する．開発者が実機で`--shell`によるツール公開を確認した．シェル機能の常時公開も検討したが，MCPの段階的な学習と明示的な有効化を重視して採用しなかった．
+
+## 2026-11-08 — 内蔵マニュアルのポインタ配列によるPIC不一致を修正
+
+`get_manual()`の7項目を列挙する文字列ポインタ配列が，ARMリンク時に絶対アドレス再配置（`R_ARM_ABS32`）を生じさせ，異なるRAM配置で生成した`mcpd.bin`のPIC比較が失敗した．ポインタ配列を避ける方式へ変更し，ARMオブジェクトの再配置と2アドレスPIC比較で解消を確認した．Pico SDKによる全体ビルドとは区別して記録する．
+
+## 2026-11-08 — MCPエージェントに対話型コマンドの制約を明示
+
+`execute_command`のMCPツール説明と`get_manual()`内蔵マニュアルに，非対話コマンド専用であることを明記．`mem`，`watch`，`vi`，`edit`，`fd`，`pong`，`gpio`，`fbed`，対話型`python`などの起動を避け，`ps`，`cat /proc/...`，`help`，`trace show`を利用するよう案内した．日英エージェントガイドとMCPガイドにも追記．実行を強制的に拒否する機能は追加していない．ARM向けコンパイルと暫定リンクでサイズを確認したが，実機検証は未実施．
+
+
+## 2026-11-08 — MCP内蔵マニュアル一括取得とhelp拡充
+
+`get_manual(topic)`を引数なしの`get_manual()`へ変更．7項目を小さなHTTP chunkに分けてJSONとして逐次送信し，追加の大容量バッファを使わない．`help trace`に`-s`/`-a`，記録開始，表示，追跡，PIDフィルタ，`run`の実際の仕様を追記．`help cc`，`help mcpd`，`help scroll`，`help watch`も現行機能へ更新．実機動作は未検証．
+
+## 2026-11-08 — MCP専用ツールの整理と内蔵マニュアル拡充
+
+`mcpd`の`get_wifi_info`と`display_message`を廃止し，ネットワーク調査とLED表示を既存の`execute_command`経由で行う構成に変更した．`get_manual`に`network`と`display`を追加し，`ip`，`/proc/net/wifi`，`scroll`，`nc -u`の操作例と6スロット制限を明記した．`get_temperature`，`write_file`，`execute_command`は維持する．コードの検査結果と実機検証は区別する．
+
 ## はじめに
 
 > **作成方法について**：この開発日誌は，PicoNIXの開発者とChatGPTとの対話履歴をもとに，**ChatGPTが自動生成した記録**です．実装上の課題，設計判断，試行錯誤を振り返る目的で構成しています．対話記録に基づく再構成であり，日時，変更の順序，技術的な細部に不正確な記述が含まれる可能性があります．正確な変更内容はGitのコミット履歴とソースコードを参照してください．

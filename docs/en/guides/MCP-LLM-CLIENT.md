@@ -1,6 +1,31 @@
+> **2026-11-08 update:** `host/mcp_llm_client.py` now always calls the LLM with `stream=True` and uses `reasoning_effort="low"` by default for Ollama's OpenAI-compatible endpoint. If the model/server exposes `reasoning_content` or `reasoning` stream deltas, the client displays them live as gray `[THINK]` text. Normal replies stream as `LLM >`; fragmented tool-call data is reconstructed before invoking MCP. If the API omits reasoning text, nothing is shown under `[THINK]`. No PicoNIX firmware changes are required.
+
+**Configuration:** Change `LLM_REASONING_EFFORT = "low"` to another level supported by your model/server if needed. Actual thinking depth depends on the model and Ollama version. Displayed reasoning is only what the API exposes, not necessarily the model's entire internal reasoning. LLM streaming is distinct from MCP Streamable HTTP.
+
 # Call PicoNIX MCP tools from a local LLM
 
-This guide connects an OpenAI-compatible LLM on a Linux PC to the PicoNIX `mcpd` server on Pico W. `host/mcp_llm_client.py` is a small **non-streaming** Python example: the LLM chats normally and selects MCP tools only when needed.
+> **Change on 2026-11-08:** `get_wifi_info` and `display_message` have been removed from current `mcpd`. Examples using these tools below document the earlier implementation. With `mcpd --shell`, call `get_manual()` without arguments, then run commands such as `ip` or `echo HELLO | scroll` using `execute_command`. See the [agent guide](AGENT-GUIDE.md).
+
+## Current MCP agent workflow (2026-11-08)
+
+With `mcpd --shell &`, the current tools are `get_temperature`, `execute_command`, `write_file`, and `get_manual`. `get_wifi_info` and `display_message` have been removed. Starting `mcpd` without `--shell` does not expose shell-operation tools.
+
+`get_manual` now takes **no arguments** and returns the complete embedded guide. `host/mcp_llm_client.py` discovers tools dynamically via `tools/list`. Its system prompt instructs the model to request `get_manual()` before operating PicoNIX, and to consult `execute_command({"command":"help trace"})` when details are needed. Model compliance with this instruction is not guaranteed.
+
+```sh
+python host/mcp_client.py http://192.168.4.1:8080/mcp --tool get_manual
+python host/mcp_llm_client.py
+```
+
+The direct test client sends an empty argument object `{}` to `get_manual`. Its `--tool all` option calls only available read-only tools (`get_temperature` and `get_manual`), not `execute_command` or `write_file`.
+
+For LED text use a standard-input pipeline such as `echo HELLO | scroll` via `execute_command`, not UDP or `nc` unless specifically needed. Pipelines consume extra process slots. Do not run full-screen or interactive programs such as `mem`, `vi`, or `watch` through MCP. Use `mcpd --shell` only on an isolated trusted network, because it exposes unauthenticated command execution.
+
+The older tool examples below are retained as development history and do not describe current operation.
+
+
+
+This guide connects an OpenAI-compatible LLM on a Linux PC to the PicoNIX `mcpd` server on Pico W. `host/mcp_llm_client.py` is a small **always-streaming** Python example: the LLM chats normally and selects MCP tools only when needed.
 
 **Hardware-verified (2026-11-06):** A Linux client connected to PicoNIX in AP mode at `192.168.4.1`, listed and invoked tools using the official MCP Python SDK v2, and used a local LLM to select tools and compose responses. This verifies a basic workflow, not complete MCP compliance or long-term reliability.
 
@@ -19,7 +44,7 @@ host/mcp_llm_client.py -- HTTP --> | /proc/net/wifi
 local LLM -> natural-language answer
 ```
 
-The LLM does not connect to MCP directly: the Python application translates OpenAI-compatible function calls into MCP `tools/call` requests. LLM `stream=True` and MCP *Streamable HTTP* are unrelated; this example collects each LLM response before displaying it.
+The LLM does not connect to MCP directly: the Python application translates OpenAI-compatible function calls into MCP `tools/call` requests. LLM `stream=True` and MCP *Streamable HTTP* are unrelated; this example displays LLM output as it arrives.
 
 ## 2. Setup
 
@@ -38,6 +63,7 @@ Configure these constants near the beginning of `host/mcp_llm_client.py`. Replac
 LLM_URL = "http://######:11434/v1"
 LLM_MODEL = "######"
 LLM_API_KEY = "######"
+LLM_REASONING_EFFORT = "low"
 
 MCP_URL = "http://192.168.4.1:8080/mcp"
 ```

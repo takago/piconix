@@ -1,5 +1,34 @@
 # PicoNIX Development Diary
 
+## 2026-11-08 — Improved intermittent MCP HTTP response failures (no recurrence reported on hardware)
+
+The host MCP client intermittently aborted with `incomplete chunked read` while `mcpd --shell` ran commands such as `trace run -a pwmctl freq 523` and `hexdump /dev/shm 0 512`. Updated `mcpd` to wait approximately 3 seconds rather than 0.6 seconds on TCP send `EAGAIN`, read command output in 256-byte rather than 64-byte units, and expand the JSON-escaping send buffer from 256 to 768 bytes. Preserved the 4 KiB command-output cap, MCP tool behavior, and 24 KiB user-slot limit. Provisional ARM linking and two-address PIC comparison passed. The developer reported that the previously intermittent error stopped occurring on the device after applying the patch. Because several parameters changed together, the individual root cause and reliability under all conditions remain unproven.
+
+## 2026-11-08 — Streaming MCP/LLM client with default low thinking effort
+
+Changed `host/mcp_llm_client.py` to always request `stream=True` and to specify `reasoning_effort="low"` by default when calling Ollama's OpenAI-compatible endpoint. Available `reasoning_content` or `reasoning` is printed incrementally as gray `[THINK]` text, separate from final answers, tool calls, and results. Fragmented tool names, arguments, and IDs are reassembled from streaming deltas before MCP calls. Python syntax and simulated stream-handling tests passed. Actual thinking text depends on the Ollama model/API exposing it. Updated the Japanese and English usage guides.
+
+## 2026-11-08 — Synchronized host MCP clients with current tool APIs
+
+Updated `host/mcp_client.py` to invoke argument-free `get_manual()` rather than supplying the removed `topic` parameter. Updated `host/mcp_llm_client.py` guidance to fetch the complete manual, consult `help`, and prefer non-interactive shell commands. Tool discovery remains dynamic. Preserved explicit `mcpd --shell` opt-in: default startup exposes only `get_temperature`, while `--shell` additionally exposes `get_manual`, `execute_command`, and `write_file`. The developer verified tool publication with `--shell` on hardware. Always enabling the shell was considered but rejected in favor of progressive MCP instruction and deliberate enabling of command execution.
+
+## 2026-11-08 — Fixed PIC mismatch from MCP manual's pointer table
+
+A string-pointer array introduced while enumerating seven `get_manual()` sections generated absolute ARM relocations (`R_ARM_ABS32`), causing `mcpd.bin` to differ when linked at two RAM addresses. Replaced that representation with a PIC-compatible alternative, and verified removal of the problematic relocations and successful two-address PIC comparison. These provisional ARM checks are not the same as a complete Pico SDK firmware build.
+
+## 2026-11-08 — Clarify non-interactive MCP command restrictions
+
+Updated the `execute_command` tool description and embedded `get_manual()` text to discourage interactive or full-screen commands (`mem`, `watch`, `vi`, `edit`, `fd`, `pong`, `gpio`, `fbed`, interactive `python`). Recommended terminating commands such as `ps`, `cat /proc/...`, `help`, and `trace show`. Updated the bilingual agent/MCP guides. This is guidance, not an enforced execution denylist. ARM compilation and provisional linking succeeded; hardware verification is pending.
+
+
+## 2026-11-08 — Full MCP manual response and expanded help
+
+Changed `get_manual(topic)` to argument-free `get_manual()` returning all seven sections via chunked JSON without a large response buffer. Expanded `help trace` with actual trace modes and usage; refreshed `cc`, `mcpd`, `scroll`, and `watch` help. Hardware testing pending.
+
+## 2026-11-08 — Simplify MCP tools and expand embedded manual
+
+Removed the dedicated `get_wifi_info` and `display_message` tools. Network inspection and LED output now use existing shell commands through `execute_command`. Added `network` and `display` topics to `get_manual`, with examples for `ip`, `/proc/net/wifi`, `scroll`, and `nc -u`, plus process-slot limits. Retained `get_temperature`, `write_file`, and `execute_command`. Host and hardware verification are reported separately.
+
 ## Purpose and scope
 
 The design principles and specifications of PicoNIX are determined by its creator based on their knowledge and experience. Source code and documentation are generated and refined using ChatGPT under these decisions. The creator reviews changes and performs build and hardware checks during development. AI generation is not equivalent to verified behavior.

@@ -2,6 +2,10 @@
 
 This guide is intended for a host-side LLM agent, such as Open WebUI, controlling **PicoNIX** through MCP. PicoNIX is a small educational UNIX-like OS running on RP2040. **It is not Linux.** Do not assume `bash`, `sudo`, `apt`, `gcc`, `ssh`, a POSIX shell, or a complete C standard library is available.
 
+## Using the embedded manual
+
+`get_manual()` now returns the complete embedded manual in one call. Consult `help NAME` for detailed command options; use `help trace` for tracing modes.
+
 ## Enabling the command tool
 
 On a trusted, isolated laboratory network only:
@@ -10,13 +14,19 @@ On a trusted, isolated laboratory network only:
 mcpd --shell &
 ```
 
-This explicitly enables the MCP tools `execute_command` and `write_file` in addition to `get_temperature`, `get_wifi_info`, and `display_message`. Normal `mcpd &` does **not** expose command execution. The HTTP endpoint is `http://<pico-w-ip>:8080/mcp`. This implementation uses a deliberately limited MCP protocol (`2026-07-28`, JSON responses without SSE). Check compatibility with the particular Open WebUI MCP client or use the included host client/compatible bridge. Authentication, TLS, and per-command authorization are **not implemented**. Do not expose port 8080 to an untrusted network or the public Internet.
+This explicitly enables `execute_command`, `write_file`, and `get_manual` in addition to `get_temperature`. Network inspection and LED output now use shell commands rather than dedicated MCP tools. Normal `mcpd &` does **not** expose command execution. The HTTP endpoint is `http://<pico-w-ip>:8080/mcp`. This implementation uses a deliberately limited MCP protocol (`2026-07-28`, JSON responses without SSE). Check compatibility with the particular Open WebUI MCP client or use the included host client/compatible bridge. Authentication, TLS, and per-command authorization are **not implemented**. Do not expose port 8080 to an untrusted network or the public Internet.
 
 ## `execute_command`
 
 Input schema: `{"command": "ps"}`. The tool launches a **new**, non-interactive `sh -c` process for each request, captures stdout/stderr through a pipe, and returns an MCP text result. Its working directory starts at `/tmp` for each invocation; `cd` changes are **not** preserved across calls. Shell commands are limited to 119 printable ASCII bytes, output to 4,096 bytes (truncation indicated), and a nominal 3-second timeout. The tool streams JSON with HTTP/1.1 chunked transfer rather than allocating a 4 KiB output array inside `mcpd`; the MCP client must support chunked HTTP responses. A disconnected response can be incomplete. A timed-out shell may leave a descendant process running; review with `ps` if this happens. The completion indicator is **not** a reliable exit status of the invoked command. Avoid commands that require interactive input or a terminal.
 
 The tool is **not a sandbox**. The shell is allowed to access devices, RAM files, and network resources. Consult the user before overwriting files, killing processes, resetting the device, or changing hardware state. The default expectation is to inspect, explain, and request permission before modifying. Use only within an isolated and resettable lab environment.
+
+### Interactive commands are not supported over MCP
+
+`execute_command` is intended only for **short, non-interactive commands that exit automatically**. Do not invoke `mem`, `watch`, `vi`, `edit`, `fd`, `pong`, `gpio`, `fbed`, or interactive `python`. These require a terminal, key input, or continuous screen updates, and may time out or consume scarce process slots. Prefer `ps`, `ls`, `cat /proc/...`, `ip`, `help`, or `trace show`. Even `mem -s` requires a screen; avoid it over MCP. Avoid continuing monitors such as `trace follow`.
+
+These rules guide the LLM but are **not enforced** as a kernel or command-level denylist. The MCP tool does not automatically reject these commands.
 
 ## `write_file` — creating small source files
 
@@ -53,7 +63,7 @@ execute_command({"command":"as test.s"})
 execute_command({"command":"/tmp/a.out"})
 ```
 
-The tool is designed for short observational commands. For longer output, request a smaller range or use a more specific command. Programs such as `vi`, `edit`, `python` in interactive mode, or `scroll` in the foreground are unsuitable. Do not assume piping, quoting, globbing, redirection, job control, and variable expansion work exactly as on a Linux shell. Do not run `sh -c` recursively without a reason.
+The tool is designed for short observational commands. For longer output, request a smaller range or use a more specific command. Interactive or full-screen programs (`mem`, `watch`, `vi`, `edit`, `fd`, `pong`, `gpio`, `fbed`, and interactive `python`) are unsuitable. Do not assume piping, quoting, globbing, redirection, job control, and variable expansion work exactly as on a Linux shell. Do not run `sh -c` recursively without a reason.
 
 ## Configuring Open WebUI
 
@@ -71,7 +81,7 @@ These steps assume a **trusted, isolated lab network**. `mcpd --shell` provides 
 1. On Pico W, check the IP address and start `mcpd --shell &` on the isolated network.
 2. As an Open WebUI administrator, navigate to **Settings → Admin → Integrations → External Tool Servers → Add Connection**.
 3. Select **MCP (Streamable HTTP)** (not OpenAPI) and enter `http://<pico-w-ip>:8080/mcp` as Server URL. Save the connection. If Open WebUI runs in Docker, its container must be able to reach Pico W over the network.
-4. Confirm that tools such as `get_wifi_info`, `display_message`, `execute_command`, and `write_file` are discovered. Enable the required tools for the model/chat and configure access appropriately.
+4. Confirm that tools such as `get_temperature`, `execute_command`, `write_file`, and `get_manual` are discovered. Enable the required tools for the model/chat and configure access appropriately.
 
 > **Compatibility:** The PicoNIX MCP server implements a limited subset of MCP. Some Open WebUI versions may not connect to it directly. If connection fails, first verify communication using the supplied `host/mcp_llm_client.py` or another compatible client, then consider a bridge if required.
 
@@ -96,7 +106,7 @@ Official Open WebUI documentation: [Knowledge](https://docs.openwebui.com/featur
 - `/tmp` is RAM-backed. `/proc` and `/dev` expose OS and device interfaces; some writes can affect physical pins.
 - `cc` compiles a **subset of C** to Thumb-1 assembly; `as` assembles it to a RAM-loadable image.
 - `mcpd` is a user-space server and needs a free task slot to spawn `sh` and its child commands.
-- `get_wifi_info` and `display_message` are separate MCP tools; the latter sends UDP text to `scroll -u 2001 &` (no delivery guarantee).
+- `get_wifi_info` and `display_message` have been removed. Use `get_manual()` to inspect networking with `ip` or `cat /proc/net/wifi`, and `get_manual()` for instructions; `echo HELLO | scroll` uses standard input without UDP. The command may require multiple process slots and may reach the MCP execution timeout.
 
 ## Host-side logging
 
@@ -105,3 +115,7 @@ Record command, timestamp, tool result, error/truncation status and the agent's 
 ## Limitations and verification
 
 This feature was added as a small experimental implementation. ARM-target syntax checks can pass without demonstrating Pico W hardware execution. Validate on hardware with `execute_command({"command":"ps"})`, then try other read-only commands. Verify network isolation before enabling the shell tool.
+
+## Embedded manual and command help
+
+Call MCP `get_manual()` with no arguments to retrieve all sections. For details run `help NAME` via `execute_command`, especially `help trace` for trace capture and display modes.

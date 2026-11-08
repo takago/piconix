@@ -8,7 +8,8 @@
 
 - Partial support for MCP `2026-07-28` Streamable HTTP using JSON-RPC over HTTP POST with JSON responses.
 - Implements `server/discover`, `tools/list`, and `tools/call`.
-- Tools: `get_temperature` reads `/dev/adc/temp`; `get_wifi_info` reads `/proc/net/wifi` (up to the first 255 bytes); `display_message` sends UDP text to `scroll`.
+- `get_temperature` reads `/dev/adc/temp`. The dedicated Wi-Fi/LED tools have been removed: use `execute_command("ip")`, `execute_command("cat /proc/net/wifi")`, and `scroll` with `nc -u`.
+- `get_manual()` (only with `--shell`) returns all seven sections in a single response without arguments. For detailed options, use `help NAME` (for example, `help trace`).
 - Optional `write_file` overwrites ASCII text files under `/tmp` (2,048-byte file limit; the complete encoded request must fit 3,200 bytes), available only with `mcpd --shell`.
 - Optional `execute_command` runs one non-interactive `sh -c` command and streams up to 4 KiB of stdout/stderr as a JSON response over HTTP/1.1 chunked transfer (client support required). It is **disabled by default** and must be enabled with `mcpd --shell`.
 - No SSE, legacy `initialize`, authentication, TLS, notifications, concurrent client handling, or complete general-purpose HTTP/JSON validation. Basic tool listing and calls were verified with the official MCP Python SDK v2 on Pico W hardware.
@@ -71,3 +72,7 @@ python host/mcp_client.py http://192.168.1.50:8080/mcp --mode 2026-07-28
 ## Local LLM integration
 
 See [Calling MCP tools from an LLM](MCP-LLM-CLIENT.md) and `host/mcp_llm_client.py`. A local LLM successfully selected tools and retrieved Pico W temperature and Wi-Fi information on 2026-11-06. The LLM server address, model and API key remain placeholders.
+
+For network and LED commands, refer to the embedded-manual section of the [agent guide](AGENT-GUIDE.md).
+
+**Agent note:** `execute_command` is for non-interactive commands only. Avoid `mem`, `watch`, `vi`, `edit`, `fd`, `pong` and other full-screen tools; use `ps`, `cat /proc/...`, or `help` instead. See the [agent guide](AGENT-GUIDE.md).
