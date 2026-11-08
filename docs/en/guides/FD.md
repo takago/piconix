@@ -32,7 +32,7 @@ Without an argument, `fd` opens the current working directory. Supply a director
 
 Press `/` and enter a substring such as `trace` to filter filenames without case sensitivity. Use `↓` or `↑` to move between batches when more than 48 entries exist. This is a **filename search in the current directory**, not a search inside files.
 
-For example, run `fd /proc`, choose an entry with the arrow keys, and press `Enter` to inspect it. Press `q` or `Esc` to return from the viewer. **`q` quits from the file list but returns to the list from the viewer.**
+For example, run `fd /proc`, choose an entry with the arrow keys, and press `Enter` to inspect it. Press `←`, `q`, or `Esc` to return from the viewer. **`q` quits from the file list but returns to the list from the viewer.**
 
 ## View a file
 
@@ -46,7 +46,7 @@ Pressing `Enter` on a file under `/tmp`, `/etc`, `/proc`, or `/man` opens a **re
 | `Enter` / `Esc` while entering text | Start / cancel a content search |
 | `n` / `N` | Jump to the next / previous matching line (wrap around) |
 | `e` | Launch `edit` when the file is editable |
-| `q` / `Esc` | Return to the file list |
+| `←` / `q` / `Esc` / `Backspace` | Return to the file list |
 
 In the file viewer, press `/`, type a term such as `socket`, and press Enter to jump to the first matching line. Matching text is highlighted. Use `n` for the next match and `N` for the previous match. This is separate from filename filtering on the directory screen. Search scans the file incrementally without retaining it in RAM.
 

@@ -190,7 +190,7 @@ static void refresh_dir(void){
 static void draw_dir(void) {
     char title[112];clipped(title,current,cols-15);
     printf("\033[?25l\033[H\033[2J\033[7m PicoNIX fd  %s\033[K\033[0m",title);
-    screen_move(2,1);printf(" Enter: open  /: find  e: edit  Backspace: parent  q: quit\033[K");
+    screen_move(2,1);printf(" Right/Enter: open  Left: parent  /: find  e: edit  q: quit\033[K");
     int visible=rows-5;
     if(selected<scroll)scroll=selected;
     if(selected>=scroll+visible)scroll=selected-visible+1;
@@ -312,7 +312,7 @@ static void paint_view(int len,int error){
     char title[112];clipped(title,path,cols-15);
     printf("\033[?25l\033[H\033[2J\033[7m PicoNIX fd: %s\033[K\033[0m",title);
     screen_move(2,1);
-    printf(" Up/Down: scroll  /: search  n/N: next/prev  q/Esc: back\033[K");
+    printf(" Up/Down: scroll  Left: back  /: search  n/N: match  q: back\033[K");
     int y=3;
     if(error){screen_move(y,1);printf(" Cannot read file\033[K");}
     else {
@@ -502,7 +502,7 @@ int main(int argc,char **argv){
                 view_top+=view_lines?view_lines:1;
                 refresh_view();continue;
             }
-            if(key=='q' ||key==27||key==8||key==127){mode_view=0;draw_dir();}
+            if(key=='q' ||key==27||key==8||key==127||key==1004){mode_view=0;draw_dir();}
             else if(key=='e'){if(edit_selected()<0){/* ファイル閲覧画面を表示したままにする． */}}
             else if(key=='r'){reset_view_index();old_len=-1;refresh_view();}
             continue;

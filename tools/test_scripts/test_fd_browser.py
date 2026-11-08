@@ -13,6 +13,8 @@ assert 'fcntl(0,F_SETFL,original_flags|O_NONBLOCK)' in code
 assert 'if(!strcmp(entries[selected].name,".."))' in code
 assert 'if(!strcmp(e.name,".")) continue;' in code
 assert 'static const char *notice;' in code  # no address-valued static initializer
+assert "key=='q' ||key==27||key==8||key==127||key==1004" in code  # Left closes viewer
+assert "key=='\\r'||key=='\\n'||key==1003" in code  # Right opens selection
 cc = shutil.which('gcc') or shutil.which('clang')
 assert cc, 'C compiler required'
 with tempfile.TemporaryDirectory() as t:
@@ -27,6 +29,10 @@ int main(void) {
     strcpy(current,"/dev/gpio");parent_dir();if(strcmp(current,"/dev"))return 2;
     parent_dir();if(strcmp(current,"/"))return 3;
     parent_dir();if(strcmp(current,"/"))return 4;
+    int state=0;
+    if(key_event(27,&state)!=0 || key_event('[',&state)!=0 || key_event('D',&state)!=1004)return 5;
+    state=0;
+    if(key_event(27,&state)!=0 || key_event('[',&state)!=0 || key_event('C',&state)!=1003)return 6;
     return 0;
 }
 ''')
