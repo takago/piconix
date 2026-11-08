@@ -26,7 +26,7 @@ Look up OS behavior, APIs, and limitations by topic. For sequential UNIX lessons
 ## Devices and I/O
 
 - [Device and I/O reference index](devices/README.md)
-- [GPIO, ADC, PWM, and framebuffer devices](devices/DEVICES.md)
+- [GPIO, ADC, PWM, and framebuffer devices](devices/README.md)
 - [I²C1 and i2cctl](devices/I2C.md)
 - [UART1 and terminals](devices/UART.md)
 

@@ -88,4 +88,4 @@ If a transfer does not finish, check connection shutdown behavior and `-N` suppo
 
 ---
 
-**Related links:** [Pipe guide](PIPE.md) | [Guide index](README.md) | [日本語](../../../ja/reference/commands/DD.md) | [Documentation](../../README.md) | [nc](../network/NC.md) | [Devices](../devices/DEVICES.md)
+**Related links:** [Pipe guide](PIPE.md) | [Guide index](README.md) | [日本語](../../../ja/reference/commands/DD.md) | [Documentation](../../README.md) | [nc](../network/NC.md) | [Devices](../devices/README.md)

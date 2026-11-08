@@ -1,6 +1,6 @@
 # ハードウェア — 技術リファレンス
 
-PicoNIXを動かす**基板と実際の接続**について調べる入口です．OSのファイル操作は[デバイスリファレンス](../devices/DEVICES.md)，ドライバを作る方法は[ドライバ開発ガイド](../../development/drivers/DRIVER-DEVELOPMENT.md)に分けています．
+PicoNIXを動かす**基板と実際の接続**について調べる入口です．OSのファイル操作は[デバイスリファレンス](../devices/README.md)，ドライバを作る方法は[ドライバ開発ガイド](../../development/drivers/DRIVER-DEVELOPMENT.md)に分けています．
 
 | 調べたいこと | 文書 |
 |---|---|
@@ -8,7 +8,7 @@ PicoNIXを動かす**基板と実際の接続**について調べる入口です
 | 40ピン端子配置，GPnの用途，予約ピン，設定の変更 | [ピン割当とボード端子](PINS.md) |
 | LEDマトリクス，ボタン，PWM，UART，I²Cなどの接続 | [配線と電気的注意](WIRING.md) |
 
-**推奨順序：** [概要](HARDWARE.md) → [ピン割当](PINS.md) → [配線](WIRING.md) → [デバイスの操作](../devices/DEVICES.md)．
+**推奨順序：** [概要](HARDWARE.md) → [ピン割当](PINS.md) → [配線](WIRING.md) → [デバイスの操作](../devices/README.md)．
 
 実装との対応は`kernel/pins.h`（ピンの用途）と`kernel/fb.c`（LED走査），使用する実部品のデータシートで確認してください．
 

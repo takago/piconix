@@ -73,4 +73,4 @@ GP26／27はI²C1専用の固定割り当てで，`PIN_GPIO`や`PIN_ADC`に変�
 
 ---
 
-**関連リンク：** [ハードウェア目次](README.md) ｜ [デバイスの操作](../devices/DEVICES.md) ｜ [English](../../../en/reference/hardware/PINS.md)
+**関連リンク：** [ハードウェア目次](README.md) ｜ [デバイスの操作](../devices/README.md) ｜ [English](../../../en/reference/hardware/PINS.md)

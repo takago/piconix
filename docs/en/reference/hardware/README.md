@@ -1,6 +1,6 @@
 # Hardware — Technical Reference
 
-Use this index for **boards and physical connections**. The [device reference](../devices/DEVICES.md) explains `/dev` operations; the [driver development guide](../../development/drivers/DRIVER-DEVELOPMENT.md) explains implementing them in the kernel.
+Use this index for **boards and physical connections**. The [device reference](../devices/README.md) explains `/dev` operations; the [driver development guide](../../development/drivers/DRIVER-DEVELOPMENT.md) explains implementing them in the kernel.
 
 | Topic | Document |
 |---|---|
@@ -8,7 +8,7 @@ Use this index for **boards and physical connections**. The [device reference](.
 | 40-pin layout, GPn assignments and reserved pins | [Pin assignments and board header](PINS.md) |
 | LED matrix, switches, PWM, UART and I²C connections | [Wiring and electrical precautions](WIRING.md) |
 
-**Suggested order:** [Overview](HARDWARE.md) → [Pin assignments](PINS.md) → [Wiring](WIRING.md) → [Device usage](../devices/DEVICES.md).
+**Suggested order:** [Overview](HARDWARE.md) → [Pin assignments](PINS.md) → [Wiring](WIRING.md) → [Device usage](../devices/README.md).
 
 Cross-check `kernel/pins.h` (pin modes), `kernel/fb.c` (LED scanning), and the actual component datasheets.
 

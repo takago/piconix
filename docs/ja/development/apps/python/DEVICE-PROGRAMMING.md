@@ -2,7 +2,7 @@
 
 *開発ガイド — Raspberry Pi Pico / Pico W共通*
 
-[Pythonの基本](PYTHON.md) | [ソケットプログラミング](SOCKET-PROGRAMMING.md) | [デバイスリファレンス](../../../reference/devices/DEVICES.md) | [配線](../../../reference/hardware/WIRING.md) | [English](../../../../en/development/apps/python/DEVICE-PROGRAMMING.md)
+[Pythonの基本](PYTHON.md) | [ソケットプログラミング](SOCKET-PROGRAMMING.md) | [デバイスリファレンス](../../../reference/devices/README.md) | [配線](../../../reference/hardware/WIRING.md) | [English](../../../../en/development/apps/python/DEVICE-PROGRAMMING.md)
 
 PicoNIXのデバイスは`/dev`のファイルとして公開されます．Python専用のGPIOライブラリは不要で，`open()`，`read()`，`write()`，`close()`で操作します．本書は`userland/apps/python.c`と現行のデバイス文書を基準にしています．
 
@@ -54,7 +54,7 @@ for i in range(5):
 close(fd)
 ```
 
-この例は通常のPicoでGP25をLED出力に利用する場合を前提とします．Pico WではGP25はCYW43用に予約され，`/dev/gpio/25`から操作できません．Pico WのオンボードLEDは`WL_GPIO0`に接続されています．GPIOの方向やプル設定は`/dev/gpio/<pin>.dir`，`/dev/gpio/<pin>.pull`で管理します．[ピン割当](../../../reference/hardware/PINS.md)と[GPIOリファレンス](../../../reference/devices/DEVICES.md)を確認してください．
+この例は通常のPicoでGP25をLED出力に利用する場合を前提とします．Pico WではGP25はCYW43用に予約され，`/dev/gpio/25`から操作できません．Pico WのオンボードLEDは`WL_GPIO0`に接続されています．GPIOの方向やプル設定は`/dev/gpio/<pin>.dir`，`/dev/gpio/<pin>.pull`で管理します．[ピン割当](../../../reference/hardware/PINS.md)と[GPIOリファレンス](../../../reference/devices/README.md)を確認してください．
 
 ## 3．PWM
 

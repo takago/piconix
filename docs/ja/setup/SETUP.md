@@ -11,7 +11,7 @@ GPIOや周辺機器を試す場合は，使用する部品と接続方法を事�
 - [ハードウェア概要](../reference/hardware/HARDWARE.md)：対応ボードと安全上の前提
 - [ピン割当と40ピン配置図](../reference/hardware/PINS.md)：GPIO番号と物理端子番号
 - [配線ガイド](../reference/hardware/WIRING.md)：LED，スイッチ，PWM，I²C，UART，ADCの接続
-- [デバイスガイド](../reference/devices/DEVICES.md)：接続後の操作，GPIO・ADC・PWM・フレームバッファ
+- [デバイスガイド](../reference/devices/README.md)：接続後の操作，GPIO・ADC・PWM・フレームバッファ
 
 **配線前の注意：** GPIOは3.3 V系です．LEDには電流制限抵抗と適切な駆動回路が必要です．USBケーブルを抜いた状態で配線し，ピンの用途と極性を確認してから通電してください．最新の割り当ては`kernel/pins.h`を基準にしてください．
 

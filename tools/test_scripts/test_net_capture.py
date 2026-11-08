@@ -21,6 +21,6 @@ assert 'net_packet_read(&tasks[current].fd_pos[fd]' in k
 assert 'net_echo_write(' in k and 'net_echo_read(' in k
 assert 'pbuf_copy_partial' in c and 'PACKET_COUNT 16' in c
 for lang in ('en','ja'):
-    for p in ['reference/network/NETWORK.md','reference/devices/DEVICES.md','reference/commands/HELP.md']:
+    for p in ['reference/network/NETWORK.md','reference/devices/README.md','reference/commands/HELP.md']:
         assert ('tcpdump' in (r/f'docs/{lang}/{p}').read_text() or '/dev/net/packet' in (r/f'docs/{lang}/{p}').read_text())
 print('PASS: capture/ICMP ABI, VFS, apps, and bilingual documentation')

@@ -11,7 +11,7 @@
 | GP0–GP7 | Column cathodes | LOW selects lit columns |
 | GP8–GP15 | Row anodes | HIGH selects the scanned row |
 
-One row anode may carry current for several LEDs, so **use suitable current-limiting resistors and a driver circuit**. Avoid driving the matrix directly from RP2040 GPIO. Framebuffer data and `ioctl()` commands are documented in the [device reference](../devices/DEVICES.md).
+One row anode may carry current for several LEDs, so **use suitable current-limiting resistors and a driver circuit**. Avoid driving the matrix directly from RP2040 GPIO. Framebuffer data and `ioctl()` commands are documented in the [device reference](../devices/README.md).
 
 ## LED matrix orientation and coordinates
 
@@ -131,7 +131,7 @@ For a typical BH1750 breakout, VCC goes to a compatible 3.3 V supply, GND to GND
 
 ## ADC2 (GP28)
 
-GP28 (physical header pin 34) provides ADC2. Apply an analog voltage within the RP2040's valid range (typically 0–3.3 V logic supply range). GP26/27 are reserved for I²C1 rather than ADC0/1 in this configuration. See [Device reference](../devices/DEVICES.md) for reading ADC values.
+GP28 (physical header pin 34) provides ADC2. Apply an analog voltage within the RP2040's valid range (typically 0–3.3 V logic supply range). GP26/27 are reserved for I²C1 rather than ADC0/1 in this configuration. See [Device reference](../devices/README.md) for reading ADC values.
 
 ## Initial functional checks
 

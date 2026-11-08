@@ -18,7 +18,7 @@
 |---|---|---|---|
 | タスクと時間 | 1–5，12–14，19–20，25，38 | `getpid`，`kill`，`_exit`，`msleep`，`yield`，`spawn`，`waitpid`，前景TTY，プログラムID | [アーキテクチャ](ARCHITECTURE.md)，[TTY](commands/TTY.md) |
 | ファイル・FD・ディレクトリ | 6–9，17–18，21–24，26，36–37 | `open`，`read`，`write`，`lseek`，`dup2`，`pipe`，`getdents`など | [ファイルシステム](FILESYSTEM.md)，[パイプ](commands/PIPE.md) |
-| デバイス・端末 | 10，16，27 | `ioctl`，コンソール接続確認，Flash ID | [デバイス一覧](devices/DEVICES.md)，[TTY](commands/TTY.md) |
+| デバイス・端末 | 10，16，27 | `ioctl`，コンソール接続確認，Flash ID | [デバイス一覧](devices/README.md)，[TTY](commands/TTY.md) |
 | ネットワーク・多重化 | 28–35，39–40 | `socket`，UDP，TCP，`select` | [ネットワーク](network/NETWORK.md)，[ソケット開発](../development/apps/c/NETWORK-PROGRAMMING.md) |
 | 予約 | 11，15 | 使用不可（`OS_ENOSYS`） | [ABI定義](../../../include/piconix_syscall.h) |
 

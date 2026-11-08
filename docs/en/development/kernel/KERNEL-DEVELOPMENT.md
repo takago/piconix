@@ -9,7 +9,7 @@ To study the kernel before modifying it, see the [kernel reading guide](KERNEL-R
 **Prerequisites:** Read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Tracing](../../reference/commands/TRACE.md). Begin by following task creation and termination in the existing source code.
 
 
-[Documentation guide](../../README.md) | [Internals](../../reference/INTERNAL.md) | [System calls](../../reference/SYSCALLS.md) | [Devices](../../reference/devices/DEVICES.md) | [日本語](../../../ja/development/kernel/KERNEL-DEVELOPMENT.md)
+[Documentation guide](../../README.md) | [Internals](../../reference/INTERNAL.md) | [System calls](../../reference/SYSCALLS.md) | [Devices](../../reference/devices/README.md) | [日本語](../../../ja/development/kernel/KERNEL-DEVELOPMENT.md)
 
 This guide is for contributors **extending the PicoNIX kernel**. For adding a user-space C command, see [PROGRAMMING.md](../apps/c/PROGRAMMING.md). The procedures describe the source structure in the supplied revision, not a ready-to-apply patch. Preserve the existing ABI and hardware resource reservations.
 
@@ -68,7 +68,7 @@ Before editing, trace the relevant **entry point (SVC/VFS/driver) → internal s
 
 - [SYSCALLS.md](../../reference/SYSCALLS.md): ABI, arguments and return values
 - [LIBC.md](../apps/c/LIBC.md): C library and wrappers
-- [DEVICES.md](../../reference/devices/DEVICES.md): device nodes and APIs; [PINS.md](../../reference/hardware/PINS.md): pin assignments; [WIRING.md](../../reference/hardware/WIRING.md): physical wiring
+- [README.md](../../reference/devices/README.md): device nodes and APIs; [PINS.md](../../reference/hardware/PINS.md): pin assignments; [WIRING.md](../../reference/hardware/WIRING.md): physical wiring
 - [INTERNAL.md](../../reference/INTERNAL.md): Tasks, VFS and internals
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md): User-space C development
 - [TRACE.md](../../reference/commands/TRACE.md): Inspecting SVCs and task switches

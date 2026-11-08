@@ -78,7 +78,7 @@ Pico W also provides `/dev/net/packet` (16-record IPv4 capture ring) and `/dev/n
 
 ## 8. Devices and pseudo-files
 
-`/dev` exposes console, UART, GPIO, PWM, ADC, and related interfaces; `/proc` exposes task and system information. Actual nodes depend on the build configuration. See [Filesystem and node reference](FILESYSTEM.md), [Devices](devices/DEVICES.md), and [Internals](INTERNAL.md).
+`/dev` exposes console, UART, GPIO, PWM, ADC, and related interfaces; `/proc` exposes task and system information. Actual nodes depend on the build configuration. See [Filesystem and node reference](FILESYSTEM.md), [Devices](devices/README.md), and [Internals](INTERNAL.md).
 
 ## 9. Errors and compatibility
 

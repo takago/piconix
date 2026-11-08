@@ -10,7 +10,7 @@
 Start with interactive calculations and printing, then save and run a short script in `/tmp`. Standard Python `import` and floating-point operations are unavailable.
 
 
-[日本語](../../../../ja/development/apps/python/PYTHON.md) | [Devices](../../../reference/devices/DEVICES.md) | [I²C](../../../reference/devices/I2C.md)
+[日本語](../../../../ja/development/apps/python/PYTHON.md) | [Devices](../../../reference/devices/README.md) | [I²C](../../../reference/devices/I2C.md)
 
 PicoNIX provides a small Python-like interpreter, not CPython or MicroPython. This guide describes the current `userland/apps/python.c`, including I²C, sequences, and generic file I/O; full Python compatibility is not intended.
 
@@ -20,7 +20,7 @@ PicoNIX provides a small Python-like interpreter, not CPython or MicroPython. Th
 
 Start the interactive interpreter with `python` and try `print(1 << 3)` or `print("hello", 123)`. For a script, create `/tmp/test.py` using `edit` and run `python /tmp/test.py`. There is **no `python3` command**. The preinstalled `/tmp/test.py` reads the RP2040 on-chip temperature sensor at `/dev/adc/temp` five times at one-second intervals, without networking. Since `read()` returns a byte sequence, it displays each reading with `write(1, temp)` and reopens the device for a fresh measurement.
 
-See [hardware wiring](../../../reference/hardware/WIRING.md) for LED matrix orientation and BH1750 connections; see [Devices](../../../reference/devices/DEVICES.md) and [I²C](../../../reference/devices/I2C.md) for the interfaces. This is a deliberately limited Python-like interpreter, not CPython.
+See [hardware wiring](../../../reference/hardware/WIRING.md) for LED matrix orientation and BH1750 connections; see [Devices](../../../reference/devices/README.md) and [I²C](../../../reference/devices/I2C.md) for the interfaces. This is a deliberately limited Python-like interpreter, not CPython.
 
 ## REPL and scripts
 
@@ -74,7 +74,7 @@ Paths in `open()` and strings in `write()` must be literals. Use `data = read(fd
 
 ### Before drawing with Python
 
-Run `fbctl test` from the shell first and check the physical LEDs. `/proc/fb` reports framebuffer data, not whether the wiring is correct. Refer to [hardware wiring](../../../reference/hardware/WIRING.md) for orientation, current limiting, and the pin connections; [Devices](../../../reference/devices/DEVICES.md) covers the framebuffer interface.
+Run `fbctl test` from the shell first and check the physical LEDs. `/proc/fb` reports framebuffer data, not whether the wiring is correct. Refer to [hardware wiring](../../../reference/hardware/WIRING.md) for orientation, current limiting, and the pin connections; [Devices](../../../reference/devices/README.md) covers the framebuffer interface.
 
 For `write(fd, pattern)`, **each element is an 8-bit row and exactly eight elements are required**. For example, `bytes([0x80,0,0,0,0,0,0,0])` selects only the leftmost pixel of R0. A framebuffer 1 means lit, although the corresponding cathode GPIO is driven LOW.
 

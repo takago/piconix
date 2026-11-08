@@ -52,7 +52,7 @@ There are **two required changes** in the current build system.
 Find `foreach(APP IN ITEMS ...)` near the top of `CMakeLists.txt` and append `greet` **without the `.c` suffix**:
 
 ```cmake
-foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm cc help edit vi dd mem tree find nc httpd tcp_echod udp_echod mcpd scroll greet)
+foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm help edit vi dd mem tree find nc httpd tcp_echod udp_echod greet)
 ```
 
 The line above shows the current `CMakeLists.txt` with `greet` appended. Keep all existing application names; if the list changes in a newer version, append `greet` to that version instead. The common loop automatically compiles `userland/apps/greet.c` with `crt0.c`, `syscalls.c`, and `libc.c`, links the RAM image, validates its PIC behavior and size, and embeds the binary in firmware Flash. No separate custom build rule is needed.
@@ -68,10 +68,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 Add a call alongside the other `register_image(...)` calls in `main()`:
 
 ```c
-register_image(52, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(49, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**52 is unused in the unmodified source tree (49 = `mcpd`, 50 = `cc`, 51 = `scroll`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
+**49 is an unused example ID in the supplied current sources (45 is `ping`, 46 is `tcpdump`, 47 is `ip`, and 48 is `cp`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
 
 ## 4. Build and run
 
@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 }
 ```
 
-For example, `greet Alice > /tmp/message` redirects output to a RAM file. File and descriptor support is intentionally smaller than POSIX; see [Filesystem](../../../reference/FILESYSTEM.md) and [Pipes](../../../reference/commands/PIPE.md). Device access is documented in [Devices](../../../reference/devices/DEVICES.md).
+For example, `greet Alice > /tmp/message` redirects output to a RAM file. File and descriptor support is intentionally smaller than POSIX; see [Filesystem](../../../reference/FILESYSTEM.md) and [Pipes](../../../reference/commands/PIPE.md). Device access is documented in [Devices](../../../reference/devices/README.md).
 
 ## 6. APIs and execution constraints
 

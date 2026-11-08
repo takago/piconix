@@ -83,7 +83,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 
 `/dev/fbchar`の使用例は`cat /dev/fbchar`，`echo heart > /dev/fbchar`です．`/dev/fb`とはデータ形式が異なります．
 
-実際の読み書き形式，`ioctl()`の値，ピンの占有・排他条件は[デバイスガイド](devices/DEVICES.md)と[TTY](commands/TTY.md)を参照してください．`/proc/devices`は固定デバイスの登録表と`gpio/`，`adc/`，`pwm/`，`i2c/`の入口を列挙するもので，すべての動的ノードを列挙するわけではありません．
+実際の読み書き形式，`ioctl()`の値，ピンの占有・排他条件は[デバイスガイド](devices/README.md)と[TTY](commands/TTY.md)を参照してください．`/proc/devices`は固定デバイスの登録表と`gpio/`，`adc/`，`pwm/`，`i2c/`の入口を列挙するもので，すべての動的ノードを列挙するわけではありません．
 
 ## 3．GPIOと周辺機器の公開条件
 

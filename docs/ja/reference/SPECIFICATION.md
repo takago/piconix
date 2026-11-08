@@ -78,7 +78,7 @@ Pico Wでは`tcpdump`用の`/dev/net/packet`（16件のIPv4情報記録）と，
 
 ## 8．デバイスと疑似ファイル
 
-`/dev`にはコンソール，UART，GPIO，PWM，ADCなどのインターフェースがあり，`/proc`はタスクやシステム状態の観察に使用します．実際に公開されるノードと操作はビルド構成に依存します．[ファイルシステムとノード一覧](FILESYSTEM.md)，[デバイス](devices/DEVICES.md)，[内部構造](INTERNAL.md)を参照してください．
+`/dev`にはコンソール，UART，GPIO，PWM，ADCなどのインターフェースがあり，`/proc`はタスクやシステム状態の観察に使用します．実際に公開されるノードと操作はビルド構成に依存します．[ファイルシステムとノード一覧](FILESYSTEM.md)，[デバイス](devices/README.md)，[内部構造](INTERNAL.md)を参照してください．
 
 ## 9．エラーと互換性
 

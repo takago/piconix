@@ -11,7 +11,7 @@ Before using GPIO or other peripherals, check the required components and wiring
 - [Hardware overview](../reference/hardware/HARDWARE.md): supported boards and safe starting assumptions
 - [Pin assignments and 40-pin diagram](../reference/hardware/PINS.md): GPIO roles and physical header numbers
 - [Wiring guide](../reference/hardware/WIRING.md): LED matrix, switches, PWM, I²C, UART, and ADC
-- [Device guide](../reference/devices/DEVICES.md): operations on GPIO, ADC, PWM, and framebuffer nodes
+- [Device guide](../reference/devices/README.md): operations on GPIO, ADC, PWM, and framebuffer nodes
 
 **Before wiring:** GPIO uses 3.3 V logic. LEDs need current-limiting resistors and suitable driver circuitry. Disconnect USB power while wiring, and verify pin roles and polarity before powering the board. Treat `kernel/pins.h` as the authoritative pin configuration.
 

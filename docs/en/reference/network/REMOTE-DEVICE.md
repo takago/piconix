@@ -43,7 +43,7 @@ A successful reply is `OK\n` followed by device bytes for `READ`, or just `OK\n`
 | `/dev/pwm/1/a`, `/dev/pwm/1/b` | Decimal ASCII duty value | Decimal duty value | Not supported |
 | `/dev/adc/0`, `/dev/adc/1`, `/dev/adc/2`, `/dev/adc/temp` | Formatted ASCII measurement | Not supported | Not supported |
 
-GPIO access is restricted by `pin_gpio()` and the service's explicit safety check: **GPIO 23–28 are never remotely available**. Other pins are available only when not reserved for PWM, UART, ADC, or an active LED framebuffer. Valid pins depend on the firmware pin configuration. This is **not** a general remote VFS: paths such as `/etc/index.html` cannot be opened via UDP 2000. See [Remote GPIO control](REMOTE_GPIO.md) for pin-specific examples and [Device Guide](../devices/DEVICES.md) for local device details.
+GPIO access is restricted by `pin_gpio()` and the service's explicit safety check: **GPIO 23–28 are never remotely available**. Other pins are available only when not reserved for PWM, UART, ADC, or an active LED framebuffer. Valid pins depend on the firmware pin configuration. This is **not** a general remote VFS: paths such as `/etc/index.html` cannot be opened via UDP 2000. See [Remote GPIO control](REMOTE_GPIO.md) for pin-specific examples and [Device Guide](../devices/README.md) for local device details.
 
 ## Raw request example
 

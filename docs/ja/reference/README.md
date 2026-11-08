@@ -26,7 +26,7 @@ OSの仕様，API，機能の制限などを分野別に調べられます．順
 ## デバイス・I/O
 
 - [デバイス・I/O リファレンス目次](devices/README.md)
-- [GPIO・ADC・PWM・フレームバッファ](devices/DEVICES.md)
+- [GPIO・ADC・PWM・フレームバッファ](devices/README.md)
 - [I²C1とi2cctl](devices/I2C.md)
 - [UART1と端末操作](devices/UART.md)
 

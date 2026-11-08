@@ -41,7 +41,7 @@ Compare `cat /proc/uptime`, `ls /dev`, and `lsof`. Follow FD lookup and VFS disp
 
 ### Step 8: Device I/O
 
-Begin at VFS device dispatch in `kernel/kernel.c`, then follow a selected backend such as `kernel/gpio.c`. Separate path/device identification from the read/write/ioctl operation and hardware-specific code. Consult [Device reference](../../reference/devices/DEVICES.md) and [Driver development](../drivers/DRIVER-DEVELOPMENT.md).
+Begin at VFS device dispatch in `kernel/kernel.c`, then follow a selected backend such as `kernel/gpio.c`. Separate path/device identification from the read/write/ioctl operation and hardware-specific code. Consult [Device reference](../../reference/devices/README.md) and [Driver development](../drivers/DRIVER-DEVELOPMENT.md).
 
 ### Step 9: Networking (Pico W only)
 
@@ -133,7 +133,7 @@ application → write() → call(SYS_WRITE, ...) → svc #0
             → isr_svcall → os_svc_dispatch() → vfs_rw() → TTY
 ```
 
-For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS device dispatch before inspecting hardware backends; use the [Device reference](../../reference/devices/DEVICES.md). Step 9 is a separate, optional Pico W topic; use the [kernel networking development guide](../network/NETWORK-DEVELOPMENT.md) for kernel internals, and the [user socket programming guide](../apps/c/NETWORK-PROGRAMMING.md) for applications; distinguish built-in services from user-space `httpd`. For step 7, run:
+For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS device dispatch before inspecting hardware backends; use the [Device reference](../../reference/devices/README.md). Step 9 is a separate, optional Pico W topic; use the [kernel networking development guide](../network/NETWORK-DEVELOPMENT.md) for kernel internals, and the [user socket programming guide](../apps/c/NETWORK-PROGRAMMING.md) for applications; distinguish built-in services from user-space `httpd`. For step 7, run:
 
 ```sh
 echo hello | grep hello | cat

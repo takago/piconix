@@ -46,12 +46,12 @@
 | コマンド | 用途 | 構文・主要オプション | 詳細 |
 |---|---|---|---|
 | [`pins`](../../../../userland/apps/pins.c) | ピン配置の表示 | `pins` | [解説](../hardware/PINS.md) |
-| [`gpio`](../../../../userland/apps/gpio.c) | 対話型GPIO操作 | `gpio` | [解説](../devices/DEVICES.md) |
+| [`gpio`](../../../../userland/apps/gpio.c) | 対話型GPIO操作 | `gpio` | [解説](../devices/README.md) |
 | [`i2cctl`](../../../../userland/apps/i2cctl.c) | I²C1デバイス操作 | `i2cctl scan \| read ADDR COUNT \| write ADDR BYTE... \| xfer ADDR READ_COUNT [BYTE...]` | [解説](../devices/I2C.md) |
 | [`bh1750`](../../../../userland/apps/bh1750.c) | BH1750照度センサの読み出し | `bh1750 [count]（0: 連続）` | [解説](../devices/I2C.md) |
-| [`fbctl`](../../../../userland/apps/fbctl.c) | 8×8フレームバッファ制御 | `fbctl on\|off\|clear\|status\|test` | [解説](../devices/DEVICES.md) |
-| [`fbed`](../../../../userland/apps/fbed.c) | 対話型フレームバッファ編集 | `fbed` | [解説](../devices/DEVICES.md) |
-| [`pwmctl`](../../../../userland/apps/pwmctl.c) | PWM制御 | `pwmctl status\|freq HZ\|a DUTY\|b DUTY\|off` | [解説](../devices/DEVICES.md) |
+| [`fbctl`](../../../../userland/apps/fbctl.c) | 8×8フレームバッファ制御 | `fbctl on\|off\|clear\|status\|test` | [解説](../devices/README.md) |
+| [`fbed`](../../../../userland/apps/fbed.c) | 対話型フレームバッファ編集 | `fbed` | [解説](../devices/README.md) |
+| [`pwmctl`](../../../../userland/apps/pwmctl.c) | PWM制御 | `pwmctl status\|freq HZ\|a DUTY\|b DUTY\|off` | [解説](../devices/README.md) |
 | [`blink`](../../../../userland/apps/blink.c) | LED点滅タスク | `blink [&]` | — |
 
 ## プログラミング・ネットワーク

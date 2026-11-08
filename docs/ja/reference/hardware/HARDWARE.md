@@ -15,7 +15,7 @@ PicoNIXはRP2040を搭載する**Raspberry Pi Pico / Pico W**を対象にして�
 |---|---|
 | GPnを何に割り当てたか | [ピン割当](PINS.md)．実装上の正本は`kernel/pins.h` |
 | どの部品をどこに接続するか | [配線と電気的注意](WIRING.md)．端子番号・極性は部品データシートでも確認 |
-| `/dev`をどう`open()`・`read()`・`write()`するか | [デバイスの仕様](../devices/DEVICES.md) |
+| `/dev`をどう`open()`・`read()`・`write()`するか | [デバイスの仕様](../devices/README.md) |
 | ピンやドライバをどう実装・変更するか | [ドライバ開発](../../development/drivers/DRIVER-DEVELOPMENT.md) |
 
 同じGPIOをLED表示と汎用出力などに同時使用することはできません．[現在のピン割当](PINS.md)を確認し，表示中にGP0～15を解放する場合は`fbctl off`を実行してください．

@@ -9,7 +9,7 @@
 **事前学習：** [全体構成](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[トレース](../../reference/commands/TRACE.md)を先に確認してください．最初はソースを読み，タスクの生成から終了までの流れを追うことを勧めます．
 
 
-[文書案内](../../README.md) | [内部構造](../../reference/INTERNAL.md) | [システムコール](../../reference/SYSCALLS.md) | [デバイス](../../reference/devices/DEVICES.md) | [English](../../../en/development/kernel/KERNEL-DEVELOPMENT.md)
+[文書案内](../../README.md) | [内部構造](../../reference/INTERNAL.md) | [システムコール](../../reference/SYSCALLS.md) | [デバイス](../../reference/devices/README.md) | [English](../../../en/development/kernel/KERNEL-DEVELOPMENT.md)
 
 この文書は，**PicoNIXのカーネルに機能を追加する開発者**向けです．ユーザ空間のCコマンドを追加する場合は[PROGRAMMING.md](../apps/c/PROGRAMMING.md)を参照してください．以下は添付された現行ソースの構造に基づく手順であり，完成済みパッチではありません．既存のABIや機器予約を破壊しないよう，変更箇所を一つずつ確認してください．
 
@@ -68,7 +68,7 @@
 
 - [SYSCALLS.md](../../reference/SYSCALLS.md)：ABI，引数，戻り値
 - [LIBC.md](../apps/c/LIBC.md)：Cライブラリとラッパー
-- [DEVICES.md](../../reference/devices/DEVICES.md)：デバイスノードとAPI， [PINS.md](../../reference/hardware/PINS.md)：ピン割当， [WIRING.md](../../reference/hardware/WIRING.md)：物理配線
+- [README.md](../../reference/devices/README.md)：デバイスノードとAPI， [PINS.md](../../reference/hardware/PINS.md)：ピン割当， [WIRING.md](../../reference/hardware/WIRING.md)：物理配線
 - [INTERNAL.md](../../reference/INTERNAL.md)：タスク，VFS，カーネル内部
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md)：ユーザ空間Cアプリ追加
 - [TRACE.md](../../reference/commands/TRACE.md)：SVCとタスク切替の観察

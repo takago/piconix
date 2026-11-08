@@ -10,7 +10,7 @@
 まず`python`の対話入力で計算と表示を試し，次に`/tmp`に短いスクリプトを保存して実行してください．Python標準の`import`や浮動小数点は使えません．
 
 
-[English](../../../../en/development/apps/python/PYTHON.md) | [デバイス](../../../reference/devices/DEVICES.md) | [I²C](../../../reference/devices/I2C.md)
+[English](../../../../en/development/apps/python/PYTHON.md) | [デバイス](../../../reference/devices/README.md) | [I²C](../../../reference/devices/I2C.md)
 
 PicoNIXの小型Python風インタプリタです．CPythonやMicroPythonとは異なり，標準Pythonとの完全な互換性はありません．本書は現在の`userland/apps/python.c`を基準とした利用ガイドです．
 

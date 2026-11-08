@@ -46,12 +46,12 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 | Command | Purpose | Syntax / key options | Details |
 |---|---|---|---|
 | [`pins`](../../../../userland/apps/pins.c) | Show pin layout | `pins` | [Details](../hardware/PINS.md) |
-| [`gpio`](../../../../userland/apps/gpio.c) | Interactive GPIO editor | `gpio` | [Details](../devices/DEVICES.md) |
+| [`gpio`](../../../../userland/apps/gpio.c) | Interactive GPIO editor | `gpio` | [Details](../devices/README.md) |
 | [`i2cctl`](../../../../userland/apps/i2cctl.c) | I²C1 device operations | `i2cctl scan \| read ADDR COUNT \| write ADDR BYTE... \| xfer ADDR READ_COUNT [BYTE...]` | [Details](../devices/I2C.md) |
 | [`bh1750`](../../../../userland/apps/bh1750.c) | Read BH1750 light sensor | `bh1750 [count]— 0: continuous` | [Details](../devices/I2C.md) |
-| [`fbctl`](../../../../userland/apps/fbctl.c) | Control 8×8 framebuffer | `fbctl on\|off\|clear\|status\|test` | [Details](../devices/DEVICES.md) |
-| [`fbed`](../../../../userland/apps/fbed.c) | Interactive framebuffer editor | `fbed` | [Details](../devices/DEVICES.md) |
-| [`pwmctl`](../../../../userland/apps/pwmctl.c) | Control PWM | `pwmctl status\|freq HZ\|a DUTY\|b DUTY\|off` | [Details](../devices/DEVICES.md) |
+| [`fbctl`](../../../../userland/apps/fbctl.c) | Control 8×8 framebuffer | `fbctl on\|off\|clear\|status\|test` | [Details](../devices/README.md) |
+| [`fbed`](../../../../userland/apps/fbed.c) | Interactive framebuffer editor | `fbed` | [Details](../devices/README.md) |
+| [`pwmctl`](../../../../userland/apps/pwmctl.c) | Control PWM | `pwmctl status\|freq HZ\|a DUTY\|b DUTY\|off` | [Details](../devices/README.md) |
 | [`blink`](../../../../userland/apps/blink.c) | Blink LED task | `blink [&]` | — |
 
 ## Programming and networking

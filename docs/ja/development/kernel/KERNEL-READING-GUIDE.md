@@ -105,7 +105,7 @@ echo hello | grep hello | cat
 
 **読む順序：** `kernel/kernel.c`のデバイスI/O振り分け → `kernel/gpio.c` → `kernel/fb.c` → `kernel/adc.c` → `kernel/i2c.c` → `kernel/pwm.c`．ハードウェアの定義は`kernel/pins.h`・`kernel/devices.h`・`include/device_names.h`も参照します．
 
-GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [デバイス仕様](../../reference/devices/DEVICES.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
+GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [デバイス仕様](../../reference/devices/README.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
 
 
 ## 第9段階：ネットワーク（Pico Wのみ・任意）

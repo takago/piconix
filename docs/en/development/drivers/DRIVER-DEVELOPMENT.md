@@ -9,7 +9,7 @@ cat /dev/uptime → vfs_open() → DEV_UPTIME → vfs_rw()
 → uptime_device_read() → "12.345 s\n" → user read()
 ```
 
-`/proc/uptime` already exists. This deliberate duplication is for the lab. Before modifying code, read the [File system](../../reference/FILESYSTEM.md) and [Device reference](../../reference/devices/DEVICES.md).
+`/proc/uptime` already exists. This deliberate duplication is for the lab. Before modifying code, read the [File system](../../reference/FILESYSTEM.md) and [Device reference](../../reference/devices/README.md).
 
 ## 2. Register the ID and path
 
@@ -124,7 +124,7 @@ These are **illustrative outputs**. Confirm read-only opens, short reads, EOF, r
 
 This lab shows a **virtual driver**, not a real GPIO electrical driver. For a physical device, trace existing `kernel/gpio.c` (`gpio_driver_rw`), `kernel/i2c.c`, `kernel/pins.h`, and the VFS dispatch in `kernel/kernel.c`. Before wiring or accessing a physical pin, consult [PINS](../../reference/hardware/PINS.md) and [WIRING](../../reference/hardware/WIRING.md). Avoid reserved pins owned by the LED matrix, UART, I²C or PWM. A production driver needs hardware initialization, ownership/locking, I/O bounds and electrical safety as well as VFS registration.
 
-If adopted as a supported feature, update [DEVICES](../../reference/devices/DEVICES.md) and [FILESYSTEM](../../reference/FILESYSTEM.md) in both languages.
+If adopted as a supported feature, update [DEVICES](../../reference/devices/README.md) and [FILESYSTEM](../../reference/FILESYSTEM.md) in both languages.
 
 **Validation note:** The standalone driver C module has passed syntax checks; full Pico SDK compilation and physical-device testing remain unverified.
 

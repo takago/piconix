@@ -15,7 +15,7 @@ PicoNIX targets the RP2040-based **Raspberry Pi Pico and Pico W**. The board is 
 |---|---|
 | How is each GPn assigned? | [Pin assignments](PINS.md); source of truth: `kernel/pins.h` |
 | How should components be connected? | [Wiring](WIRING.md), plus each component's datasheet |
-| How do `open()`, `read()`, and `write()` access `/dev`? | [Device reference](../devices/DEVICES.md) |
+| How do `open()`, `read()`, and `write()` access `/dev`? | [Device reference](../devices/README.md) |
 | How are device drivers implemented or changed? | [Driver development](../../development/drivers/DRIVER-DEVELOPMENT.md) |
 
 Physical GPIO resources cannot be used by multiple features simultaneously. When the LED matrix is active it reserves GP0–15; run `fbctl off` to release them.

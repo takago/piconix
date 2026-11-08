@@ -2,7 +2,7 @@
 
 *Development guide — Raspberry Pi Pico and Pico W*
 
-[Python basics](PYTHON.md) | [Socket programming](SOCKET-PROGRAMMING.md) | [Device reference](../../../reference/devices/DEVICES.md) | [Wiring](../../../reference/hardware/WIRING.md) | [日本語](../../../../ja/development/apps/python/DEVICE-PROGRAMMING.md)
+[Python basics](PYTHON.md) | [Socket programming](SOCKET-PROGRAMMING.md) | [Device reference](../../../reference/devices/README.md) | [Wiring](../../../reference/hardware/WIRING.md) | [日本語](../../../../ja/development/apps/python/DEVICE-PROGRAMMING.md)
 
 PicoNIX exposes devices as files under `/dev`. Python uses `open()`, `read()`, `write()` and `close()` rather than a separate GPIO module. This guide follows `userland/apps/python.c` and the current device reference.
 
@@ -52,7 +52,7 @@ for i in range(5):
 close(fd)
 ```
 
-This example applies to the original Pico where GP25 drives the board LED. On Pico W, GP25 is reserved for CYW43 and `/dev/gpio/25` is not available. The Pico W onboard LED is on `WL_GPIO0`. GPIO direction and pull configuration use `/dev/gpio/<pin>.dir` and `/dev/gpio/<pin>.pull`. Check the [pin map](../../../reference/hardware/PINS.md) and [GPIO reference](../../../reference/devices/DEVICES.md).
+This example applies to the original Pico where GP25 drives the board LED. On Pico W, GP25 is reserved for CYW43 and `/dev/gpio/25` is not available. The Pico W onboard LED is on `WL_GPIO0`. GPIO direction and pull configuration use `/dev/gpio/<pin>.dir` and `/dev/gpio/<pin>.pull`. Check the [pin map](../../../reference/hardware/PINS.md) and [GPIO reference](../../../reference/devices/README.md).
 
 ## 3. PWM
 

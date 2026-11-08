@@ -81,7 +81,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 | `/tmp/NAME`, `/etc/NAME` | Yes | Yes | Regular RAM files |
 | Directories | List | No | Enumerate with `getdents()`; cannot `read()` as a regular file |
 
-See the [device guide](devices/DEVICES.md) and [TTY guide](commands/TTY.md) for data formats, `ioctl()` commands, and pin ownership rules. `/proc/devices` lists fixed registered devices and the `gpio/`, `adc/`, `pwm/`, and `i2c/` entry points, not every dynamically generated node.
+See the [device guide](devices/README.md) and [TTY guide](commands/TTY.md) for data formats, `ioctl()` commands, and pin ownership rules. `/proc/devices` lists fixed registered devices and the `gpio/`, `adc/`, `pwm/`, and `i2c/` entry points, not every dynamically generated node.
 
 ## 3. GPIO and peripheral availability
 

@@ -29,21 +29,21 @@ for relative in app_paths:
 for relative in (
     'manual/devices-framebuffer', 'manual/devices',
     'manual/led-patterns', 'manual/gpio-workflow',
-    'docs/en/reference/devices/DEVICES.md',
-    'docs/ja/reference/devices/DEVICES.md',
+    'docs/en/reference/devices/README.md',
+    'docs/ja/reference/devices/README.md',
     'docs/en/reference/network/REMOTE-DEVICE.md',
     'docs/ja/reference/network/REMOTE-DEVICE.md',
 ):
     text = (root / relative).read_text()
     assert '/dev/fb' in text, relative
     if '/dev/gpio/fb' in text:
-        assert relative.endswith('reference/devices/DEVICES.md'), relative
+        assert relative.endswith('reference/devices/README.md'), relative
 
 for path in root.rglob('*'):
     if not path.is_file() or path.suffix in ('.png', '.bin', '.zip', '.pyc'):
         continue
     relative = path.relative_to(root).as_posix()
-    if relative in ('docs/ja/DEVELOPMENT_DIARY.md', 'docs/en/DEVELOPMENT_DIARY.md') or relative.endswith('reference/devices/DEVICES.md') or relative == 'tools/test_scripts/test_framebuffer_path_migration.py':
+    if relative in ('docs/ja/DEVELOPMENT_DIARY.md', 'docs/en/DEVELOPMENT_DIARY.md') or relative.endswith('reference/devices/README.md') or relative == 'tools/test_scripts/test_framebuffer_path_migration.py':
         continue
     try:
         contents = path.read_text()

@@ -2,7 +2,7 @@
 
 *Technical reference*
 
-This guide explains **how PicoNIX works**, from boot and task switching to system calls and I/O. For step-by-step application development, see [C application development](../development/apps/c/PROGRAMMING.md). For physical pin assignments and connections, see [pin assignments](hardware/PINS.md) and [wiring](hardware/WIRING.md); see [devices](devices/DEVICES.md) for `/dev` interfaces.
+This guide explains **how PicoNIX works**, from boot and task switching to system calls and I/O. For step-by-step application development, see [C application development](../development/apps/c/PROGRAMMING.md). For physical pin assignments and connections, see [pin assignments](hardware/PINS.md) and [wiring](hardware/WIRING.md); see [devices](devices/README.md) for `/dev` interfaces.
 
 ## 1. Architecture at a glance
 
@@ -107,7 +107,7 @@ Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) 
 | `/dev/trace` | Binary tracing records |
 | `/proc/tasks`, `/proc/uptime`, `/proc/interrupts`, `/proc/memory` | Kernel status |
 
-See [devices](devices/DEVICES.md) for device paths, and [pin assignments](hardware/PINS.md) for the corresponding GPIO roles. Each task has its own descriptors, and the same `read()` and `write()` APIs operate on files and devices.
+See [devices](devices/README.md) for device paths, and [pin assignments](hardware/PINS.md) for the corresponding GPIO roles. Each task has its own descriptors, and the same `read()` and `write()` APIs operate on files and devices.
 
 Internally, `open()` and `getdents()` share the same parser for `/dev/gpio/N`, `/dev/gpio/N.dir`, and `/dev/gpio/N.pull`; `kernel/pins.h` determines which pins are available. Path normalization checks each user-string address before reading it. Unsupported device IDs are not dispatched to GPIO and unsupported read/write operations return an error. Transfers through `/dev/i2c/1` use `ioctl()`, not `read()` or `write()`.
 
@@ -139,7 +139,7 @@ The standard build enables function instrumentation, but event capture starts OF
 | `userland/lib/syscalls.c`, `crt0.c` | User-side SVC wrappers and startup |
 | `userland/lib/slot.ld`, `CMakeLists.txt` | RAM layout, images and PIC validation |
 
-**Next:** [C application development](../development/apps/c/PROGRAMMING.md) for adding a command, [devices](devices/DEVICES.md) for device interfaces, [wiring](hardware/WIRING.md) for physical connections, and [Terminal settings and interactive input](commands/TTY.md) for TTY details.
+**Next:** [C application development](../development/apps/c/PROGRAMMING.md) for adding a command, [devices](devices/README.md) for device interfaces, [wiring](hardware/WIRING.md) for physical connections, and [Terminal settings and interactive input](commands/TTY.md) for TTY details.
 
 Pico W uses the 16-KiB network reserve for its 10-KiB lwIP heap and 4-KiB idle task stack; see [Memory layout](MEMORY-LAYOUT.md).
 

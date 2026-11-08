@@ -49,8 +49,8 @@
 | やりたいこと | 関連ページ |
 |---|---|
 | traceでシステムコールを追いたい | [trace操作](reference/commands/TRACE.md) · [仕様：システムコール](reference/SYSCALLS.md) |
-| memでRAMやタスクのメモリを見たい | [mem操作](reference/commands/MEM.md) · [仕様：ROM・Flash・SRAM配置](reference/MEMORY-LAYOUT.md) |
-| FlashとRAMの配置・PICを理解したい | [mem操作](reference/commands/MEM.md) · [仕様：ROM・Flash・SRAM配置](reference/MEMORY-LAYOUT.md) |
+| memでRAMやタスクのメモリを見たい | [mem操作](reference/commands/MEM.md) · [仕様：SRAM配置](reference/MEMORY-LAYOUT.md) |
+| FlashとRAMの配置・PICを理解したい | [mem操作](reference/commands/MEM.md) · [仕様：SRAM配置](reference/MEMORY-LAYOUT.md) |
 | カーネルのシンボルを調べたい | [仕様：カーネルシンボル](reference/KERNEL-SYMBOLS.md) · [操作：mem](reference/commands/MEM.md) · [索引：ソース関数一覧](development/FUNCTIONS.md) |
 | VFSとFDの関係を理解したい | [ファイルシステム](reference/FILESYSTEM.md) · [システムコール開発](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
@@ -58,14 +58,14 @@
 
 | やりたいこと | 関連ページ |
 |---|---|
-| 使用可能なGPIOピンや配線を調べたい | [仕様：ピン割当](reference/hardware/PINS.md) · [仕様：配線](reference/hardware/WIRING.md) · [デバイス仕様](reference/devices/DEVICES.md) |
-| GPIOの入出力を操作したい | [デバイス仕様](reference/devices/DEVICES.md) |
-| `/dev/fbchar`で文字や図柄を表示したい | [デバイス仕様](reference/devices/DEVICES.md) · [ROMマニュアル](reference/commands/HELP.md) |
-| `scroll`でLEDへ文字を流したい | [スクロール操作](reference/commands/SCROLL.md) · [デバイス仕様](reference/devices/DEVICES.md) |
-| 8×8 LEDマトリクスを操作したい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：LED配線](reference/hardware/WIRING.md) |
-| PWM・ブザー・サーボを試したい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：配線](reference/hardware/WIRING.md) |
-| ADCやセンサを読みたい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：配線](reference/hardware/WIRING.md) |
-| I²C1センサを接続したい | [操作：I²C](reference/devices/I2C.md) · [仕様：配線](reference/hardware/WIRING.md) · [デバイス仕様](reference/devices/DEVICES.md) |
+| 使用可能なGPIOピンや配線を調べたい | [仕様：ピン割当](reference/hardware/PINS.md) · [仕様：配線](reference/hardware/WIRING.md) · [デバイス仕様](reference/devices/README.md) |
+| GPIOの入出力を操作したい | [デバイス仕様](reference/devices/README.md) |
+| `/dev/fbchar`で文字や図柄を表示したい | [デバイス仕様](reference/devices/README.md) · [ROMマニュアル](reference/commands/HELP.md) |
+| `scroll`でLEDへ文字を流したい | [スクロール操作](reference/commands/SCROLL.md) · [デバイス仕様](reference/devices/README.md) |
+| 8×8 LEDマトリクスを操作したい | [デバイス仕様](reference/devices/README.md) · [仕様：LED配線](reference/hardware/WIRING.md) |
+| PWM・ブザー・サーボを試したい | [デバイス仕様](reference/devices/README.md) · [仕様：配線](reference/hardware/WIRING.md) |
+| ADCやセンサを読みたい | [デバイス仕様](reference/devices/README.md) · [仕様：配線](reference/hardware/WIRING.md) |
+| I²C1センサを接続したい | [操作：I²C](reference/devices/I2C.md) · [仕様：配線](reference/hardware/WIRING.md) · [デバイス仕様](reference/devices/README.md) |
 
 ### Pico Wのネットワーク（選択）
 
@@ -77,7 +77,7 @@
 | ncでTCP/UDP通信を試したい | [ネットワーク接続](reference/network/NETWORK.md) · [操作：nc](reference/network/NC.md) |
 | httpdでWebページを公開したい | [操作：httpd](reference/network/HTTPD.md) · [仕様：初期ファイルとrc](reference/INITIAL-FILES.md) · [ネットワーク接続](reference/network/NETWORK.md) |
 | ローカルLLMからMCPでPicoNIXを操作したい | [MCP統合ガイド](reference/commands/MCP.md) |
-| MCPサーバを開発・動作確認したい（Pico W） | [MCP実装・開発資料](development/apps/c/MCP-DEVELOPMENT.md) |
+| MCPサーバを開発・動作確認したい（Pico W） | [MCP統合ガイド（実装・開発実習）](reference/commands/MCP.md) |
 | ping・tcpdumpで通信を観察したい | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
 | UDPでデバイスを遠隔制御したい | [仕様：遠隔デバイス制御](reference/network/REMOTE-DEVICE.md) · [実習：遠隔GPIO](reference/network/REMOTE_GPIO.md) · [ネットワーク接続](reference/network/NETWORK.md) |
 
@@ -93,7 +93,7 @@
 | カーネルを起動順に読みたい | [カーネル読解ガイド](development/kernel/KERNEL-READING-GUIDE.md) · [仕様：アーキテクチャ](reference/ARCHITECTURE.md) |
 | タスク切替とスケジューラを読みたい | [カーネル読解ガイド](development/kernel/KERNEL-READING-GUIDE.md) · [仕様：内部構造](reference/INTERNAL.md) |
 | システムコールを追加したい | [システムコール開発](development/syscalls/SYSCALL-DEVELOPMENT.md) · [仕様：システムコール](reference/SYSCALLS.md) |
-| デバイスドライバを追加したい | [ドライバ開発](development/drivers/DRIVER-DEVELOPMENT.md) · [仕様：デバイス](reference/devices/DEVICES.md) |
+| デバイスドライバを追加したい | [ドライバ開発](development/drivers/DRIVER-DEVELOPMENT.md) · [仕様：デバイス](reference/devices/README.md) |
 | Wi-Fi・lwIP・ネットワークカーネルを改造したい（Pico W） | [開発：ネットワーク実装](development/network/NETWORK-DEVELOPMENT.md) · [仕様：ネットワーク](reference/network/README.md) |
 | カーネルを小さく改造し検証したい | [カーネル拡張](development/kernel/KERNEL-DEVELOPMENT.md) · [読解：カーネル](development/kernel/KERNEL-READING-GUIDE.md) |
 | 関数名からソースコードを探したい | [索引：ソース関数一覧](development/FUNCTIONS.md) · [読解：カーネル](development/kernel/KERNEL-READING-GUIDE.md) |
@@ -115,7 +115,7 @@
 | TCP/UDP/ICMPの通信を読み解く | [`tcpdump`の実習](reference/network/TCPDUMP.md) | [ネットワーク接続](reference/network/NETWORK.md) |
 | TCP/UDPのCプログラムを自作する | [ソケット実装と2つのCプログラム](development/apps/c/NETWORK-PROGRAMMING.md) | [Cアプリ登録](development/apps/c/PROGRAMMING.md) |
 | システムコールを1つ追加する | [getuptime演習](development/syscalls/SYSCALL-DEVELOPMENT.md) | [SVCの仕様](reference/SYSCALLS.md) |
-| デバイスノードとドライバを作る | [/dev/uptime演習](development/drivers/DRIVER-DEVELOPMENT.md) | [デバイスの仕様](reference/devices/DEVICES.md) |
+| デバイスノードとドライバを作る | [/dev/uptime演習](development/drivers/DRIVER-DEVELOPMENT.md) | [デバイスの仕様](reference/devices/README.md) |
 
 ---
 

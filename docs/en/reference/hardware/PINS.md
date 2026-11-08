@@ -73,4 +73,4 @@ See [WIRING.md](WIRING.md) for physical LED module connections, pushbuttons, PWM
 
 ---
 
-**Related links:** [Hardware index](README.md) | [Device usage](../devices/DEVICES.md) | [日本語](../../../ja/reference/hardware/PINS.md)
+**Related links:** [Hardware index](README.md) | [Device usage](../devices/README.md) | [日本語](../../../ja/reference/hardware/PINS.md)

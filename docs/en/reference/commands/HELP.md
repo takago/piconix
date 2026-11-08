@@ -24,7 +24,7 @@ piconix# help fbed
 piconix# fbed
 ```
 
-`pins` shows the standard physical Pico pin layout. The configured pin functions are defined in `kernel/pins.h`, and `gpio` can inspect the current pin status. `fbed` edits the 8×8 framebuffer: arrow keys move, SPACE toggles a pixel, `c` clears, and `q` quits. See [hardware wiring](../hardware/WIRING.md) for physical connections and LED scan polarity, and [Devices](../devices/DEVICES.md) for framebuffer operations.
+`pins` shows the standard physical Pico pin layout. The configured pin functions are defined in `kernel/pins.h`, and `gpio` can inspect the current pin status. `fbed` edits the 8×8 framebuffer: arrow keys move, SPACE toggles a pixel, `c` clears, and `q` quits. See [hardware wiring](../hardware/WIRING.md) for physical connections and LED scan polarity, and [Devices](../devices/README.md) for framebuffer operations.
 
 PicoNIX provides `python`, not `python3`. Run a script with `python /tmp/test.py`; `python3 tools/...` in development instructions runs on the host PC.
 

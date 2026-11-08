@@ -2,7 +2,7 @@
 
 *技術リファレンス*
 
-この文書では，**PicoNIXがどのように動くか**を，起動からシステムコール，入出力まで順に説明します．実際にアプリを作る手順は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，配線は[ハードウェア配線](hardware/WIRING.md)，`/dev`の操作は[デバイス仕様](devices/DEVICES.md)を参照してください．
+この文書では，**PicoNIXがどのように動くか**を，起動からシステムコール，入出力まで順に説明します．実際にアプリを作る手順は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，配線は[ハードウェア配線](hardware/WIRING.md)，`/dev`の操作は[デバイス仕様](devices/README.md)を参照してください．
 
 ## 1．全体像
 
@@ -107,7 +107,7 @@ USB CDCコンソールとUART1の端末を扱えます．`getty /dev/ttyS1 sh &`
 | `/dev/trace` | バイナリトレースの読み取り |
 | `/proc/tasks`，`/proc/uptime`，`/proc/interrupts`，`/proc/memory` | カーネル状態の参照 |
 
-デバイス名は[デバイス仕様](devices/DEVICES.md)，ピンの割当は[ピン割当](hardware/PINS.md)，接続例は[配線](hardware/WIRING.md)にまとめています．FDはタスク単位で管理され，ファイル・デバイスを同じ `read()` / `write()` で操作できます．
+デバイス名は[デバイス仕様](devices/README.md)，ピンの割当は[ピン割当](hardware/PINS.md)，接続例は[配線](hardware/WIRING.md)にまとめています．FDはタスク単位で管理され，ファイル・デバイスを同じ `read()` / `write()` で操作できます．
 
 内部では，`/dev/gpio/N`，`/dev/gpio/N.dir`，`/dev/gpio/N.pull`の番号解析を`open()`と`getdents()`で共通化しています．ピンの利用可否は`kernel/pins.h`で判断します．相対パスの正規化では，ユーザ文字列の各文字を参照する前にタスクRAMの範囲を確認します．未対応のデバイスIDをGPIOに振り分けず，読み書きできない場合はエラーを返します．なお，`/dev/i2c/1`の転送は`read()`・`write()`ではなく`ioctl()`で行います．
 
