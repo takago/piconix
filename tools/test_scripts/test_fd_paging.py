@@ -42,6 +42,15 @@ int main(void){
   if(r<0||!strstr(file_data,"entry 890")||view_more)return 3;
   view_top=900;offset=0;r=view_load();
   if(r!=0||view_more||view_lines!=0)return 4;
+  /* The content fingerprint detects changes without keeping a duplicate 4 KiB buffer. */
+  file_data[0]='A';
+  unsigned previous=view_hash(1);
+  file_data[0]='B';
+  if(view_hash(1)==previous)return 8;
+  /* Large ANSI terminals must display all 35 body rows, without blank space. */
+  rows=40;cols=110;view_top=0;offset=0;
+  r=view_load();
+  if(r<=0||view_lines!=35||!view_more)return 7;
   return 0;
 }
 ''')
@@ -49,4 +58,4 @@ int main(void){
     h.write_text(h.read_text().replace('#include "fd.c"', '#include "'+str(src)+'"'))
     subprocess.run([cc, '-DPICONIX_HOST_TEST','-O0','-ffunction-sections','-fdata-sections','-Wl,--gc-sections','-I',str(t),'-I',str(root/'userland/lib'),'-I',str(root/'include'),str(t/'harness.c'),'-o',str(t/'test')],check=True)
     subprocess.run([str(t/'test')],check=True)
-print('PASS: fd views beyond 2 KiB including end of /proc-like stream')
+print('PASS: fd paging and full-height 40x110 terminal viewport')

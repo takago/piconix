@@ -13,7 +13,7 @@
 #define FILTER_CAP 32
 #define TEXT_FIND_CAP 32
 #define PATH_CAP 128
-#define VIEW_CAP 2048
+#define VIEW_CAP 4096 /* 40x110 terminal: 35 body rows x 109 chars < 4096 */
 #define MIN_ROWS 12
 #define INDEX_STRIDE 16
 #define INDEX_CAP 128
@@ -22,7 +22,9 @@ typedef struct { char name[32]; unsigned char dir; } entry_t;
 static entry_t entries[MAX_ENTRIES];
 static char current[PATH_CAP];
 static char path[PATH_CAP];
-static char file_data[VIEW_CAP+1], old_data[VIEW_CAP+1];
+static char file_data[VIEW_CAP+1];
+/* 前画面は全文を複製せず，軽量な指紋で内容の変化を判定する． */
+static unsigned old_view_hash;
 static int count, selected, scroll, total_entries, list_offset, rows=24, cols=80;
 static char filter[FILTER_CAP], filter_saved[FILTER_CAP];
 static int searching;
@@ -337,14 +339,25 @@ static void paint_view(int len,int error){
     else printf(" Live refresh: 1 s   Read-only; /dev not previewed\033[K");
 }
 
-/* ファイルの表示領域を読み直す．固定長バッファ内だけを表示に使う． */
+/* 画面本文のFNV-1a指紋．再描画判定のためであり，内容保持用ではない． */
+static unsigned view_hash(int n) {
+    unsigned hash=2166136261u;
+    for(int i=0;i<n;i++) {
+        hash^=(unsigned char)file_data[i];
+        hash*=16777619u;
+    }
+    return hash;
+}
+
+/* ファイルの表示領域を読み直す．前画面の複製を持たずに再描画を抑制する． */
 static void refresh_view(void) {
     int n=view_load();
     int err=n<0;
+    unsigned hash=err?0:view_hash(n);
     if(n!=old_len||err!=old_error||view_top!=old_top||view_more!=old_more||
-       (!err&&memcmp(file_data,old_data,(size_t)n))) {
+       (!err&&hash!=old_view_hash)) {
         paint_view(n,err);
-        if(!err)memcpy(old_data,file_data,(size_t)n);
+        old_view_hash=hash;
         old_len=n;old_error=err;old_top=view_top;old_more=view_more;
     }
 }
