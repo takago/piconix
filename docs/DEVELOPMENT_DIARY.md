@@ -1,5 +1,13 @@
 # PicoNIX Development Diary
 
+### 2026-11-08: Separate ROM manual from kernel Flash attribution
+
+Updated `tools/size_ram.py` to report `ROM manual` as its own category. ELF `.manual` section ranges take precedence over link-map object paths and embedded app spans, preventing double counting. Total ELF Flash/SRAM usage is unchanged; only the attribution is corrected. Added a synthetic-map regression test. Full SDK build and device validation remain pending.
+
+### 2026-11-08: Documentation consistency and current workflows
+
+Synchronized VFS/device inventories following the `/dev/fb` migration, documented `/dev/fbchar`, and replaced obsolete MCP-tool instructions with current `get_manual(topic)` usage. Reorganized Japanese/English indexes while retaining earlier records as history.
+
 ### 2026-11-08: Move the 8×8 LED framebuffer to `/dev/fb`
 
 Moved the raw eight-byte LED framebuffer device from `/dev/gpio/fb` to `/dev/fb` to separate the display interface from individual GPIO controls. The `/dev/fbchar` text/icon interface is unchanged. Updated the VFS registry, `fbctl`, `fbed`, `scroll`, `kitesys`, `httpd`, Python samples, UDP remote device service, host clients, ROM manual, Japanese/English documentation and regression tests. The old path has no compatibility alias; historical development diary entries retain their original references.

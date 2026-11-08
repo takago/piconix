@@ -20,6 +20,14 @@ These contain detailed implementation instructions and API information. Follow t
 - [TCP/UDP Socket Programming with Tiny Python (Pico W)](apps/python/SOCKET-PROGRAMMING.md)
 - [PicoNIX Tiny Thumb Assembler](apps/asm/ASM.md)
 
+## Build-time ROM/RAM size report
+
+`tools/build_sdk.sh` runs `tools/size_ram.py` after the final link. To rerun the report independently, use e.g. `python3 tools/size_ram.py --build build-pico_w`.
+
+`Firmware total` counts allocated Flash and SRAM bytes in the entire ELF. `Link-map attribution` partitions the same bytes into `PicoNIX` (kernel-owned code and data), `Embedded apps`, `ROM manual` (XIP `.manual` section), `Symbol catalogs`, `Pico SDK`, `lwIP`, `CYW43`, and `Other`. `ROM manual` includes its index, pages, and alignment padding; it uses no SRAM. Do not add these categories to `Firmware total` again. Unclassified bytes appear as `Unattributed / padding`.
+
+Attribution is an estimate based on allocated ELF addresses and linker-map records. The ROM manual is measured directly from the ELF `.manual` section, while embedded apps are attributed using image symbol ranges. `PicoNIX kernel component` excludes ROM manual and embedded apps from its `Code` figure. A missing manual section produces a warning. Run `python3 tools/test_scripts/test_rom_manual_size_report.py` to check the accounting rules.
+
 ## Reading and extending the kernel
 
 - [PicoNIX Kernel Reading Guide](kernel/KERNEL-READING-GUIDE.md)

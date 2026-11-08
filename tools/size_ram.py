@@ -17,7 +17,7 @@ SLOT_SIZE = 24 * 1024
 STACK_SIZE = 4 * 1024
 FLASH_START, FLASH_END = 0x10000000, 0x11000000
 SRAM_START, SRAM_END = 0x20000000, 0x20042000
-CATEGORIES = ('PicoNIX', 'Embedded apps', 'Symbol catalogs', 'Pico SDK', 'lwIP', 'CYW43', 'Other')
+CATEGORIES = ('PicoNIX', 'Embedded apps', 'ROM manual', 'Symbol catalogs', 'Pico SDK', 'lwIP', 'CYW43', 'Other')
 KERNEL_START, KERNEL_END = 0x20000000, 0x2000E000
 RAM_LAYOUT = (
     ('Kernel',    0x20000000, 0x2000E000),
@@ -95,6 +95,8 @@ def app_rows(build, readelf):
 def component(source):
     """Classify *input* object paths; this is not a symbol-level classifier."""
     s = source.replace('\\', '/').lower()
+    if 'embed_manual' in s:
+        return 'ROM manual'
     if 'embed_kernel_symbols' in s or 'embed_symbols' in s:
         return 'Symbol catalogs'
     if 'embed_image' in s or re.search(r'/ram_[^/]+/', s):
@@ -181,12 +183,23 @@ def embedded_ranges(syms, sections):
                 images.append((a, b, 'Flash', 'Embedded apps'))
     return images
 
-def map_report(path, sections, embedded=()):
+def manual_ranges(sections):
+    """Attribute the dedicated XIP .manual section independently of map paths.
+
+    The ELF section includes its index, page data and section alignment bytes.
+    It has no SRAM allocation. Other similarly named sections are not counted.
+    """
+    return [(addr, addr + size, 'Flash', 'ROM manual')
+            for name, addr, size in sections
+            if name == '.manual' and size > 0 and memory_kind(addr) == 'Flash']
+
+
+def map_report(path, sections, embedded=(), manual=()):
     """Attribute only bytes that fall inside an ELF allocated output section.
 
-    Lines in discarded/non-allocated map sections are ignored. For unusual
-    overlapping records, an embedded-image ELF symbol span takes priority;
-    otherwise the first category wins. The remainder is unattributed.
+    Lines in discarded/non-allocated map sections are ignored. The ELF .manual
+    span takes priority, followed by embedded-image ELF symbols, then map
+    object ownership. The remainder is unattributed.
     """
     elf_ranges = allocated_ranges(sections)
     ranges = []
@@ -226,6 +239,7 @@ def map_report(path, sections, embedded=()):
     # シンボルの区間はmap上のファイル名による分類より優先する．
     # 埋込みイメージをカーネル側へ誤計上しないためである．
     ranges.extend(embedded)
+    ranges.extend(manual)
     # mapに別名があっても，同じアドレスの割当ては一度だけ計上する．
     counters = defaultdict(int)
     for kind in ('Flash', 'SRAM'):
@@ -240,7 +254,8 @@ def map_report(path, sections, embedded=()):
         for x, direction, category in events:
             if last is not None and x > last and any(v > 0 for v in active.values()):
                 owners = [c for c in CATEGORIES if active[c] > 0]
-                chosen = 'Embedded apps' if active['Embedded apps'] > 0 else owners[0]
+                chosen = ('ROM manual' if active['ROM manual'] > 0 else
+                          'Embedded apps' if active['Embedded apps'] > 0 else owners[0])
                 counters[(chosen, kind)] += x - last
             active[category] += direction
             last = x
@@ -345,7 +360,8 @@ def print_kernel(build, readelf, map_path):
         print_fixed_layout(sections)
         return
     images = embedded_ranges(syms, sections)
-    buckets = map_report(map_path, sections, images)
+    manuals = manual_ranges(sections)
+    buckets = map_report(map_path, sections, images, manuals)
     # PicoNIX固有のRAM使用量は，mapの入力範囲とELFの.data/.bssの交差から求める．
     # ファームウェア合計と56 KiB領域を共有するカーネル分を重複加算しない．
     data_sections = [sec for sec in sections if sec[0].startswith('.data')]
@@ -360,7 +376,7 @@ def print_kernel(build, readelf, map_path):
     print(f"{'Component':16} {'Code':>8} {'Data':>8} {'BSS':>8} {'Stack':>8} {'Used':>8} {'Free':>8}")
     print('-' * 76)
     print(f"{'Kernel':16} {fmt(kernel_code)} {fmt(kernel_data)} {fmt(kernel_bss)} {'-':>8} {fmt(kernel_sram)} {'-':>8}")
-    print('  Code = PicoNIX-attributed allocated Flash, including constants.')
+    print('  Code = PicoNIX-attributed allocated Flash, excluding ROM manual and apps.')
     print('  Used = PicoNIX-attributed ELF SRAM, including other allocated RAM sections.')
     print('  Stack/Free = not separately attributable; PicoNIX, SDK, lwIP and CYW43')
     print('  share the 56 KiB kernel RAM region. See Firmware above for region headroom.')
@@ -384,6 +400,9 @@ def print_kernel(build, readelf, map_path):
         print('  WARNING: No embedded app image symbol pairs found in firmware ELF.')
     else:
         print(f'  Embedded app images: {len(set((a, b) for a, b, _, _ in images))} allocated intervals.')
+    print('  ROM manual uses the allocated ELF .manual section (including alignment).')
+    if not manuals:
+        print('  WARNING: No allocated .manual Flash section found in firmware ELF.')
     print('  Symbol catalogs are classified from linker map object paths.')
     print('  .data Flash load copies, if any, are not added to VMA Flash accounting.')
     print('  Live lwIP heap/pbuf/PCB metrics: cat /proc/net/memory')
