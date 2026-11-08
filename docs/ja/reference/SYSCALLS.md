@@ -10,6 +10,20 @@
 
 通常，失敗時には負の `OS_E*` エラー番号を直接返し，`errno` は使用しません．ただし `_exit()` は復帰せず，C版 `getcwd()` は成功時に `buf`，失敗時に `NULL` を返します．予約番号11，15には実装がありません．
 
+## 機能別クイック索引
+
+次の表は番号表を目的別に引き直したものです．**番号表には予約番号も含む40エントリがあり，実際に呼び出せるのは38個**です．関数名や引数，戻り値は直後の全一覧で確認してください．
+
+| 分野 | 番号 | 主なAPI・用途 | 関連資料 |
+|---|---|---|---|
+| タスクと時間 | 1–5，12–14，19–20，25，38 | `getpid`，`kill`，`_exit`，`msleep`，`yield`，`spawn`，`waitpid`，前景TTY，プログラムID | [アーキテクチャ](ARCHITECTURE.md)，[TTY](commands/TTY.md) |
+| ファイル・FD・ディレクトリ | 6–9，17–18，21–24，26，36–37 | `open`，`read`，`write`，`lseek`，`dup2`，`pipe`，`getdents`など | [ファイルシステム](FILESYSTEM.md)，[パイプ](commands/PIPE.md) |
+| デバイス・端末 | 10，16，27 | `ioctl`，コンソール接続確認，Flash ID | [デバイス一覧](devices/DEVICES.md)，[TTY](commands/TTY.md) |
+| ネットワーク・多重化 | 28–35，39–40 | `socket`，UDP，TCP，`select` | [ネットワーク](network/NETWORK.md)，[ソケット開発](../development/apps/c/NETWORK-PROGRAMMING.md) |
+| 予約 | 11，15 | 使用不可（`OS_ENOSYS`） | [ABI定義](../../../include/piconix_syscall.h) |
+
+**注意：** 番号順と分類は一致しません．Cのラッパー関数とSVC番号も一対一とは限りません．たとえば`send()`と`recv()`は独立したSVCではありません．
+
 ## 全システムコール一覧
 
 | No. | Kernel constant | C wrapper | r1 / r2 / r3 arguments | Return | 機能 |

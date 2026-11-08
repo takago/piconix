@@ -6,26 +6,34 @@ For the full directory and node inventory, access modes, and RAM file limits, se
 
 PicoNIX exposes hardware through virtual files under `/dev`. These are not stored on disk: the kernel routes `open()`, `read()`, and `write()` to the device implementations.
 
-## Device overview
+## Complete device-node inventory
 
-| Path | Purpose |
-|---|---|
-| `/dev/console` | Main console (USB CDC) |
-| `/dev/ttyS1` | UART1 terminal |
-| `/dev/ttyN0` | Network terminal in Wi-Fi builds (see [NETWORK.md](../network/NETWORK.md)) |
-| `/dev/net/wifi` | STA control (`echo restart > /dev/net/wifi`); not available in non-Wi-Fi builds, AP mode rejects restart |
-| `/dev/net/packet` | Read-only IPv4 packet summaries (TCP/UDP/ICMP); 16-byte payload preview, Pico W only |
-| `/dev/net/icmp` | Exclusive ICMP Echo read/write endpoint used by `ping`, Pico W only |
-| `/dev/rand` | Non-cryptographic pseudorandom bytes (read-only; at most 4 bytes per `read()` call) |
-| `/dev/fb` | 64-bit framebuffer for an 8×8 LED matrix |
-| `/dev/fbchar` | Display one ASCII glyph or named LED pattern; read back available names |
-| `/dev/gpio/` | Pins configured for GPIO in `pins.h` |
-| `/dev/adc/` | Enabled ADC inputs and on-chip temperature sensor |
-| `/dev/pwm/` | Enabled PWM outputs and common frequency |
-| `/dev/i2c/1` | I²C1 master (GP26 SDA, GP27 SCL) |
-| `/dev/mem` | Read permitted RAM/flash; restricted writes to task slots, SHM and RAM-file payloads |
-| `/dev/shm` | Common 2 KiB of shared RAM; supports `read()`, `write()`, `lseek()` |
-| `/dev/trace` | Binary trace records |
+This table lists **device types and path patterns in the standard configuration**. `N` is a GPIO number. Peripheral assignments determine whether a given node exists. Use `ls /dev` and `ls` on its subdirectories to inspect the current build. `/proc` entries are status pseudo-files, not `/dev` devices (see [all VFS nodes](../FILESYSTEM.md)).
+
+| Node | Read | Write/control | Data and purpose | Details |
+|---|:---:|:---:|---|---|
+| `/dev/console` | Yes | Yes | USB CDC text terminal | [TTY](../commands/TTY.md) |
+| `/dev/ttyS1` | Yes | Yes | UART1 text terminal | [UART](UART.md) |
+| `/dev/ttyN0` | Yes | Yes | Network terminal (Pico W) | [Networking](../network/NETWORK.md) |
+| `/dev/net/wifi` | — | Control | STA reconnect request (Pico W, STA mode) | [Wi-Fi](../network/WIFI-MODES.md) |
+| `/dev/net/packet` | Yes | — | IPv4 packet information (Pico W) | [tcpdump](../network/TCPDUMP.md) |
+| `/dev/net/icmp` | Yes | Yes | ICMP Echo packets (Pico W, exclusive access) | [ping](../network/PING.md) |
+| `/dev/rand` | Yes | — | Non-cryptographic pseudorandom bytes, up to 4 per read | [Filesystem](../FILESYSTEM.md) |
+| `/dev/fb` | Yes | Yes | Eight binary LED-frame bytes; enable via `ioctl` | [Framebuffer below](#8×8-led-framebuffer) |
+| `/dev/fbchar` | Yes | Yes | ASCII glyph or named pattern | [Text/pattern device below](#text-and-symbol-display-devfbchar) |
+| `/dev/gpio/N` | Yes | Yes | GPIO logic value (configured pins only) | [Pin assignment](../hardware/PINS.md) |
+| `/dev/gpio/N.dir` | Yes | Yes | GPIO direction | [Pin assignment](../hardware/PINS.md) |
+| `/dev/gpio/N.pull` | Yes | Yes | GPIO pull-up/pull-down | [Pin assignment](../hardware/PINS.md) |
+| `/dev/adc/0`, `1`, `2` | Yes | — | ADC decimal integer (enabled inputs only) | [ADC below](#adc-and-temperature-sensor) |
+| `/dev/adc/temp` | Yes | — | On-chip approximate temperature | [ADC below](#adc-and-temperature-sensor) |
+| `/dev/pwm/1/freq` | Yes | Yes | Shared PWM frequency (Hz) | [PWM below](#pwm) |
+| `/dev/pwm/1/a`, `1/b` | Yes | Yes | PWM duty cycle (%) | [PWM below](#pwm) |
+| `/dev/i2c/1` | Yes | `ioctl` | I²C1 master, GP26/27 | [I²C](I2C.md) |
+| `/dev/mem` | Yes | Restricted | Addressed Flash/SRAM access | [Memory layout](../MEMORY-LAYOUT.md) |
+| `/dev/shm` | Yes | Yes | Shared 2-KiB RAM; `lseek` supported | [Memory layout](../MEMORY-LAYOUT.md) |
+| `/dev/trace` | Yes | — | Binary trace events | [trace](../commands/TRACE.md) |
+
+`—` means unsupported. `/dev/net/*` and `/dev/ttyN0` depend on Pico W support. GPIO, ADC and PWM paths depend on `kernel/pins.h`. **Do not confuse text devices suitable for `cat`/`echo` with fixed-length binary interfaces or `ioctl()`-based devices.**
 
 ## 8×8 LED framebuffer
 

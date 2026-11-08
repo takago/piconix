@@ -6,26 +6,34 @@
 
 PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイルを作るのではなく，`open()`，`read()`，`write()`などを通じてカーネルが周辺機器を操作します．
 
-## デバイス一覧
+## 全デバイスノード一覧
 
-| デバイス | 内容 |
-|---|---|
-| `/dev/console` | 主コンソール（USB CDC） |
-| `/dev/ttyS1` | UART1端末 |
-| `/dev/ttyN0` | Wi-Fiビルド時のネットワーク端末（[NETWORK.md](../network/NETWORK.md)参照） |
-| `/dev/net/wifi` | STA制御（`echo restart > /dev/net/wifi`）．非Wi-Fiビルドでは存在せず，APモードではrestart不可 |
-| `/dev/net/packet` | IPv4パケット情報を読み取る（TCP/UDP/ICMP，データ先頭16バイト，Pico W専用） |
-| `/dev/net/icmp` | ICMP Echo専用の排他的な読み書きデバイス（Pico W専用） |
-| `/dev/rand` | 暗号用途には使えない疑似乱数（読み取り専用，1回の`read()`につき最大4バイト） |
-| `/dev/fb` | 8×8 LEDマトリクス用64bitフレームバッファ |
-| `/dev/fbchar` | ASCII 1文字または名前付き図柄を8×8 LEDに表示．読取りで対応一覧を返す |
-| `/dev/gpio/` | `pins.h`でGPIO指定されたピン |
-| `/dev/adc/` | `pins.h`でADC指定された入力および内部温度センサー |
-| `/dev/pwm/` | `pins.h`でPWM指定された出力と共通周波数 |
-| `/dev/i2c/1` | I²C1マスター（GP26 SDA，GP27 SCL） |
-| `/dev/mem` | RAM・Flashの読み出し，タスク・SHM・RAMファイルデータ領域の制限付き書き込み |
-| `/dev/shm` | 全タスク共通の2 KiB共有RAM．`read()`，`write()`，`lseek()`でアクセス |
-| `/dev/trace` | トレースイベントのバイナリ読み出し |
+以下は**標準構成で公開されるデバイスの種類とパス形式**です．`N`はピン番号，`1/a`などはPWMスライスとチャネルを表します．周辺機器の割当てにより一部のノードは現れません．実際のノードを確認するには`ls /dev`と各サブディレクトリの`ls`を使用してください．`/proc`はデバイスではなく状態表示用の仮想ファイルです（[全ノード構成](../FILESYSTEM.md)）．
+
+| ノード | 読取 | 書込・制御 | データ形式・主な用途 | 詳細 |
+|---|:---:|:---:|---|---|
+| `/dev/console` | ○ | ○ | USB CDC端末の文字入出力 | [TTY](../commands/TTY.md) |
+| `/dev/ttyS1` | ○ | ○ | UART1端末の文字入出力 | [UART](UART.md) |
+| `/dev/ttyN0` | ○ | ○ | Wi-Fi端末（Pico W） | [ネットワーク](../network/NETWORK.md) |
+| `/dev/net/wifi` | — | 制御 | STA再接続指示（Pico W，STAモード） | [Wi-Fi](../network/WIFI-MODES.md) |
+| `/dev/net/packet` | ○ | — | IPv4パケット情報（Pico W） | [tcpdump](../network/TCPDUMP.md) |
+| `/dev/net/icmp` | ○ | ○ | ICMP Echoの送受信（Pico W，排他的） | [ping](../network/PING.md) |
+| `/dev/rand` | ○ | — | 非暗号用疑似乱数，1回につき最大4バイト | [ファイルシステム](../FILESYSTEM.md) |
+| `/dev/fb` | ○ | ○ | 8バイトのLED表示データ，`ioctl`で有効化 | [本書：フレームバッファ](#8×8-ledフレームバッファ) |
+| `/dev/fbchar` | ○ | ○ | ASCII文字・名前付き図柄 | [本書：文字・記号表示](#文字記号表示デバイスdevfbchar) |
+| `/dev/gpio/N` | ○ | ○ | GPIOの論理値（ピン割当てに依存） | [ピン配置](../hardware/PINS.md) |
+| `/dev/gpio/N.dir` | ○ | ○ | GPIOの入出力方向 | [ピン配置](../hardware/PINS.md) |
+| `/dev/gpio/N.pull` | ○ | ○ | GPIOのプルアップ／プルダウン | [ピン配置](../hardware/PINS.md) |
+| `/dev/adc/0`，`1`，`2` | ○ | — | ADCの十進整数（有効な入力のみ） | [本書：ADC](#adc温度センサー) |
+| `/dev/adc/temp` | ○ | — | 内蔵温度センサーの概算値 | [本書：ADC](#adc温度センサー) |
+| `/dev/pwm/1/freq` | ○ | ○ | PWM共通周波数（Hz） | [本書：PWM](#pwm) |
+| `/dev/pwm/1/a`，`1/b` | ○ | ○ | PWMデューティ比（％） | [本書：PWM](#pwm) |
+| `/dev/i2c/1` | ○ | `ioctl` | I²C1マスター，GP26/27 | [I²C](I2C.md) |
+| `/dev/mem` | ○ | 制限付き | Flash・SRAMのアドレス指定アクセス | [メモリ配置](../MEMORY-LAYOUT.md) |
+| `/dev/shm` | ○ | ○ | 共有メモリ2 KiB，`lseek`対応 | [メモリ配置](../MEMORY-LAYOUT.md) |
+| `/dev/trace` | ○ | — | バイナリトレース記録 | [trace](../commands/TRACE.md) |
+
+`—`は対応しない操作を示します．`/dev/net/*`と`/dev/ttyN0`はPico W構成に依存します．GPIO・ADC・PWMは`kernel/pins.h`の設定に従って公開されます．`/dev/fb`などのノードを操作するときは，**`cat`や`echo`に適したテキスト形式か，固定長バイナリ／`ioctl()`が必要か**を区別してください．
 
 ## 8×8 LEDフレームバッファ
 

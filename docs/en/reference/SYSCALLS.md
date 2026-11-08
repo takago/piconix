@@ -10,6 +10,20 @@ Execute `svc #0` with the syscall number in `r0` and the listed arguments, left 
 
 Errors are normally returned directly as negative `OS_E*` values; `errno` is not used. `_exit()` never returns; the C `getcwd()` wrapper returns `buf` on success and `NULL` on failure. Numbers 11 and 15 are reserved.
 
+## Quick index by function
+
+This table groups the ABI by purpose. **The full table contains 40 numbered entries, including two reserved entries; 38 are callable**. Consult the complete table immediately below for arguments and return values.
+
+| Area | Numbers | Main operations | Details |
+|---|---|---|---|
+| Tasks and time | 1–5, 12–14, 19–20, 25, 38 | `getpid`, `kill`, `_exit`, `msleep`, `yield`, `spawn`, `waitpid`, foreground TTY, program ID | [Architecture](ARCHITECTURE.md), [TTY](commands/TTY.md) |
+| Files, FDs and directories | 6–9, 17–18, 21–24, 26, 36–37 | `open`, `read`, `write`, `lseek`, `dup2`, `pipe`, `getdents` and related calls | [Filesystem](FILESYSTEM.md), [Pipes](commands/PIPE.md) |
+| Devices and terminals | 10, 16, 27 | `ioctl`, console readiness, flash ID | [Devices](devices/DEVICES.md), [TTY](commands/TTY.md) |
+| Networking and multiplexing | 28–35, 39–40 | `socket`, UDP, TCP, `select` | [Networking](network/NETWORK.md), [Socket development](../development/apps/c/NETWORK-PROGRAMMING.md) |
+| Reserved | 11, 15 | Unavailable (`OS_ENOSYS`) | [ABI definition](../../../include/piconix_syscall.h) |
+
+**Note:** The categories do not follow consecutive number ranges. C wrappers and SVC calls are not necessarily one-to-one: for instance, `send()` and `recv()` have no separate SVC numbers.
+
 ## Complete syscall table
 
 | No. | Kernel constant | C wrapper | r1 / r2 / r3 arguments | Return | Purpose |
