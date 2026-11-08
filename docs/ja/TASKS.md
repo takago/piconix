@@ -61,6 +61,8 @@
 |---|---|
 | 使用可能なGPIOピンや配線を調べたい | [仕様：ピン割当](reference/hardware/PINS.md) · [仕様：配線](reference/hardware/WIRING.md) · [デバイス仕様](reference/devices/DEVICES.md) |
 | GPIOの入出力を操作したい | [デバイス仕様](reference/devices/DEVICES.md) |
+| `/dev/fbchar`で文字や図柄を表示したい | [デバイス仕様](reference/devices/DEVICES.md) · [ROMマニュアル](guides/HELP.md) |
+| `scroll`でLEDへ文字を流したい | [スクロール操作](guides/SCROLL.md) · [デバイス仕様](reference/devices/DEVICES.md) |
 | 8×8 LEDマトリクスを操作したい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：LED配線](reference/hardware/WIRING.md) |
 | PWM・ブザー・サーボを試したい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：配線](reference/hardware/WIRING.md) |
 | ADCやセンサを読みたい | [デバイス仕様](reference/devices/DEVICES.md) · [仕様：配線](reference/hardware/WIRING.md) |
@@ -75,7 +77,8 @@
 | Telnetで遠隔シェルを使いたい | [ネットワーク接続](reference/network/NETWORK.md) · [操作：net](reference/network/NET.md) |
 | ncでTCP/UDP通信を試したい | [ネットワーク接続](reference/network/NETWORK.md) · [操作：nc](reference/network/NC.md) |
 | httpdでWebページを公開したい | [操作：httpd](reference/network/HTTPD.md) · [仕様：初期ファイルとrc](reference/INITIAL-FILES.md) · [ネットワーク接続](reference/network/NETWORK.md) |
-| MCPサーバを開発・動作確認したい（Pico W） | [MCPサーバ開発実習](development/apps/c/MCP-SERVER-DEVELOPMENT.md) · [MCP操作ガイド](guides/MCP.md) |
+| ローカルLLMからMCPでPicoNIXを操作したい | [MCP統合ガイド](guides/MCP.md) |
+| MCPサーバを開発・動作確認したい（Pico W） | [MCP統合ガイド（実装・開発実習）](guides/MCP.md) |
 | ping・tcpdumpで通信を観察したい | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
 | UDPでデバイスを遠隔制御したい | [仕様：遠隔デバイス制御](reference/network/REMOTE-DEVICE.md) · [実習：遠隔GPIO](reference/network/REMOTE_GPIO.md) · [ネットワーク接続](reference/network/NETWORK.md) |
 

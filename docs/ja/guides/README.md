@@ -38,4 +38,8 @@
 
 - [LED文字スクロール：selectとUDP](SCROLL.md)
 
-- [エージェント操作ガイド](AGENT-GUIDE.md) — MCPからのシェル操作とエージェント設定．
+
+
+## ネットワーク・LLM連携
+
+- [MCPサーバ・LLM連携・エージェント・開発実習](MCP.md)

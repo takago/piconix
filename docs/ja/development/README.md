@@ -11,7 +11,7 @@
 - [PicoNIXのCアプリケーション開発](apps/c/PROGRAMMING.md)
 - [PicoNIXのCライブラリとユーザアプリケーションAPI](apps/c/LIBC.md)
 - [ソケットAPIとネットワークアプリケーション](apps/c/NETWORK-PROGRAMMING.md)
-- [MCPサーバ`mcpd`の開発実習](apps/c/MCP-SERVER-DEVELOPMENT.md)
+- [MCPサーバ`mcpd`の開発実習](../guides/MCP.md)
 
 ## Pythonとアセンブラ
 
@@ -19,14 +19,6 @@
 - [Tiny Pythonによるデバイスプログラミング](apps/python/DEVICE-PROGRAMMING.md)
 - [Tiny PythonによるTCP/UDPソケットプログラミング（Pico W）](apps/python/SOCKET-PROGRAMMING.md)
 - [PicoNIX 簡易Thumbアセンブラ](apps/asm/ASM.md)
-
-## ビルド時のROM/RAM使用量
-
-`tools/build_sdk.sh`は最終リンク後に`tools/size_ram.py`を呼び出します．単独で再表示する場合は，例えば`python3 tools/size_ram.py --build build-pico_w`を実行します．
-
-`Firmware total`はELFに割り当てられたFlashとSRAM全体の集計です．`Link-map attribution`は，Flash/SRAMの内訳を`PicoNIX`（カーネル固有コードなど），`Embedded apps`（組込みユーザアプリ），`ROM manual`（XIPの`.manual`セクション），`Symbol catalogs`，`Pico SDK`，`lwIP`，`CYW43`，`Other`に分類します．`ROM manual`には索引，ページ本文，アラインメント領域が含まれ，SRAMを使用しません．これらの内訳を合算してさらに`Firmware total`へ加算してはいけません．未分類領域は`Unattributed / padding`として表示します．
-
-分類はELFの割当て領域とリンクマップを使う推定値です．ROMマニュアルはELFの`.manual`から直接計上し，組込みアプリはELFシンボルのイメージ区間から計上します．`PicoNIX kernel component`の`Code`にはROMマニュアルと組込みアプリを含めません．マニュアルが欠落していれば警告します．集計の回帰テストは`python3 tools/test_scripts/test_rom_manual_size_report.py`です．
 
 ## カーネルの読解と拡張
 

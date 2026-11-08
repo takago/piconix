@@ -26,10 +26,10 @@ for line in MCP.splitlines():
         if 'tools' in obj:
             lists.append([tool['name'] for tool in obj['tools']])
 assert len(lists) == 2
-assert lists[0] == ['get_temperature', 'get_wifi_info', 'display_message', 'write_file', 'execute_command']
-assert lists[1] == ['get_temperature', 'get_wifi_info', 'display_message']
+assert lists[0] == ['get_temperature', 'write_file', 'execute_command', 'get_manual']
+assert lists[1] == ['get_temperature']
 for lang in ('en', 'ja'):
-    assert (ROOT / f'docs/{lang}/guides/AGENT-GUIDE.md').exists()
+    assert (ROOT / f'docs/{lang}/guides/MCP.md').exists()
 if clang := shutil.which('clang'):
     subprocess.run([clang, '--target=arm-none-eabi', '-mcpu=cortex-m0plus', '-mthumb', '-Oz',
                     '-fPIC', '-ffreestanding', '-fsyntax-only', '-Iinclude', '-Iuserland/lib',

@@ -18,7 +18,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Open-source TCP/IP networking** — On Pico W, PicoNIX uses lwIP, a lightweight open-source TCP/IP stack, and provides user applications with a compact BSD-style IPv4 socket API (`socket()`, `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()`).
 - **LED text ticker** — `scroll` renders printable ASCII on the 8×8 LED matrix from stdin or UDP 2001, with a 1 KiB ring buffer, `select()` and plain-text UDP reception. LED output can also be driven using ordinary shell commands and pipes. See [scroll tutorial](docs/en/guides/SCROLL.md) ([日本語](docs/ja/guides/SCROLL.md)).
 - **Network applications** — `nc`, `httpd`, `tcp_echod`, `udp_echod`, and the experimental MCP server `mcpd` run as ordinary user programs. The HTTP server serves an editable `/etc/index.html`.
-- **Experimental agent shell tool** — Opt-in `mcpd --shell` exposes `execute_command` and `write_file` for small source files and short non-interactive `sh -c` commands over MCP, streaming up to 4 KiB of output using HTTP/1.1 chunked transfer. No authentication or process isolation: use **only** on an isolated laboratory network. See the [agent guide](docs/en/guides/AGENT-GUIDE.md) ([日本語](docs/ja/guides/AGENT-GUIDE.md)).
+- **Experimental agent shell tool** — Opt-in `mcpd --shell` exposes `execute_command` and `write_file` for small source files and short non-interactive `sh -c` commands over MCP, streaming up to 4 KiB of output using HTTP/1.1 chunked transfer. No authentication or process isolation: use **only** on an isolated laboratory network. See the [agent guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)).
 - **MCP and local LLM demo (Pico W)** — `mcpd` on TCP 8080 exposes a temperature tool by default; opt-in `--shell` provides ROM manual lookup, command execution and RAM-file creation for LLM agents. The client supports streaming text and Ollama low-effort reasoning.
 - **Concurrent UDP clients and servers** — Up to three user UDP sockets with independent receive buffers enable local communication between `scroll` and `nc` (Pico W; the developer confirmed the integrated MCP-to-LED demonstration on real hardware on November 7, 2026).
 - **Built-in network services** — A Telnet shell on TCP port 23 and remote device control on UDP port 2000 are implemented as separate kernel services.
@@ -60,7 +60,6 @@ PicoNIX includes familiar UNIX-style utilities as well as tools for inspecting t
 | Terminals | `getty`, `tty`, `stty`, `reset` |
 | Programming | `edit`, `vi`, `as`, `cc`, `python` |
 | Board outputs | GP18 buzzer / GP19 servo motor (shared PWM frequency) |
-| Raw LED framebuffer | `/dev/fb` (8 bytes, 8×8 pixels; `fbctl` enables scanning) |
 | LED character display | `echo A > /dev/fbchar`, `echo heart > /dev/fbchar`, `echo clear > /dev/fbchar` (ASCII, persistent; `cat /dev/fbchar` lists patterns) |
 | Hardware | `gpio`, `pins`, `fbctl`, `fbed`, `pwmctl`, `i2cctl`, `bh1750`, `blink`, `scroll` |
 | Networking | `ip`, `net`, `nc`, `ping`, `tcpdump`, `httpd`, `tcp_echod`, `udp_echod`, `mcpd` |
@@ -221,7 +220,7 @@ pip install openai
 python host/mcp_llm_client.py
 ```
 
-The LLM client always streams responses, requests `reasoning_effort="low"` by default, and displays reasoning text when the server provides it. Relevant instructions: [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)), [LLM client guide](docs/en/guides/MCP-LLM-CLIENT.md) ([日本語](docs/ja/guides/MCP-LLM-CLIENT.md)), and [MCP server development guide](docs/en/development/apps/c/MCP-SERVER-DEVELOPMENT.md) ([日本語](docs/ja/development/apps/c/MCP-SERVER-DEVELOPMENT.md)).
+The LLM client always streams responses, requests `reasoning_effort="low"` by default, and displays reasoning text when the server provides it. For server usage, local LLM integration, and MCP server development, see the unified [MCP guide](docs/en/guides/MCP.md) ([日本語](docs/ja/guides/MCP.md)).
 
 **Security:** There is no MCP authentication or TLS; `--shell` allows arbitrary command execution and file changes. Run it only on isolated, trusted networks and never expose TCP 8080 to the Internet. Telnet and the remote device-control service are likewise unauthenticated.
 
@@ -295,7 +294,7 @@ Choose the documentation that matches your purpose. Start with **Setup** if you 
 | **LED text ticker** — LED text and UDP/MCP integration | [Scroll guide](docs/en/guides/SCROLL.md) | [LEDスクロール](docs/ja/guides/SCROLL.md) |
 | **C subset compiler** — On-device C compilation | [Compiler guide](docs/en/development/apps/c/CC.md) | [Cコンパイラガイド](docs/ja/development/apps/c/CC.md) |
 | **MCP demo** — MCP server and Linux client | [MCP guide](docs/en/guides/MCP.md) | [MCP操作ガイド](docs/ja/guides/MCP.md) |
-| **LLM integration** — Call MCP tools from a local LLM | [LLM client tutorial](docs/en/guides/MCP-LLM-CLIENT.md) | [LLM連携ガイド](docs/ja/guides/MCP-LLM-CLIENT.md) |
+
 | **Development guides** — Applications and kernel extensions | [Development guides](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
 | **Function index** — Browse source functions (Japanese only) | [Function index (Japanese)](docs/FUNCTIONS.md) | [関数索引](docs/FUNCTIONS.md) |
 | **Development diary** — Project development history | [Development diary](docs/DEVELOPMENT_DIARY.md) | [開発日誌](docs/DEVELOPMENT_DIARY.ja.md) |

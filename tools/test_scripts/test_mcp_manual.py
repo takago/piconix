@@ -19,18 +19,17 @@ for line in s.splitlines():
         payload=json.loads(ast.literal_eval(raw))
         for tool in payload.get('tools',[]):
             if tool['name']=='get_manual':
-                assert tool['inputSchema']=={'type':'object','properties':{},'additionalProperties':False}
+                assert tool['inputSchema']=={'type':'object','properties':{'topic':{'type':'string'}},'additionalProperties':False}
                 break
         else:
             continue
         break
 else:
     raise AssertionError('get_manual tool missing')
-assert 'send_full_manual(fd,id);' in s and 'return -1; /* chunked HTTP' in s
-for topic in ['overview','commands','files','programming','limits','network','display']:
-    assert f'!strcmp(topic, "{topic}")' in s
-assert 'echo HELLO | scroll' in s and 'cat /proc/net/wifi' in s
+assert 'return send_full_manual(fd,id,topic);' in s and 'Transfer-Encoding: chunked' in s
+assert 'send_full_manual(fd,id,topic);' in s
+assert 'get_manual' in s and 'read(file,part,sizeof part)' in s
 for lang in ['ja','en']:
-    guide=(root/f'docs/{lang}/guides/AGENT-GUIDE.md').read_text()
+    guide=(root/f'docs/{lang}/guides/MCP.md').read_text()
     assert 'get_manual()' in guide
 print('PASS: MCP tool lists, retired tools, embedded manuals, bilingual documentation')

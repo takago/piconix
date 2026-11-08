@@ -11,7 +11,7 @@ These contain detailed implementation instructions and API information. Follow t
 - [Developing C applications for PicoNIX](apps/c/PROGRAMMING.md)
 - [PicoNIX C library and application APIs](apps/c/LIBC.md)
 - [Socket API and network applications](apps/c/NETWORK-PROGRAMMING.md)
-- [Developing the `mcpd` MCP server](apps/c/MCP-SERVER-DEVELOPMENT.md)
+- [Developing the `mcpd` MCP server](../guides/MCP.md)
 
 ## Python and assembly
 
@@ -19,14 +19,6 @@ These contain detailed implementation instructions and API information. Follow t
 - [Device Programming with Tiny Python](apps/python/DEVICE-PROGRAMMING.md)
 - [TCP/UDP Socket Programming with Tiny Python (Pico W)](apps/python/SOCKET-PROGRAMMING.md)
 - [PicoNIX Tiny Thumb Assembler](apps/asm/ASM.md)
-
-## Build-time ROM/RAM size report
-
-`tools/build_sdk.sh` runs `tools/size_ram.py` after the final link. To rerun the report independently, use e.g. `python3 tools/size_ram.py --build build-pico_w`.
-
-`Firmware total` counts allocated Flash and SRAM bytes in the entire ELF. `Link-map attribution` partitions the same bytes into `PicoNIX` (kernel-owned code and data), `Embedded apps`, `ROM manual` (XIP `.manual` section), `Symbol catalogs`, `Pico SDK`, `lwIP`, `CYW43`, and `Other`. `ROM manual` includes its index, pages, and alignment padding; it uses no SRAM. Do not add these categories to `Firmware total` again. Unclassified bytes appear as `Unattributed / padding`.
-
-Attribution is an estimate based on allocated ELF addresses and linker-map records. The ROM manual is measured directly from the ELF `.manual` section, while embedded apps are attributed using image symbol ranges. `PicoNIX kernel component` excludes ROM manual and embedded apps from its `Code` figure. A missing manual section produces a warning. Run `python3 tools/test_scripts/test_rom_manual_size_report.py` to check the accounting rules.
 
 ## Reading and extending the kernel
 

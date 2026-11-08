@@ -3,8 +3,8 @@ from pathlib import Path
 import ast, json
 root = Path(__file__).resolve().parents[2]
 s = (root/'userland/apps/mcpd.c').read_text()
-assert 'Non-interactive commands ONLY' in s
-for name in ('mem', 'watch', 'vi', 'edit', 'fd', 'pong', 'gpio', 'fbed'):
+assert 'Run short non-interactive commands only' in s
+for name in ('mem', 'watch', 'vi', 'edit', 'fd', 'pong'):
     assert name in s, name
 for line in s.splitlines():
     if 'rpc_result(id, "' in line and r'\"tools\"' in line:
@@ -17,7 +17,7 @@ for line in s.splitlines():
 else:
     raise AssertionError('execute_command not advertised')
 for locale in ('ja','en'):
-    guide = (root/f'docs/{locale}/guides/AGENT-GUIDE.md').read_text()
+    guide = (root/f'docs/{locale}/guides/MCP.md').read_text()
     for name in ('mem','watch','vi','edit','fd','pong'):
         assert f'`{name}`' in guide
 print('PASS: MCP non-interactive guidance is in tool description, built-in manual, and agent guides')

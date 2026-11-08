@@ -55,7 +55,10 @@ Find documentation for **what you want to do**. Each task links to starting expl
 | Inspect kernel symbols | [Reference: kernel symbols](reference/KERNEL-SYMBOLS.md) · [How-to: mem](guides/MEM.md) · [Index: source functions](../FUNCTIONS.md) |
 | Understand how VFS and FDs relate | [File system](reference/FILESYSTEM.md) · [System call development](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
-### Devices and electronics
+### Devices
+
+Use `/dev/fbchar` to display ASCII characters or icons ([device reference](reference/devices/DEVICES.md)); use [scroll](guides/SCROLL.md) for longer messages and [LLM/MCP](guides/MCP.md) for remote tool calling.
+ and electronics
 
 | I want to… | Related pages |
 |---|---|
@@ -75,7 +78,7 @@ Find documentation for **what you want to do**. Each task links to starting expl
 | Use a remote shell over Telnet | [Network reference](reference/network/NETWORK.md) · [How-to: net](reference/network/NET.md) |
 | Try TCP/UDP with nc | [Network reference](reference/network/NETWORK.md) · [How-to: nc](reference/network/NC.md) |
 | Serve a web page with httpd | [How-to: httpd](reference/network/HTTPD.md) · [Reference: initial files and rc](reference/INITIAL-FILES.md) · [Network reference](reference/network/NETWORK.md) |
-| Build and test an MCP server (Pico W) | [MCP server development lab](development/apps/c/MCP-SERVER-DEVELOPMENT.md) · [MCP usage guide](guides/MCP.md) |
+| Build and test an MCP server (Pico W) | [Unified MCP guide (including development lab)](guides/MCP.md) |
 | Inspect network traffic with ping or tcpdump | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
 | Control devices remotely over UDP | [Reference: remote device control](reference/network/REMOTE-DEVICE.md) · [Lab: remote GPIO](reference/network/REMOTE_GPIO.md) · [Network reference](reference/network/NETWORK.md) |
 

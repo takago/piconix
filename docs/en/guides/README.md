@@ -38,4 +38,8 @@ Find command instructions, operational cautions, and practical examples here. Fo
 
 - [LED scroll / select + UDP](SCROLL.md)
 
-- [Agent guide](AGENT-GUIDE.md) — MCP shell access and host-side LLM agent operation.
+
+
+## Networking and LLM integration
+
+- [MCP server, LLM integration, agents and development lab](MCP.md)
