@@ -57,7 +57,7 @@
 
 ## 引数の意味と重要な制約
 
-- `read(fd, buf, count)` / `write(fd, buf, count)`：`fd` はファイル記述子，`buf` はデータ領域，`count` は最大バイト数です．読取時の0はEOFを表す場合があります． TTYでは非ブロッキング入力が未準備のときも`read()`は0を返します（canonical・非canonical共通）．TTYへの`write()`は部分書込みになる場合があり，USB CDCの送信キュー満杯時は0，Wi-Fi TTYでは`OS_EAGAIN`や`OS_EIO`を返す場合があります．詳細は[TTYガイド](../guides/TTY.md)を参照してください．
+- `read(fd, buf, count)` / `write(fd, buf, count)`：`fd` はファイル記述子，`buf` はデータ領域，`count` は最大バイト数です．読取時の0はEOFを表す場合があります． TTYでは非ブロッキング入力が未準備のときも`read()`は0を返します（canonical・非canonical共通）．TTYへの`write()`は部分書込みになる場合があり，USB CDCの送信キュー満杯時は0，Wi-Fi TTYでは`OS_EAGAIN`や`OS_EIO`を返す場合があります．詳細は[TTYガイド](commands/TTY.md)を参照してください．
 - `spawn(program, argc, argv)`：`program` は登録済みプログラムID，`argc` は1〜8，`argv` は文字列ポインタ配列です．引数文字列の合計領域にも制限があります．`program_id(name)` で名前からIDを得られます．
 - `waitpid(pid, status, options)`：`pid` は子PIDまたは `-1`，`status` は終了情報の格納先（`NULL`可），`options` は0または `WNOHANG` (1) です．現在の実装では完了時の `*status` に0が入るため，通常のPOSIXの終了ステータス保持とは異なります．
 - `set_foreground(pid)`：`pid` は自分の子タスクのPIDです．`pid=0` は前景所有の復元要求です．
@@ -101,7 +101,7 @@
 - [LIBC.md](../development/apps/c/LIBC.md)：ユーザ向けCライブラリと関数群
 - [ASM.md](../development/apps/asm/ASM.md)：アセンブリからのSVC呼び出し
 - [PROGRAMMING.md](../development/apps/c/PROGRAMMING.md)：アプリ開発の手順
-- [TTY.md](../guides/TTY.md)：TTY制御
+- [TTY.md](commands/TTY.md)：TTY制御
 
 
 `getdents()`の`device_id`フィールドはディレクトリ項目のIDです．`/dev`と`/proc`ではデバイスID，`/bin`ではプログラムID，`/tmp`・`/etc`ではRAMファイルのスロット番号（0始まり）を返します．ディレクトリやIDのない項目は`0xffff`です．`ls -l`は`TYPE ID SIZE NAME`の見出しを表示し，`p`をプログラム，`f`をRAMファイル，`c`をデバイス，`d`をディレクトリとして区別します．スロット番号はファイルの削除・再生成で変わるため，恒久的な識別子ではありません．

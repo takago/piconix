@@ -38,14 +38,14 @@ Internal task states are `UNUSED`, `READY`, `SLEEPING`, `DEAD`, and `BLOCKED`. S
 - Each task has 16 descriptor numbers (0–15); standard input/output/error normally use 0/1/2.
 - At most two pipes, each with a 256-byte ring buffer.
 - `pipe()`, `dup()`, and `dup2()` are provided. Descriptor duplication, inheritance, and release are kernel-managed.
-- Pipes carry byte streams. See [Pipes](../guides/PIPE.md) for blocking, EOF, and endpoint lifetime behavior.
+- Pipes carry byte streams. See [Pipes](commands/PIPE.md) for blocking, EOF, and endpoint lifetime behavior.
 - Shell pipeline syntax is limited; it is not a fully POSIX-compatible shell.
 
 ## 4. TTY
 
 The USB console, UART1, and (when enabled) Wi-Fi terminal are distinct devices. Canonical/raw input, echo, and ONLCR translation are TTY settings. Per-descriptor `O_NONBLOCK` is controlled through `fcntl()` independently of the TTY input mode. The ioctl interface is PicoNIX-specific and is not full POSIX termios.
 
-See `OS_TTY_*` in `include/piconix.h`, [TTY](../guides/TTY.md), and [Terminal](../guides/TERMINAL.md).
+See `OS_TTY_*` in `include/piconix.h`, [TTY](commands/TTY.md), and [Terminal](commands/TERMINAL.md).
 
 ## 5. System calls and ABI
 

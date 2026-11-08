@@ -75,13 +75,9 @@ The following are **fixed implementation capacities**, not Linux-like resource-l
 | C stdio | **64-byte buffer per stream**; up to **4 additional `fopen()` streams** |
 | TTY endpoints | **2** on Pico; **3** on Pico W, including Telnet |
 
-These are capacities, not guarantees that every combination of processes, descriptors, sockets, and services will run simultaneously. See [memory layout](MEMORY-LAYOUT.md), [filesystem](FILESYSTEM.md), [TTY guide](../guides/TTY.md), and [network devices](network/NETWORK.md) for details.
+These are capacities, not guarantees that every combination of processes, descriptors, sockets, and services will run simultaneously. See [memory layout](MEMORY-LAYOUT.md), [filesystem](FILESYSTEM.md), [TTY guide](commands/TTY.md), and [network devices](network/NETWORK.md) for details.
 
-## 6. Related exercises
-
-The observation tasks are in [Exercises: differences from Linux](../exercises/README.md#observe-differences-from-linux).
-
-## 7. Source of truth
+## 6. Source of truth
 
 Limits and behavior were checked against `include/piconix.h`, `include/device_names.h`, `kernel/kernel.c`, `kernel/net_socket.h`, `userland/apps/shell.c`, and the existing [specification](SPECIFICATION.md). When these sources change, update both language versions and the corresponding reference pages. Hardware and full firmware build tests are separate from this documentation audit.
 

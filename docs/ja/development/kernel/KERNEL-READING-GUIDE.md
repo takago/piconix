@@ -11,7 +11,7 @@
 1. 各段階の「読む順序」に従ってソースを開き，該当関数のコメント・引数・戻り値を確認します．
 2. 呼び出し元と呼び出し先を探し，処理の流れを紙などに図示します．`rg -n '関数名\(' kernel userland`が使えます．
 3. 可能なら実機でコマンドを実行し，`ps`・`trace`・`mem`などで結果を確認します．機器に依存する実験は省略可能です．
-4. 各段階の内容を確認し，必要に応じて[カーネル読解演習](../../exercises/KERNEL-READING.md)で理解を確かめてから次へ進みます．まず**既存のコードを変更せず**読むことを推奨します．
+4. 各段階の内容を確認してから次へ進みます．まず**既存のコードを変更せず**読むことを推奨します．
 
 UNIX/Linuxの利用経験とOS基礎，Cの関数・構造体・ポインタを前提にします．第4段階だけはCortex-M0+の例外処理とThumbアセンブリを補助資料で確認します．最初に[全体構造](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[Linuxとの違い](../../reference/DIFFERENCES.md)に目を通すと理解しやすくなります．**PicoNIXは一般的なLinuxのプロセス分離・仮想記憶をそのまま実装したOSではありません．**
 
@@ -42,7 +42,7 @@ UNIX/Linuxの利用経験とOS基礎，Cの関数・構造体・ポインタを�
 
 プログラムの登録情報と実行中タスクの状態を区別し，Flashのイメージ，RAM上の固定長タスクスロット，初期スタックのつながりを追います．スタック・レジスタ初期化が第4段階の復帰処理にどのようにつながるかも控えます．
 
-**実験：** `ps`でタスクを確認し，`mem -s kernel`や`mem -s sh`でシンボルを調べます．詳しい操作は[メモリ参照](../../guides/MEM.md)を参照してください．
+**実験：** `ps`でタスクを確認し，`mem -s kernel`や`mem -s sh`でシンボルを調べます．詳しい操作は[メモリ参照](../../reference/commands/MEM.md)を参照してください．
 
 
 ## 第3段階：スケジューラ
@@ -51,7 +51,7 @@ UNIX/Linuxの利用経験とOS基礎，Cの関数・構造体・ポインタを�
 
 SysTickは1 ms周期で時刻を進め，通常10 tickごとにPendSVを要求します．割込みのたびに重いタスク選択処理を直接行うのではなく，PendSV側から`os_schedule()`を呼びます．READYでないタスクとアイドルタスクの扱いも確認してください．Pico Wではネットワークのためアイドル側へ実行機会を渡す分岐があります．
 
-**実験：** 複数のコマンドが動く状態で`ps`を確認します．コンテキスト切替の観察方法は[トレース](../../guides/TRACE.md)を参照してください．
+**実験：** 複数のコマンドが動く状態で`ps`を確認します．コンテキスト切替の観察方法は[トレース](../../reference/commands/TRACE.md)を参照してください．
 
 
 ## 第4段階：コンテキストスイッチ
@@ -92,7 +92,7 @@ FD番号と，FDに結び付けられた対象の内部ID・ファイル位置�
 
 ## 第7段階：TTYとパイプ
 
-**TTYを読む順序：** `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`．[端末](../../guides/TERMINAL.md)と[TTY設定](../../guides/TTY.md)も参照します．
+**TTYを読む順序：** `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`．[端末](../../reference/commands/TERMINAL.md)と[TTY設定](../../reference/commands/TTY.md)も参照します．
 
 **パイプを読む順序：** `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → `fd_set()`・`fd_release()` → `os_svc_dispatch()`の`SYS_PIPE`・`SYS_DUP2`・`SYS_CLOSE` → シェルの`|`処理．
 
@@ -198,7 +198,7 @@ Research UNIX V5/V6では，カーネル内の`sleep()`で待機したプロセ�
 
 ## まとめと演習
 
-章末の確認問題と総合課題は[カーネル読解演習](../../exercises/KERNEL-READING.md)にまとめています．
+
 
 
 ## 次に読む文書

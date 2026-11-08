@@ -1,6 +1,6 @@
 # PicoNIX Learning Roadmap
 
-This roadmap connects prior UNIX/OS knowledge to **using PicoNIX → observing behavior → reading source → modifying the system**. It links to practical guides and reference documents rather than duplicating them as a separate learning roadmap.
+This roadmap connects prior UNIX/OS knowledge to **using PicoNIX → observing behavior → reading source → modifying the system**. It links to practical guides and reference documents rather than duplicating them as a standalone exercises.
 
 Begin with [Setup](setup/SETUP.md).
 ## Audience and prerequisites
@@ -9,17 +9,17 @@ These materials assume prior knowledge of **UNIX/Linux command-line usage, core 
 
 The central goal is to connect familiar concepts to **their concrete implementation on RP2040**: fixed user slots, a flash-resident kernel and RAM-loaded user images, PIC, SVC/PendSV, VFS and lwIP integration. Similar names do not imply Linux-equivalent protection or virtual-memory semantics; consult [Differences from Linux](reference/DIFFERENCES.md).
 
-**Suggested path:** Observe behavior with a usage guide → consult the PicoNIX-specific reference → follow the corresponding source functions in a development guide → modify and test on a separate branch if appropriate. Investigative questions belong in the [exercise collection](exercises/READING-PATHS.md).
- Follow the steps in order if you are new to PicoNIX. Network topics marked optional require Pico W.
+**Suggested path:** Observe behavior with a usage guide → consult the PicoNIX-specific reference → follow the corresponding source functions in a development guide → modify and test on a separate branch if appropriate.
+Follow the steps in order if you are new to PicoNIX. Network topics marked optional require Pico W.
 
 ## 1. Use the system
 
 | Step | What to learn and try | Read |
 |---|---|---|
-| 1 | Install PicoNIX and connect a USB console | [Setup](setup/SETUP.md) · [help and basic commands](guides/HELP.md) |
-| 2 | Browse and edit files | [Filesystem](reference/FILESYSTEM.md) · [edit](guides/EDIT.md) |
-| 3 | Connect the output of commands | [Pipes and FDs](guides/PIPE.md) |
-| 4 | Work with processes and terminals | [TTY/stty](guides/TTY.md) · [Terminal screens](guides/TERMINAL.md) |
+| 1 | Install PicoNIX and connect a USB console | [Setup](setup/SETUP.md) · [help and basic commands](reference/commands/HELP.md) |
+| 2 | Browse and edit files | [Filesystem](reference/FILESYSTEM.md) · [edit](reference/commands/EDIT.md) |
+| 3 | Connect the output of commands | [Pipes and FDs](reference/commands/PIPE.md) |
+| 4 | Work with processes and terminals | [TTY/stty](reference/commands/TTY.md) · [Terminal screens](reference/commands/TERMINAL.md) |
 
 **Try it:** Inspect `help`, list programs with `ls /bin`, then run `echo hello | cat`. Explain how output reaches the next command.
 
@@ -27,13 +27,13 @@ The central goal is to connect familiar concepts to **their concrete implementat
 
 | Step | What to learn and try | Read |
 |---|---|---|
-| 5 | Understand files, descriptors and VFS | [Filesystem](reference/FILESYSTEM.md) · [Pipes](guides/PIPE.md) |
-| 6 | Inspect memory and processes | [mem guide](guides/MEM.md) · [SRAM layout](reference/MEMORY-LAYOUT.md) |
-| 7 | Observe system calls | [trace guide](guides/TRACE.md) · [Syscall reference](reference/SYSCALLS.md) |
+| 5 | Understand files, descriptors and VFS | [Filesystem](reference/FILESYSTEM.md) · [Pipes](reference/commands/PIPE.md) |
+| 6 | Inspect memory and processes | [mem guide](reference/commands/MEM.md) · [SRAM layout](reference/MEMORY-LAYOUT.md) |
+| 7 | Observe system calls | [trace guide](reference/commands/TRACE.md) · [Syscall reference](reference/SYSCALLS.md) |
 | 8 | Use hardware devices | [Devices](reference/devices/DEVICES.md) · [Pin assignments](reference/hardware/PINS.md) · [Wiring](reference/hardware/WIRING.md) |
 | 9 (optional) | Inspect Pico W networking | [Network connection](reference/network/NETWORK.md) · [ip](reference/network/IP.md) · [ping](reference/network/PING.md) · [tcpdump](reference/network/TCPDUMP.md) |
 
-**Try it:** Run `trace run hello` and use the [trace guide](guides/TRACE.md) to understand `ENTER` and `EXIT`. Read the [mem guide](guides/MEM.md) before operating the interactive memory viewer.
+**Try it:** Run `trace run hello` and use the [trace guide](reference/commands/TRACE.md) to understand `ENTER` and `EXIT`. Read the [mem guide](reference/commands/MEM.md) before operating the interactive memory viewer.
 
 ## 3. Develop and extend PicoNIX
 
@@ -50,10 +50,9 @@ The central goal is to connect familiar concepts to **their concrete implementat
 
 ## Find material by task
 
-For a particular goal use the [Task index](TASKS.md). See [Usage guides](guides/README.md), [Technical reference](reference/README.md), and [Development guides](development/README.md) for detailed instructions.
+For a particular goal use the [Task index](TASKS.md). See [Command reference](reference/commands/README.md), [Technical reference](reference/README.md), and [Development guides](development/README.md) for detailed instructions.
 
 ---
 
 [Documentation index](../DOCS.md) | [日本語](../ja/ROADMAP.md)
 
-**Exercises:** Choose a topic from the [Exercise index](exercises/README.md).

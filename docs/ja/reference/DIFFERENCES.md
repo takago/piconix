@@ -75,13 +75,9 @@ TelnetとUDPデバイス制御サービスには**認証や暗号化がありま
 | C標準入出力 | **ストリームごとに64バイトバッファ**．追加の`fopen()`ストリームは**最大4個** |
 | TTY | Picoは**2系統**，Pico WはTelnetを含め**3系統** |
 
-これらは各機能の固定容量であり，すべての資源を同時に最大数まで使用できる保証ではありません．詳しくは[メモリ配置](MEMORY-LAYOUT.md)，[ファイルシステム](FILESYSTEM.md)，[TTY](../guides/TTY.md)，[ネットワーク](network/NETWORK.md)を参照してください．
+これらは各機能の固定容量であり，すべての資源を同時に最大数まで使用できる保証ではありません．詳しくは[メモリ配置](MEMORY-LAYOUT.md)，[ファイルシステム](FILESYSTEM.md)，[TTY](commands/TTY.md)，[ネットワーク](network/NETWORK.md)を参照してください．
 
-## 6．関連する演習
-
-[Linuxとの差異を観察する演習](../exercises/README.md#linuxとの違いを観察する)に操作課題をまとめています．
-
-## 7．仕様の根拠
+## 6．仕様の根拠
 
 本書は`include/piconix.h`，`include/device_names.h`，`kernel/kernel.c`，`kernel/net_socket.h`，`userland/apps/shell.c`と既存の[仕様書](SPECIFICATION.md)を照合して作成しました．実装を変更したときは日英両版と関連する仕様書も更新してください．本書の点検と，実機ビルド・動作試験は別です．
 

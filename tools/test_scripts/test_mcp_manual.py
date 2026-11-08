@@ -30,6 +30,6 @@ assert 'return send_full_manual(fd,id,topic);' in s and 'Transfer-Encoding: chun
 assert 'send_full_manual(fd,id,topic);' in s
 assert 'get_manual' in s and 'read(file,part,sizeof part)' in s
 for lang in ['ja','en']:
-    guide=(root/f'docs/{lang}/guides/MCP.md').read_text()
+    guide=(root/f'docs/{lang}/reference/commands/MCP.md').read_text()
     assert 'get_manual()' in guide
 print('PASS: MCP tool lists, retired tools, embedded manuals, bilingual documentation')

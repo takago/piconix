@@ -4,6 +4,13 @@ OSの仕様，API，機能の制限などを分野別に調べられます．順
 
 **目的から探す：** [やりたいこと → 関連資料](../TASKS.md)．
 
+## コマンド・操作リファレンス
+
+- [コマンドリファレンス一覧](commands/README.md)
+- [TTY・端末操作](commands/TTY.md)
+- [トレース](commands/TRACE.md)
+- [MCP](commands/MCP.md)
+
 ## OSの基本構造と仕様
 
 - [PicoNIX 全体アーキテクチャ](ARCHITECTURE.md)
@@ -41,7 +48,7 @@ OSの仕様，API，機能の制限などを分野別に調べられます．順
 - [ピン割当と40ピン配置図](hardware/PINS.md)
 - [配線・電気的注意](hardware/WIRING.md)
 
-[学習ロードマップ](../ROADMAP.md) ｜ [補助教材一覧](../guides/README.md) ｜ [開発ガイド一覧](../development/README.md)
+[学習ロードマップ](../ROADMAP.md) ｜ [コマンドリファレンス](commands/README.md) ｜ [開発ガイド一覧](../development/README.md)
 
 ---
 

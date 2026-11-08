@@ -1,6 +1,6 @@
 # `mcpd` source reading and extension lab
 
-This source-level tutorial is separated from the [MCP usage guide](../../../guides/MCP.md). It uses the Pico W user-space MCP server as an example of UNIX-style networking.
+This source-level tutorial is separated from the [MCP usage guide](../../../reference/commands/MCP.md). It uses the Pico W user-space MCP server as an example of UNIX-style networking.
 
 ## 6. `mcpd` implementation and extension lab
 
@@ -42,7 +42,7 @@ Use a Pico W, Linux PC, USB console, Pico SDK, and ARM toolchain. Start with [se
 | `CMakeLists.txt` | Application build registration |
 | `kernel/main.c` | Embedded image and command registration |
 | `host/mcp_client.py` | Linux SDK-based client |
-| `docs/en/guides/MCP.md` | Usage and manual HTTP requests |
+| `docs/en/reference/commands/MCP.md` | Usage and manual HTTP requests |
 
 The experimental patch registers `mcpd` using **program ID 49**. Always check the current `register_image()` list before adding more applications, to avoid duplicate IDs.
 
@@ -187,7 +187,7 @@ Do **not** begin with GPIO-write tools. Authentication, input validation, and re
 | RAM layout | `mem`, build layout checks | How are PIC, BSS, and stack fitted into 24 KiB? |
 | Error paths | Malformed HTTP / unknown tool | How is failure reported and the connection closed? |
 
-Consult the [trace guide](../../../guides/TRACE.md) and [mem guide](../../../guides/MEM.md) for exact command options.
+Consult the [trace guide](../../../reference/commands/TRACE.md) and [mem guide](../../../reference/commands/MEM.md) for exact command options.
 
 **Not implemented or not verified:** SSE, legacy `initialize`, complete HTTP/JSON validation, authentication, TLS, concurrent clients, and complete MCP conformance or long-term stability. Basic SDK interoperability was verified on hardware on 2026-11-06. Do not describe this experiment as fully MCP-compliant.
 
@@ -198,4 +198,4 @@ The central idea is that **a network service can be built on existing UNIX-like 
 
 ---
 
-[MCP usage guide](../../../guides/MCP.md)
+[MCP usage guide](../../../reference/commands/MCP.md)

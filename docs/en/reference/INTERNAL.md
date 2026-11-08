@@ -93,7 +93,7 @@ On task exit, the kernel releases FDs and sockets and removes the completed PID 
 
 PicoNIX supports the USB CDC console and a UART1 terminal. For example, `getty /dev/ttyS1 sh &` starts another Shell. Each terminal tracks its owning Shell and foreground PID; `Ctrl+C` acts on that terminal's foreground task.
 
-Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) and `fcntl()` to set **per-FD nonblocking flags**. These settings are independent. See [Terminal settings and interactive input](../guides/TTY.md) for examples. This is not a full POSIX `termios` implementation: `VMIN` and `VTIME` are not provided.
+Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) and `fcntl()` to set **per-FD nonblocking flags**. These settings are independent. See [Terminal settings and interactive input](commands/TTY.md) for examples. This is not a full POSIX `termios` implementation: `VMIN` and `VTIME` are not provided.
 
 ## 7. Virtual files and devices
 
@@ -124,7 +124,7 @@ trace show
 
 The standard build enables function instrumentation, but event capture starts OFF at boot. `trace on -s` records only syscall entry/exit, while ordinary `trace on` also captures selected kernel functions, TIMER and SWITCH. `trace on -a` adds selected non-SVC functions.
 
-`/dev/trace` provides the binary records. See [Tracing](../guides/TRACE.md) for event formats and interpretation.
+`/dev/trace` provides the binary records. See [Tracing](commands/TRACE.md) for event formats and interpretation.
 
 ## 9. Where to look in the source
 
@@ -139,10 +139,10 @@ The standard build enables function instrumentation, but event capture starts OF
 | `userland/lib/syscalls.c`, `crt0.c` | User-side SVC wrappers and startup |
 | `userland/lib/slot.ld`, `CMakeLists.txt` | RAM layout, images and PIC validation |
 
-**Next:** [C application development](../development/apps/c/PROGRAMMING.md) for adding a command, [devices](devices/DEVICES.md) for device interfaces, [wiring](hardware/WIRING.md) for physical connections, and [Terminal settings and interactive input](../guides/TTY.md) for TTY details.
+**Next:** [C application development](../development/apps/c/PROGRAMMING.md) for adding a command, [devices](devices/DEVICES.md) for device interfaces, [wiring](hardware/WIRING.md) for physical connections, and [Terminal settings and interactive input](commands/TTY.md) for TTY details.
 
 Pico W uses the 16-KiB network reserve for its 10-KiB lwIP heap and 4-KiB idle task stack; see [Memory layout](MEMORY-LAYOUT.md).
 
 ---
 
-**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/INTERNAL.md) | [Usage guides](../guides/README.md)
+**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/INTERNAL.md) | [Usage guides](commands/README.md)

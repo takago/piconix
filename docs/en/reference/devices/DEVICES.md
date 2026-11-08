@@ -176,7 +176,7 @@ The main console uses USB CDC only. UART0 console builds are not supported. UART
 - GPIO cannot simultaneously own pins used by ADC, PWM, or I²C.
 - GP18 and GP19 cannot use independent PWM frequencies.
 - `/dev/mem` permits reading supported Flash/SRAM ranges. Writes are restricted to task slots (0x2000E000–0x20031FFF) shared memory (0x20032000–0x200327FF), and RAM-file payloads. Other kernel memory, trace, Wi-Fi reserve, and Flash are not writable. Writing a live task may crash the system.
-- `/dev/trace` provides binary records; see [TRACE.md](../../guides/TRACE.md).
+- `/dev/trace` provides binary records; see [TRACE.md](../commands/TRACE.md).
 - Drivers live in `kernel/gpio.c`, `kernel/adc.c`, and `kernel/pwm.c`; FD management stays in `kernel/kernel.c`.
 
 ---

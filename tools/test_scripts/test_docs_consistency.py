@@ -27,12 +27,12 @@ editor = (root / 'userland/apps/editor_common.h').read_text(encoding='utf-8')
 assert 'strncmp(path,"/tmp/",5)&&strncmp(path,"/etc/",5)' in editor
 for f in [root / 'README.md', docs / 'en' / 'reference' / 'network' / 'HTTPD.md',
           docs / 'ja' / 'reference' / 'network' / 'HTTPD.md',
-          docs / 'en' / 'guides' / 'EDIT.md', docs / 'ja' / 'guides' / 'EDIT.md']:
+          docs / 'en' / 'reference' / 'commands' / 'EDIT.md', docs / 'ja' / 'reference' / 'commands' / 'EDIT.md']:
     assert 'edit /etc/index.html' in f.read_text(encoding='utf-8'), f
-assert 'Horizontal scrolling is not implemented' not in (docs/'en'/'guides'/'EDIT.md').read_text()
-assert '横方向のスクロールは未対応' not in (docs/'ja'/'guides'/'EDIT.md').read_text()
+assert 'Horizontal scrolling is not implemented' not in (docs/'en'/'reference' / 'commands'/'EDIT.md').read_text()
+assert '横方向のスクロールは未対応' not in (docs/'ja'/'reference' / 'commands'/'EDIT.md').read_text()
 for lang in ('en', 'ja'):
-    trace = (docs/lang/'guides'/'TRACE.md').read_text()
+    trace = (docs/lang/'reference' / 'commands'/'TRACE.md').read_text()
     assert 'ls -l' in trace
     assert ('device' in trace.lower()) if lang == 'en' else ('デバイス' in trace)
 # pingはPico Wのユーザコマンドとして実装され，専用ICMPデバイスを使う．

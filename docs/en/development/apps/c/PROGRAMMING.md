@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 }
 ```
 
-For example, `greet Alice > /tmp/message` redirects output to a RAM file. File and descriptor support is intentionally smaller than POSIX; see [Filesystem](../../../reference/FILESYSTEM.md) and [Pipes](../../../guides/PIPE.md). Device access is documented in [Devices](../../../reference/devices/DEVICES.md).
+For example, `greet Alice > /tmp/message` redirects output to a RAM file. File and descriptor support is intentionally smaller than POSIX; see [Filesystem](../../../reference/FILESYSTEM.md) and [Pipes](../../../reference/commands/PIPE.md). Device access is documented in [Devices](../../../reference/devices/DEVICES.md).
 
 ## 6. APIs and execution constraints
 
@@ -128,7 +128,7 @@ For example, `greet Alice > /tmp/message` redirects output to a RAM file. File a
 
 Use `stdio.h`, `stdlib.h`, `string.h`, `unistd.h`, and `fcntl.h` as supplied in `userland/lib/`. For their actual functions, argument types, error returns, and supported formats, see [LIBC.md](LIBC.md). For low-level ABI details see [SYSCALLS.md](../../../reference/SYSCALLS.md). The kernel interface returns PicoNIX error values rather than standard `errno` semantics.
 
-`O_NONBLOCK` (set with `fcntl()`) does not turn canonical TTY input into character-at-a-time input; for interactive games, see [TTY](../../../guides/TTY.md) and `userland/apps/mb.c`. Network applications have additional constraints; see [Network programming](NETWORK-PROGRAMMING.md).
+`O_NONBLOCK` (set with `fcntl()`) does not turn canonical TTY input into character-at-a-time input; for interactive games, see [TTY](../../../reference/commands/TTY.md) and `userland/apps/mb.c`. Network applications have additional constraints; see [Network programming](NETWORK-PROGRAMMING.md).
 
 ### 6.1. PicoNIX-specific PIC and RAM constraints
 
@@ -177,7 +177,7 @@ When adding the `fd` browser, `static const char *notice = "";` caused exactly t
 | PIC or image-size check fails | Non-position-independent code, unsupported relocation, or the RAM image/stack limit |
 | Command missing from `/bin` | CMake entry, image symbol declaration, registration, and whether the new UF2 was flashed |
 | Spawn fails at runtime | Available task slots and program registration |
-| TTY appears to behave incorrectly | Canonical/echo mode and restoration; see [TTY](../../../guides/TTY.md) |
+| TTY appears to behave incorrectly | Canonical/echo mode and restoration; see [TTY](../../../reference/commands/TTY.md) |
 
 Host-side regression checks:
 
@@ -186,7 +186,7 @@ python3 tools/run_tests.py
 python3 tools/run_tests.py --all  # includes toolchain-dependent tests
 ```
 
-The complete firmware build and real hardware checks are still necessary; source-level tests alone do not prove a board will run correctly. Use `ps`, `cat /proc/tasks`, `trace on`, `trace off`, and `trace show` when diagnosing runtime behavior. [Tracing](../../../guides/TRACE.md) explains syscall and context-switch events; [Memory inspection](../../../guides/MEM.md) explains read-only RAM/Flash inspection.
+The complete firmware build and real hardware checks are still necessary; source-level tests alone do not prove a board will run correctly. Use `ps`, `cat /proc/tasks`, `trace on`, `trace off`, and `trace show` when diagnosing runtime behavior. [Tracing](../../../reference/commands/TRACE.md) explains syscall and context-switch events; [Memory inspection](../../../reference/commands/MEM.md) explains read-only RAM/Flash inspection.
 
 ## 8. Real-time keyboard input (noncanonical + O_NONBLOCK)
 
@@ -252,7 +252,7 @@ restore:
 
 The example saves and restores canonical mode, echo, and FD flags, including when configuration fails partway through. **Forced termination such as Ctrl+C or `kill` bypasses the C cleanup path.** The kernel's foreground-task restoration mechanism handles the TTY settings in that situation. FD flags are task-local and are explicitly restored on ordinary exit.
 
-Like the earlier `greet` example, this application must be added to CMake and registered in the kernel (substitute `keypoll` in the preceding steps). No prior `stty raw` command is needed. See [TTY](../../../guides/TTY.md) for mode semantics, and `userland/apps/mb.c` and `userland/apps/pong.c` for real game implementations.
+Like the earlier `greet` example, this application must be added to CMake and registered in the kernel (substitute `keypoll` in the preceding steps). No prior `stty raw` command is needed. See [TTY](../../../reference/commands/TTY.md) for mode semantics, and `userland/apps/mb.c` and `userland/apps/pong.c` for real game implementations.
 
 ## 9. Where to go next
 

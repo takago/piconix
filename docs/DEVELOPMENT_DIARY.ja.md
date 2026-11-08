@@ -355,7 +355,7 @@ PythonのI²C APIを`i2c_write()`，`i2c_read()`，`i2c_xfer()`へ統一し，`i
 
 表示は試行錯誤を重ねた．`userland/apps/trace.c`で`Type`列に`SYSCALL`／`KERNEL`などの種別を示し，`Function`列では関数入口を`vfs_rw`，出口を`vfs_rw/`と表す．システムコールを深さ0として内部関数を2文字ずつ字下げし，呼び出しの対応を追いやすくした．`Arg`，`Ret`，`Info`も整理し，**取得していないカーネル関数の引数や戻り値を推測して表示しない**よう，未記録欄は`--`とした．`trace kernel -d 0..8 command`では表示する深さを絞れるが，これは**表示だけのフィルタ**であり，記録量や計測対象は減らない．イベント欠落や最適化の影響で表示上の階層が完全でない場合もある．
 
-教材としては，`trace kernel cat /tmp/test.txt`によって`open`・`read`とVFS／RAMファイル処理の対応を，`trace kernel omikuji`によって`/dev/rand`の読出しから`vfs_rw`，`device_rw_rand`，`rand32`へ進む流れを観察できる．関連する実装は`kernel/kernel.c`の関数計測フックとトレース記録処理，`userland/apps/trace.c`のコマンド起動・表示処理，`include/piconix_trace.h`のイベント定義である．動作と注意事項は[トレースガイド](ja/guides/TRACE.md)に整理した．
+教材としては，`trace kernel cat /tmp/test.txt`によって`open`・`read`とVFS／RAMファイル処理の対応を，`trace kernel omikuji`によって`/dev/rand`の読出しから`vfs_rw`，`device_rw_rand`，`rand32`へ進む流れを観察できる．関連する実装は`kernel/kernel.c`の関数計測フックとトレース記録処理，`userland/apps/trace.c`のコマンド起動・表示処理，`include/piconix_trace.h`のイベント定義である．動作と注意事項は[トレースガイド](ja/reference/commands/TRACE.md)に整理した．
 
 この機能を有効にすると，記録しない関数にも計測フックが入るため，Flash使用量，実行時間，スタック使用量が増える．通常ビルドでは`OFF`を維持し，学習・デバッグ時にだけ`-DPICONIX_KERNEL_FUNCTION_TRACE=ON`を指定して再ビルドする方針とした．会話中には表示形式や深さ指定について修正と試験を繰り返したが，**すべてのボード・経路での動作が検証済みであるとまでは断定しない**．また，関数の入退場を記録する機能は，MSPの生のスタック内容を解析する機能ではない．
 
@@ -579,7 +579,7 @@ LEDマトリクス，GPIO，PWMなどをデバイスファイルで扱えるよ�
 
 既存の`edit`に加えて，通常モードと挿入モードを持つ簡易`vi`を追加しました．この段階では`h`，`j`，`k`，`l`による移動に対応し，カーソルキーでの移動は今後の改良課題として残しました．また，`dd`を追加し，ファイルや`/dev/mem`の内容をバイト単位でコピーできるようにしました．`if=-`と`of=-`で標準入出力を指定できるようにし，`nc -N`のTCP送信方向の終了処理と組み合わせて，LinuxとPicoNIXの間でバイナリを転送する構成にしました．
 
-開発者による実機試験では，`dd`でRAMの内容を`/tmp`へ保存し，`nc`とパイプを使ったファイル・メモリデータの転送が動作しました．これに伴い，混在していた`DD-VI.md`を廃止し，`DD.md`，`VI.md`，既存の`NC.md`に日英で操作を整理しました．転送手順は[ddとバイナリ転送](ja/guides/DD.md)を参照してください．
+開発者による実機試験では，`dd`でRAMの内容を`/tmp`へ保存し，`nc`とパイプを使ったファイル・メモリデータの転送が動作しました．これに伴い，混在していた`DD-VI.md`を廃止し，`DD.md`，`VI.md`，既存の`NC.md`に日英で操作を整理しました．転送手順は[ddとバイナリ転送](ja/reference/commands/DD.md)を参照してください．
 
 ## 11月2日：SRAMを再配置し，共有メモリとRAMファイルを独立
 
@@ -691,7 +691,7 @@ GPIOを対話的に操作する`gpio`，RAMとFlashを閲覧する`mem`，シス
 
 この文書は対話履歴を主資料とする開発史です．開発者の実機確認結果と，ChatGPTがコード変更を提案・作成しただけの段階は区別して読む必要があります．Gitの全コミット日時，すべてのZIPの内容，実機ログの完全な時系列を照合した監査記録ではありません．開発中に提案されただけで採用されなかった機能や，一時的な実装は完成版の仕様と混同しないように記しました．必要に応じてコミットIDや関連する検証ログを追記してください．
 
-技術仕様や実際の操作方法は，[内部構造](ja/reference/INTERNAL.md)，[ネットワーク](ja/reference/network/NETWORK.md)，[TTY](ja/guides/TTY.md)，[パイプ](ja/guides/PIPE.md)，[トレース](ja/guides/TRACE.md)，[カーネル開発](ja/development/kernel/KERNEL-DEVELOPMENT.md)，[カーネルリーディングガイド](ja/development/kernel/KERNEL-READING-GUIDE.md)を参照してください．
+技術仕様や実際の操作方法は，[内部構造](ja/reference/INTERNAL.md)，[ネットワーク](ja/reference/network/NETWORK.md)，[TTY](ja/reference/commands/TTY.md)，[パイプ](ja/reference/commands/PIPE.md)，[トレース](ja/reference/commands/TRACE.md)，[カーネル開発](ja/development/kernel/KERNEL-DEVELOPMENT.md)，[カーネルリーディングガイド](ja/development/kernel/KERNEL-READING-GUIDE.md)を参照してください．
 
 ---
 

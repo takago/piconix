@@ -17,7 +17,7 @@ for line in s.splitlines():
 else:
     raise AssertionError('execute_command not advertised')
 for locale in ('ja','en'):
-    guide = (root/f'docs/{locale}/guides/MCP.md').read_text()
+    guide = (root/f'docs/{locale}/reference/commands/MCP.md').read_text()
     for name in ('mem','watch','vi','edit','fd','pong'):
         assert f'`{name}`' in guide
 print('PASS: MCP non-interactive guidance is in tool description, built-in manual, and agent guides')

@@ -6,7 +6,7 @@
 
 ## 読み始める前に
 
-**事前学習：** [全体構成](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[トレース](../../guides/TRACE.md)を先に確認してください．最初はソースを読み，タスクの生成から終了までの流れを追うことを勧めます．
+**事前学習：** [全体構成](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[トレース](../../reference/commands/TRACE.md)を先に確認してください．最初はソースを読み，タスクの生成から終了までの流れを追うことを勧めます．
 
 
 [文書案内](../../../DOCS.ja.md) | [内部構造](../../reference/INTERNAL.md) | [システムコール](../../reference/SYSCALLS.md) | [デバイス](../../reference/devices/DEVICES.md) | [English](../../../en/development/kernel/KERNEL-DEVELOPMENT.md)
@@ -71,7 +71,7 @@
 - [DEVICES.md](../../reference/devices/DEVICES.md)：デバイスノードとAPI， [PINS.md](../../reference/hardware/PINS.md)：ピン割当， [WIRING.md](../../reference/hardware/WIRING.md)：物理配線
 - [INTERNAL.md](../../reference/INTERNAL.md)：タスク，VFS，カーネル内部
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md)：ユーザ空間Cアプリ追加
-- [TRACE.md](../../guides/TRACE.md)：SVCとタスク切替の観察
+- [TRACE.md](../../reference/commands/TRACE.md)：SVCとタスク切替の観察
 
 ---
 

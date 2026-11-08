@@ -40,7 +40,6 @@ The actual interface name, status and address depend on the build and connection
 4. From PicoNIX, run `ping -c 2 PC_IPv4` ([ping guide](PING.md)).
 5. An ICMP reply does not prove an HTTP server is running: inspect `ps` and `lsof` separately.
 
-**Further questions:** See [Network observation exercises](../../exercises/README.md#network-observation).
 
 ---
 

@@ -18,7 +18,7 @@ Before starting, read [Architecture](../../reference/ARCHITECTURE.md), [Memory l
 | 8 | Devices | VFS device dispatch in `kernel/kernel.c` → `kernel/gpio.c` → `fb.c` → `adc.c` → `i2c.c` → `pwm.c` |
 | 9 (optional) | Networking (Pico W) | `kernel/main.c`: `net_init()` → `kernel/net.c`: `net_init()` / `net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c` / `kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c` |
 
-See [Kernel reading exercises](../../exercises/KERNEL-READING.md) for the corresponding review questions and final source-reading task.
+
 ## How to follow the code
 
 Assume prior knowledge of UNIX processes, FDs, syscalls and C. The aim is not to review their definitions, but to follow their **PicoNIX-specific implementation**. For each stage: observe an operation, locate its entry point, trace state changes and return paths, then compare with the reference. The [function index](../../../FUNCTIONS.md) helps locate definitions; line numbers may shift.
@@ -37,7 +37,7 @@ Use `trace run hello`, then connect a visible `write` event to `write()` and `ca
 
 ### Steps 6–7: VFS, FD, terminal and pipe
 
-Compare `cat /proc/uptime`, `ls /dev`, and `lsof`. Follow FD lookup and VFS dispatch to the RAM file, `/proc`, or device backend. For pipelines, try `echo hello | grep hello | cat`, then locate shell pipe construction, `SYS_PIPE`, `SYS_DUP2`, `pipe_transfer()` and wake-up handling. See [Pipes](../../guides/PIPE.md) and [TTY](../../guides/TTY.md).
+Compare `cat /proc/uptime`, `ls /dev`, and `lsof`. Follow FD lookup and VFS dispatch to the RAM file, `/proc`, or device backend. For pipelines, try `echo hello | grep hello | cat`, then locate shell pipe construction, `SYS_PIPE`, `SYS_DUP2`, `pipe_transfer()` and wake-up handling. See [Pipes](../../reference/commands/PIPE.md) and [TTY](../../reference/commands/TTY.md).
 
 ### Step 8: Device I/O
 
@@ -140,7 +140,7 @@ echo hello | grep hello | cat
 ```
 
 
-Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../guides/TRACE.md), [Memory inspection](../../guides/MEM.md), [TTY](../../guides/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../FUNCTIONS.md).
+Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../reference/commands/TRACE.md), [Memory inspection](../../reference/commands/MEM.md), [TTY](../../reference/commands/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../FUNCTIONS.md).
 
 ---
 

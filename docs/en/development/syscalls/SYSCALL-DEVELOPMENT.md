@@ -125,7 +125,7 @@ piconix# trace run labuptime
 ...
 ```
 
-These are **illustrative outputs**, not captured hardware results. The values change. Use the [Trace guide](../../guides/TRACE.md) to find the new `getuptime` SVC. If the new program is missing, recheck CMake, image registration and flashing; if the firmware is old, the new syscall may return `OS_ENOSYS`.
+These are **illustrative outputs**, not captured hardware results. The values change. Use the [Trace guide](../../reference/commands/TRACE.md) to find the new `getuptime` SVC. If the new program is missing, recheck CMake, image registration and flashing; if the firmware is old, the new syscall may return `OS_ENOSYS`.
 
 **Questions:** Why is the number defined centrally? What happens after 32-bit wrap? What does `trace` show at the user/kernel boundary? Why does `/proc/ticks` require no new syscall?
 

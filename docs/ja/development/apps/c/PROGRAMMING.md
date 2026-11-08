@@ -112,7 +112,7 @@ int main(int argc, char *argv[])
 }
 ```
 
-例えば`greet Alice > /tmp/message`とすると，出力先はRAMファイルになります．アプリは通常，リダイレクトやパイプを意識せず同じFDを使用できます．詳しくは[ファイルシステム](../../../reference/FILESYSTEM.md)，[パイプ](../../../guides/PIPE.md)，[デバイス](../../../reference/devices/DEVICES.md)を参照してください．
+例えば`greet Alice > /tmp/message`とすると，出力先はRAMファイルになります．アプリは通常，リダイレクトやパイプを意識せず同じFDを使用できます．詳しくは[ファイルシステム](../../../reference/FILESYSTEM.md)，[パイプ](../../../reference/commands/PIPE.md)，[デバイス](../../../reference/devices/DEVICES.md)を参照してください．
 
 ## 6．利用できるAPIと実行上の制約
 
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 
 `userland/lib/`以下の`stdio.h`，`stdlib.h`，`string.h`，`unistd.h`，`fcntl.h`を使用します．関数の引数・戻り値・対応範囲は[LIBC.md](LIBC.md)，低水準の呼び出し規約は[SYSCALLS.md](../../../reference/SYSCALLS.md)を参照してください．通常の`errno`を前提とせず，PicoNIXのエラー戻り値を確認します．
 
-`fcntl()`による`O_NONBLOCK`だけでは，TTYのcanonical入力が文字単位にはなりません．対話的なプログラムについては[TTY](../../../guides/TTY.md)と`userland/apps/mb.c`を参照してください．ネットワークプログラムには別の制約もあるため，[ネットワークプログラミング](NETWORK-PROGRAMMING.md)も参照してください．
+`fcntl()`による`O_NONBLOCK`だけでは，TTYのcanonical入力が文字単位にはなりません．対話的なプログラムについては[TTY](../../../reference/commands/TTY.md)と`userland/apps/mb.c`を参照してください．ネットワークプログラムには別の制約もあるため，[ネットワークプログラミング](NETWORK-PROGRAMMING.md)も参照してください．
 
 ### 6.1．PicoNIX特有のPICとRAMの注意点
 
@@ -177,7 +177,7 @@ int main(void)
 | PIC・サイズ検査エラー | 位置依存コード，未対応の再配置，イメージ領域やスタック予約との重複 |
 | `/bin`にコマンドがない | CMakeへの追加，シンボル宣言，`register_image()`，最新UF2の書き込み |
 | 実行時に起動できない | タスクスロットの空きとプログラム登録 |
-| 端末の動作がおかしい | canonical・echo設定と復元処理．[TTY](../../../guides/TTY.md)を参照 |
+| 端末の動作がおかしい | canonical・echo設定と復元処理．[TTY](../../../reference/commands/TTY.md)を参照 |
 
 ホスト側の回帰テストは次のように実行します．
 
@@ -186,7 +186,7 @@ python3 tools/run_tests.py
 python3 tools/run_tests.py --all  # ARMツールチェーン依存テストも実行
 ```
 
-ソースレベルのテストだけでは，ファームウェアのビルドや実機動作までは保証できません．実行中の調査には`ps`，`cat /proc/tasks`，`trace on`，`trace off`，`trace show`などを使います．[トレース](../../../guides/TRACE.md)ではシステムコールとコンテキストスイッチ，[メモリ参照](../../../guides/MEM.md)ではRAM・Flashの読み取り専用観察を説明しています．
+ソースレベルのテストだけでは，ファームウェアのビルドや実機動作までは保証できません．実行中の調査には`ps`，`cat /proc/tasks`，`trace on`，`trace off`，`trace show`などを使います．[トレース](../../../reference/commands/TRACE.md)ではシステムコールとコンテキストスイッチ，[メモリ参照](../../../reference/commands/MEM.md)ではRAM・Flashの読み取り専用観察を説明しています．
 
 ## 8．リアルタイムキー入力（noncanonical + O_NONBLOCK）
 
@@ -252,7 +252,7 @@ restore:
 
 開始時にcanonical・echo・FDフラグを保存し，終了時と設定途中の失敗時に戻します．**Ctrl+Cや`kill`などでアプリが強制終了した場合，このCコードの復元処理は実行されません**．前景タスクのTTY設定はカーネル側の復元機構に依存します．FDフラグはタスク固有なので，通常終了時に明示的に戻します．
 
-この例は既存の`greet`と同様にCMakeへの追加とカーネル登録が必要です（上記の手順を`keypoll`に読み替えてください）．`stty raw`を事前に実行する必要はありません．TTYの規則は[TTY](../../../guides/TTY.md)，実際のゲームでの利用は`userland/apps/mb.c`と`userland/apps/pong.c`を参照してください．
+この例は既存の`greet`と同様にCMakeへの追加とカーネル登録が必要です（上記の手順を`keypoll`に読み替えてください）．`stty raw`を事前に実行する必要はありません．TTYの規則は[TTY](../../../reference/commands/TTY.md)，実際のゲームでの利用は`userland/apps/mb.c`と`userland/apps/pong.c`を参照してください．
 
 ## 9．関連文書
 

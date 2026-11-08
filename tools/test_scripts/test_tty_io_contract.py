@@ -19,9 +19,9 @@ assert "if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) return 0;" in sourc
 assert "if(dev==2) {" in source and "net_terminal_write(bytes+(!insert_cr),1+insert_cr)" in source
 assert "VMIN" not in (root / "include/piconix.h").read_text()
 for language in ("ja", "en"):
-    tty = (root / f"docs/{language}/guides/TTY.md").read_text()
+    tty = (root / f"docs/{language}/reference/commands/TTY.md").read_text()
     syscalls = (root / f"docs/{language}/reference/SYSCALLS.md").read_text()
     for term in ("O_NONBLOCK", "VMIN", "VTIME", "OS_EAGAIN", "OS_EIO", "Wi-Fi TTY", "ONLCR"):
         assert term in tty, (language, term)
-    assert "../guides/TTY.md" in syscalls
+    assert "commands/TTY.md" in syscalls
 print("PASS: TTY read/write, nonblocking, and output-queue documentation")

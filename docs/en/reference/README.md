@@ -4,6 +4,13 @@ Look up OS behavior, APIs, and limitations by topic. For sequential UNIX lessons
 
 **Find by goal:** [Task index](../TASKS.md).
 
+## Commands and operation reference
+
+- [Command reference index](commands/README.md)
+- [TTY and terminals](commands/TTY.md)
+- [Tracing](commands/TRACE.md)
+- [MCP](commands/MCP.md)
+
 ## Core architecture and specifications
 
 - [PicoNIX Architecture](ARCHITECTURE.md)
@@ -41,7 +48,7 @@ Look up OS behavior, APIs, and limitations by topic. For sequential UNIX lessons
 - [Pin assignments and 40-pin header](hardware/PINS.md)
 - [Wiring and electrical precautions](hardware/WIRING.md)
 
-[Learning roadmap](../ROADMAP.md) | [Supplementary guides](../guides/README.md) | [Development guides](../development/README.md)
+[Learning roadmap](../ROADMAP.md) | [Command reference](commands/README.md) | [Development guides](../development/README.md)
 
 ---
 

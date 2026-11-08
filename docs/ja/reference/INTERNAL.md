@@ -93,7 +93,7 @@ piconix# ps
 
 USB CDCコンソールとUART1の端末を扱えます．`getty /dev/ttyS1 sh &` により別のShellを起動できます．端末ごとに所有Shellと前景PIDを管理し，Ctrl+Cはその端末の前景タスクに作用します．
 
-端末の**入力モード**（canonical/非canonical，echo）は `ioctl()`，FDごとの**非ブロッキングフラグ**は `fcntl()` で設定します．この2種類は独立しています．詳しい操作例と `mb` は[端末設定と対話型入力](../guides/TTY.md)を参照してください．端末モードはPOSIX `termios` の完全実装ではなく，`VMIN` と `VTIME` はありません．
+端末の**入力モード**（canonical/非canonical，echo）は `ioctl()`，FDごとの**非ブロッキングフラグ**は `fcntl()` で設定します．この2種類は独立しています．詳しい操作例と `mb` は[端末設定と対話型入力](commands/TTY.md)を参照してください．端末モードはPOSIX `termios` の完全実装ではなく，`VMIN` と `VTIME` はありません．
 
 ## 7．仮想ファイルとデバイス
 
@@ -124,7 +124,7 @@ trace show
 
 標準ビルドは関数計測ONですが，起動時のイベント記録はOFFです．`trace on -s`はシステムコールの入口・出口だけを記録し，通常の`trace on`は選抜カーネル関数やTIMER・SWITCHも記録します．`trace on -a`ではSVC外の選抜関数も記録します．
 
-`/dev/trace` はバイナリレコードを読み出すデバイスです．詳しいイベント定義と解釈は[トレース](../guides/TRACE.md)を参照してください．
+`/dev/trace` はバイナリレコードを読み出すデバイスです．詳しいイベント定義と解釈は[トレース](commands/TRACE.md)を参照してください．
 
 ## 9．ソースコードの読み方
 
@@ -139,10 +139,10 @@ trace show
 | `userland/lib/syscalls.c`，`crt0.c` | ユーザ空間のSVC呼び出しと起動 |
 | `userland/lib/slot.ld`，`CMakeLists.txt` | RAM配置，イメージ生成，PIC検証 |
 
-**次に読む文書：** 実際にコマンドを追加する場合は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，端末の仕組みは[端末設定と対話型入力](../guides/TTY.md)，ハードウェアへの接続は[配線ガイド](hardware/WIRING.md)を参照してください．
+**次に読む文書：** 実際にコマンドを追加する場合は[Cアプリ開発](../development/apps/c/PROGRAMMING.md)，端末の仕組みは[端末設定と対話型入力](commands/TTY.md)，ハードウェアへの接続は[配線ガイド](hardware/WIRING.md)を参照してください．
 
 Pico Wではネットワーク予約16 KiBにlwIPヒープ10 KiBとアイドルスタック4 KiBを配置します．[RAMレイアウト](MEMORY-LAYOUT.md)を参照してください．
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [文書案内](../../DOCS.ja.md) ｜ [操作ガイド一覧](../guides/README.md) ｜ [English](../../en/reference/INTERNAL.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [文書案内](../../DOCS.ja.md) ｜ [操作ガイド一覧](commands/README.md) ｜ [English](../../en/reference/INTERNAL.md)

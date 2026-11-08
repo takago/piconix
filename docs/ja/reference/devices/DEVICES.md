@@ -178,7 +178,7 @@ GP26（SDA）とGP27（SCL）はI²C1専用です．`/dev/i2c/1`を通じて利�
 - ADC・PWM・I²CとGPIOは同じピンで同時には使用できません．
 - GP18とGP19のPWM周波数は独立に変更できません．
 - `/dev/mem`はFlashとSRAMの読み取りに対応します．書き込みはユーザタスクスロット（0x2000E000〜0x20031FFF），SHM（0x20032000〜0x200327FF），RAMファイルのデータ領域に限ります．カーネルの一般領域，トレース，Wi-Fi予約領域，Flashの書き込みは禁止です．実行中タスクのコードやデータを書き換えると動作が破壊される可能性があります．
-- `/dev/trace`はバイナリイベントを返します．利用方法は[TRACE.md](../../guides/TRACE.md)を参照してください．
+- `/dev/trace`はバイナリイベントを返します．利用方法は[TRACE.md](../commands/TRACE.md)を参照してください．
 - ドライバは`kernel/gpio.c`，`kernel/adc.c`，`kernel/pwm.c`に分離しています．FD管理は`kernel/kernel.c`が担当します．
 
 ---

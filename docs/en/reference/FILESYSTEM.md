@@ -81,7 +81,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 | `/tmp/NAME`, `/etc/NAME` | Yes | Yes | Regular RAM files |
 | Directories | List | No | Enumerate with `getdents()`; cannot `read()` as a regular file |
 
-See the [device guide](devices/DEVICES.md) and [TTY guide](../guides/TTY.md) for data formats, `ioctl()` commands, and pin ownership rules. `/proc/devices` lists fixed registered devices and the `gpio/`, `adc/`, `pwm/`, and `i2c/` entry points, not every dynamically generated node.
+See the [device guide](devices/DEVICES.md) and [TTY guide](commands/TTY.md) for data formats, `ioctl()` commands, and pin ownership rules. `/proc/devices` lists fixed registered devices and the `gpio/`, `adc/`, `pwm/`, and `i2c/` entry points, not every dynamically generated node.
 
 ## 3. GPIO and peripheral availability
 
@@ -105,7 +105,7 @@ File metadata stays in kernel RAM; the eleven 2-KiB payloads are contiguous from
 
 ## 5. Paths and descriptors
 
-Relative paths resolve against each task's current working directory. `.` and `..` are normalized, but arbitrary directory creation and symbolic links are not provided. Each task has 16 file descriptors; pipes and sockets also consume descriptors. See [Pipes](../guides/PIPE.md), [Socket programming](../development/apps/c/NETWORK-PROGRAMMING.md), and the [Specification](SPECIFICATION.md).
+Relative paths resolve against each task's current working directory. `.` and `..` are normalized, but arbitrary directory creation and symbolic links are not provided. Each task has 16 file descriptors; pipes and sockets also consume descriptors. See [Pipes](commands/PIPE.md), [Socket programming](../development/apps/c/NETWORK-PROGRAMMING.md), and the [Specification](SPECIFICATION.md).
 
 ### Dot directory entries
 

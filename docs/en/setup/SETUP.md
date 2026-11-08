@@ -100,7 +100,7 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 
 Use `-DPICO_BOARD=pico_w` for Pico W. After building and flashing, try `trace run hello`. For a smaller build without function instrumentation, rebuild with `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF` explicitly. **CMake may retain a previous ON setting in its cache; omitting the option does not necessarily turn it off.**
 
-The 51 selected functions retain entry/exit instrumentation; other functions in instrumented source files use `NO_TRACE`. Instrumentation can still increase Flash usage, stack usage and execution time for those selected functions. See the [trace guide](../guides/TRACE.md) for details and limitations.
+The 51 selected functions retain entry/exit instrumentation; other functions in instrumented source files use `NO_TRACE`. Instrumentation can still increase Flash usage, stack usage and execution time for those selected functions. See the [trace guide](../reference/commands/TRACE.md) for details and limitations.
 
 ## 5. Flash the Pico or Pico W
 
@@ -153,4 +153,4 @@ After connecting, follow the [Learning roadmap](../ROADMAP.md) to explore files,
 
 ---
 
-**Related links:** [日本語](../../ja/setup/SETUP.md) | [Usage guides](../guides/README.md)
+**Related links:** [日本語](../../ja/setup/SETUP.md) | [Usage guides](../reference/commands/README.md)

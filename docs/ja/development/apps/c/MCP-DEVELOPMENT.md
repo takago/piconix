@@ -1,6 +1,6 @@
 # `mcpd`のソース読解と拡張実習
 
-この文書は[利用ガイド](../../../guides/MCP.md)から分離した，Pico W上のユーザ空間MCPサーバをソースで学ぶ教材です．
+この文書は[利用ガイド](../../../reference/commands/MCP.md)から分離した，Pico W上のユーザ空間MCPサーバをソースで学ぶ教材です．
 
 ## 6．`mcpd`の実装・拡張実習
 
@@ -44,7 +44,7 @@ Pico W，Linux PC，USB端末，Pico SDK・ARMツールチェーンを用意し�
 | `CMakeLists.txt` | `mcpd`のビルド対象への追加 |
 | `kernel/main.c` | `mcpd`イメージのコマンド登録 |
 | `host/mcp_client.py` | Linux側のテスト用MCPクライアント |
-| `docs/ja/guides/MCP.md` | 利用方法，対応範囲，手動HTTPテスト |
+| `docs/ja/reference/commands/MCP.md` | 利用方法，対応範囲，手動HTTPテスト |
 
 現在の登録IDは`kernel/main.c`の`register_image()`で確認してください．以前の試作版のIDを固定の仕様として扱わないでください．ほかのアプリを増やした場合は，必ず現在の`register_image()`一覧で重複を調べてください．
 
@@ -191,7 +191,7 @@ IPアドレスは実際のPico Wのものに変更します．`--tool none`は�
 | RAM配置 | `mem`，ビルドの配置検査 | PIC，BSS，スタックと24 KiBの関係 |
 | エラー処理 | 不正HTTP要求や存在しないツール | エラー応答と接続終了の挙動 |
 
-`trace`の対象指定など各コマンドの引数は[traceガイド](../../../guides/TRACE.md)，[memガイド](../../../guides/MEM.md)を参照してください．
+`trace`の対象指定など各コマンドの引数は[traceガイド](../../../reference/commands/TRACE.md)，[memガイド](../../../reference/commands/MEM.md)を参照してください．
 
 **未実装・未検証：** SSE応答，旧`initialize`との互換，完全なJSON/HTTP解析，認証，TLS，同時接続処理，MCP全機能への準拠と長期安定性試験．この段階で「MCP完全準拠」と説明してはいけません．
 
@@ -207,4 +207,4 @@ IPアドレスは実際のPico Wのものに変更します．`--tool none`は�
 
 ---
 
-[MCP利用ガイド](../../../guides/MCP.md)
+[MCP利用ガイド](../../../reference/commands/MCP.md)

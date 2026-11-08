@@ -25,5 +25,5 @@ assert 'int left_col=terminal.cols>W?' in pong
 assert 'row(a,y,top,left_col,grid[y])' in pong
 for language in ('en', 'ja'):
     assert '192.168.4.1' in (root / f'docs/{language}/reference/network/NETWORK.md').read_text()
-    assert 'pong' in (root / f'docs/{language}/guides/TERMINAL.md').read_text()
+    assert 'pong' in (root / f'docs/{language}/reference/commands/TERMINAL.md').read_text()
 print('PASS: self-IP loopback, two-line tcpdump -x sample, centered pong and documentation')

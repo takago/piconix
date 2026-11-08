@@ -369,7 +369,7 @@ The existing `trace run hello` exposed system-call entries and exits, but not **
 
 The trace display in `userland/apps/trace.c` was refined through several iterations. The `Type` column distinguishes `SYSCALL`, `KERNEL`, and other event categories; the `Function` column renders an entry as `vfs_rw` and its exit as `vfs_rw/`. Kernel calls are indented by two spaces per level under their system call, helping students follow the call hierarchy. `Arg`, `Ret`, and `Info` were clarified, with `--` for values **not actually recorded**, rather than invented kernel-function arguments or return values. `trace kernel -d 0..8 command` limits **display depth only**; it does not reduce instrumentation or ring-buffer usage. Compiler optimization and overwritten records can make the displayed hierarchy incomplete.
 
-Examples include `trace kernel cat /tmp/test.txt`, connecting `open` and `read` to VFS and RAM-file operations, and `trace kernel omikuji`, following `/dev/rand` reads through `vfs_rw`, `device_rw_rand`, and `rand32`. Relevant sources include the hooks and recording logic in `kernel/kernel.c`, command execution and presentation in `userland/apps/trace.c`, and the event declarations in `include/piconix_trace.h`. Usage and limitations are described in the [tracing guide](en/guides/TRACE.md).
+Examples include `trace kernel cat /tmp/test.txt`, connecting `open` and `read` to VFS and RAM-file operations, and `trace kernel omikuji`, following `/dev/rand` reads through `vfs_rw`, `device_rw_rand`, and `rand32`. Relevant sources include the hooks and recording logic in `kernel/kernel.c`, command execution and presentation in `userland/apps/trace.c`, and the event declarations in `include/piconix_trace.h`. Usage and limitations are described in the [tracing guide](en/reference/commands/TRACE.md).
 
 Because compiler instrumentation affects even functions that are not ultimately recorded, enabling the feature increases Flash use, execution overhead, and stack use. The ordinary build therefore retains `OFF`; teaching or debugging builds can explicitly enable `-DPICONIX_KERNEL_FUNCTION_TRACE=ON`. The conversation included revisions and tests of output formatting and depth filtering, but **this diary does not claim exhaustive on-device verification across boards and code paths**. The displayed call hierarchy is generated from events; it is not a dump of raw MSP stack frames.
 
@@ -591,7 +591,7 @@ Japanese and English documentation for I²C and Python was expanded. Initially t
 
 A small modal `vi` editor was added alongside `edit`. At this point, movement uses `h`, `j`, `k`, and `l`; arrow-key navigation remains a future improvement. The new `dd` utility can copy files and raw memory through `/dev/mem`. Its `if=-` and `of=-` options use standard input and output, while the TCP half-close behavior of `nc -N` makes binary pipelines between Linux and PicoNIX practical.
 
-Hardware tests reported successful RAM-to-`/tmp` dumps and file/memory-data transfers using `dd`, `nc`, and shell pipelines. The combined `DD-VI.md` document was retired in favor of separate bilingual `DD.md` and `VI.md` guides, with `NC.md` updated accordingly. See [dd and binary transfer](en/guides/DD.md).
+Hardware tests reported successful RAM-to-`/tmp` dumps and file/memory-data transfers using `dd`, `nc`, and shell pipelines. The combined `DD-VI.md` document was retired in favor of separate bilingual `DD.md` and `VI.md` guides, with `NC.md` updated accordingly. See [dd and binary transfer](en/reference/commands/DD.md).
 
 ## November 2: SRAM reorganization, independent RAM files, and shared memory
 
@@ -701,7 +701,7 @@ The initial shell, RAM files, device access, UART and USB I/O also revealed hard
 
 This is a narrative reconstruction from conversations, not an exhaustive Git audit. A code change proposed or produced by ChatGPT is not, by itself, evidence of a successful hardware test. Exact commit dates, every ZIP revision, and all hardware logs have not been independently correlated. Proposed-but-rejected approaches and intermediate configurations are distinguished from the later implementation as far as the available record permits. Commit hashes and links to test logs may be added later.
 
-For the current behavior and usage, consult [Internal architecture](en/reference/INTERNAL.md), [Networking](en/reference/network/NETWORK.md), [TTY](en/guides/TTY.md), [Pipes](en/guides/PIPE.md), [Tracing](en/guides/TRACE.md), and [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md), and the [Kernel reading guide](en/development/kernel/KERNEL-READING-GUIDE.md).
+For the current behavior and usage, consult [Internal architecture](en/reference/INTERNAL.md), [Networking](en/reference/network/NETWORK.md), [TTY](en/reference/commands/TTY.md), [Pipes](en/reference/commands/PIPE.md), [Tracing](en/reference/commands/TRACE.md), and [Kernel development](en/development/kernel/KERNEL-DEVELOPMENT.md), and the [Kernel reading guide](en/development/kernel/KERNEL-READING-GUIDE.md).
 
 ---
 

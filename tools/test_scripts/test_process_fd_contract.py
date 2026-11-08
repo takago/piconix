@@ -22,7 +22,7 @@ for fragment in (
     assert fragment in k, f"kernel contract changed: {fragment}"
 for locale in ("ja", "en"):
     syscalls = (root / f"docs/{locale}/reference/SYSCALLS.md").read_text()
-    pipe = (root / f"docs/{locale}/guides/PIPE.md").read_text()
+    pipe = (root / f"docs/{locale}/reference/commands/PIPE.md").read_text()
     for symbol in ("OS_EINVAL", "OS_ENOENT", "OS_EAGAIN", "OS_ESRCH", "OS_EMFILE", "OS_EIO", "WNOHANG", "dup2", "waitpid"):
         assert symbol in syscalls, f"{locale} syscall document lacks {symbol}"
     for symbol in ("OS_EMFILE", "OS_EAGAIN", "OS_EINVAL", "dup2"):

@@ -6,7 +6,6 @@ Find documentation for **what you want to do**. Each task links to starting expl
 
 **Note:** Pico W networking is unavailable on a standard Pico. Check the wiring instructions and 3.3 V precautions before connecting peripherals.
 
-**Looking for exercises?** See the [Exercise index](exercises/README.md).
 
 ## Task index
 
@@ -14,50 +13,50 @@ Find documentation for **what you want to do**. Each task links to starting expl
 
 | I want to… | Related pages |
 |---|---|
-| Run PicoNIX for the first time | [Setup](setup/SETUP.md) · [Basic commands](guides/HELP.md) · [Reference: wiring](reference/hardware/WIRING.md) |
+| Run PicoNIX for the first time | [Setup](setup/SETUP.md) · [Basic commands](reference/commands/HELP.md) · [Reference: wiring](reference/hardware/WIRING.md) |
 | Build and flash a UF2 | [Setup](setup/SETUP.md) · [C programming](development/apps/c/PROGRAMMING.md) |
-| Connect through the USB console | [Setup](setup/SETUP.md) · [Basic commands](guides/HELP.md) · [TTY guide](guides/TTY.md) |
-| Find available commands and their usage | [How-to: help](guides/HELP.md) |
-| Compare PicoNIX with Linux | [Basic commands](guides/HELP.md) · [Reference: differences from Linux](reference/DIFFERENCES.md) · [Reference: specification](reference/SPECIFICATION.md) |
+| Connect through the USB console | [Setup](setup/SETUP.md) · [Basic commands](reference/commands/HELP.md) · [TTY guide](reference/commands/TTY.md) |
+| Find available commands and their usage | [How-to: help](reference/commands/HELP.md) |
+| Compare PicoNIX with Linux | [Basic commands](reference/commands/HELP.md) · [Reference: differences from Linux](reference/DIFFERENCES.md) · [Reference: specification](reference/SPECIFICATION.md) |
 
 ### Shell, files, and pipes
 
 | I want to… | Related pages |
 |---|---|
-| List and navigate directories | [Basic commands](guides/HELP.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
-| Create, copy, or remove files | [Pipes and FDs](guides/PIPE.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
-| Search text in files (grep) | [Pipes and FDs](guides/PIPE.md) |
-| Use standard I/O and redirection | [Pipes and FDs](guides/PIPE.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
-| Connect commands with pipes | [Pipes and FDs](guides/PIPE.md) · [File system](reference/FILESYSTEM.md) |
-| Edit text with edit or vi | [How-to: edit](guides/EDIT.md) · [How-to: vi](guides/VI.md) |
-| Browse directories with fd | [How-to: fd](guides/FD.md) · [Basic commands](guides/HELP.md) |
-| Copy binary data with dd | [How-to: dd](guides/DD.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
-| Inspect /etc/rc and initial files | [Reference: initial files and rc](reference/INITIAL-FILES.md) · [Basic commands](guides/HELP.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
+| List and navigate directories | [Basic commands](reference/commands/HELP.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
+| Create, copy, or remove files | [Pipes and FDs](reference/commands/PIPE.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
+| Search text in files (grep) | [Pipes and FDs](reference/commands/PIPE.md) |
+| Use standard I/O and redirection | [Pipes and FDs](reference/commands/PIPE.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
+| Connect commands with pipes | [Pipes and FDs](reference/commands/PIPE.md) · [File system](reference/FILESYSTEM.md) |
+| Edit text with edit or vi | [How-to: edit](reference/commands/EDIT.md) · [How-to: vi](reference/commands/VI.md) |
+| Browse directories with fd | [How-to: fd](reference/commands/FD.md) · [Basic commands](reference/commands/HELP.md) |
+| Copy binary data with dd | [How-to: dd](reference/commands/DD.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
+| Inspect /etc/rc and initial files | [Reference: initial files and rc](reference/INITIAL-FILES.md) · [Basic commands](reference/commands/HELP.md) · [Reference: filesystem](reference/FILESYSTEM.md) |
 
 ### Processes and terminals
 
 | I want to… | Related pages |
 |---|---|
-| Inspect processes with ps and stop them with kill | [System specifications](reference/SPECIFICATION.md) · [mem guide](guides/MEM.md) |
-| Use background execution or Ctrl+C | [System specifications](reference/SPECIFICATION.md) · [Lab: TTY settings](guides/TTY.md) |
-| Inspect open descriptors with lsof | [File system](reference/FILESYSTEM.md) · [trace guide](guides/TRACE.md) |
-| Use a separate shell on UART1 | [TTY guide](guides/TTY.md) · [Reference: UART1](reference/devices/UART.md) |
-| Understand stty and raw/cooked input | [TTY guide](guides/TTY.md) |
-| Understand screen control and full-screen apps | [How-to: terminal screen](guides/TERMINAL.md) · [Lab: TTY settings](guides/TTY.md) |
+| Inspect processes with ps and stop them with kill | [System specifications](reference/SPECIFICATION.md) · [mem guide](reference/commands/MEM.md) |
+| Use background execution or Ctrl+C | [System specifications](reference/SPECIFICATION.md) · [Lab: TTY settings](reference/commands/TTY.md) |
+| Inspect open descriptors with lsof | [File system](reference/FILESYSTEM.md) · [trace guide](reference/commands/TRACE.md) |
+| Use a separate shell on UART1 | [TTY guide](reference/commands/TTY.md) · [Reference: UART1](reference/devices/UART.md) |
+| Understand stty and raw/cooked input | [TTY guide](reference/commands/TTY.md) |
+| Understand screen control and full-screen apps | [How-to: terminal screen](reference/commands/TERMINAL.md) · [Lab: TTY settings](reference/commands/TTY.md) |
 
 ### Inspect OS internals
 
 | I want to… | Related pages |
 |---|---|
-| Trace system calls | [trace guide](guides/TRACE.md) · [Reference: syscalls](reference/SYSCALLS.md) |
-| Inspect RAM and tasks with mem | [mem guide](guides/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
-| Understand Flash, RAM, and PIC placement | [mem guide](guides/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
-| Inspect kernel symbols | [Reference: kernel symbols](reference/KERNEL-SYMBOLS.md) · [How-to: mem](guides/MEM.md) · [Index: source functions](../FUNCTIONS.md) |
+| Trace system calls | [trace guide](reference/commands/TRACE.md) · [Reference: syscalls](reference/SYSCALLS.md) |
+| Inspect RAM and tasks with mem | [mem guide](reference/commands/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
+| Understand Flash, RAM, and PIC placement | [mem guide](reference/commands/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
+| Inspect kernel symbols | [Reference: kernel symbols](reference/KERNEL-SYMBOLS.md) · [How-to: mem](reference/commands/MEM.md) · [Index: source functions](../FUNCTIONS.md) |
 | Understand how VFS and FDs relate | [File system](reference/FILESYSTEM.md) · [System call development](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
 ### Devices
 
-Use `/dev/fbchar` to display ASCII characters or icons ([device reference](reference/devices/DEVICES.md)); use [scroll](guides/SCROLL.md) for longer messages and [LLM/MCP](guides/MCP.md) for remote tool calling.
+Use `/dev/fbchar` to display ASCII characters or icons ([device reference](reference/devices/DEVICES.md)); use [scroll](reference/commands/SCROLL.md) for longer messages and [LLM/MCP](reference/commands/MCP.md) for remote tool calling.
  and electronics
 
 | I want to… | Related pages |
@@ -78,7 +77,7 @@ Use `/dev/fbchar` to display ASCII characters or icons ([device reference](refer
 | Use a remote shell over Telnet | [Network reference](reference/network/NETWORK.md) · [How-to: net](reference/network/NET.md) |
 | Try TCP/UDP with nc | [Network reference](reference/network/NETWORK.md) · [How-to: nc](reference/network/NC.md) |
 | Serve a web page with httpd | [How-to: httpd](reference/network/HTTPD.md) · [Reference: initial files and rc](reference/INITIAL-FILES.md) · [Network reference](reference/network/NETWORK.md) |
-| Build and test an MCP server (Pico W) | [Unified MCP guide (including development lab)](guides/MCP.md) |
+| Build and test an MCP server (Pico W) | [Unified MCP guide (including development lab)](reference/commands/MCP.md) |
 | Inspect network traffic with ping or tcpdump | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
 | Control devices remotely over UDP | [Reference: remote device control](reference/network/REMOTE-DEVICE.md) · [Lab: remote GPIO](reference/network/REMOTE_GPIO.md) · [Network reference](reference/network/NETWORK.md) |
 
@@ -102,7 +101,7 @@ Use `/dev/fbchar` to display ASCII characters or icons ([device reference](refer
 ## Other ways to navigate
 
 - **Follow a course:** [Learning roadmap](ROADMAP.md)
-- **Browse command examples:** [Supplementary guides and labs](guides/README.md)
+- **Browse command examples:** [Command reference](reference/commands/README.md)
 - **Look up exact specifications:** [Technical reference](reference/README.md)
 - **Find implementation guides:** [Development guides](development/README.md)
 - **Troubleshoot build or flashing:** [Setup and troubleshooting](setup/SETUP.md)

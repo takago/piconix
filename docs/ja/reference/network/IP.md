@@ -42,7 +42,6 @@ wifi: AP (UP)
 4. PicoNIX側で`ping -c 2 PCのIPv4アドレス`を実行する（[pingガイド](PING.md)）．
 5. `ping`が成功してもTCP 80などのサービスが起動しているとは限らない．`ps`や`lsof`でサーバを調べる．
 
-**考察課題：** [ネットワーク演習](../../exercises/README.md#ネットワーク観察)を参照してください．
 
 ---
 

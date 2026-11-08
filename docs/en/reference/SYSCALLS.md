@@ -57,7 +57,7 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 
 ## Parameter meanings and important limitations
 
-- `read(fd, buf, count)` / `write(fd, buf, count)`: `fd` identifies a descriptor, `buf` a user buffer, and `count` a byte limit. Zero bytes read may indicate EOF. For TTYs, a nonblocking `read()` also returns 0 when input is not ready, in either canonical or noncanonical mode. TTY `write()` can be partial; a full USB CDC transmit queue can return 0, while Wi-Fi TTY can return `OS_EAGAIN` or `OS_EIO`. See the [TTY guide](../guides/TTY.md).
+- `read(fd, buf, count)` / `write(fd, buf, count)`: `fd` identifies a descriptor, `buf` a user buffer, and `count` a byte limit. Zero bytes read may indicate EOF. For TTYs, a nonblocking `read()` also returns 0 when input is not ready, in either canonical or noncanonical mode. TTY `write()` can be partial; a full USB CDC transmit queue can return 0, while Wi-Fi TTY can return `OS_EAGAIN` or `OS_EIO`. See the [TTY guide](commands/TTY.md).
 - `spawn(program, argc, argv)`: `program` is a registered ID; `argc` is 1–8; `argv` points to an array of strings. Total argument string storage is limited. Resolve names with `program_id(name)`.
 - `waitpid(pid, status, options)`: `pid` is a child PID or `-1`; `status` is nullable; `options` is 0 or `WNOHANG` (1). The current implementation writes zero to `*status` on completion, unlike full POSIX exit-status reporting.
 - `set_foreground(pid)`: `pid` is the PID of a child; 0 requests foreground restoration.
@@ -101,7 +101,7 @@ Errors are normally returned directly as negative `OS_E*` values; `errno` is not
 - [LIBC.md](../development/apps/c/LIBC.md): user-level C library and functions
 - [ASM.md](../development/apps/asm/ASM.md): SVC usage from assembly
 - [PROGRAMMING.md](../development/apps/c/PROGRAMMING.md): application development
-- [TTY.md](../guides/TTY.md): TTY controls
+- [TTY.md](commands/TTY.md): TTY controls
 
 `getdents()` now returns `device_id` (`0xffff` when unavailable).
 

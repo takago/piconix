@@ -38,14 +38,14 @@ Linuxとの機能の違い，省略した仕組み，上限値の一覧は[Linux
 - タスクごとのFD番号は0〜15（16個）です．標準入力・出力・エラー出力は通常0，1，2を使用します．
 - パイプは最大2本で，各256バイトのリングバッファを使用します．
 - `pipe()`，`dup()`，`dup2()`を提供します．FDの複製・継承と参照の解放はカーネルが管理します．
-- パイプはバイトストリームです．読み手・書き手の終了，空／満杯，EOF，ブロック時の挙動は[パイプ](../guides/PIPE.md)を参照してください．
-- シェルのパイプラインの構文制限は[パイプ](../guides/PIPE.md)に記載します．POSIXシェルとの完全互換ではありません．
+- パイプはバイトストリームです．読み手・書き手の終了，空／満杯，EOF，ブロック時の挙動は[パイプ](commands/PIPE.md)を参照してください．
+- シェルのパイプラインの構文制限は[パイプ](commands/PIPE.md)に記載します．POSIXシェルとの完全互換ではありません．
 
 ## 4．TTY
 
 USBコンソール，UART1，Wi-Fi端末は別々のデバイスとして扱います（Wi-Fi端末は対応ビルド時）．TTYの行編集（canonical）とraw入力，echo，改行変換（ONLCR）はTTY側の設定です．FD単位の`O_NONBLOCK`は`fcntl()`で制御し，TTY入力モードとは独立しています．PicoNIXのTTY ioctlは独自の簡易インターフェースで，完全なPOSIX termiosではありません．
 
-コマンド番号は `include/piconix.h` の `OS_TTY_*` を，利用例は[TTY](../guides/TTY.md)と[端末](../guides/TERMINAL.md)を参照してください．
+コマンド番号は `include/piconix.h` の `OS_TTY_*` を，利用例は[TTY](commands/TTY.md)と[端末](commands/TERMINAL.md)を参照してください．
 
 ## 5．システムコールとABI
 

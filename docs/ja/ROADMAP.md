@@ -1,6 +1,6 @@
 # PicoNIX学習ロードマップ
 
-UNIX・OSの既習知識をPicoNIXの**操作 → 動作観察 → ソースコード読解 → 改造**につなげる道案内です．詳しい説明は各ガイドに，確認問題や発展課題は[演習資料](exercises/READING-PATHS.md)にまとめています．
+UNIX・OSの既習知識をPicoNIXの**操作 → 動作観察 → ソースコード読解 → 改造**につなげる道案内です．詳細は各ガイドやリファレンスを参照してください．
 
 はじめて利用する場合は[セットアップ手順](setup/SETUP.md)で開発環境を整えてください．
 ## 対象読者と前提知識
@@ -9,17 +9,17 @@ UNIX・OSの既習知識をPicoNIXの**操作 → 動作観察 → ソースコ�
 
 学ぶ中心は，既習の概念が**RP2040上の小さな実装でどのように成立するか**です．特に固定長ユーザスロット，Flash上のカーネルとRAM上のユーザプログラム，PIC，SVCとPendSV，VFS，lwIPとの接続を，実行結果とソースコードで対応付けます．Linuxと同じ名前の機能でも，権限保護や仮想記憶などは異なるため，[Linuxとの差異](reference/DIFFERENCES.md)を確認してください．
 
-**推奨する進み方：** 操作ガイドで現象を観察 → リファレンスでPicoNIX固有の仕様を確認 → 開発ガイドで対応する関数を読む → 必要なら別の作業ブランチで変更・検証，という順序です．考察課題は[演習資料](exercises/README.md)に集約しています．
+**推奨する進み方：** 操作ガイドで現象を観察 → リファレンスでPicoNIX固有の仕様を確認 → 開発ガイドで対応する関数を読む → 必要なら別の作業ブランチで変更・検証，という順序です．
 各項目は，上から順に進めることを推奨します．操作の詳細やトラブル対応はリンク先を参照してください．Pico Wが必要な項目は「選択」と明記しています．
 
 ## 1．まず使ってみる
 
 | 順序 | 学ぶこと・試すこと | 読む資料 |
 |---|---|---|
-| 1 | PicoNIXの導入とUSB端末接続 | [セットアップ](setup/SETUP.md)・[helpと基本操作](guides/HELP.md) |
-| 2 | ファイルやディレクトリを調べる | [ファイルシステム](reference/FILESYSTEM.md)・[ファイルの編集](guides/EDIT.md) |
-| 3 | コマンドの出力をつなぐ | [パイプとFD](guides/PIPE.md) |
-| 4 | プロセスと端末を扱う | [TTY・stty](guides/TTY.md)・[端末画面](guides/TERMINAL.md) |
+| 1 | PicoNIXの導入とUSB端末接続 | [セットアップ](setup/SETUP.md)・[helpと基本操作](reference/commands/HELP.md) |
+| 2 | ファイルやディレクトリを調べる | [ファイルシステム](reference/FILESYSTEM.md)・[ファイルの編集](reference/commands/EDIT.md) |
+| 3 | コマンドの出力をつなぐ | [パイプとFD](reference/commands/PIPE.md) |
+| 4 | プロセスと端末を扱う | [TTY・stty](reference/commands/TTY.md)・[端末画面](reference/commands/TERMINAL.md) |
 
 **確認してみること：** `help`でコマンドを調べ，`ls /bin`で実行できるプログラムを探し，`echo hello | cat`を実行してください．入出力がどのようにつながるか説明してみましょう．
 
@@ -27,13 +27,13 @@ UNIX・OSの既習知識をPicoNIXの**操作 → 動作観察 → ソースコ�
 
 | 順序 | 学ぶこと・試すこと | 読む資料 |
 |---|---|---|
-| 5 | ファイルとFD，VFSの関係 | [ファイルシステム](reference/FILESYSTEM.md)・[パイプ](guides/PIPE.md) |
-| 6 | メモリとユーザプロセスの配置 | [mem操作ガイド](guides/MEM.md)・[SRAM配置](reference/MEMORY-LAYOUT.md) |
-| 7 | システムコールを追跡する | [trace操作ガイド](guides/TRACE.md)・[システムコール一覧](reference/SYSCALLS.md) |
+| 5 | ファイルとFD，VFSの関係 | [ファイルシステム](reference/FILESYSTEM.md)・[パイプ](reference/commands/PIPE.md) |
+| 6 | メモリとユーザプロセスの配置 | [mem操作ガイド](reference/commands/MEM.md)・[SRAM配置](reference/MEMORY-LAYOUT.md) |
+| 7 | システムコールを追跡する | [trace操作ガイド](reference/commands/TRACE.md)・[システムコール一覧](reference/SYSCALLS.md) |
 | 8 | GPIOなどのデバイス操作 | [デバイス仕様](reference/devices/DEVICES.md)・[ピン割当](reference/hardware/PINS.md)・[配線](reference/hardware/WIRING.md) |
 | 9（選択） | Pico Wの通信を観察する | [ネットワーク接続](reference/network/NETWORK.md)・[ip](reference/network/IP.md)・[ping](reference/network/PING.md)・[tcpdump](reference/network/TCPDUMP.md) |
 
-**確認してみること：** `trace run hello`でシステムコールを観察し，[traceの説明](guides/TRACE.md)に従って`ENTER`と`EXIT`の意味を確認してください．`mem`は[専用ガイド](guides/MEM.md)を読んでから操作してください．
+**確認してみること：** `trace run hello`でシステムコールを観察し，[traceの説明](reference/commands/TRACE.md)に従って`ENTER`と`EXIT`の意味を確認してください．`mem`は[専用ガイド](reference/commands/MEM.md)を読んでから操作してください．
 
 ## 3．プログラムとカーネルを改造する
 
@@ -50,10 +50,9 @@ UNIX・OSの既習知識をPicoNIXの**操作 → 動作観察 → ソースコ�
 
 ## 目的に応じて探す
 
-順番に学ばず，特定の機能だけを調べたい場合は[目的別索引](TASKS.md)を利用してください．コマンドの操作は[操作ガイド](guides/README.md)，APIと制約は[技術リファレンス](reference/README.md)，プログラムやOSの改造は[開発ガイド](development/README.md)にまとめています．
+順番に学ばず，特定の機能だけを調べたい場合は[目的別索引](TASKS.md)を利用してください．コマンドの操作は[コマンドリファレンス](reference/commands/README.md)，APIと制約は[技術リファレンス](reference/README.md)，プログラムやOSの改造は[開発ガイド](development/README.md)にまとめています．
 
 ---
 
 [文書案内](../DOCS.ja.md) ｜ [English](../en/ROADMAP.md)
 
-**演習問題：** [演習一覧](exercises/README.md)から分野別に選べます．

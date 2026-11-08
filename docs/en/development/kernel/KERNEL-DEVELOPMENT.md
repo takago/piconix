@@ -6,7 +6,7 @@ To study the kernel before modifying it, see the [kernel reading guide](KERNEL-R
 
 ## Before you start
 
-**Prerequisites:** Read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Tracing](../../guides/TRACE.md). Begin by following task creation and termination in the existing source code.
+**Prerequisites:** Read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Tracing](../../reference/commands/TRACE.md). Begin by following task creation and termination in the existing source code.
 
 
 [Documentation guide](../../../DOCS.md) | [Internals](../../reference/INTERNAL.md) | [System calls](../../reference/SYSCALLS.md) | [Devices](../../reference/devices/DEVICES.md) | [日本語](../../../ja/development/kernel/KERNEL-DEVELOPMENT.md)
@@ -71,7 +71,7 @@ Before editing, trace the relevant **entry point (SVC/VFS/driver) → internal s
 - [DEVICES.md](../../reference/devices/DEVICES.md): device nodes and APIs; [PINS.md](../../reference/hardware/PINS.md): pin assignments; [WIRING.md](../../reference/hardware/WIRING.md): physical wiring
 - [INTERNAL.md](../../reference/INTERNAL.md): Tasks, VFS and internals
 - [PROGRAMMING.md](../apps/c/PROGRAMMING.md): User-space C development
-- [TRACE.md](../../guides/TRACE.md): Inspecting SVCs and task switches
+- [TRACE.md](../../reference/commands/TRACE.md): Inspecting SVCs and task switches
 
 ---
 
