@@ -19,7 +19,7 @@ mcpd --shell &
 | 起動方法 | MCPに公開するツール | 用途 |
 |---|---|---|
 | `mcpd &` | `get_temperature` | 内蔵温度センサの読み取り |
-| `mcpd --shell &` | 上記に加えて`get_manual`，`execute_command`，`write_file` | マニュアル参照と遠隔操作 |
+| `mcpd --shell &` | 上記に加えて`get_manual`，`execute_command`，`write_file`，`terminal_open`，`terminal_send`，`terminal_read`，`terminal_close` | マニュアル参照と遠隔操作 |
 
 `get_manual()`は`/man/README`の目次を返し，`topic`を指定すると個別ページを返します．`execute_command`は短い**非対話**コマンド専用です．`write_file`は`/tmp/NAME`のASCIIテキストを上書きします（最大2,048バイト，要求本文の制限にも依存）．通常起動では書込み・コマンド実行は公開されません．
 
@@ -62,7 +62,7 @@ curl -i -X POST "http://$PICO_IP:8080/mcp" \
 ## 4．現行実装の制約
 
 - MCP `2026-07-28`の一部に対応し，`server/discover`，`tools/list`，`tools/call`を実装しています．すべてのMCPクライアントとの互換性を保証するものではありません．
-- HTTP要求バッファは3,600バイト，JSON本文は最大3,200バイトで，接続は1件ずつ処理します．
+- HTTP要求バッファは2,800バイト，JSON本文は最大2,400バイトで，接続は1件ずつ処理します．
 - `execute_command`のコマンド文字列はASCIIで最大119バイト，出力は最大4 KiBです．応答はHTTP/1.1のchunked転送を使用します．
 - SSE，旧形式の`initialize`，通知，複数クライアントの同時処理には対応していません．
 - `vi`，`edit`，`fd`，`mem`，`watch`，`pong`などの対話型・全画面プログラムを`execute_command`から起動しないでください．
@@ -91,7 +91,7 @@ LLMがFunction Callingでツールを選び，ホストクライアントがMCP�
 mcpd --shell &
 ```
 
-`--shell`では`get_temperature`，`get_manual`，`execute_command`，`write_file`が公開されます．**認証・TLSがなく，LLM経由のコマンドがPico W上で実行されます．** ホストクライアントはツール実行前の確認を自動では求めません．重要な操作はLLMに任せず，必要に応じてクライアント側へ承認機構を実装してください．一般LANやインターネットには公開しないでください．
+`--shell`では`get_temperature`，`get_manual`，`execute_command`，`write_file`および4つの`terminal_*`ツールが公開されます．**認証・TLSがなく，LLM経由のコマンドがPico W上で実行されます．** ホストクライアントはツール実行前の確認を自動では求めません．重要な操作はLLMに任せず，必要に応じてクライアント側へ承認機構を実装してください．一般LANやインターネットには公開しないでください．
 
 ### Linux側で接続
 
@@ -154,7 +154,7 @@ PicoNIXはLinuxではありません．`bash`，`sudo`，`apt`，`gcc`，`ssh`�
 
 - 観察には`ps`，`ip`，`cat /proc/net/wifi`，`cat /dev/adc/temp`などの短いコマンドを使用します．対話入力や全画面表示が必要なコマンドは避けてください．
 - `execute_command`は呼出しごとに独立した非対話シェルを起動します．前回の`cd`などの状態は引き継がれません．コマンドは印字可能なASCIIで最大119バイト，出力は最大4,096バイト，タイムアウトはおおむね3秒です．応答の完了表示が個別のコマンドの正確な終了コードを保証するわけではありません．
-- `write_file`は`/tmp/NAME`のASCIIファイルを作成または上書きします．ファイル内容は最大2,048バイトで，JSON要求本文にも3,200バイトの上限があります．追記・分割書込みはできません．
+- `write_file`は`/tmp/NAME`のASCIIファイルを作成または上書きします．ファイル内容は最大2,048バイトで，JSON要求本文にも2,400バイトの上限があります．追記・分割書込みはできません．
 - `execute_command`はサンドボックスではありません．ファイルの上書き，プロセスの終了，GPIOやネットワーク状態の変更は，実行前に利用者が内容を確認して承認する運用にしてください．**標準の`host/mcp_llm_client.py`には，ツール実行前の確認機構がありません．** System Promptだけを安全装置とみなさず，必要であればホスト側で承認処理を実装してください．
 - ホスト側で実行コマンド，結果，エラー，出力の切り詰めを記録してください．接続断やタイムアウト時に，変更操作を無条件で再試行しないでください．
 
@@ -178,3 +178,30 @@ KnowledgeなどへOSの説明を登録する場合も，内容が毎回自動的
 ### Open WebUIにPicoNIX固有の説明を登録する
 
 Open WebUIのKnowledge機能を使用する場合は，この`docs/ja/reference/commands/MCP.md`を登録し，MCPサーバは`http://PICO_IP:8080/mcp`として別途接続します．知識の登録だけではツールを呼べません．また，Knowledgeの全文が必ず各推論に渡されるわけではありません．変更操作の実行確認はホスト側で実装してください．
+
+## PTYによる対話型アプリの操作
+
+`mcpd --shell &`で起動した場合，4つのPTYツールが利用できます．`terminal_open`はコマンド名と任意の引数1個を渡して端末アプリを起動し，`terminal_send`は`text`か`key`のいずれかを送信します．`terminal_read`はANSI生データではなく，現在の**80×24文字画面**を返します．`terminal_close`はこのセッションで起動した子だけを終了し，PTYを閉じます．
+
+```text
+terminal_open({"command":"fd"})
+terminal_read({})
+terminal_send({"key":"DOWN"})
+terminal_read({})
+terminal_send({"key":"ENTER"})
+terminal_close({})
+```
+
+文字入力は`terminal_send({"text":"hello"})`で送れます．キー名は`UP`，`DOWN`，`LEFT`，`RIGHT`，`ENTER`，`ESC`，`TAB`，`BACKSPACE`，`DELETE`，`CTRL_A`〜`CTRL_Z`です．入力はPTYの行規律を通り，`CTRL_C`は既存の前景タスク強制終了動作を使用します．スクロールバックはありません．
+
+通常コマンドには引き続き`execute_command`を優先してください．PTYは1セッションだけで，6タスク上限を共有します．コマンド起動は1つのプログラム名と任意の引数1つに限定しています．管理対象の`mcpd`をPTYから起動することは禁止しています．MCP経由で実行した子孫から`mcpd`またはその起動元のシェルを`kill()`する操作はカーネル側で拒否します．これは誤操作対策であり，完全なサンドボックスではありません．認証やTLSも未実装です．
+
+`.screen`はPicoNIX独自の端末表示補助です．完全なANSI互換性や日本語の全角文字幅などは保証しません．詳しくは[PTYデバイス](../devices/PTY.md)を参照してください．
+
+### PTY画面の実機確認
+
+```sh
+python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP
+```
+
+画面の初回取得は80×24のテキストを返します．変化がない場合，後続の`terminal_read`は`unchanged`を返します．`terminal_read`は2回の読み取りで画面差分を判定するため，画面が更新途中の場合の完全な一貫性は保証しません．

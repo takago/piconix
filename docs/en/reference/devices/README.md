@@ -18,6 +18,8 @@ This table lists **device types and path patterns in the standard configuration*
 | `/dev/ttyS1` | Yes | Yes | UART1 text terminal | [UART](UART.md) |
 | `/dev/ptmx` | Yes | Yes | PTY master (one exclusive pair) | [PTY](PTY.md) |
 | `/dev/pts/0` | Yes | Yes | PTY slave (available while master is open) | [PTY](PTY.md) |
+| `/dev/pts/0.screen` | Yes | — | Read-only PTY 80x24 text screen | [PTY](PTY.md) |
+| `/dev/pts/0.key` | — | Yes | Write named PTY keys | [PTY](PTY.md) |
 | `/dev/ttyN0` | Yes | Yes | Network terminal (Pico W) | [Networking](../network/NETWORK.md) |
 | `/dev/net/wifi` | — | Control | STA reconnect request (Pico W, STA mode) | [Wi-Fi](../network/WIFI-MODES.md) |
 | `/dev/net/packet` | Yes | — | IPv4 packet information (Pico W) | [tcpdump](../network/TCPDUMP.md) |

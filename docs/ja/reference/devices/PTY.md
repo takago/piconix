@@ -1,6 +1,6 @@
 # 擬似端末（PTY）
 
-PicoNIXは，MCPだけに依存しない**汎用PTYを1組**提供します．物理TTYと同じように，子プロセスの標準入出力を端末として扱うための仮想デバイスです．この段階ではMCPからPTYを制御するツールは未実装です．
+PicoNIXは，MCPだけに依存しない**汎用PTYを1組**提供します．物理TTYと同じように，子プロセスの標準入出力を端末として扱うための仮想デバイスです．MCPサーバからも利用でき，80列×24行の仮想画面とキー名入力を提供します．
 
 ## デバイスと制約
 
@@ -8,11 +8,13 @@ PicoNIXは，MCPだけに依存しない**汎用PTYを1組**提供します．�
 |---|---|---|
 | `/dev/ptmx` | `open(..., O_RDWR)` | Master．1組だけ確保でき，重複openは`OS_EBUSY` |
 | `/dev/pts/0` | `open(..., O_RDWR)`など | Slave．Masterのopen後に利用可能 |
+| `/dev/pts/0.screen` | `O_RDONLY` | 80×24の現在画面．各行80バイト＋LF，計1,944バイト |
+| `/dev/pts/0.key` | `O_WRONLY` | `UP`，`ENTER`，`CTRL_C`などのキー名を入力 |
 
 - Masterの`write()`がSlaveへの入力になり，TTYのcanonical入力・echo・Ctrl+Cなどの行規律を通ります．Masterの`read()`はSlaveからの出力を受け取ります．
 - SlaveはTTY番号3で，`ioctl(fd, OS_TTY_*, ...)`と`fcntl()`に対応します．`tty`コマンドは`/dev/pts/0`を表示します．
 - `spawn()`は標準FD 0〜2を継承します．親がFD 0をSlaveに変更して起動すると，**子だけ**制御TTYがPTYになります．前景起動には`spawn_foreground()`を利用します．親のFDと制御TTYは自動では変更されません．
-- MasterとSlaveの間にはソケットや管理専用プロセスを使いません．出力リングは1024バイトです．カーネルはANSI画面解析を行いません．
+- MasterとSlaveの間にはソケットや管理専用プロセスを使いません．出力リングは1024バイトです．カーネルは最小限のANSI解析を行って現在画面を保持します．
 - Slaveの出力がリング満杯ならブロッキング`write()`は空きを待ち，`O_NONBLOCK`なら`OS_EAGAIN`を返します．部分書込みもあります．Masterへの入力書込みはバッファ満杯時に`OS_EAGAIN`となり，呼出側が後で再試行します．
 - Slaveをすべて閉じて出力を読み切ったMasterの`read()`は0（EOF）です．Masterがすべて閉じられたSlaveの`read()`は，残りの入力を消費した後に0を返し，`write()`は`OS_EIO`です．両端を閉じた後は初期状態へ戻ります．
 - 新規セッションは，前セッションのMasterとSlaveをすべて閉じるまで作れません．FDの複製は`dup()`と`dup2()`が利用可能です．
@@ -25,7 +27,7 @@ PicoNIXは，MCPだけに依存しない**汎用PTYを1組**提供します．�
 4. Masterにキー入力を`write()`し，MasterからANSI出力を`read()`します．必要なら`select()`で入出力を多重化します．
 5. 子プロセスの終了を`waitpid()`で確認し，Masterを閉じます．
 
-`vi`などの全画面アプリはANSIシーケンスを出力します．実画面の構築はMaster側の端末エミュレータが行います．これはカーネルTTYとは別の責務です．既存のテストはホスト側での入出力検証であり，実機での`vi`実行確認は今後必要です．
+`vi`などの全画面アプリはANSIシーケンスを出力します．PTYの生出力は従来どおりMasterから読み取れます．PicoNIX独自の`.screen`は必要最小限のCSI制御を解釈した文字画面を返します．行内の反転属性がある場合は行頭を`>`に置き換えて示すことがあります．
 
 
 ## 実機テスト（標準コマンド）
@@ -48,10 +50,26 @@ piconix# pty_test tty
 
 中継中は元の端末を非カノニカル入力・エコーOFFにし，`select()`で実コンソールとPTY Masterを監視します．終了後は端末設定とFDの状態を復元します．子プロセスの終了に伴うPTYのEOFまで出力を取得します．
 
-**Ctrl+C：** `pty_test`は元のTTYの割込み解釈を一時的に無効化し，`0x03`をMasterへ転送します．PTY SlaveではCtrl+Cを前景タスクの強制終了として処理します．`pty_test sh`から`fd`を起動した場合は，`fd`が前景なら`fd`を終了させ，シェルへ復帰することを想定しています．本格的なPOSIXシグナルではなく，アプリの終了処理は呼ばれません．TTY設定は既存の前景タスク終了処理で復元される場合がありますが，画面が乱れたら`reset`や`stty`で復旧してください．画面サイズの変更通知やANSI画面の解釈は提供しません．`pty_test`はMCPツールではありません．
+**Ctrl+C：** `pty_test`は元のTTYの割込み解釈を一時的に無効化し，`0x03`をMasterへ転送します．PTY SlaveではCtrl+Cを前景タスクの強制終了として処理します．`pty_test sh`から`fd`を起動した場合は，`fd`が前景なら`fd`を終了させ，シェルへ復帰することを想定しています．本格的なPOSIXシグナルではなく，アプリの終了処理は呼ばれません．TTY設定は既存の前景タスク終了処理で復元される場合がありますが，画面が乱れたら`reset`や`stty`で復旧してください．画面サイズは80×24に固定し，カーソル位置照会（CSI 6n）に応答します．`pty_test`はMCPツールではありません．
 
 `OS_TTY_GET_INTR`（0x209）と`OS_TTY_SET_INTR`（0x20a）は，そのTTYでCtrl+Cを中断として扱うかを取得・設定するPicoNIX独自の`ioctl()`です．デフォルトは1（有効）です．0にすると，非カノニカル入力では`0x03`を通常文字として読み取れます．`pty_test`は元のTTYで一時的に0を設定し，終了時に復元します．
 
 **実装：** `kernel/kernel.c`の`pty_ref()`，`pty_master_rw()`，`pty_slave_write()`，`wake_ptys()`，`spawn_in_slot()`，`foreground_child()`．デバイス登録は`include/device_names.h`．テストは`tools/test_scripts/test_pty_runtime.py`です．
 
 [デバイス一覧](README.md) ｜ [TTY](../commands/TTY.md) ｜ [English](../../../en/reference/devices/PTY.md)
+
+## 仮想画面とキー入力
+
+```sh
+cat /dev/pts/0.screen
+echo DOWN > /dev/pts/0.key
+echo CTRL_C > /dev/pts/0.key
+```
+
+これらのノードはMasterが開かれている間だけ利用可能です．画面は80列×24行に固定され，履歴やスクロールバックはありません．`.screen`の各行は空白を含む80文字と改行で構成され，`read()`のFD位置に応じて分割取得できます．読み出し中に画面が更新された場合の原子的なスナップショットは保証しません．
+
+`.key`は1回の`write()`につき1個のキー名を受け取り，`UP`・`DOWN`・`LEFT`・`RIGHT`・`ENTER`・`ESC`・`TAB`・`BACKSPACE`・`DELETE`・`CTRL_A`〜`CTRL_Z`をサポートします．通常のテキスト入力にはPTY Masterへの`write()`を使います．
+
+カーネルのANSI解析は完全な端末エミュレータではありません．基本的なカーソル移動・行消去・画面消去・SGR反転・代替画面切替・CSI 6nの応答を対象としています．日本語などの複数バイト文字・広範な端末制御・ウィンドウサイズの変更は対象外です．通常のPTYバイト中継は維持しています．
+
+MCPでの利用方法は[こちら](../commands/MCP.md)を参照してください．

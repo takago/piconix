@@ -15,14 +15,14 @@
 - 範囲欄の `static` はCの内部結合，`外部` は外部結合，`モジュール` と `内部名` はPythonの名前付け，`大域` はアセンブリラベルを表します．外部結合は公開APIを意味しません．
 - C言語の解析は簡易的な構文走査で，プリプロセッサの条件分岐を評価しません．環境依存の定義は両方載る場合があります．
 
-**掲載関数：807件（概要コメントあり：766件）**
+**掲載関数：824件（概要コメントあり：824件）**
 
 ## 分類別目次
 
 - [カーネル](#カーネル)：14ファイル
-- [アプリケーション](#アプリケーション)：53ファイル
+- [アプリケーション](#アプリケーション)：54ファイル
 - [ライブラリ](#ライブラリ)：4ファイル
-- [ホスト用ユーティリティ](#ホスト用ユーティリティ)：4ファイル
+- [ホスト用ユーティリティ](#ホスト用ユーティリティ)：5ファイル
 
 ## カーネル
 
@@ -51,8 +51,8 @@
 | [`fb_ioctl()`](../../../kernel/fb.c#L40) | 40 | 外部 | 表示の有効化・無効化・状態取得を処理する． |
 | [`fb_rw()`](../../../kernel/fb.c#L70) | 70 | 外部 | 8バイトの表示ビット列を読み書きする． |
 | [`fb_char_copy()`](../../../kernel/fb.c#L98) | 98 | static | 一覧を小さな断片に分け，fd位置から有限長だけ返す． |
-| [`fb_char_read()`](../../../kernel/fb.c#L109) | 109 | 外部 | — |
-| [`fb_char_write()`](../../../kernel/fb.c#L123) | 123 | 外部 | ASCII 1文字か記号名を8行へ変換． |
+| [`fb_char_read()`](../../../kernel/fb.c#L110) | 110 | 外部 | 文字表示デバイスの使用方法と利用可能な図柄を位置指定で返す． |
+| [`fb_char_write()`](../../../kernel/fb.c#L124) | 124 | 外部 | ASCII 1文字か記号名を8行へ変換． |
 
 ### `kernel/gpio.c`（3件）
 
@@ -69,7 +69,7 @@
 | [`i2c_driver_init()`](../../../kernel/i2c.c#L12) | 12 | 外部 | I2C1を初期化し，使用ピンをI2C機能へ設定する． |
 | [`i2c_driver_transfer()`](../../../kernel/i2c.c#L21) | 21 | 外部 | アドレス・転送長を検査し，I2Cの書込みと読出しを一つの要求として実行する． |
 
-### `kernel/kernel.c`（141件）
+### `kernel/kernel.c`（149件）
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
@@ -81,147 +81,155 @@
 | [`vfs_device_count()`](../../../kernel/kernel.c#L157) | 157 | static | 固定デバイス登録表の項目数を返す． |
 | [`vfs_device_path()`](../../../kernel/kernel.c#L160) | 160 | static | 固定デバイス表の指定番号に対応するパスを返す． |
 | [`vfs_gpio_id()`](../../../kernel/kernel.c#L165) | 165 | static | GPIOのファイル名を内部IDへ変換する． |
-| [`pipe_end()`](../../../kernel/kernel.c#L214) | 214 | static | デバイスIDがパイプの読取端・書込端に属するか判定する． |
-| [`pipe_for_dev()`](../../../kernel/kernel.c#L217) | 217 | static | パイプ端点のデバイスIDから，対応する固定長パイプ管理領域を求める． |
-| [`pipe_is_writer()`](../../../kernel/kernel.c#L220) | 220 | static | パイプ端点のIDから書込側かどうかを判定する． |
-| [`pipe_ref()`](../../../kernel/kernel.c#L223) | 223 | static | パイプ端点の参照数をdeltaだけ増減する． |
-| [`pipe_transfer()`](../../../kernel/kernel.c#L233) | 233 | static | 固定256バイトのリングで部分読み書きを行う． |
-| [`rand32()`](../../../kernel/kernel.c#L276) | 276 | static | xorshiftによる32ビット擬似乱数を更新して返す． |
-| [`__attribute__()`](../../../kernel/kernel.c#L331) | 331 | static | 32バイトのトレースイベントを16 KiBリングへ記録する． |
-| [`foreground_child()`](../../../kernel/kernel.c#L377) | 377 | static | 指定PIDの子を現在のTTYの前景へ移す． |
-| [`tty_owner_pid()`](../../../kernel/kernel.c#L405) | 405 | static | TTYを占有するプロセスを求める． |
-| [`take_exit()`](../../../kernel/kernel.c#L410) | 410 | static | 親PIDに紐づく終了通知を一件取り出す． |
-| [`fd_set()`](../../../kernel/kernel.c#L422) | 422 | static | 一つのFDに関連する内部ID，位置，フラグ，対象PIDをまとめて設定する． |
-| [`udp_fd_slot()`](../../../kernel/kernel.c#L432) | 432 | static | UDP FDの所有者と管理スロットを検証する． |
-| [`tcp_fd_slot()`](../../../kernel/kernel.c#L440) | 440 | static | タスク内のTCP用FDを検証し，対応するネットワーク管理スロットを返す． |
-| [`tcp_other_fd()`](../../../kernel/kernel.c#L448) | 448 | static | 同一TCP管理スロットを参照する別のFDを探し，重複参照の後始末に使う． |
-| [`fd_is_socket()`](../../../kernel/kernel.c#L456) | 456 | static | ソケットFDは一つのlwIP資源を所有するため，パイプと異なりdup()の対象外とする． |
-| [`fd_release()`](../../../kernel/kernel.c#L462) | 462 | static | FDが保持する資源を解放する． |
-| [`fd_inherit()`](../../../kernel/kernel.c#L491) | 491 | static | FDを子／別番号へ複製する． |
-| [`fd_copy()`](../../../kernel/kernel.c#L502) | 502 | static | 同一タスク内でFDの参照先と状態を複製する． |
-| [`task_active()`](../../../kernel/kernel.c#L507) | 507 | static | 終了済みのタスクスロットは直ちに再利用できる． |
-| [`tty_foreground_survivor()`](../../../kernel/kernel.c#L512) | 512 | static | パイプ段のうち現在生存する前景プロセスを探す． |
-| [`finish_task()`](../../../kernel/kernel.c#L525) | 525 | static | タスク終了時に通知，FD，通信資源，TTYの前景・モードを後始末する． |
-| [`task_unblock()`](../../../kernel/kernel.c#L588) | 588 | static | 中断中のSVCの保存フレームへ戻り値を書き込み，待機情報を消してREADYにする． |
-| [`wake_pipes()`](../../../kernel/kernel.c#L601) | 601 | static | ブロック中のパイプread/writeを再試行する． |
-| [`wake_sockets()`](../../../kernel/kernel.c#L622) | 622 | static | lwIPの受信状態をスケジューラから確認してソケット待機を解除する． |
-| [`select_ready()`](../../../kernel/kernel.c#L680) | 680 | static | 選択したFDの読書き可能性を調べる． |
-| [`wake_selects()`](../../../kernel/kernel.c#L729) | 729 | static | SVCで停止したselectをスケジューラから再検査する． |
-| [`wake_waiters()`](../../../kernel/kernel.c#L745) | 745 | static | 子の終了を待っていた親を起こす． |
-| [`free_program_slot()`](../../../kernel/kernel.c#L765) | 765 | static | 未使用または終了済みの24 KiBユーザスロットを探す． |
-| [`os_register_ram_image()`](../../../kernel/kernel.c#L775) | 775 | 外部 | Flash上のPICイメージとゼロ初期化範囲を登録する． |
-| [`tty_mode_reset()`](../../../kernel/kernel.c#L791) | 791 | static | TTYを標準の行入力・エコー・改行変換へ戻し，未完了入力も初期化する． |
-| [`pty_ref()`](../../../kernel/kernel.c#L799) | 799 | static | Master/SlaveのFD参照数を追う． |
-| [`pty_output_put()`](../../../kernel/kernel.c#L816) | 816 | static | Masterが読み取るSlave出力を，1024バイトのリングへ欠落させずに追加する． |
-| [`pty_output_read()`](../../../kernel/kernel.c#L824) | 824 | static | Masterがreadで取り出す出力リング． |
-| [`tty_raw_enqueue()`](../../../kernel/kernel.c#L836) | 836 | static | 非カノニカル入力を小さな固定キューへ積む． |
-| [`tty_enqueue()`](../../../kernel/kernel.c#L855) | 855 | static | 編集済み行を受信キューへ移す． |
-| [`tty_dequeue()`](../../../kernel/kernel.c#L864) | 864 | static | TTYキューから最大nバイト返す． |
-| [`uart_pop()`](../../../kernel/kernel.c#L879) | 879 | static | 指定TTYの受信リングから1バイト取り出す． |
-| [`uart1_read()`](../../../kernel/kernel.c#L888) | 888 | static | UART1をTTY所有状態に応じて読み分ける． |
-| [`uart_push()`](../../../kernel/kernel.c#L899) | 899 | static | 受信リングへ1バイト追加する． |
-| [`console_queue()`](../../../kernel/kernel.c#L908) | 908 | static | USB CDCへの送信データを固定長リングへ積む． |
-| [`console_tx_poll()`](../../../kernel/kernel.c#L921) | 921 | static | アイドルタスク側でUSB送信リングを少量ずつ空にする． |
-| [`tty_put()`](../../../kernel/kernel.c#L937) | 937 | static | USB CDCコンソールの送信キューへ1文字を渡す． |
-| [`tty_put_dev()`](../../../kernel/kernel.c#L942) | 942 | static | TTY番号に応じてUSB CDC，UART1，Wi-Fi端末へ1文字出力する． |
-| [`tty_tx_char()`](../../../kernel/kernel.c#L952) | 952 | static | TTY固有の出力先へ1文字を書き込む． |
-| [`pty_slave_write()`](../../../kernel/kernel.c#L977) | 977 | static | PTY Slaveの出力は文字欠落を避けるため，空き容量分だけ転送する． |
-| [`tty_line_columns()`](../../../kernel/kernel.c#L992) | 992 | static | 正規モードでTABは0x09のまま保持し，エコー表示だけ4桁タブ位置へ展開する． |
-| [`tty_foreground_interrupt()`](../../../kernel/kernel.c#L1001) | 1001 | static | Ctrl+Cで同じTTYの前景グループを終了させる． |
-| [`tty_input_char()`](../../../kernel/kernel.c#L1016) | 1016 | static | TTYの入力モードに従い1文字を処理する． |
-| [`pty_master_rw()`](../../../kernel/kernel.c#L1056) | 1056 | static | PTY Masterは出力を読み，Slaveへの入力をTTY行規律へ渡す． |
-| [`wifi_session_stop()`](../../../kernel/kernel.c#L1090) | 1090 | static | 切断されたTelnetセッションのタスクとTTY状態を破棄する． |
-| [`wifi_session_poll()`](../../../kernel/kernel.c#L1106) | 1106 | static | Telnetの接続状態・世代番号を監視して専用シェルを作る． |
-| [`os_console_poll()`](../../../kernel/kernel.c#L1144) | 1144 | 外部 | アイドル側からUSB／Telnet入力，送信キュー，保留中のUART Ctrl+Cを処理する． |
-| [`tty_rx_ready()`](../../../kernel/kernel.c#L1172) | 1172 | static | 共有TTY受信経路． |
-| [`tty_rx_read()`](../../../kernel/kernel.c#L1181) | 1181 | static | 対象TTYの受信キューから読み取る． |
-| [`wake_readers()`](../../../kernel/kernel.c#L1188) | 1188 | static | TTY入力待ちのタスクを，受信データと前景所有条件が揃った場合に再開させる． |
-| [`uart1_irq_handler()`](../../../kernel/kernel.c#L1214) | 1214 | static | UART1の受信割込みを処理し，入力文字をTTYバッファへ蓄える． |
-| [`pend()`](../../../kernel/kernel.c#L1225) | 1225 | static | PendSVを保留状態にする． |
-| [`task_return()`](../../../kernel/kernel.c#L1228) | 1228 | static | タスクの入口関数がreturnした場合の終了処理へ誘導する． |
-| [`os_init()`](../../../kernel/kernel.c#L1231) | 1231 | 外部 | タスク表，FD，TTY，固定メモリ管理と割込みを初期化する． |
-| [`spawn_in_slot()`](../../../kernel/kernel.c#L1259) | 1259 | static | 指定スロットにPICイメージを複写し，argc/argvと初期レジスタフレームを配置する． |
-| [`os_init_idle()`](../../../kernel/kernel.c#L1329) | 1329 | 外部 | アイドルタスク専用スタックと初期例外フレームを用意する． |
-| [`os_idle_stack_used_bytes()`](../../../kernel/kernel.c#L1348) | 1348 | 外部 | スタックに埋めた0xA5の残量から使用量を推定する． |
-| [`os_idle_stack_capacity_bytes()`](../../../kernel/kernel.c#L1356) | 1356 | 外部 | アイドルタスク専用スタックの確保サイズをバイト単位で返す． |
-| [`os_spawn_named()`](../../../kernel/kernel.c#L1359) | 1359 | 外部 | スケジューラ開始前に指定の入口関数をタスクとして登録する． |
-| [`os_register_program()`](../../../kernel/kernel.c#L1370) | 1370 | 外部 | プログラムID・名前・入口を起動前の表へ登録する． |
-| [`os_start_program()`](../../../kernel/kernel.c#L1377) | 1377 | 外部 | 登録済みプログラムを起動前の空きスロットへ配置してPIDを返す． |
-| [`os_spawn()`](../../../kernel/kernel.c#L1385) | 1385 | 外部 | 起動前に無名タスクを登録する簡易入口． |
-| [`isr_systick()`](../../../kernel/kernel.c#L1388) | 1388 | 外部 | 1 ms周期の時刻更新と睡眠解除を行う． |
-| [`os_schedule()`](../../../kernel/kernel.c#L1410) | 1410 | 外部 | PendSVが保存した旧PSPを受け，次のタスクのPSPを返す． |
-| [`os_start()`](../../../kernel/kernel.c#L1470) | 1470 | 外部 | SysTickを1 msに設定し，最初のPendSVでタスク実行を開始する． |
-| [`slot_from_pid()`](../../../kernel/kernel.c#L1484) | 1484 | static | 有効なPIDを持つタスクのスロット番号を探す． |
-| [`in_task_range()`](../../../kernel/kernel.c#L1492) | 1492 | static | ユーザポインタpからnバイトが現在のスロット内に収まるか検査する． |
-| [`path_match()`](../../../kernel/kernel.c#L1501) | 1501 | static | この関数へ渡すパスはカーネル側で正規化済みであり，ユーザポインタの検査は呼出側で終えている． |
-| [`tmp_payload()`](../../../kernel/kernel.c#L1515) | 1515 | static | RAMファイル番号から固定サイズのデータ領域先頭アドレスを計算する． |
-| [`tmp_name()`](../../../kernel/kernel.c#L1521) | 1521 | static | /tmpまたは/etc直下の名前を検証して内部形式へ変換する． |
-| [`tmp_init()`](../../../kernel/kernel.c#L1541) | 1541 | static | Flashに埋め込まれた初期ファイルを起動後のRAMファイル領域へ一度だけ展開する． |
-| [`tmp_lookup()`](../../../kernel/kernel.c#L1558) | 1558 | static | /tmpにあるRAMファイルを名前で検索し，該当番号または-1を返す． |
-| [`free_fd()`](../../../kernel/kernel.c#L1567) | 1567 | static | ユーザがopenするFDは3以降． |
-| [`proc_device()`](../../../kernel/kernel.c#L1575) | 1575 | static | デバイスIDが/procの仮想ファイルを表すか判定する． |
-| [`tmp_open()`](../../../kernel/kernel.c#L1585) | 1585 | static | 固定11個のRAMファイルスロットから対象を探し，必要なら作成する． |
-| [`tmp_unlink()`](../../../kernel/kernel.c#L1615) | 1615 | static | RAMファイルを削除する． |
-| [`tmp_rw()`](../../../kernel/kernel.c#L1633) | 1633 | static | ファイルの現在位置を使って読み書きする． |
-| [`absolute_path()`](../../../kernel/kernel.c#L1662) | 1662 | static | タスクごとのcwdを使って相対パスを正規化する． |
-| [`valid_directory()`](../../../kernel/kernel.c#L1709) | 1709 | static | VFSが公開する固定ディレクトリか調べる． |
-| [`vdir_nth()`](../../../kernel/kernel.c#L1715) | 1715 | static | 仮想ディレクトリのnth番目の項目を計算する． |
-| [`vdir_entry_device_id()`](../../../kernel/kernel.c#L1806) | 1806 | static | ディレクトリエントリの表示IDを，プログラム／デバイス／RAMファイルの識別子に対応させる． |
-| [`vfs_getdents()`](../../../kernel/kernel.c#L1844) | 1844 | static | ディレクトリFDの現在位置から固定長エントリを返す． |
-| [`vfs_open()`](../../../kernel/kernel.c#L1859) | 1859 | static | 正規化済み絶対パスをデバイス／ディレクトリ／RAMファイルへ振り分け，FDを割り当てる． |
-| [`device_rw_rand()`](../../../kernel/kernel.c#L1946) | 1946 | static | /dev/randomの読出し． |
-| [`proc_emit()`](../../../kernel/kernel.c#L1967) | 1967 | static | /proc出力の位置と要求バイト数を考慮して，文字列の一部分だけをコピーする． |
-| [`proc_tasks_read()`](../../../kernel/kernel.c#L1984) | 1984 | static | 生存タスクの概要を/proc/tasks形式へ逐次生成する． |
-| [`proc_fb_read()`](../../../kernel/kernel.c#L2010) | 2010 | static | /procの8×8表示状況をテキストで返す． |
-| [`fd_path()`](../../../kernel/kernel.c#L2034) | 2034 | static | FDの表示名はカーネルが管理するデバイスIDから求める． |
-| [`proc_task_read()`](../../../kernel/kernel.c#L2084) | 2084 | static | 指定スロットのタスク詳細とFDを表示用テキストへ整形する． |
-| [`proc_ramfiles_read()`](../../../kernel/kernel.c#L2134) | 2134 | static | 使用中RAMファイルの実データアドレスと名前を列挙する． |
-| [`device_rw_proc()`](../../../kernel/kernel.c#L2157) | 2157 | static | /procの読み取りを担当する． |
-| [`device_rw_tty()`](../../../kernel/kernel.c#L2224) | 2224 | static | TTYに対するread/writeを実装する． |
-| [`wake_ptys()`](../../../kernel/kernel.c#L2273) | 2273 | static | PTYのブロッキングread/writeを，Masterの出力回収後などに再試行する． |
-| [`device_rw_pwm()`](../../../kernel/kernel.c#L2298) | 2298 | static | /dev/pwmの文字列読書き． |
-| [`device_rw_adc()`](../../../kernel/kernel.c#L2326) | 2326 | static | ADCを数値文字列として読む． |
-| [`vfs_rw()`](../../../kernel/kernel.c#L2351) | 2351 | static | read/writeの共通入口． |
-| [`device_ioctl_tty()`](../../../kernel/kernel.c#L2591) | 2591 | static | 端末の所有権と行入力・エコー・改行変換を管理する． |
-| [`device_ioctl_gpio_status()`](../../../kernel/kernel.c#L2645) | 2645 | static | GPIO値のFDから，各ピンの状態を問い合わせられる． |
-| [`device_ioctl()`](../../../kernel/kernel.c#L2673) | 2673 | static | ioctlの共通入口． |
-| [`os_svc_dispatch()`](../../../kernel/kernel.c#L2736) | 2736 | 外部 | SVC例外で積まれたr0〜r3を取り出し，番号ごとの処理結果をr0へ返す． |
-| [`call()`](../../../kernel/kernel.c#L3254) | 3254 | static | SVCディスパッチャへ渡す引数は明示的にレジスタへ割り当てる． |
-| [`os_waitpid()`](../../../kernel/kernel.c#L3264) | 3264 | 外部 | SVCでwaitpidを実行するカーネル側ラッパー． |
-| [`os_set_foreground()`](../../../kernel/kernel.c#L3269) | 3269 | 外部 | SVCで指定PIDをTTYの前景プロセスへ設定する． |
-| [`os_spawn_program()`](../../../kernel/kernel.c#L3272) | 3272 | 外部 | SVCで登録済みのプログラムIDを起動する． |
-| [`os_getpid()`](../../../kernel/kernel.c#L3275) | 3275 | 外部 | SVCを呼び出し，現在実行中のPIDを取得する． |
-| [`os_get_tty()`](../../../kernel/kernel.c#L3278) | 3278 | 外部 | SVCを呼び出し，現在のタスクが所属するTTY番号を取得する． |
-| [`os_kill()`](../../../kernel/kernel.c#L3281) | 3281 | 外部 | SVCで指定PIDのタスクの終了を要求する． |
-| [`os_exit()`](../../../kernel/kernel.c#L3284) | 3284 | 外部 | SVCで現在のタスクを終了する． |
-| [`os_msleep()`](../../../kernel/kernel.c#L3287) | 3287 | 外部 | SVCで指定ミリ秒だけタスクを睡眠状態へ移す． |
-| [`os_yield()`](../../../kernel/kernel.c#L3290) | 3290 | 外部 | SVCで自発的にCPU実行権を譲る． |
-| [`os_open()`](../../../kernel/kernel.c#L3293) | 3293 | 外部 | SVCでVFSのパスを開き，FDまたはエラー値を返す． |
-| [`os_close()`](../../../kernel/kernel.c#L3296) | 3296 | 外部 | SVCで指定FDを閉じ，必要な端点参照を解放する． |
-| [`os_read()`](../../../kernel/kernel.c#L3299) | 3299 | 外部 | SVCでFDから最大nバイトを読み取る． |
-| [`os_write()`](../../../kernel/kernel.c#L3302) | 3302 | 外部 | SVCでFDに最大nバイトを書き込む． |
-| [`os_ioctl()`](../../../kernel/kernel.c#L3305) | 3305 | 外部 | SVCでデバイス固有操作を要求する． |
-| [`os_fcntl()`](../../../kernel/kernel.c#L3308) | 3308 | 外部 | SVCでFDフラグ等を取得・変更する． |
-| [`os_pipe()`](../../../kernel/kernel.c#L3311) | 3311 | 外部 | SVCでパイプを作成し，読取端と書込端のFDを配列へ返す． |
-| [`os_dup()`](../../../kernel/kernel.c#L3314) | 3314 | 外部 | SVCでFDを複製し，共有する端点への参照を増やす． |
-| [`os_dup2()`](../../../kernel/kernel.c#L3317) | 3317 | 外部 | SVCでFDを指定番号へ複製する． |
-| [`os_unlink()`](../../../kernel/kernel.c#L3320) | 3320 | 外部 | SVCでRAMファイルの指定パスを削除する． |
-| [`os_socket()`](../../../kernel/kernel.c#L3323) | 3323 | 外部 | TCPクライアント・サーバとUDP通信を提供するソケット関連システムコール． |
-| [`os_tcp_listen()`](../../../kernel/kernel.c#L3326) | 3326 | 外部 | SVCで指定FDをTCPの待受に設定する． |
-| [`os_tcp_connect()`](../../../kernel/kernel.c#L3329) | 3329 | 外部 | SVCで指定FDのTCP接続を開始する． |
-| [`os_tcp_status()`](../../../kernel/kernel.c#L3332) | 3332 | 外部 | SVCでTCP接続の進行・確立・異常を問い合わせる． |
-| [`os_tcp_accept()`](../../../kernel/kernel.c#L3335) | 3335 | 外部 | SVCで待受FDから確立済みの接続を受け取り，新しいFDを得る． |
-| [`__attribute__()`](../../../kernel/kernel.c#L3345) | 3345 | static | コンパイラの関数入口・出口フックを受け，教材用の選抜関数だけ記録する． |
-| [`__attribute__()`](../../../kernel/kernel.c#L3437) | 3437 | 外部 | -finstrument-functions が生成する入口通知． |
-| [`__attribute__()`](../../../kernel/kernel.c#L3444) | 3444 | 外部 | -finstrument-functions が生成する出口通知． |
+| [`pipe_end()`](../../../kernel/kernel.c#L227) | 227 | static | デバイスIDがパイプの読取端・書込端に属するか判定する． |
+| [`pipe_for_dev()`](../../../kernel/kernel.c#L230) | 230 | static | パイプ端点のデバイスIDから，対応する固定長パイプ管理領域を求める． |
+| [`pipe_is_writer()`](../../../kernel/kernel.c#L233) | 233 | static | パイプ端点のIDから書込側かどうかを判定する． |
+| [`pipe_ref()`](../../../kernel/kernel.c#L236) | 236 | static | パイプ端点の参照数をdeltaだけ増減する． |
+| [`pipe_transfer()`](../../../kernel/kernel.c#L246) | 246 | static | 固定256バイトのリングで部分読み書きを行う． |
+| [`rand32()`](../../../kernel/kernel.c#L289) | 289 | static | xorshiftによる32ビット擬似乱数を更新して返す． |
+| [`__attribute__()`](../../../kernel/kernel.c#L346) | 346 | static | 32バイトのトレースイベントを16 KiBリングへ記録する． |
+| [`foreground_child()`](../../../kernel/kernel.c#L392) | 392 | static | 指定PIDの子を現在のTTYの前景へ移す． |
+| [`tty_owner_pid()`](../../../kernel/kernel.c#L421) | 421 | static | TTYを占有するプロセスを求める． |
+| [`take_exit()`](../../../kernel/kernel.c#L426) | 426 | static | 親PIDに紐づく終了通知を一件取り出す． |
+| [`fd_set()`](../../../kernel/kernel.c#L438) | 438 | static | 一つのFDに関連する内部ID，位置，フラグ，対象PIDをまとめて設定する． |
+| [`udp_fd_slot()`](../../../kernel/kernel.c#L448) | 448 | static | UDP FDの所有者と管理スロットを検証する． |
+| [`tcp_fd_slot()`](../../../kernel/kernel.c#L456) | 456 | static | タスク内のTCP用FDを検証し，対応するネットワーク管理スロットを返す． |
+| [`tcp_other_fd()`](../../../kernel/kernel.c#L464) | 464 | static | 同一TCP管理スロットを参照する別のFDを探し，重複参照の後始末に使う． |
+| [`fd_is_socket()`](../../../kernel/kernel.c#L472) | 472 | static | ソケットFDは一つのlwIP資源を所有するため，パイプと異なりdup()の対象外とする． |
+| [`fd_release()`](../../../kernel/kernel.c#L478) | 478 | static | FDが保持する資源を解放する． |
+| [`fd_inherit()`](../../../kernel/kernel.c#L507) | 507 | static | FDを子／別番号へ複製する． |
+| [`fd_copy()`](../../../kernel/kernel.c#L518) | 518 | static | 同一タスク内でFDの参照先と状態を複製する． |
+| [`task_active()`](../../../kernel/kernel.c#L523) | 523 | static | 終了済みのタスクスロットは直ちに再利用できる． |
+| [`tty_foreground_survivor()`](../../../kernel/kernel.c#L528) | 528 | static | パイプ段のうち現在生存する前景プロセスを探す． |
+| [`finish_task()`](../../../kernel/kernel.c#L541) | 541 | static | タスク終了時に通知，FD，通信資源，TTYの前景・モードを後始末する． |
+| [`task_unblock()`](../../../kernel/kernel.c#L605) | 605 | static | 中断中のSVCの保存フレームへ戻り値を書き込み，待機情報を消してREADYにする． |
+| [`wake_pipes()`](../../../kernel/kernel.c#L618) | 618 | static | ブロック中のパイプread/writeを再試行する． |
+| [`wake_sockets()`](../../../kernel/kernel.c#L639) | 639 | static | lwIPの受信状態をスケジューラから確認してソケット待機を解除する． |
+| [`select_ready()`](../../../kernel/kernel.c#L697) | 697 | static | 選択したFDの読書き可能性を調べる． |
+| [`wake_selects()`](../../../kernel/kernel.c#L746) | 746 | static | SVCで停止したselectをスケジューラから再検査する． |
+| [`wake_waiters()`](../../../kernel/kernel.c#L762) | 762 | static | 子の終了を待っていた親を起こす． |
+| [`free_program_slot()`](../../../kernel/kernel.c#L782) | 782 | static | 未使用または終了済みの24 KiBユーザスロットを探す． |
+| [`os_register_ram_image()`](../../../kernel/kernel.c#L792) | 792 | 外部 | Flash上のPICイメージとゼロ初期化範囲を登録する． |
+| [`tty_mode_reset()`](../../../kernel/kernel.c#L808) | 808 | static | TTYを標準の行入力・エコー・改行変換へ戻し，未完了入力も初期化する． |
+| [`pty_ref()`](../../../kernel/kernel.c#L816) | 816 | static | Master/SlaveのFD参照数を追う． |
+| [`vt_clear()`](../../../kernel/kernel.c#L836) | 836 | static | 仮想画面の最小ANSI解釈． |
+| [`vt_scroll()`](../../../kernel/kernel.c#L841) | 841 | static | 最下行を空けながら仮想画面を1行スクロールする． |
+| [`vt_lf()`](../../../kernel/kernel.c#L848) | 848 | static | 改行時に下端を超えた場合は1行スクロールする． |
+| [`vt_cursor_report()`](../../../kernel/kernel.c#L852) | 852 | static | ESC[6nへの応答はPTYの入力キューに入れる． |
+| [`vt_arg()`](../../../kernel/kernel.c#L859) | 859 | static | ANSIのパラメータが省略された場合に既定値を返す． |
+| [`pty_screen_byte()`](../../../kernel/kernel.c#L863) | 863 | static | PTYの出力を最小限のANSI状態機械で画面へ描画する． |
+| [`pty_screen_read()`](../../../kernel/kernel.c#L922) | 922 | static | 1行80文字+LFを24行． |
+| [`pty_key_write()`](../../../kernel/kernel.c#L939) | 939 | static | 名前による特殊キー入力． |
+| [`pty_output_put()`](../../../kernel/kernel.c#L968) | 968 | static | Masterが読み取るSlave出力を，1024バイトのリングへ欠落させずに追加する． |
+| [`pty_output_read()`](../../../kernel/kernel.c#L977) | 977 | static | Masterがreadで取り出す出力リング． |
+| [`tty_raw_enqueue()`](../../../kernel/kernel.c#L989) | 989 | static | 非カノニカル入力を小さな固定キューへ積む． |
+| [`tty_enqueue()`](../../../kernel/kernel.c#L1008) | 1008 | static | 編集済み行を受信キューへ移す． |
+| [`tty_dequeue()`](../../../kernel/kernel.c#L1017) | 1017 | static | TTYキューから最大nバイト返す． |
+| [`uart_pop()`](../../../kernel/kernel.c#L1032) | 1032 | static | 指定TTYの受信リングから1バイト取り出す． |
+| [`uart1_read()`](../../../kernel/kernel.c#L1041) | 1041 | static | UART1をTTY所有状態に応じて読み分ける． |
+| [`uart_push()`](../../../kernel/kernel.c#L1052) | 1052 | static | 受信リングへ1バイト追加する． |
+| [`console_queue()`](../../../kernel/kernel.c#L1061) | 1061 | static | USB CDCへの送信データを固定長リングへ積む． |
+| [`console_tx_poll()`](../../../kernel/kernel.c#L1074) | 1074 | static | アイドルタスク側でUSB送信リングを少量ずつ空にする． |
+| [`tty_put()`](../../../kernel/kernel.c#L1090) | 1090 | static | USB CDCコンソールの送信キューへ1文字を渡す． |
+| [`tty_put_dev()`](../../../kernel/kernel.c#L1095) | 1095 | static | TTY番号に応じてUSB CDC，UART1，Wi-Fi端末へ1文字出力する． |
+| [`tty_tx_char()`](../../../kernel/kernel.c#L1105) | 1105 | static | TTY固有の出力先へ1文字を書き込む． |
+| [`pty_slave_write()`](../../../kernel/kernel.c#L1130) | 1130 | static | PTY Slaveの出力は文字欠落を避けるため，空き容量分だけ転送する． |
+| [`tty_line_columns()`](../../../kernel/kernel.c#L1145) | 1145 | static | 正規モードでTABは0x09のまま保持し，エコー表示だけ4桁タブ位置へ展開する． |
+| [`tty_foreground_interrupt()`](../../../kernel/kernel.c#L1154) | 1154 | static | Ctrl+Cで同じTTYの前景グループを終了させる． |
+| [`tty_input_char()`](../../../kernel/kernel.c#L1169) | 1169 | static | TTYの入力モードに従い1文字を処理する． |
+| [`pty_master_rw()`](../../../kernel/kernel.c#L1209) | 1209 | static | PTY Masterは出力を読み，Slaveへの入力をTTY行規律へ渡す． |
+| [`wifi_session_stop()`](../../../kernel/kernel.c#L1243) | 1243 | static | 切断されたTelnetセッションのタスクとTTY状態を破棄する． |
+| [`wifi_session_poll()`](../../../kernel/kernel.c#L1259) | 1259 | static | Telnetの接続状態・世代番号を監視して専用シェルを作る． |
+| [`os_console_poll()`](../../../kernel/kernel.c#L1297) | 1297 | 外部 | アイドル側からUSB／Telnet入力，送信キュー，保留中のUART Ctrl+Cを処理する． |
+| [`tty_rx_ready()`](../../../kernel/kernel.c#L1325) | 1325 | static | 共有TTY受信経路． |
+| [`tty_rx_read()`](../../../kernel/kernel.c#L1334) | 1334 | static | 対象TTYの受信キューから読み取る． |
+| [`wake_readers()`](../../../kernel/kernel.c#L1341) | 1341 | static | TTY入力待ちのタスクを，受信データと前景所有条件が揃った場合に再開させる． |
+| [`uart1_irq_handler()`](../../../kernel/kernel.c#L1367) | 1367 | static | UART1の受信割込みを処理し，入力文字をTTYバッファへ蓄える． |
+| [`pend()`](../../../kernel/kernel.c#L1378) | 1378 | static | PendSVを保留状態にする． |
+| [`task_return()`](../../../kernel/kernel.c#L1381) | 1381 | static | タスクの入口関数がreturnした場合の終了処理へ誘導する． |
+| [`os_init()`](../../../kernel/kernel.c#L1384) | 1384 | 外部 | タスク表，FD，TTY，固定メモリ管理と割込みを初期化する． |
+| [`spawn_in_slot()`](../../../kernel/kernel.c#L1412) | 1412 | static | 指定スロットにPICイメージを複写し，argc/argvと初期レジスタフレームを配置する． |
+| [`os_init_idle()`](../../../kernel/kernel.c#L1482) | 1482 | 外部 | アイドルタスク専用スタックと初期例外フレームを用意する． |
+| [`os_idle_stack_used_bytes()`](../../../kernel/kernel.c#L1501) | 1501 | 外部 | スタックに埋めた0xA5の残量から使用量を推定する． |
+| [`os_idle_stack_capacity_bytes()`](../../../kernel/kernel.c#L1509) | 1509 | 外部 | アイドルタスク専用スタックの確保サイズをバイト単位で返す． |
+| [`os_spawn_named()`](../../../kernel/kernel.c#L1512) | 1512 | 外部 | スケジューラ開始前に指定の入口関数をタスクとして登録する． |
+| [`os_register_program()`](../../../kernel/kernel.c#L1523) | 1523 | 外部 | プログラムID・名前・入口を起動前の表へ登録する． |
+| [`os_start_program()`](../../../kernel/kernel.c#L1530) | 1530 | 外部 | 登録済みプログラムを起動前の空きスロットへ配置してPIDを返す． |
+| [`os_spawn()`](../../../kernel/kernel.c#L1538) | 1538 | 外部 | 起動前に無名タスクを登録する簡易入口． |
+| [`isr_systick()`](../../../kernel/kernel.c#L1541) | 1541 | 外部 | 1 ms周期の時刻更新と睡眠解除を行う． |
+| [`os_schedule()`](../../../kernel/kernel.c#L1563) | 1563 | 外部 | PendSVが保存した旧PSPを受け，次のタスクのPSPを返す． |
+| [`os_start()`](../../../kernel/kernel.c#L1623) | 1623 | 外部 | SysTickを1 msに設定し，最初のPendSVでタスク実行を開始する． |
+| [`slot_from_pid()`](../../../kernel/kernel.c#L1637) | 1637 | static | 有効なPIDを持つタスクのスロット番号を探す． |
+| [`in_task_range()`](../../../kernel/kernel.c#L1645) | 1645 | static | ユーザポインタpからnバイトが現在のスロット内に収まるか検査する． |
+| [`path_match()`](../../../kernel/kernel.c#L1654) | 1654 | static | この関数へ渡すパスはカーネル側で正規化済みであり，ユーザポインタの検査は呼出側で終えている． |
+| [`tmp_payload()`](../../../kernel/kernel.c#L1668) | 1668 | static | RAMファイル番号から固定サイズのデータ領域先頭アドレスを計算する． |
+| [`tmp_name()`](../../../kernel/kernel.c#L1674) | 1674 | static | /tmpまたは/etc直下の名前を検証して内部形式へ変換する． |
+| [`tmp_init()`](../../../kernel/kernel.c#L1694) | 1694 | static | Flashに埋め込まれた初期ファイルを起動後のRAMファイル領域へ一度だけ展開する． |
+| [`tmp_lookup()`](../../../kernel/kernel.c#L1711) | 1711 | static | /tmpにあるRAMファイルを名前で検索し，該当番号または-1を返す． |
+| [`free_fd()`](../../../kernel/kernel.c#L1720) | 1720 | static | ユーザがopenするFDは3以降． |
+| [`proc_device()`](../../../kernel/kernel.c#L1728) | 1728 | static | デバイスIDが/procの仮想ファイルを表すか判定する． |
+| [`tmp_open()`](../../../kernel/kernel.c#L1738) | 1738 | static | 固定11個のRAMファイルスロットから対象を探し，必要なら作成する． |
+| [`tmp_unlink()`](../../../kernel/kernel.c#L1768) | 1768 | static | RAMファイルを削除する． |
+| [`tmp_rw()`](../../../kernel/kernel.c#L1786) | 1786 | static | ファイルの現在位置を使って読み書きする． |
+| [`absolute_path()`](../../../kernel/kernel.c#L1815) | 1815 | static | タスクごとのcwdを使って相対パスを正規化する． |
+| [`valid_directory()`](../../../kernel/kernel.c#L1862) | 1862 | static | VFSが公開する固定ディレクトリか調べる． |
+| [`vdir_nth()`](../../../kernel/kernel.c#L1868) | 1868 | static | 仮想ディレクトリのnth番目の項目を計算する． |
+| [`vdir_entry_device_id()`](../../../kernel/kernel.c#L1959) | 1959 | static | ディレクトリエントリの表示IDを，プログラム／デバイス／RAMファイルの識別子に対応させる． |
+| [`vfs_getdents()`](../../../kernel/kernel.c#L1997) | 1997 | static | ディレクトリFDの現在位置から固定長エントリを返す． |
+| [`vfs_open()`](../../../kernel/kernel.c#L2012) | 2012 | static | 正規化済み絶対パスをデバイス／ディレクトリ／RAMファイルへ振り分け，FDを割り当てる． |
+| [`device_rw_rand()`](../../../kernel/kernel.c#L2102) | 2102 | static | /dev/randomの読出し． |
+| [`proc_emit()`](../../../kernel/kernel.c#L2123) | 2123 | static | /proc出力の位置と要求バイト数を考慮して，文字列の一部分だけをコピーする． |
+| [`proc_tasks_read()`](../../../kernel/kernel.c#L2140) | 2140 | static | 生存タスクの概要を/proc/tasks形式へ逐次生成する． |
+| [`proc_fb_read()`](../../../kernel/kernel.c#L2166) | 2166 | static | /procの8×8表示状況をテキストで返す． |
+| [`fd_path()`](../../../kernel/kernel.c#L2190) | 2190 | static | FDの表示名はカーネルが管理するデバイスIDから求める． |
+| [`proc_task_read()`](../../../kernel/kernel.c#L2240) | 2240 | static | 指定スロットのタスク詳細とFDを表示用テキストへ整形する． |
+| [`proc_ramfiles_read()`](../../../kernel/kernel.c#L2290) | 2290 | static | 使用中RAMファイルの実データアドレスと名前を列挙する． |
+| [`device_rw_proc()`](../../../kernel/kernel.c#L2313) | 2313 | static | /procの読み取りを担当する． |
+| [`device_rw_tty()`](../../../kernel/kernel.c#L2380) | 2380 | static | TTYに対するread/writeを実装する． |
+| [`wake_ptys()`](../../../kernel/kernel.c#L2429) | 2429 | static | PTYのブロッキングread/writeを，Masterの出力回収後などに再試行する． |
+| [`device_rw_pwm()`](../../../kernel/kernel.c#L2454) | 2454 | static | /dev/pwmの文字列読書き． |
+| [`device_rw_adc()`](../../../kernel/kernel.c#L2482) | 2482 | static | ADCを数値文字列として読む． |
+| [`vfs_rw()`](../../../kernel/kernel.c#L2507) | 2507 | static | read/writeの共通入口． |
+| [`device_ioctl_tty()`](../../../kernel/kernel.c#L2749) | 2749 | static | 端末の所有権と行入力・エコー・改行変換を管理する． |
+| [`device_ioctl_gpio_status()`](../../../kernel/kernel.c#L2805) | 2805 | static | GPIO値のFDから，各ピンの状態を問い合わせられる． |
+| [`device_ioctl()`](../../../kernel/kernel.c#L2833) | 2833 | static | ioctlの共通入口． |
+| [`os_svc_dispatch()`](../../../kernel/kernel.c#L2896) | 2896 | 外部 | SVC例外で積まれたr0〜r3を取り出し，番号ごとの処理結果をr0へ返す． |
+| [`call()`](../../../kernel/kernel.c#L3432) | 3432 | static | SVCディスパッチャへ渡す引数は明示的にレジスタへ割り当てる． |
+| [`os_waitpid()`](../../../kernel/kernel.c#L3442) | 3442 | 外部 | SVCでwaitpidを実行するカーネル側ラッパー． |
+| [`os_set_foreground()`](../../../kernel/kernel.c#L3447) | 3447 | 外部 | SVCで指定PIDをTTYの前景プロセスへ設定する． |
+| [`os_spawn_program()`](../../../kernel/kernel.c#L3450) | 3450 | 外部 | SVCで登録済みのプログラムIDを起動する． |
+| [`os_getpid()`](../../../kernel/kernel.c#L3453) | 3453 | 外部 | SVCを呼び出し，現在実行中のPIDを取得する． |
+| [`os_get_tty()`](../../../kernel/kernel.c#L3456) | 3456 | 外部 | SVCを呼び出し，現在のタスクが所属するTTY番号を取得する． |
+| [`os_kill()`](../../../kernel/kernel.c#L3459) | 3459 | 外部 | SVCで指定PIDのタスクの終了を要求する． |
+| [`os_exit()`](../../../kernel/kernel.c#L3462) | 3462 | 外部 | SVCで現在のタスクを終了する． |
+| [`os_msleep()`](../../../kernel/kernel.c#L3465) | 3465 | 外部 | SVCで指定ミリ秒だけタスクを睡眠状態へ移す． |
+| [`os_yield()`](../../../kernel/kernel.c#L3468) | 3468 | 外部 | SVCで自発的にCPU実行権を譲る． |
+| [`os_open()`](../../../kernel/kernel.c#L3471) | 3471 | 外部 | SVCでVFSのパスを開き，FDまたはエラー値を返す． |
+| [`os_close()`](../../../kernel/kernel.c#L3474) | 3474 | 外部 | SVCで指定FDを閉じ，必要な端点参照を解放する． |
+| [`os_read()`](../../../kernel/kernel.c#L3477) | 3477 | 外部 | SVCでFDから最大nバイトを読み取る． |
+| [`os_write()`](../../../kernel/kernel.c#L3480) | 3480 | 外部 | SVCでFDに最大nバイトを書き込む． |
+| [`os_ioctl()`](../../../kernel/kernel.c#L3483) | 3483 | 外部 | SVCでデバイス固有操作を要求する． |
+| [`os_fcntl()`](../../../kernel/kernel.c#L3486) | 3486 | 外部 | SVCでFDフラグ等を取得・変更する． |
+| [`os_pipe()`](../../../kernel/kernel.c#L3489) | 3489 | 外部 | SVCでパイプを作成し，読取端と書込端のFDを配列へ返す． |
+| [`os_dup()`](../../../kernel/kernel.c#L3492) | 3492 | 外部 | SVCでFDを複製し，共有する端点への参照を増やす． |
+| [`os_dup2()`](../../../kernel/kernel.c#L3495) | 3495 | 外部 | SVCでFDを指定番号へ複製する． |
+| [`os_unlink()`](../../../kernel/kernel.c#L3498) | 3498 | 外部 | SVCでRAMファイルの指定パスを削除する． |
+| [`os_socket()`](../../../kernel/kernel.c#L3501) | 3501 | 外部 | TCPクライアント・サーバとUDP通信を提供するソケット関連システムコール． |
+| [`os_tcp_listen()`](../../../kernel/kernel.c#L3504) | 3504 | 外部 | SVCで指定FDをTCPの待受に設定する． |
+| [`os_tcp_connect()`](../../../kernel/kernel.c#L3507) | 3507 | 外部 | SVCで指定FDのTCP接続を開始する． |
+| [`os_tcp_status()`](../../../kernel/kernel.c#L3510) | 3510 | 外部 | SVCでTCP接続の進行・確立・異常を問い合わせる． |
+| [`os_tcp_accept()`](../../../kernel/kernel.c#L3513) | 3513 | 外部 | SVCで待受FDから確立済みの接続を受け取り，新しいFDを得る． |
+| [`__attribute__()`](../../../kernel/kernel.c#L3523) | 3523 | static | コンパイラの関数入口・出口フックを受け，教材用の選抜関数だけ記録する． |
+| [`__attribute__()`](../../../kernel/kernel.c#L3615) | 3615 | 外部 | -finstrument-functions が生成する入口通知． |
+| [`__attribute__()`](../../../kernel/kernel.c#L3622) | 3622 | 外部 | -finstrument-functions が生成する出口通知． |
 
 ### `kernel/main.c`（3件）
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
 | [`idle_task()`](../../../kernel/main.c#L13) | 13 | static | ユーザタスクが動かない間も，通信とUSB端末を継続処理する． |
-| [`register_image()`](../../../kernel/main.c#L77) | 77 | static | Flash内のバイナリ範囲をプログラムIDに紐づける． |
-| [`main()`](../../../kernel/main.c#L86) | 86 | 外部 | OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． |
+| [`register_image()`](../../../kernel/main.c#L78) | 78 | static | Flash内のバイナリ範囲をプログラムIDに紐づける． |
+| [`main()`](../../../kernel/main.c#L87) | 87 | 外部 | OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． |
 
 ### `kernel/net.c`（27件）
 
@@ -325,59 +333,59 @@
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
-| [`udp_slot_at()`](../../../kernel/net_socket.c#L27) | 27 | static | — |
-| [`udp_received()`](../../../kernel/net_socket.c#L32) | 32 | static | lwIPコールバックは登録時に渡されたスロットの受信領域だけを書き換える． |
-| [`net_socket_udp_read_ready()`](../../../kernel/net_socket.c#L47) | 47 | 外部 | 指定ソケットが読み取り可能か調べる． |
-| [`net_socket_udp_bind()`](../../../kernel/net_socket.c#L53) | 53 | 外部 | 指定スロットのUDP待受ポートを登録する． |
-| [`net_socket_udp_recv()`](../../../kernel/net_socket.c#L69) | 69 | 外部 | スロット固有の保留データグラムを取り出す． |
-| [`net_socket_udp_send()`](../../../kernel/net_socket.c#L83) | 83 | 外部 | UDPクライアントは初回送信時に自身のPCBと送信元ポートを取得する． |
-| [`net_socket_udp_close()`](../../../kernel/net_socket.c#L108) | 108 | 外部 | ソケットを閉じるときは対象スロットだけを破棄する． |
-| [`slot_at()`](../../../kernel/net_socket.c#L127) | 127 | static | IDが有効な範囲にある場合だけ固定TCPスロットのポインタを返す． |
-| [`net_socket_tcp_alloc()`](../../../kernel/net_socket.c#L132) | 132 | 外部 | 固定TCP管理スロットを確保する． |
-| [`socket_tcp_connected_cb()`](../../../kernel/net_socket.c#L143) | 143 | static | 非同期TCP接続の完了を受け，接続状態とエラーを更新する． |
-| [`socket_tcp_err()`](../../../kernel/net_socket.c#L153) | 153 | static | lwIPがTCP PCBを破棄したときに管理スロットの参照を解除する． |
-| [`socket_tcp_recv()`](../../../kernel/net_socket.c#L164) | 164 | static | TCP受信コールバック． |
-| [`socket_tcp_accept()`](../../../kernel/net_socket.c#L181) | 181 | static | 受け付けたTCP接続を管理スロットに登録し，accept側へ新しい接続の到着を通知する． |
-| [`net_socket_tcp_listen()`](../../../kernel/net_socket.c#L197) | 197 | 外部 | 指定スロットでTCP待受を始める． |
-| [`net_socket_tcp_connect()`](../../../kernel/net_socket.c#L216) | 216 | 外部 | TCP接続を非同期に開始する． |
-| [`net_socket_tcp_accept_peek()`](../../../kernel/net_socket.c#L241) | 241 | 外部 | selectは受付フラグを消さず，accept()に引き継ぐ． |
-| [`net_socket_tcp_recv_ready()`](../../../kernel/net_socket.c#L246) | 246 | 外部 | TCP受信データまたは切断・エラーの通知があるか調べる． |
-| [`net_socket_tcp_write_ready()`](../../../kernel/net_socket.c#L251) | 251 | 外部 | TCP送信バッファに空きがあり書き込み可能か調べる． |
-| [`net_socket_tcp_accept_ready()`](../../../kernel/net_socket.c#L258) | 258 | 外部 | 待受スロットに受け取り可能な接続があるか確認する． |
-| [`net_socket_tcp_listening()`](../../../kernel/net_socket.c#L267) | 267 | 外部 | 指定TCPスロットが待受状態なら真を返す． |
-| [`net_socket_tcp_close_listener()`](../../../kernel/net_socket.c#L270) | 270 | 外部 | TCP待受PCBを閉じる． |
-| [`socket_tcp_closing_poll()`](../../../kernel/net_socket.c#L282) | 282 | static | 保留したtcp_closeはTCPタイマーコールバックからだけ再試行する． |
-| [`socket_tcp_closing_recv()`](../../../kernel/net_socket.c#L289) | 289 | static | 終了処理中に到着した受信バッファを破棄して受信窓を進める． |
-| [`net_socket_tcp_close_client()`](../../../kernel/net_socket.c#L297) | 297 | 外部 | アプリから切り離したTCP接続を閉じる． |
-| [`net_socket_tcp_connected()`](../../../kernel/net_socket.c#L317) | 317 | 外部 | 指定TCPスロットの接続が確立済みか返す． |
-| [`net_socket_tcp_status()`](../../../kernel/net_socket.c#L320) | 320 | 外部 | TCP接続の状態を返す． |
-| [`net_socket_tcp_read()`](../../../kernel/net_socket.c#L332) | 332 | 外部 | 固定受信キューから最大capacityバイトをコピーする． |
-| [`net_socket_tcp_write()`](../../../kernel/net_socket.c#L349) | 349 | 外部 | 送信バッファとMSSに収まる範囲だけをlwIPへ渡す． |
-| [`net_socket_tcp_shutdown_write()`](../../../kernel/net_socket.c#L370) | 370 | 外部 | TCPの送信方向だけを終了し，受信方向は維持する． |
-| [`net_socket_tcp_close()`](../../../kernel/net_socket.c#L381) | 381 | 外部 | 指定TCPスロットのクライアントと待受を閉じ，管理スロットを解放する． |
-| [`net_socket_local_port()`](../../../kernel/net_socket.c#L390) | 390 | 外部 | UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． |
-| [`net_socket_udp_bind()`](../../../kernel/net_socket.c#L405) | 405 | 外部 | UDP待受ポートをlwIPへ登録する． |
-| [`net_socket_udp_read_ready()`](../../../kernel/net_socket.c#L407) | 407 | 外部 | UDPの受信データがあるか確認する． |
-| [`net_socket_udp_recv()`](../../../kernel/net_socket.c#L410) | 410 | 外部 | 保持中の一つのデータグラムを取り出す． |
-| [`net_socket_udp_send()`](../../../kernel/net_socket.c#L415) | 415 | 外部 | 宛先IPv4とポートを指定してUDPデータグラムを送る． |
-| [`net_socket_udp_close()`](../../../kernel/net_socket.c#L420) | 420 | 外部 | UDPソケットを解放し，受信状態をリセットする． |
-| [`net_socket_tcp_alloc()`](../../../kernel/net_socket.c#L423) | 423 | 外部 | 固定TCP管理スロットを確保する． |
-| [`net_socket_tcp_listen()`](../../../kernel/net_socket.c#L426) | 426 | 外部 | 指定スロットでTCP待受を始める． |
-| [`net_socket_tcp_accept_ready()`](../../../kernel/net_socket.c#L429) | 429 | 外部 | 待受スロットに受け取り可能な接続があるか確認する． |
-| [`net_socket_tcp_accept_peek()`](../../../kernel/net_socket.c#L431) | 431 | 外部 | TCP待受スロットに受け付け可能な接続があるか確認する． |
-| [`net_socket_tcp_recv_ready()`](../../../kernel/net_socket.c#L433) | 433 | 外部 | TCP受信データまたは切断・エラーの通知があるか調べる． |
-| [`net_socket_tcp_write_ready()`](../../../kernel/net_socket.c#L435) | 435 | 外部 | TCP送信バッファに空きがあり書き込み可能か調べる． |
-| [`net_socket_tcp_listening()`](../../../kernel/net_socket.c#L438) | 438 | 外部 | 指定TCPスロットが待受状態なら真を返す． |
-| [`net_socket_tcp_close_listener()`](../../../kernel/net_socket.c#L441) | 441 | 外部 | TCP待受PCBを閉じる． |
-| [`net_socket_tcp_close_client()`](../../../kernel/net_socket.c#L444) | 444 | 外部 | アプリから切り離したTCP接続を閉じる． |
-| [`net_socket_tcp_connected()`](../../../kernel/net_socket.c#L447) | 447 | 外部 | 指定TCPスロットの接続が確立済みか返す． |
-| [`net_socket_tcp_status()`](../../../kernel/net_socket.c#L450) | 450 | 外部 | TCP接続の状態を返す． |
-| [`net_socket_tcp_connect()`](../../../kernel/net_socket.c#L453) | 453 | 外部 | TCP接続を非同期に開始する． |
-| [`net_socket_tcp_read()`](../../../kernel/net_socket.c#L456) | 456 | 外部 | 固定受信キューから最大capacityバイトをコピーする． |
-| [`net_socket_tcp_write()`](../../../kernel/net_socket.c#L459) | 459 | 外部 | 送信バッファとMSSに収まる範囲だけをlwIPへ渡す． |
-| [`net_socket_tcp_shutdown_write()`](../../../kernel/net_socket.c#L462) | 462 | 外部 | TCPの送信方向だけを終了し，受信方向は維持する． |
-| [`net_socket_tcp_close()`](../../../kernel/net_socket.c#L465) | 465 | 外部 | 指定TCPスロットのクライアントと待受を閉じ，管理スロットを解放する． |
-| [`net_socket_local_port()`](../../../kernel/net_socket.c#L468) | 468 | 外部 | UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． |
+| [`udp_slot_at()`](../../../kernel/net_socket.c#L28) | 28 | static | UDPソケットの番号を検証して対応する固定スロットを返す． |
+| [`udp_received()`](../../../kernel/net_socket.c#L33) | 33 | static | lwIPコールバックは登録時に渡されたスロットの受信領域だけを書き換える． |
+| [`net_socket_udp_read_ready()`](../../../kernel/net_socket.c#L48) | 48 | 外部 | 指定ソケットが読み取り可能か調べる． |
+| [`net_socket_udp_bind()`](../../../kernel/net_socket.c#L54) | 54 | 外部 | 指定スロットのUDP待受ポートを登録する． |
+| [`net_socket_udp_recv()`](../../../kernel/net_socket.c#L70) | 70 | 外部 | スロット固有の保留データグラムを取り出す． |
+| [`net_socket_udp_send()`](../../../kernel/net_socket.c#L84) | 84 | 外部 | UDPクライアントは初回送信時に自身のPCBと送信元ポートを取得する． |
+| [`net_socket_udp_close()`](../../../kernel/net_socket.c#L109) | 109 | 外部 | ソケットを閉じるときは対象スロットだけを破棄する． |
+| [`slot_at()`](../../../kernel/net_socket.c#L128) | 128 | static | IDが有効な範囲にある場合だけ固定TCPスロットのポインタを返す． |
+| [`net_socket_tcp_alloc()`](../../../kernel/net_socket.c#L133) | 133 | 外部 | 固定TCP管理スロットを確保する． |
+| [`socket_tcp_connected_cb()`](../../../kernel/net_socket.c#L144) | 144 | static | 非同期TCP接続の完了を受け，接続状態とエラーを更新する． |
+| [`socket_tcp_err()`](../../../kernel/net_socket.c#L154) | 154 | static | lwIPがTCP PCBを破棄したときに管理スロットの参照を解除する． |
+| [`socket_tcp_recv()`](../../../kernel/net_socket.c#L165) | 165 | static | TCP受信コールバック． |
+| [`socket_tcp_accept()`](../../../kernel/net_socket.c#L182) | 182 | static | 受け付けたTCP接続を管理スロットに登録し，accept側へ新しい接続の到着を通知する． |
+| [`net_socket_tcp_listen()`](../../../kernel/net_socket.c#L198) | 198 | 外部 | 指定スロットでTCP待受を始める． |
+| [`net_socket_tcp_connect()`](../../../kernel/net_socket.c#L217) | 217 | 外部 | TCP接続を非同期に開始する． |
+| [`net_socket_tcp_accept_peek()`](../../../kernel/net_socket.c#L242) | 242 | 外部 | selectは受付フラグを消さず，accept()に引き継ぐ． |
+| [`net_socket_tcp_recv_ready()`](../../../kernel/net_socket.c#L247) | 247 | 外部 | TCP受信データまたは切断・エラーの通知があるか調べる． |
+| [`net_socket_tcp_write_ready()`](../../../kernel/net_socket.c#L252) | 252 | 外部 | TCP送信バッファに空きがあり書き込み可能か調べる． |
+| [`net_socket_tcp_accept_ready()`](../../../kernel/net_socket.c#L259) | 259 | 外部 | 待受スロットに受け取り可能な接続があるか確認する． |
+| [`net_socket_tcp_listening()`](../../../kernel/net_socket.c#L268) | 268 | 外部 | 指定TCPスロットが待受状態なら真を返す． |
+| [`net_socket_tcp_close_listener()`](../../../kernel/net_socket.c#L271) | 271 | 外部 | TCP待受PCBを閉じる． |
+| [`socket_tcp_closing_poll()`](../../../kernel/net_socket.c#L283) | 283 | static | 保留したtcp_closeはTCPタイマーコールバックからだけ再試行する． |
+| [`socket_tcp_closing_recv()`](../../../kernel/net_socket.c#L290) | 290 | static | 終了処理中に到着した受信バッファを破棄して受信窓を進める． |
+| [`net_socket_tcp_close_client()`](../../../kernel/net_socket.c#L298) | 298 | 外部 | アプリから切り離したTCP接続を閉じる． |
+| [`net_socket_tcp_connected()`](../../../kernel/net_socket.c#L318) | 318 | 外部 | 指定TCPスロットの接続が確立済みか返す． |
+| [`net_socket_tcp_status()`](../../../kernel/net_socket.c#L321) | 321 | 外部 | TCP接続の状態を返す． |
+| [`net_socket_tcp_read()`](../../../kernel/net_socket.c#L333) | 333 | 外部 | 固定受信キューから最大capacityバイトをコピーする． |
+| [`net_socket_tcp_write()`](../../../kernel/net_socket.c#L350) | 350 | 外部 | 送信バッファとMSSに収まる範囲だけをlwIPへ渡す． |
+| [`net_socket_tcp_shutdown_write()`](../../../kernel/net_socket.c#L371) | 371 | 外部 | TCPの送信方向だけを終了し，受信方向は維持する． |
+| [`net_socket_tcp_close()`](../../../kernel/net_socket.c#L382) | 382 | 外部 | 指定TCPスロットのクライアントと待受を閉じ，管理スロットを解放する． |
+| [`net_socket_local_port()`](../../../kernel/net_socket.c#L391) | 391 | 外部 | UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． |
+| [`net_socket_udp_bind()`](../../../kernel/net_socket.c#L406) | 406 | 外部 | UDP待受ポートをlwIPへ登録する． |
+| [`net_socket_udp_read_ready()`](../../../kernel/net_socket.c#L408) | 408 | 外部 | UDPの受信データがあるか確認する． |
+| [`net_socket_udp_recv()`](../../../kernel/net_socket.c#L411) | 411 | 外部 | 保持中の一つのデータグラムを取り出す． |
+| [`net_socket_udp_send()`](../../../kernel/net_socket.c#L416) | 416 | 外部 | 宛先IPv4とポートを指定してUDPデータグラムを送る． |
+| [`net_socket_udp_close()`](../../../kernel/net_socket.c#L421) | 421 | 外部 | UDPソケットを解放し，受信状態をリセットする． |
+| [`net_socket_tcp_alloc()`](../../../kernel/net_socket.c#L424) | 424 | 外部 | 固定TCP管理スロットを確保する． |
+| [`net_socket_tcp_listen()`](../../../kernel/net_socket.c#L427) | 427 | 外部 | 指定スロットでTCP待受を始める． |
+| [`net_socket_tcp_accept_ready()`](../../../kernel/net_socket.c#L430) | 430 | 外部 | 待受スロットに受け取り可能な接続があるか確認する． |
+| [`net_socket_tcp_accept_peek()`](../../../kernel/net_socket.c#L432) | 432 | 外部 | TCP待受スロットに受け付け可能な接続があるか確認する． |
+| [`net_socket_tcp_recv_ready()`](../../../kernel/net_socket.c#L434) | 434 | 外部 | TCP受信データまたは切断・エラーの通知があるか調べる． |
+| [`net_socket_tcp_write_ready()`](../../../kernel/net_socket.c#L436) | 436 | 外部 | TCP送信バッファに空きがあり書き込み可能か調べる． |
+| [`net_socket_tcp_listening()`](../../../kernel/net_socket.c#L439) | 439 | 外部 | 指定TCPスロットが待受状態なら真を返す． |
+| [`net_socket_tcp_close_listener()`](../../../kernel/net_socket.c#L442) | 442 | 外部 | TCP待受PCBを閉じる． |
+| [`net_socket_tcp_close_client()`](../../../kernel/net_socket.c#L445) | 445 | 外部 | アプリから切り離したTCP接続を閉じる． |
+| [`net_socket_tcp_connected()`](../../../kernel/net_socket.c#L448) | 448 | 外部 | 指定TCPスロットの接続が確立済みか返す． |
+| [`net_socket_tcp_status()`](../../../kernel/net_socket.c#L451) | 451 | 外部 | TCP接続の状態を返す． |
+| [`net_socket_tcp_connect()`](../../../kernel/net_socket.c#L454) | 454 | 外部 | TCP接続を非同期に開始する． |
+| [`net_socket_tcp_read()`](../../../kernel/net_socket.c#L457) | 457 | 外部 | 固定受信キューから最大capacityバイトをコピーする． |
+| [`net_socket_tcp_write()`](../../../kernel/net_socket.c#L460) | 460 | 外部 | 送信バッファとMSSに収まる範囲だけをlwIPへ渡す． |
+| [`net_socket_tcp_shutdown_write()`](../../../kernel/net_socket.c#L463) | 463 | 外部 | TCPの送信方向だけを終了し，受信方向は維持する． |
+| [`net_socket_tcp_close()`](../../../kernel/net_socket.c#L466) | 466 | 外部 | 指定TCPスロットのクライアントと待受を閉じ，管理スロットを解放する． |
+| [`net_socket_local_port()`](../../../kernel/net_socket.c#L469) | 469 | 外部 | UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． |
 
 ### `kernel/pins.h`（6件）
 
@@ -385,10 +393,10 @@
 |---|---:|---|---|
 | [`pin_mode()`](../../../kernel/pins.h#L122) | 122 | static | ボードごとの固定ピン設定表から，GPIO／ADC／PWM等の利用モードを返す． |
 | [`pin_reserved()`](../../../kernel/pins.h#L130) | 130 | static | 指定ピンが汎用GPIOとして利用可能なら真を返す． |
-| [`pin_gpio()`](../../../kernel/pins.h#L138) | 138 | static | — |
-| [`pin_adc()`](../../../kernel/pins.h#L141) | 141 | static | 指定チャネルに対応するGPIOがADC用なら真を返す． |
-| [`pin_pwm()`](../../../kernel/pins.h#L144) | 144 | static | GP18／GP19がPWM用に割り当てられているか確認する． |
-| [`pin_any_pwm()`](../../../kernel/pins.h#L147) | 147 | static | PWMに割り当てたピンが1本以上あるか返す． |
+| [`pin_gpio()`](../../../kernel/pins.h#L139) | 139 | static | 指定ピンが予約されておらずGPIOモードであるかを判定する． |
+| [`pin_adc()`](../../../kernel/pins.h#L142) | 142 | static | 指定チャネルに対応するGPIOがADC用なら真を返す． |
+| [`pin_pwm()`](../../../kernel/pins.h#L145) | 145 | static | GP18／GP19がPWM用に割り当てられているか確認する． |
+| [`pin_any_pwm()`](../../../kernel/pins.h#L148) | 148 | static | PWMに割り当てたピンが1本以上あるか返す． |
 
 ### `kernel/pwm.c`（5件）
 
@@ -446,42 +454,42 @@
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
 | [`letter()`](../../../userland/apps/cc.c#L24) | 24 | static | 1=char, 4=int |
-| [`digit()`](../../../userland/apps/cc.c#L25) | 25 | static | — |
-| [`ws()`](../../../userland/apps/cc.c#L26) | 26 | static | — |
-| [`word()`](../../../userland/apps/cc.c#L38) | 38 | static | — |
-| [`token()`](../../../userland/apps/cc.c#L43) | 43 | static | — |
-| [`need()`](../../../userland/apps/cc.c#L44) | 44 | static | — |
-| [`integer()`](../../../userland/apps/cc.c#L45) | 45 | static | — |
-| [`emit()`](../../../userland/apps/cc.c#L62) | 62 | static | — |
-| [`imm()`](../../../userland/apps/cc.c#L88) | 88 | static | — |
-| [`regimm()`](../../../userland/apps/cc.c#L92) | 92 | static | — |
-| [`constant()`](../../../userland/apps/cc.c#L99) | 99 | static | Materialize signed 32-bit constants with Thumb-1 movs/adds only. |
-| [`regmove()`](../../../userland/apps/cc.c#L110) | 110 | static | — |
-| [`branch()`](../../../userland/apps/cc.c#L113) | 113 | static | — |
-| [`mark()`](../../../userland/apps/cc.c#L116) | 116 | static | — |
-| [`identifier()`](../../../userland/apps/cc.c#L117) | 117 | static | — |
-| [`character()`](../../../userland/apps/cc.c#L123) | 123 | static | — |
-| [`variable()`](../../../userland/apps/cc.c#L130) | 130 | static | — |
-| [`local_access()`](../../../userland/apps/cc.c#L136) | 136 | static | r4 is a callee-saved frame pointer: stack temporaries must not shift references to locals and parameters within the fixed 256-byte frame. |
-| [`syscall_buffer()`](../../../userland/apps/cc.c#L160) | 160 | static | Evaluate arguments left-to-right. |
-| [`address()`](../../../userland/apps/cc.c#L173) | 173 | static | — |
-| [`array_address()`](../../../userland/apps/cc.c#L179) | 179 | static | Calculate array-element address, for both real arrays and pointers. |
-| [`incdec()`](../../../userland/apps/cc.c#L189) | 189 | static | Increment/decrement an int local. |
-| [`step_token()`](../../../userland/apps/cc.c#L198) | 198 | static | Parse ++ or -- as a single token, never as two unary operators. |
-| [`load_element()`](../../../userland/apps/cc.c#L204) | 204 | static | — |
-| [`function_call()`](../../../userland/apps/cc.c#L210) | 210 | static | AAPCS: up to four int parameters in r0-r3, result in r0. |
-| [`primary()`](../../../userland/apps/cc.c#L245) | 245 | static | — |
-| [`unary()`](../../../userland/apps/cc.c#L264) | 264 | static | — |
-| [`multiply()`](../../../userland/apps/cc.c#L284) | 284 | static | — |
-| [`additive()`](../../../userland/apps/cc.c#L300) | 300 | static | — |
-| [`expression()`](../../../userland/apps/cc.c#L313) | 313 | static | — |
-| [`condition()`](../../../userland/apps/cc.c#L314) | 314 | static | — |
-| [`finish()`](../../../userland/apps/cc.c#L332) | 332 | static | — |
-| [`block()`](../../../userland/apps/cc.c#L336) | 336 | static | — |
-| [`statement()`](../../../userland/apps/cc.c#L339) | 339 | static | — |
-| [`compile()`](../../../userland/apps/cc.c#L459) | 459 | static | — |
-| [`assembly_path()`](../../../userland/apps/cc.c#L518) | 518 | static | Keep the assembly next to the source: foo.c -> foo.s, /tmp/foo.c -> /tmp/foo.s. |
-| [`main()`](../../../userland/apps/cc.c#L527) | 527 | 外部 | — |
+| [`digit()`](../../../userland/apps/cc.c#L26) | 26 | static | 入力文字が十進数字であるか判定する． |
+| [`ws()`](../../../userland/apps/cc.c#L28) | 28 | static | 空白とC形式のコメントを読み飛ばす． |
+| [`word()`](../../../userland/apps/cc.c#L41) | 41 | static | 指定した予約語を単語境界も確認して読み取る． |
+| [`token()`](../../../userland/apps/cc.c#L47) | 47 | static | 次の1文字が指定した記号なら消費する． |
+| [`need()`](../../../userland/apps/cc.c#L49) | 49 | static | 指定した記号を要求し，見つからなければエラーにする． |
+| [`integer()`](../../../userland/apps/cc.c#L51) | 51 | static | 符号付き十進整数を範囲検査しながら読み取る． |
+| [`emit()`](../../../userland/apps/cc.c#L69) | 69 | static | 生成中のThumbアセンブリを出力領域へ追加する． |
+| [`imm()`](../../../userland/apps/cc.c#L96) | 96 | static | 8ビット即値を使う命令を生成する． |
+| [`regimm()`](../../../userland/apps/cc.c#L101) | 101 | static | レジスタ番号と8ビット即値を指定して命令を生成する． |
+| [`constant()`](../../../userland/apps/cc.c#L108) | 108 | static | Materialize signed 32-bit constants with Thumb-1 movs/adds only. |
+| [`regmove()`](../../../userland/apps/cc.c#L120) | 120 | static | レジスタ間転送命令を生成する． |
+| [`branch()`](../../../userland/apps/cc.c#L124) | 124 | static | 指定ラベルへの分岐命令を生成する． |
+| [`mark()`](../../../userland/apps/cc.c#L128) | 128 | static | 分岐先ラベルを出力する． |
+| [`identifier()`](../../../userland/apps/cc.c#L130) | 130 | static | C識別子を読み取って名前を保存する． |
+| [`character()`](../../../userland/apps/cc.c#L137) | 137 | static | 文字リテラルと一部のエスケープを読み取る． |
+| [`variable()`](../../../userland/apps/cc.c#L145) | 145 | static | 変数名からローカル変数表の位置を求める． |
+| [`local_access()`](../../../userland/apps/cc.c#L151) | 151 | static | r4 is a callee-saved frame pointer: stack temporaries must not shift references to locals and parameters within the fixed 256-byte frame. |
+| [`syscall_buffer()`](../../../userland/apps/cc.c#L175) | 175 | static | Evaluate arguments left-to-right. |
+| [`address()`](../../../userland/apps/cc.c#L189) | 189 | static | ローカル変数のフレーム内アドレスを生成する． |
+| [`array_address()`](../../../userland/apps/cc.c#L195) | 195 | static | Calculate array-element address, for both real arrays and pointers. |
+| [`incdec()`](../../../userland/apps/cc.c#L205) | 205 | static | Increment/decrement an int local. |
+| [`step_token()`](../../../userland/apps/cc.c#L214) | 214 | static | Parse ++ or -- as a single token, never as two unary operators. |
+| [`load_element()`](../../../userland/apps/cc.c#L221) | 221 | static | 配列またはポインタ要素を読み出す命令を生成する． |
+| [`function_call()`](../../../userland/apps/cc.c#L227) | 227 | static | AAPCS: up to four int parameters in r0-r3, result in r0. |
+| [`primary()`](../../../userland/apps/cc.c#L263) | 263 | static | 式の基本要素を解析して評価コードを生成する． |
+| [`unary()`](../../../userland/apps/cc.c#L283) | 283 | static | 単項演算子とオペランドを解析する． |
+| [`multiply()`](../../../userland/apps/cc.c#L304) | 304 | static | 乗除算など乗法優先順位の式を解析する． |
+| [`additive()`](../../../userland/apps/cc.c#L321) | 321 | static | 加減算など加法優先順位の式を解析する． |
+| [`expression()`](../../../userland/apps/cc.c#L335) | 335 | static | 式全体を解析して結果のコードを生成する． |
+| [`condition()`](../../../userland/apps/cc.c#L337) | 337 | static | 条件式の評価と分岐を生成する． |
+| [`finish()`](../../../userland/apps/cc.c#L356) | 356 | static | 関数末尾の復帰処理を生成する． |
+| [`block()`](../../../userland/apps/cc.c#L361) | 361 | static | 中括弧で囲まれた文の列を解析する． |
+| [`statement()`](../../../userland/apps/cc.c#L365) | 365 | static | 代入や制御構文などの文を解析する． |
+| [`compile()`](../../../userland/apps/cc.c#L486) | 486 | static | 入力Cソースを解析してThumbアセンブリへ変換する． |
+| [`assembly_path()`](../../../userland/apps/cc.c#L545) | 545 | static | Keep the assembly next to the source: foo.c -> foo.s, /tmp/foo.c -> /tmp/foo.s. |
+| [`main()`](../../../userland/apps/cc.c#L555) | 555 | 外部 | 引数とファイルを処理しCコンパイルを実行する． |
 
 ### `userland/apps/cp.c`（2件）
 
@@ -502,11 +510,11 @@
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
-| [`flush()`](../../../userland/apps/echo.c#L13) | 13 | static | — |
-| [`emit()`](../../../userland/apps/echo.c#L26) | 26 | static | エスケープ展開後の1バイトを蓄積する． |
-| [`digit()`](../../../userland/apps/echo.c#L33) | 33 | static | エスケープの16進数字を数値へ変換する． |
-| [`output()`](../../../userland/apps/echo.c#L40) | 40 | static | エスケープ指定を考慮し，echoの引数文字列を出力する． |
-| [`main()`](../../../userland/apps/echo.c#L71) | 71 | 外部 | 引数を空白区切りで表示し，オプションに応じて改行・エスケープを扱う． |
+| [`flush()`](../../../userland/apps/echo.c#L14) | 14 | static | 蓄積した標準出力を部分書込みに対応して送出する． |
+| [`emit()`](../../../userland/apps/echo.c#L27) | 27 | static | エスケープ展開後の1バイトを蓄積する． |
+| [`digit()`](../../../userland/apps/echo.c#L34) | 34 | static | エスケープの16進数字を数値へ変換する． |
+| [`output()`](../../../userland/apps/echo.c#L41) | 41 | static | エスケープ指定を考慮し，echoの引数文字列を出力する． |
+| [`main()`](../../../userland/apps/echo.c#L72) | 72 | 外部 | 引数を空白区切りで表示し，オプションに応じて改行・エスケープを扱う． |
 
 ### `userland/apps/edit.c`（1件）
 
@@ -675,7 +683,7 @@
 | [`pwm_value()`](../../../userland/apps/kitesys.c#L51) | 51 | static | PWMデバイスへ数値文字列を送り，書込みの成否を返す． |
 | [`main()`](../../../userland/apps/kitesys.c#L59) | 59 | 外部 | ボタンでLED表示位置を動かし，PWMブザーも鳴らす統合動作テストを行う． |
 
-### `userland/apps/ls.c`（8件）
+### `userland/apps/ls.c`（9件）
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
@@ -685,8 +693,9 @@
 | [`number()`](../../../userland/apps/ls.c#L17) | 17 | static | 数値を表示用の文字列へ変換する． |
 | [`resolve()`](../../../userland/apps/ls.c#L20) | 20 | static | 相対パスを現在ディレクトリからのパスへ変換する． |
 | [`entry()`](../../../userland/apps/ls.c#L58) | 58 | static | デバイスはデバイスID，/binはプログラムID，RAMファイルはスロットIDを表示する． |
-| [`ls()`](../../../userland/apps/ls.c#L83) | 83 | static | 指定ディレクトリまたはファイルの情報を読み取って一覧表示する． |
-| [`main()`](../../../userland/apps/ls.c#L100) | 100 | 外部 | 指定パスの一覧を表示し，オプションに従って表示形式を切り替える． |
+| [`file_entry()`](../../../userland/apps/ls.c#L83) | 83 | static | 親ディレクトリからファイル属性を取得する． |
+| [`ls()`](../../../userland/apps/ls.c#L107) | 107 | static | ディレクトリなら内容を，通常ファイルならそのファイル自身を表示する． |
+| [`main()`](../../../userland/apps/ls.c#L140) | 140 | 外部 | 指定パスの一覧を表示し，オプションに従って表示形式を切り替える． |
 
 ### `userland/apps/lsof.c`（3件）
 
@@ -703,33 +712,38 @@
 | [`draw()`](../../../userland/apps/mb.c#L18) | 18 | static | 複数行の月面バギーを固定位置に描く． |
 | [`main()`](../../../userland/apps/mb.c#L67) | 67 | 外部 | 端末を非カノニカル・非ブロック入力に変更して月面バギーゲームを動かす． |
 
-### `userland/apps/mcpd.c`（23件）
+### `userland/apps/mcpd.c`（28件）
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
-| [`space()`](../../../userland/apps/mcpd.c#L24) | 24 | static | JSON文字列とコンテナを走査し，指定された値の終端を探す． |
-| [`json_string_end()`](../../../userland/apps/mcpd.c#L31) | 31 | static | JSON文字列の終端位置を検証しながら取得する． |
-| [`json_end()`](../../../userland/apps/mcpd.c#L49) | 49 | static | JSON値の終端位置を調べる． |
-| [`member()`](../../../userland/apps/mcpd.c#L90) | 90 | static | 単純なJSONオブジェクトから，直下のキーのみを探す． |
-| [`json_equals()`](../../../userland/apps/mcpd.c#L123) | 123 | static | JSON文字列が指定文字列と一致するか調べる． |
-| [`append_escaped()`](../../../userland/apps/mcpd.c#L130) | 130 | static | 小さなASCIIテキストをJSON文字列に安全に入れる． |
-| [`read_device()`](../../../userland/apps/mcpd.c#L160) | 160 | static | デバイスから現在の情報を読み取る． |
-| [`send_all()`](../../../userland/apps/mcpd.c#L173) | 173 | static | 指定されたデータをソケットへ送信する． |
-| [`http_reply()`](../../../userland/apps/mcpd.c#L193) | 193 | static | HTTPレスポンスを組み立てて返す． |
-| [`header_value()`](../../../userland/apps/mcpd.c#L210) | 210 | static | ヘッダは比較に用いる名前と値だけを取得し，重複を拒否する． |
-| [`rpc_error()`](../../../userland/apps/mcpd.c#L261) | 261 | static | JSON-RPCエラー応答を作成する． |
-| [`rpc_result()`](../../../userland/apps/mcpd.c#L268) | 268 | static | JSON-RPC正常応答を作成する． |
-| [`command_argument()`](../../../userland/apps/mcpd.c#L274) | 274 | static | JSON文字列からコマンドを読み取る． |
-| [`decode_file_text()`](../../../userland/apps/mcpd.c#L293) | 293 | static | JSONの文字列を逐次復号する． |
-| [`file_path_argument()`](../../../userland/apps/mcpd.c#L341) | 341 | static | 書込先は/tmp直下の短いファイル名だけに制限する． |
-| [`send_chunk()`](../../../userland/apps/mcpd.c#L355) | 355 | static | HTTP/1.1のchunked転送． |
-| [`send_escaped_chunk()`](../../../userland/apps/mcpd.c#L364) | 364 | static | バイト列をJSON文字列の内容として送り出す． |
-| [`execute_command_stream()`](../../../userland/apps/mcpd.c#L391) | 391 | static | シェルを起動し，最大4 KiBの出力を即時にHTTPへ流す． |
-| [`send_full_manual()`](../../../userland/apps/mcpd.c#L458) | 458 | static | ROM内の/manファイルをMCPへストリーミング転送する． |
-| [`process_json()`](../../../userland/apps/mcpd.c#L486) | 486 | static | MCPのJSON要求を解析して処理する． |
-| [`read_request()`](../../../userland/apps/mcpd.c#L663) | 663 | static | ヘッダ，Content-Length，本文を上限付きで受信する． |
-| [`handle()`](../../../userland/apps/mcpd.c#L717) | 717 | static | MCPの接続要求を処理する． |
-| [`main()`](../../../userland/apps/mcpd.c#L753) | 753 | 外部 | MCPサーバを起動して接続要求を受け付ける． |
+| [`space()`](../../../userland/apps/mcpd.c#L29) | 29 | static | JSON文字列とコンテナを走査し，指定された値の終端を探す． |
+| [`json_string_end()`](../../../userland/apps/mcpd.c#L36) | 36 | static | JSON文字列の終端位置を検証しながら取得する． |
+| [`json_end()`](../../../userland/apps/mcpd.c#L54) | 54 | static | JSON値の終端位置を調べる． |
+| [`member()`](../../../userland/apps/mcpd.c#L95) | 95 | static | 単純なJSONオブジェクトから，直下のキーのみを探す． |
+| [`json_equals()`](../../../userland/apps/mcpd.c#L128) | 128 | static | JSON文字列が指定文字列と一致するか調べる． |
+| [`append_escaped()`](../../../userland/apps/mcpd.c#L135) | 135 | static | 小さなASCIIテキストをJSON文字列に安全に入れる． |
+| [`read_device()`](../../../userland/apps/mcpd.c#L165) | 165 | static | デバイスから現在の情報を読み取る． |
+| [`send_all()`](../../../userland/apps/mcpd.c#L178) | 178 | static | 指定されたデータをソケットへ送信する． |
+| [`http_reply()`](../../../userland/apps/mcpd.c#L198) | 198 | static | HTTPレスポンスを組み立てて返す． |
+| [`header_value()`](../../../userland/apps/mcpd.c#L215) | 215 | static | ヘッダは比較に用いる名前と値だけを取得し，重複を拒否する． |
+| [`rpc_error()`](../../../userland/apps/mcpd.c#L266) | 266 | static | JSON-RPCエラー応答を作成する． |
+| [`rpc_result()`](../../../userland/apps/mcpd.c#L273) | 273 | static | JSON-RPC正常応答を作成する． |
+| [`command_argument()`](../../../userland/apps/mcpd.c#L279) | 279 | static | JSON文字列からコマンドを読み取る． |
+| [`decode_file_text()`](../../../userland/apps/mcpd.c#L298) | 298 | static | JSONの文字列を逐次復号する． |
+| [`file_path_argument()`](../../../userland/apps/mcpd.c#L346) | 346 | static | 書込先は/tmp直下の短いファイル名だけに制限する． |
+| [`send_chunk()`](../../../userland/apps/mcpd.c#L360) | 360 | static | HTTP/1.1のchunked転送． |
+| [`send_escaped_chunk()`](../../../userland/apps/mcpd.c#L369) | 369 | static | バイト列をJSON文字列の内容として送り出す． |
+| [`execute_command_stream()`](../../../userland/apps/mcpd.c#L396) | 396 | static | シェルを起動し，最大4 KiBの出力を即時にHTTPへ流す． |
+| [`list_tools_stream()`](../../../userland/apps/mcpd.c#L462) | 462 | static | 応答の総サイズをRAMに載せずMCPツール一覧を送信する． |
+| [`terminal_open_command()`](../../../userland/apps/mcpd.c#L486) | 486 | static | セッションをHTTP要求から独立して保持し，親の標準FDは必ず元へ戻す． |
+| [`terminal_close_session()`](../../../userland/apps/mcpd.c#L521) | 521 | static | 現在のPTYセッションを終了し，Masterと子プロセスを解放する． |
+| [`terminal_drain()`](../../../userland/apps/mcpd.c#L531) | 531 | static | Masterを枯渇させないため，screen取得前にANSI出力を消費する． |
+| [`terminal_screen_stream()`](../../../userland/apps/mcpd.c#L541) | 541 | static | /dev/pts/0.screenの1,944バイトをchunkedで送る． |
+| [`send_full_manual()`](../../../userland/apps/mcpd.c#L579) | 579 | static | ROM内の/manファイルをMCPへストリーミング転送する． |
+| [`process_json()`](../../../userland/apps/mcpd.c#L607) | 607 | static | MCPのJSON要求を解析して処理する． |
+| [`read_request()`](../../../userland/apps/mcpd.c#L823) | 823 | static | ヘッダ，Content-Length，本文を上限付きで受信する． |
+| [`handle()`](../../../userland/apps/mcpd.c#L877) | 877 | static | MCPの接続要求を処理する． |
+| [`main()`](../../../userland/apps/mcpd.c#L913) | 913 | 外部 | MCPサーバを起動して接続要求を受け付ける． |
 
 ### `userland/apps/mem.c`（17件）
 
@@ -809,6 +823,13 @@
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
 | [`main()`](../../../userland/apps/ps.c#L10) | 10 | 外部 | /proc/tasksからPIDと状態などを取得し，プロセス一覧を表示する． |
+
+### `userland/apps/pty_test.c`（2件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`output_all()`](../../../userland/apps/pty_test.c#L13) | 13 | static | 物理コンソールへの部分書き込みを再試行し，全バイトを転送する． |
+| [`main()`](../../../userland/apps/pty_test.c#L28) | 28 | 外部 | 指定されたプログラムをPTYのSlaveで起動し，Masterと実コンソールを中継する． |
 
 ### `userland/apps/pwd.c`（1件）
 
@@ -898,15 +919,15 @@
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
-| [`free_space()`](../../../userland/apps/scroll.c#L14) | 14 | static | — |
-| [`enqueue()`](../../../userland/apps/scroll.c#L15) | 15 | static | — |
-| [`dequeue()`](../../../userland/apps/scroll.c#L18) | 18 | static | — |
-| [`valid()`](../../../userland/apps/scroll.c#L19) | 19 | static | — |
-| [`glyph_bounds()`](../../../userland/apps/scroll.c#L22) | 22 | static | The font has five columns, but most glyphs occupy fewer. |
-| [`draw_column()`](../../../userland/apps/scroll.c#L30) | 30 | static | — |
-| [`parse_port()`](../../../userland/apps/scroll.c#L35) | 35 | static | — |
-| [`receive_udp()`](../../../userland/apps/scroll.c#L38) | 38 | static | UDP datagrams are plain text. |
-| [`main()`](../../../userland/apps/scroll.c#L46) | 46 | 外部 | — |
+| [`free_space()`](../../../userland/apps/scroll.c#L15) | 15 | static | 文字待ち行列の残容量を返す． |
+| [`enqueue()`](../../../userland/apps/scroll.c#L17) | 17 | static | 文字列をリングバッファの末尾に追加する． |
+| [`dequeue()`](../../../userland/apps/scroll.c#L21) | 21 | static | リングバッファの先頭から1文字を取り出す． |
+| [`valid()`](../../../userland/apps/scroll.c#L23) | 23 | static | 表示対象の印字可能ASCII文字か判定する． |
+| [`glyph_bounds()`](../../../userland/apps/scroll.c#L26) | 26 | static | The font has five columns, but most glyphs occupy fewer. |
+| [`draw_column()`](../../../userland/apps/scroll.c#L35) | 35 | static | 表示パターンを左へ送って新しい1列を描画する． |
+| [`parse_port()`](../../../userland/apps/scroll.c#L41) | 41 | static | UDP待受ポートの十進文字列を検証し数値へ変換する． |
+| [`receive_udp()`](../../../userland/apps/scroll.c#L44) | 44 | static | UDP datagrams are plain text. |
+| [`main()`](../../../userland/apps/scroll.c#L53) | 53 | 外部 | 標準入力と任意のUDP入力を待ち受け文字をスクロール表示する． |
 
 ### `userland/apps/shell.c`（26件）
 
@@ -979,22 +1000,22 @@
 | [`device_path()`](../../../userland/apps/trace.c#L131) | 131 | static | デバイスIDの名称はカーネルVFSと共通の定義から求める． |
 | [`format_target()`](../../../userland/apps/trace.c#L140) | 140 | static | システムコールのFD／対象を人間が読みやすい短い文字列へ整形する． |
 | [`print_preview()`](../../../userland/apps/trace.c#L149) | 149 | static | read／writeの先頭データを印字可能な範囲で表示する． |
-| [`header()`](../../../userland/apps/trace.c#L168) | 168 | static | — |
-| [`trace_depth()`](../../../userland/apps/trace.c#L185) | 185 | static | PIDが同じイベントだけが同一の深さを共有する． |
-| [`function_label()`](../../../userland/apps/trace.c#L200) | 200 | static | 入口をname，復帰をname/で表す． |
-| [`pending_find()`](../../../userland/apps/trace.c#L213) | 213 | static | 未完了システムコールの対象を取得する． |
-| [`pending_forget()`](../../../userland/apps/trace.c#L221) | 221 | static | システムコール終了時に対応付けを消し，次回の同一呼び出しへ持ち越さない． |
-| [`pending_save()`](../../../userland/apps/trace.c#L228) | 228 | static | 同一PID・同一システムコールの入口は上書きする． |
-| [`reset_view_state()`](../../../userland/apps/trace.c#L240) | 240 | static | 対象PIDやFD履歴等のトレース表示状態を初期化する． |
-| [`print_pid_separator()`](../../../userland/apps/trace.c#L255) | 255 | static | 表示上のPIDが変わる直前に，ASCIIの区切り線を1行出す． |
-| [`print_event()`](../../../userland/apps/trace.c#L263) | 263 | static | 表示は Function（入口name／復帰name/の階層），Arg，Ret，Info に統一する． |
-| [`compact_pair()`](../../../userland/apps/trace.c#L377) | 377 | static | ミリ秒表示が同一で，連続した同じ関数・実行コンテキストの入退場だけを統合する． |
-| [`display_matches()`](../../../userland/apps/trace.c#L386) | 386 | static | PIDフィルタは表示のみに適用する． |
-| [`display_event()`](../../../userland/apps/trace.c#L392) | 392 | static | トレースイベントを表示し，関数の入口と出口を可能なら統合する． |
-| [`display_flush()`](../../../userland/apps/trace.c#L420) | 420 | static | 表示待ちの関数入口イベントを出力する． |
-| [`trace_drain()`](../../../userland/apps/trace.c#L431) | 431 | static | トレースデバイスから固定長レコードを読み，表示へ順次流す． |
-| [`trace_run()`](../../../userland/apps/trace.c#L439) | 439 | static | コマンドの実行中だけ記録範囲を切り替え，既存の記録状態を復元する． |
-| [`main()`](../../../userland/apps/trace.c#L528) | 528 | 外部 | トレース表示・起動操作をコマンド引数に基づいて選ぶ． |
+| [`header()`](../../../userland/apps/trace.c#L169) | 169 | static | トレース表示の項目名と罫線を出力する． |
+| [`trace_depth()`](../../../userland/apps/trace.c#L186) | 186 | static | PIDが同じイベントだけが同一の深さを共有する． |
+| [`function_label()`](../../../userland/apps/trace.c#L201) | 201 | static | 入口をname，復帰をname/で表す． |
+| [`pending_find()`](../../../userland/apps/trace.c#L214) | 214 | static | 未完了システムコールの対象を取得する． |
+| [`pending_forget()`](../../../userland/apps/trace.c#L222) | 222 | static | システムコール終了時に対応付けを消し，次回の同一呼び出しへ持ち越さない． |
+| [`pending_save()`](../../../userland/apps/trace.c#L229) | 229 | static | 同一PID・同一システムコールの入口は上書きする． |
+| [`reset_view_state()`](../../../userland/apps/trace.c#L241) | 241 | static | 対象PIDやFD履歴等のトレース表示状態を初期化する． |
+| [`print_pid_separator()`](../../../userland/apps/trace.c#L256) | 256 | static | 表示上のPIDが変わる直前に，ASCIIの区切り線を1行出す． |
+| [`print_event()`](../../../userland/apps/trace.c#L264) | 264 | static | 表示は Function（入口name／復帰name/の階層），Arg，Ret，Info に統一する． |
+| [`compact_pair()`](../../../userland/apps/trace.c#L378) | 378 | static | ミリ秒表示が同一で，連続した同じ関数・実行コンテキストの入退場だけを統合する． |
+| [`display_matches()`](../../../userland/apps/trace.c#L387) | 387 | static | PIDフィルタは表示のみに適用する． |
+| [`display_event()`](../../../userland/apps/trace.c#L393) | 393 | static | トレースイベントを表示し，関数の入口と出口を可能なら統合する． |
+| [`display_flush()`](../../../userland/apps/trace.c#L421) | 421 | static | 表示待ちの関数入口イベントを出力する． |
+| [`trace_drain()`](../../../userland/apps/trace.c#L432) | 432 | static | トレースデバイスから固定長レコードを読み，表示へ順次流す． |
+| [`trace_run()`](../../../userland/apps/trace.c#L440) | 440 | static | コマンドの実行中だけ記録範囲を切り替え，既存の記録状態を復元する． |
+| [`main()`](../../../userland/apps/trace.c#L529) | 529 | 外部 | トレース表示・起動操作をコマンド引数に基づいて選ぶ． |
 
 ### `userland/apps/tree.c`（3件）
 
@@ -1178,7 +1199,7 @@
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
-| [`htons()`](../../../userland/lib/unistd.h#L56) | 56 | static | 16ビット整数のバイト順を入れ替える． |
+| [`htons()`](../../../userland/lib/unistd.h#L59) | 59 | static | 16ビット整数のバイト順を入れ替える． |
 
 ## ホスト用ユーティリティ
 
@@ -1202,10 +1223,16 @@
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
 | [`styled()`](../../../host/mcp_llm_client.py#L37) | 37 | モジュール | Colorize labels only; never modify message content sent to the LLM. |
-| [`show()`](../../../host/mcp_llm_client.py#L44) | 44 | モジュール | — |
-| [`reasoning_from_delta()`](../../../host/mcp_llm_client.py#L51) | 51 | モジュール | Ollama can expose thinking as reasoning_content or reasoning. |
-| [`stream_reply()`](../../../host/mcp_llm_client.py#L62) | 62 | モジュール | Print streamed reasoning/content and reassemble fragmented tool calls. |
-| [`main()`](../../../host/mcp_llm_client.py#L148) | 148 | モジュール | MCPクライアントとLLMの対話を実行する． |
+| [`show()`](../../../host/mcp_llm_client.py#L44) | 44 | モジュール | Show a labeled message, coloring tool and status lines when supported. |
+| [`reasoning_from_delta()`](../../../host/mcp_llm_client.py#L52) | 52 | モジュール | Ollama can expose thinking as reasoning_content or reasoning. |
+| [`stream_reply()`](../../../host/mcp_llm_client.py#L63) | 63 | モジュール | Print streamed reasoning/content and reassemble fragmented tool calls. |
+| [`main()`](../../../host/mcp_llm_client.py#L149) | 149 | モジュール | MCPクライアントとLLMの対話を実行する． |
+
+### `host/mcp_pty_test.py`（1件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`main()`](../../../host/mcp_pty_test.py#L7) | 7 | モジュール | MCP SDKでPTYを起動し，画面取得とキー入力を実機検証する． |
 
 ### `host/piconixctl.py`（2件）
 

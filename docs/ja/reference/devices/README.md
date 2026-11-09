@@ -18,6 +18,8 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 | `/dev/ttyS1` | ○ | ○ | UART1端末の文字入出力 | [UART](UART.md) |
 | `/dev/ptmx` | ○ | ○ | PTY Master（排他的に1組確保） | [PTY](PTY.md) |
 | `/dev/pts/0` | ○ | ○ | PTY Slave（`ptmx`が開いている間のみ） | [PTY](PTY.md) |
+| `/dev/pts/0.screen` | ○ | — | PTYの80×24文字画面（読取専用） | [PTY](PTY.md) |
+| `/dev/pts/0.key` | — | ○ | PTYへの特殊キー名入力 | [PTY](PTY.md) |
 | `/dev/ttyN0` | ○ | ○ | Wi-Fi端末（Pico W） | [ネットワーク](../network/NETWORK.md) |
 | `/dev/net/wifi` | — | 制御 | STA再接続指示（Pico W，STAモード） | [Wi-Fi](../network/WIFI-MODES.md) |
 | `/dev/net/packet` | ○ | — | IPv4パケット情報（Pico W） | [tcpdump](../network/TCPDUMP.md) |

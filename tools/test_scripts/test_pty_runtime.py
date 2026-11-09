@@ -11,6 +11,9 @@ devs = (root / 'include/device_names.h').read_text()
 def extract(signature):
     start = s.index(signature)
     begin = s.index('{', start)
+    while ';' in s[start:begin]:
+        start = s.index(signature, start+1)
+        begin = s.index('{', start)
     depth = 0
     for pos in range(begin, len(s)):
         if s[pos] == '{':
@@ -43,6 +46,10 @@ prefix = r'''
 #define OS_EAGAIN (-11)
 #define PTY_TTY 3
 #define PTY_OUT_BYTES 1024u
+#define VT_COLS 80u
+#define VT_ROWS 24u
+#define OS_EINVAL (-22)
+#define OS_EBADF (-9)
 #define TTY_LINES 8u
 #define OS_TTY_COUNT 4
 #define DEV_PTY_MASTER 274
@@ -56,13 +63,25 @@ static int foreground_group[4][3];
 typedef struct { uint8_t data[PTY_OUT_BYTES]; } unused_t;
 typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave; } pty_t;
 static pty_t pty;
+static struct {
+    char cells[VT_ROWS][VT_COLS];
+    uint8_t inverse[VT_ROWS];
+    uint8_t row,col,esc,params,private_csi,reverse;
+    uint16_t arg[3];
+    uint32_t revision;
+} pty_screen;
+static void pty_screen_byte(uint8_t c);
+static void tty_raw_enqueue(int dev,uint8_t c);
+static int pty_master_rw(void *p,size_t n,int writing);
 typedef struct {
     char line[128]; unsigned len;
     struct { char text[128]; uint8_t len; } lines[TTY_LINES];
     unsigned head, tail, used, offset;
 } tty_buffer_t;
 static tty_buffer_t tty_buf[4];
-typedef struct { int pid; } task_t;
+typedef struct { int pid; uint32_t fd_pos[16]; } task_t;
+static task_t tasks[1];
+static int current=0;
 static void tty_put(uint8_t c) {(void)c;}
 static unsigned char tty1_ctrl_c_pending;
 static int interrupt_count;
@@ -71,6 +90,14 @@ static void tty_foreground_interrupt(int dev) { assert(dev==PTY_TTY); interrupt_
 functions = [extract(sig) for sig in (
     'NO_TRACE static void tty_mode_reset(',
     'NO_TRACE static void pty_ref(',
+    'NO_TRACE static void vt_clear(',
+    'NO_TRACE static void vt_scroll(',
+    'NO_TRACE static void vt_lf(',
+    'NO_TRACE static void vt_cursor_report(',
+    'NO_TRACE static unsigned vt_arg(',
+    'NO_TRACE static void pty_screen_byte(',
+    'NO_TRACE static int pty_screen_read(',
+    'NO_TRACE static int pty_key_write(',
     'NO_TRACE static int pty_output_put(',
     'NO_TRACE static int pty_output_read(',
 )]
@@ -120,6 +147,26 @@ int main(void) {
     assert(pty_slave_write(&task,(const uint8_t *)"!",1)==1);
     assert(pty_master_rw(tmp,sizeof(tmp),0)==25);
     assert(tmp[24]=='!');
+    /* VT80x24: 画面復元，カーソル，ANSIの処理とキー入力を確認する． */
+    vt_clear();pty_screen.row=pty_screen.col=0;pty_screen.esc=0;
+    for(const char *p="\033[2J\033[HHello\033[3;1HWorld";*p;p++)pty_screen_byte((uint8_t)*p);
+    assert(!memcmp(pty_screen.cells[0],"Hello",5));
+    assert(!memcmp(pty_screen.cells[2],"World",5));
+    tasks[0].fd_pos[4]=0;
+    char screen[82];
+    assert(pty_screen_read(4,screen,81)==81);
+    assert(!memcmp(screen,"Hello",5) && screen[80]=='\n');
+    tty_canonical[3]=0; tty_echo[3]=0;
+    assert(pty_key_write("DOWN",4)==4);
+    assert(tty_dequeue(3,tmp,3)==3 && !memcmp(tmp,"\033[B",3));
+    assert(pty_key_write("CTRL_C",6)==6);
+    assert(interrupt_count==2);
+    /* Cursor report matches the fixed 80x24 terminal dimensions. */
+    tty_mode_reset(PTY_TTY);
+    tty_canonical[3]=0;tty_echo[3]=0;
+    for(const char *p="\033[999;999H\033[6n";*p;p++)pty_screen_byte((uint8_t)*p);
+    assert(tty_dequeue(3,tmp,32)==8);
+    assert(!memcmp(tmp,"\033[24;80R",8));
     /* Master close disconnects slave; resources reset only after last FD. */
     pty_ref(DEV_PTY_MASTER,-1);
     assert(pty.slave_refs==1);

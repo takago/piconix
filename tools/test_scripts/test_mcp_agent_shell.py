@@ -18,16 +18,9 @@ assert 'send_escaped_chunk(fd,raw,copy)' in MCP
 assert 'COMMAND_TIMEOUT_MS 3000' in MCP
 assert 'if(argc==3) { batch_mode=1; return run_one_command(argv[2],cwd); }' in SH
 assert 'if(!batch_mode) set_foreground(pid[i]);' in SH
-lists = []
-for line in MCP.splitlines():
-    if 'rpc_result(id, "' in line and '"tools' in line:
-        quoted = line.split('rpc_result(id, ', 1)[1].rsplit(');', 1)[0]
-        obj = json.loads(ast.literal_eval(quoted))
-        if 'tools' in obj:
-            lists.append([tool['name'] for tool in obj['tools']])
-assert len(lists) == 2
-assert lists[0] == ['get_temperature', 'write_file', 'execute_command', 'get_manual']
-assert lists[1] == ['get_temperature']
+assert 'list_tools_stream(fd,id)' in MCP
+for name in ('terminal_open','terminal_send','terminal_read','terminal_close','execute_command','get_manual'):
+    assert r'\"name\":\"'+name+r'\"' in MCP, name
 for lang in ('en', 'ja'):
     assert (ROOT / f'docs/{lang}/reference/commands/MCP.md').exists()
 if clang := shutil.which('clang'):

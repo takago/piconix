@@ -1,6 +1,6 @@
 # Pseudoterminal (PTY)
 
-PicoNIX provides **one general-purpose master/slave PTY pair**, independent of MCP. The MCP terminal tools have **not yet been implemented** in this stage.
+PicoNIX provides **one general-purpose master/slave PTY pair**, independent of MCP. MCP clients can also use the PTY through its virtual screen and named-key devices.
 
 ## Device nodes
 
@@ -8,11 +8,13 @@ PicoNIX provides **one general-purpose master/slave PTY pair**, independent of M
 |---|---|---|
 | `/dev/ptmx` | `open(..., O_RDWR)` | Exclusive master; a second open returns `OS_EBUSY` |
 | `/dev/pts/0` | `open(..., O_RDWR)` or other appropriate mode | Slave; available while the master is open |
+| `/dev/pts/0.screen` | `O_RDONLY` | Current 80x24 screen (80 columns + LF per row) |
+| `/dev/pts/0.key` | `O_WRONLY` | Named-key input (e.g. `DOWN`, `CTRL_C`) |
 
 - Writing to the master supplies terminal input to the slave, including canonical input, echo, and Ctrl+C handling. Reading the master receives slave output.
 - The slave is TTY number 3 and supports the standard PicoNIX TTY `ioctl()` commands and `fcntl(O_NONBLOCK)`. `tty` reports `/dev/pts/0`.
 - `spawn()` inherits FDs 0–2. If the parent's FD 0 points to the slave, the **child** receives PTY as its controlling TTY. Use `spawn_foreground()` to establish foreground ownership; the parent's controlling TTY remains unchanged.
-- No additional process or network socket is required. The slave-to-master output ring is 1024 bytes; ANSI screen emulation remains a user-space responsibility.
+- No additional process or network socket is required. The slave-to-master output ring is 1024 bytes; The kernel provides an intentionally limited ANSI-interpreted text screen; raw PTY output is unchanged.
 - A blocking slave write waits when the output ring is full; with `O_NONBLOCK` it returns `OS_EAGAIN`. Partial writes are possible. A full master-to-slave input queue causes the master's write to return `OS_EAGAIN`; the caller must retry.
 - Once all slave FDs close, the master drains remaining output and then returns EOF (0). When all master FDs close, the slave drains pending input, then reads EOF and writes return `OS_EIO`. The state resets after both ends close.
 - A new pair cannot be allocated until the previous session has closed both ends. FDs can be duplicated with `dup()` and `dup2()`.
@@ -25,7 +27,7 @@ PicoNIX provides **one general-purpose master/slave PTY pair**, independent of M
 4. Write keys to the master and read ANSI output from it, using `select()` if needed.
 5. Use `waitpid()` to collect the child and close the master.
 
-Full-screen applications such as `vi` emit ANSI escapes. The master-side terminal emulator, not the kernel, must interpret them. Host-side PTY helper tests pass, but device testing with `vi` is still required.
+Full-screen applications such as `vi` emit ANSI escapes. The master still receives unmodified ANSI output. The `.screen` device also provides a minimally interpreted current screen.
 
 
 ## On-device test (standard command)
@@ -53,8 +55,8 @@ physical console and forwards byte `0x03` to the PTY master. The PTY slave
 terminates the foreground task using PicoNIX's existing termination path,
 not POSIX `SIGINT`. With `pty_test sh`, interrupting a foreground `fd` should
 leave the PTY shell running. Forced termination does not run application
-cleanup. Use `reset` or `stty` if needed. ANSI screen emulation and MCP
-terminal tools are not yet implemented.
+cleanup. Use `reset` or `stty` if needed. Basic ANSI screen emulation and MCP
+terminal tools are available.
 
 `OS_TTY_GET_INTR` (`0x209`) and `OS_TTY_SET_INTR` (`0x20a`) control whether a
 TTY interprets Ctrl+C as an interrupt. The default is 1 (enabled); 0 passes
@@ -64,3 +66,17 @@ TTY interprets Ctrl+C as an interrupt. The default is 1 (enabled); 0 passes
 
 [Devices](README.md) | [TTY](../commands/TTY.md) | [日本語](../../../ja/reference/devices/PTY.md)
 
+
+## Virtual screen and named keys
+
+```sh
+cat /dev/pts/0.screen
+echo DOWN > /dev/pts/0.key
+echo CTRL_C > /dev/pts/0.key
+```
+
+Both nodes require an open PTY master. The screen is fixed at 80 columns and 24 rows, with no scrollback. Each row contains 80 characters plus a newline; reads advance the FD offset. Reads are not atomic snapshots if the screen changes during retrieval. Reverse-video lines may be indicated by `>` in the first column.
+
+`.key` accepts one named key per `write()`: `UP`, `DOWN`, `LEFT`, `RIGHT`, `ENTER`, `ESC`, `TAB`, `BACKSPACE`, `DELETE`, or `CTRL_A` through `CTRL_Z`. Use the master FD for ordinary text.
+
+This is a deliberately minimal ANSI interpreter, supporting basic cursor movement, erasure, reverse video, alternate-screen switching, and CSI 6n. It does not implement a full terminal, multibyte glyph layout, or resizes. PTY byte forwarding remains unchanged. See [MCP](../commands/MCP.md) for remote access.

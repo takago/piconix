@@ -208,6 +208,19 @@ static pipe_t pipes[PIPE_COUNT];
 #define WAIT_PTY_READ (-7)
 #define WAIT_PTY_SLAVE_WRITE (-8)
 typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave; } pty_t;
+/* 80x24の仮想画面．TTY/PTYのバイト転送とは独立した表示状態である． */
+#define VT_COLS 80u
+#define VT_ROWS 24u
+static struct {
+    char cells[VT_ROWS][VT_COLS];
+    uint8_t inverse[VT_ROWS];
+    uint8_t row,col,esc,params,private_csi,reverse;
+    uint16_t arg[3];
+    uint32_t revision;
+} pty_screen;
+static void pty_screen_byte(uint8_t c);
+static int pty_screen_read(int fd, void *p, size_t n);
+static int pty_key_write(const void *p, size_t n);
 static pty_t pty;
 static void pty_ref(int dev, int delta);
 /* デバイスIDがパイプの読取端・書込端に属するか判定する． */
@@ -809,6 +822,7 @@ NO_TRACE static void pty_ref(int dev, int delta) {
     if(dev==DEV_PTY_SLAVE && delta>0) pty.ever_slave=1;
     if(!pty.master_refs && !pty.slave_refs) {
         memset(&pty,0,sizeof pty);
+        memset(&pty_screen,0,sizeof pty_screen);
         tty_mode_reset(PTY_TTY);
         foreground_pid[PTY_TTY]=tty_shell_pid[PTY_TTY]=tty_claim_pid[PTY_TTY]=0;
         tty_restore_pid[PTY_TTY]=0;
@@ -816,11 +830,146 @@ NO_TRACE static void pty_ref(int dev, int delta) {
     }
 }
 
+static void tty_raw_enqueue(int dev,uint8_t c);
+static int pty_master_rw(void *p,size_t n,int writing);
+/* 仮想画面の最小ANSI解釈．通常のPTY出力は加工せず，画面だけを更新する． */
+NO_TRACE static void vt_clear(void) {
+    memset(pty_screen.cells,' ',sizeof pty_screen.cells);
+    memset(pty_screen.inverse,0,sizeof pty_screen.inverse);
+}
+/* 最下行を空けながら仮想画面を1行スクロールする． */
+NO_TRACE static void vt_scroll(void) {
+    memmove(pty_screen.cells[0],pty_screen.cells[1],(VT_ROWS-1u)*VT_COLS);
+    memmove(pty_screen.inverse,pty_screen.inverse+1,VT_ROWS-1u);
+    memset(pty_screen.cells[VT_ROWS-1u],' ',VT_COLS);
+    pty_screen.inverse[VT_ROWS-1u]=0;
+}
+/* 改行時に下端を超えた場合は1行スクロールする． */
+NO_TRACE static void vt_lf(void) {
+    if(++pty_screen.row>=VT_ROWS) { vt_scroll(); pty_screen.row=VT_ROWS-1u; }
+}
+/* ESC[6nへの応答はPTYの入力キューに入れる．端末サイズのプローブにも対応する． */
+NO_TRACE static void vt_cursor_report(void) {
+    char reply[16];
+    int n=snprintf(reply,sizeof reply,"\033[%u;%uR",(unsigned)pty_screen.row+1u,(unsigned)pty_screen.col+1u);
+    if(n>0 && (unsigned)n<sizeof reply)
+        for(int i=0;i<n;i++) tty_raw_enqueue(PTY_TTY,(uint8_t)reply[i]);
+}
+/* ANSIのパラメータが省略された場合に既定値を返す． */
+NO_TRACE static unsigned vt_arg(unsigned i,unsigned fallback) {
+    return i<3u && pty_screen.arg[i] ? pty_screen.arg[i] : fallback;
+}
+/* PTYの出力を最小限のANSI状態機械で画面へ描画する． */
+NO_TRACE static void pty_screen_byte(uint8_t c) {
+    if(pty_screen.esc==1) {
+        pty_screen.esc=0;
+        if(c=='[') {
+            pty_screen.esc=2; pty_screen.params=0; pty_screen.private_csi=0;
+            memset(pty_screen.arg,0,sizeof pty_screen.arg);
+        } else if(c=='c') { vt_clear(); pty_screen.row=pty_screen.col=0; }
+        return;
+    }
+    if(pty_screen.esc==2) {
+        if(c=='?' && !pty_screen.params && !pty_screen.arg[0]) {pty_screen.private_csi=1;return;}
+        if(c>='0' && c<='9') {
+            unsigned i=pty_screen.params;
+            if(i<3 && pty_screen.arg[i]<1000u) pty_screen.arg[i]=(uint16_t)(pty_screen.arg[i]*10u+c-'0');
+            return;
+        }
+        if(c==';') {if(pty_screen.params<2) pty_screen.params++;return;}
+        unsigned n=vt_arg(0,1);
+        if(c=='H'||c=='f') {
+            unsigned r=n-1u,col=vt_arg(1,1)-1u;
+            pty_screen.row=(uint8_t)(r<VT_ROWS?r:VT_ROWS-1u);
+            pty_screen.col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);
+        } else if(c=='A') pty_screen.row=(uint8_t)(n>pty_screen.row?0:pty_screen.row-n);
+        else if(c=='B') pty_screen.row=(uint8_t)(pty_screen.row+n<VT_ROWS?pty_screen.row+n:VT_ROWS-1u);
+        else if(c=='C') pty_screen.col=(uint8_t)(pty_screen.col+n<VT_COLS?pty_screen.col+n:VT_COLS-1u);
+        else if(c=='D') pty_screen.col=(uint8_t)(n>pty_screen.col?0:pty_screen.col-n);
+        else if(c=='G') pty_screen.col=(uint8_t)(n-1u<VT_COLS?n-1u:VT_COLS-1u);
+        else if(c=='J' && (pty_screen.arg[0]==2 || pty_screen.arg[0]==3)) vt_clear();
+        else if(c=='K') {
+            unsigned start=pty_screen.arg[0]==1 ? 0 : pty_screen.col;
+            unsigned end=pty_screen.arg[0]==1 ? (unsigned)pty_screen.col+1u : VT_COLS;
+            if(pty_screen.arg[0]==2) {start=0;end=VT_COLS;}
+            memset(pty_screen.cells[pty_screen.row]+start,' ',end-start);
+        } else if(c=='m') {
+            for(unsigned i=0;i<=pty_screen.params;i++) {
+                if(pty_screen.arg[i]==0 || pty_screen.arg[i]==27) pty_screen.reverse=0;
+                if(pty_screen.arg[i]==7) pty_screen.reverse=1;
+            }
+        } else if(c=='n' && pty_screen.arg[0]==6) vt_cursor_report();
+        else if(pty_screen.private_csi && (c=='h'||c=='l') && pty_screen.arg[0]==1049) {
+            if(c=='h') {vt_clear();pty_screen.row=pty_screen.col=0;}
+        }
+        pty_screen.esc=0;
+        pty_screen.revision++;
+        return;
+    }
+    if(c==27) {pty_screen.esc=1;return;}
+    if(c=='\r') pty_screen.col=0;
+    else if(c=='\n') vt_lf();
+    else if(c=='\b') {if(pty_screen.col) pty_screen.col--;}
+    else if(c=='\t') {unsigned col=((unsigned)pty_screen.col+8u)&~7u;pty_screen.col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);}
+    else if(c>=32 && c<127) {
+        pty_screen.cells[pty_screen.row][pty_screen.col]=(char)c;
+        if(pty_screen.reverse) pty_screen.inverse[pty_screen.row]=1;
+        if(++pty_screen.col>=VT_COLS) {pty_screen.col=0;vt_lf();}
+    }
+    pty_screen.revision++;
+}
+/* 1行80文字+LFを24行．固定長なので分割readでも位置が安定する． */
+NO_TRACE static int pty_screen_read(int fd, void *p, size_t n) {
+    unsigned pos=tasks[current].fd_pos[fd];
+    const unsigned size=VT_ROWS*(VT_COLS+1u);
+    if(pos>=size) return 0;
+    if(n>size-pos) n=size-pos;
+    char *dst=p;
+    for(size_t i=0;i<n;i++) {
+        unsigned at=pos+(unsigned)i;
+        unsigned row=at/(VT_COLS+1u),col=at%(VT_COLS+1u);
+        dst[i]=col==VT_COLS ? '\n' :
+               (col==0 && row>0 && pty_screen.inverse[row] &&
+                pty_screen.cells[row][0]==' ' ? '>' : pty_screen.cells[row][col]);
+    }
+    tasks[current].fd_pos[fd]=pos+(uint32_t)n;
+    return (int)n;
+}
+/* 名前による特殊キー入力．Masterと同じ行規律に渡す． */
+NO_TRACE static int pty_key_write(const void *p,size_t n) {
+    if(!pty.master_refs || !pty.slave_refs) return OS_EIO;
+    if(!n) return 0;
+    if(n>16u) return OS_EINVAL;
+    char key[17];memcpy(key,p,n);key[n]=0;
+    unsigned requested=(unsigned)n;
+    while(n && (key[n-1]=='\n'||key[n-1]=='\r'))key[--n]=0;
+    if(!n) return (int)requested; /* echoが改行を別writeする場合 */
+    const char *seq=0;
+    if(!strcmp(key,"UP")) seq="\033[A";
+    else if(!strcmp(key,"DOWN")) seq="\033[B";
+    else if(!strcmp(key,"RIGHT")) seq="\033[C";
+    else if(!strcmp(key,"LEFT")) seq="\033[D";
+    else if(!strcmp(key,"ENTER")) seq="\r";
+    else if(!strcmp(key,"ESC")) seq="\033";
+    else if(!strcmp(key,"TAB")) seq="\t";
+    else if(!strcmp(key,"BACKSPACE")) seq="\177";
+    else if(!strcmp(key,"DELETE")) seq="\033[3~";
+    char control[2]={0,0};
+    if(!seq && n==6 && !memcmp(key,"CTRL_",5) && key[5]>='A' && key[5]<='Z') {
+        control[0]=(char)(key[5]-'A'+1);seq=control;
+    }
+    if(!seq) return OS_EINVAL;
+    size_t len=strlen(seq);
+    int written=pty_master_rw((void *)seq,len,1);
+    return written==(int)len ? (int)requested : written<0 ? written : OS_EAGAIN;
+}
+
 /* Masterが読み取るSlave出力を，1024バイトのリングへ欠落させずに追加する． */
 NO_TRACE static int pty_output_put(uint8_t c) {
     if(pty.used==PTY_OUT_BYTES) return 0;
     pty.out[(pty.head+pty.used)&(PTY_OUT_BYTES-1u)]=c;
     pty.used++;
+    pty_screen_byte(c);
     return 1;
 }
 
@@ -1758,7 +1907,10 @@ NO_TRACE static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
 #endif
         break;
     case VDIR_PTS:
-        EMIT("0",0); break;
+        EMIT("0",0);
+        EMIT("0.screen",0);
+        EMIT("0.key",0);
+        break;
     case VDIR_DEV_NET:
 #if PICONIX_WIFI
         EMIT("wifi",0); EMIT("packet",0); EMIT("icmp",0);
@@ -1925,8 +2077,11 @@ static int vfs_open(const char *p, int flags) {
     if(dev==DEV_PTY_MASTER) {
         if((flags & 3)!=OS_O_RDWR) return OS_EINVAL;
         if(pty.master_refs || pty.slave_refs) return OS_EBUSY;
+        memset(&pty_screen,0,sizeof pty_screen);vt_clear();
     }
-    if(dev==DEV_PTY_SLAVE && !pty.master_refs) return OS_ENOENT;
+    if((dev==DEV_PTY_SLAVE || dev==DEV_PTY_SCREEN || dev==DEV_PTY_KEY) && !pty.master_refs) return OS_ENOENT;
+    if(dev==DEV_PTY_SCREEN && (flags & 3)!=OS_O_RDONLY) return OS_EINVAL;
+    if(dev==DEV_PTY_KEY && (flags & 3)!=OS_O_WRONLY) return OS_EINVAL;
     if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE &&
        dev!=DEV_PTY_MASTER && dev!=DEV_PTY_SLAVE)
         return OS_EINVAL;
@@ -2559,6 +2714,8 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
     if(dev==DEV_PTY_MASTER) {
         return pty_master_rw(p,n,writing);
     }
+    if(dev==DEV_PTY_SCREEN) return writing ? OS_EBADF : pty_screen_read(fd,p,n);
+    if(dev==DEV_PTY_KEY) return writing ? pty_key_write(p,n) : OS_EBADF;
     if(dev==DEV_FBCHAR) {
         int mode=tasks[current].fd_flags[fd] & 3;
         if((writing && mode==OS_O_RDONLY) || (!writing && mode==OS_O_WRONLY))
@@ -2885,7 +3042,25 @@ void os_svc_dispatch(uint32_t *f) {
         case SYS_GET_TTY: result=tasks[current].tty; break;
         case SYS_KILL:
             {int slot=slot_from_pid(a);
-            if(slot<0 || slot==current || slot==IDLE_SLOT)
+            /* MCP子孫はmcpd自身とmcpdを起動した管理シェルを終了できない．
+             * 普通のコンソールからの管理者操作は従来どおり許可する． */
+            int mcp_origin=0,protected_target=0,ancestor=tasks[current].pid;
+            for(int hop=0;hop<OS_MAX_TASKS && ancestor>0;hop++) {
+                int parent=0;
+                for(int i=0;i<OS_MAX_TASKS;i++)
+                    if(tasks[i].pid==ancestor && tasks[i].state!=UNUSED && tasks[i].state!=DEAD) {
+                        if(tasks[i].name && !strcmp(tasks[i].name,"mcpd")) mcp_origin=1;
+                        parent=tasks[i].parent_pid;
+                        break;
+                    }
+                ancestor=parent;
+            }
+            if(mcp_origin && slot>=0) for(int i=0;i<OS_MAX_TASKS;i++)
+                if(tasks[i].state!=UNUSED && tasks[i].state!=DEAD &&
+                   tasks[i].name && !strcmp(tasks[i].name,"mcpd") &&
+                   (a==tasks[i].pid || a==tasks[i].parent_pid)) protected_target=1;
+            if(protected_target) result=OS_EIO;
+            else if(slot<0 || slot==current || slot==IDLE_SLOT)
                 result=OS_ESRCH;
             else {finish_task(slot,128+15);result=0;}}
             break;

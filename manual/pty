@@ -1,27 +1,23 @@
-PSEUDOTERMINAL (PTY) — PICONIX
+PSEUDOTERMINAL (PTY) / VIRTUAL 80x24 SCREEN
 
-PicoNIX provides one general-purpose PTY pair without network sockets:
-  /dev/ptmx  master (open with O_RDWR, one exclusive pair)
-  /dev/pts/0  slave (open after /dev/ptmx)
+/dev/ptmx          Master, exclusive O_RDWR
+/dev/pts/0         Slave, after opening master
+/dev/pts/0.screen  Read-only 80x24 text, 80 columns + LF per row
+/dev/pts/0.key     Named-key write (UP, DOWN, LEFT, RIGHT, ENTER,
+                   ESC, TAB, BACKSPACE, DELETE, CTRL_A ... CTRL_Z)
 
-To run an interactive child, save and redirect FDs 0, 1 and 2 to
-/dev/pts/0, call spawn_foreground(), then restore the parent's FDs.
-The child uses PTY controlling TTY 3; the parent retains its own TTY.
+A user application can attach standard FDs 0..2 to the slave, then
+spawn a child. Master read/write still transfers raw PTY bytes.
+The kernel additionally interprets common ANSI cursor/erase/reverse
+commands for .screen. CSI 6n returns current cursor position.
+This is not a complete terminal emulator. No scrollback or resizes.
 
-write(master) -> input to slave (canonical/echo processing)
-read(master)  <- output from slave (including raw ANSI sequences)
-The slave supports TTY ioctl(), fcntl(O_NONBLOCK), and select().
-Master reads can block until output arrives. With a full input queue,
-master write may return OS_EAGAIN and should be retried.
-Slave output uses a 1024-byte ring and can block until the master reads.
-Closing the last master makes slave reads reach EOF and writes fail.
-Both ends must close before a new session can be allocated.
+MCP: use terminal_open({command:'fd'}), terminal_read({}),
+terminal_send({key:'DOWN'}), terminal_close({}). Ordinary commands
+should use execute_command to reduce traffic.
 
-PTY is a generic kernel feature. MCP terminal interaction is not yet
-implemented; the kernel does not emulate an ANSI terminal screen.
+The mcpd process and its launching shell are protected from kill
+by MCP descendants. This is not authentication or full isolation.
 
-The standard pty_test command runs tty on the PTY by default.
-Use pty_test fd or pty_test vi /tmp/test.txt to forward keyboard
-input and ANSI output between the console and a PTY child.
-Ctrl+C reaches the PTY foreground task (forced termination, not SIGINT).
-pty_test restores its console settings after the child exits.
+The standard pty_test command can relay: pty_test fd, pty_test sh,
+pty_test vi /tmp/test.txt. Ctrl+C interrupts the foreground task.

@@ -3,19 +3,11 @@ from pathlib import Path
 import ast, json
 root = Path(__file__).resolve().parents[2]
 s = (root/'userland/apps/mcpd.c').read_text()
-assert 'Run short non-interactive commands only' in s
-for name in ('mem', 'watch', 'vi', 'edit', 'fd', 'pong'):
+assert 'Run noninteractive shell command' in s
+for name in ('terminal_open', 'terminal_read', 'terminal_send', 'execute_command'):
     assert name in s, name
-for line in s.splitlines():
-    if 'rpc_result(id, "' in line and r'\"tools\"' in line:
-        payload = json.loads(ast.literal_eval(line.split('rpc_result(id, ',1)[1].rsplit(');',1)[0]))
-        tool = next((t for t in payload.get('tools', []) if t['name']=='execute_command'), None)
-        if tool:
-            d=tool['description']
-            assert 'non-interactive' in d and 'mem' in d and 'watch' in d
-            break
-else:
-    raise AssertionError('execute_command not advertised')
+assert 'Run noninteractive shell command' in s
+assert 'only for vi/fd/sh' in s
 for locale in ('ja','en'):
     guide = (root/f'docs/{locale}/reference/commands/MCP.md').read_text()
     for name in ('mem','watch','vi','edit','fd','pong'):

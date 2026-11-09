@@ -8,7 +8,7 @@ Execution and RAM
 
 MCP shell mode
   execute_command <=119 ASCII bytes; output capped at 4096 B;
-  typical command timeout 3000 ms; no PTY for full-screen tools.
+  typical command timeout 3000 ms; PTY tools available for interactive programs (one session).
   write_file: /tmp/NAME ASCII only, <=2048 B, overwrites file.
   get_manual: individual ROM pages via topic; not all pages at once.
 

@@ -4,7 +4,7 @@ SESSION: First get_manual() or cat /man/README; then relevant page;
 then help COMMAND, if needed. Avoid guessing GNU/Linux options.
 
 MCP execute_command sends a command to sh -c, NOT a real terminal.
-It has no interactive PTY or keyboard. Command <=119 ASCII bytes,
+Use terminal_open/send/read/close for interactive PTY applications; execute_command has no interactive keyboard. Command <=119 ASCII bytes,
 output <=4096 bytes, nominal child execution timeout 3 seconds.
 Calls create extra processes; PicoNIX has only six 24 KiB user slots.
 Use ps before complex operations. Never kill mcpd accidentally.
@@ -30,7 +30,7 @@ The assembler writes /tmp/a.out; do not run a stale binary after
 an as failure. Ensure successful compiler/assembler outputs first.
 
 mcpd (without --shell) exposes temperature only.
-mcpd --shell enables get_manual, execute_command and write_file;
+mcpd --shell enables get_manual, execute_command, write_file and terminal_*;
 these services have NO authentication or TLS. Use isolated trusted LAN.
 
 On 'incomplete chunked read', connection closed before HTTP response

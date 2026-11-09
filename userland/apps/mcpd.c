@@ -7,9 +7,9 @@
 #include <stdint.h>
 
 #define PORT 8080
-#define REQUEST_SIZE 3600
-#define BODY_LIMIT 3200
-#define RESPONSE_SIZE 1400
+#define REQUEST_SIZE 2800
+#define BODY_LIMIT 2400
+#define RESPONSE_SIZE 900
 #define COMMAND_SIZE 120
 #define COMMAND_OUTPUT_LIMIT 4096
 #define COMMAND_TIMEOUT_MS 3000
@@ -19,6 +19,11 @@ static char request[REQUEST_SIZE];
 static char response[RESPONSE_SIZE];
 /* 応答用の比較的大きいバッファは4 KiBスタックを圧迫しないよう静的確保． */
 static int allow_shell; /* 明示的な --shell のときだけ任意コマンドを公開する． */
+/* HTTPの接続寿命とは独立した1組のPTYセッション． */
+static int term_master=-1,term_pid=-1;
+static uint32_t term_last_hash;
+static int term_screen_seen;
+
 
 /* JSON文字列とコンテナを走査し，指定された値の終端を探す． */
 static const char *space(const char *p, const char *end) {
@@ -453,6 +458,122 @@ finish:
     return 0;
 }
 
+/* 応答の総サイズをRAMに載せずMCPツール一覧を送信する． */
+static int list_tools_stream(int fd,const char *id) {
+    const char *headers="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n";
+    char prefix[128];
+    int n=snprintf(prefix,sizeof prefix,"{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"resultType\":\"complete\",\"cacheScope\":\"private\",\"ttlMs\":0,\"tools\":[",id);
+    if(n<=0 || (unsigned)n>=sizeof prefix || send_all(fd,headers,(unsigned)strlen(headers))<0 || send_chunk(fd,prefix,(unsigned)n)<0) return -1;
+    const char *base="{\"name\":\"get_temperature\",\"description\":\"Read onboard temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}}";
+    if(send_chunk(fd,base,(unsigned)strlen(base))<0) return -1;
+    if(allow_shell) {
+        /* 定数ポインタ配列はRAMリンクアドレス依存を生むため使わない． */
+#define MCP_ADD(fragment) do { const char *part=(fragment); if(send_chunk(fd,part,(unsigned)strlen(part))<0) return -1; } while(0)
+        MCP_ADD(",{\"name\":\"get_manual\",\"description\":\"Read ROM manual topic\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"}}}}");
+        MCP_ADD(",{\"name\":\"write_file\",\"description\":\"Write /tmp/NAME\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"]}}");
+        MCP_ADD(",{\"name\":\"execute_command\",\"description\":\"Run noninteractive shell command. Prefer this over PTY; do not stop mcpd or the managing shell\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
+        MCP_ADD(",{\"name\":\"terminal_open\",\"description\":\"Start one interactive application on 80x24 PTY; use only for vi/fd/sh or other interactive programs\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
+        MCP_ADD(",{\"name\":\"terminal_send\",\"description\":\"Send either text or named key (UP DOWN LEFT RIGHT ENTER ESC CTRL_C etc)\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"key\":{\"type\":\"string\"}}}}");
+        MCP_ADD(",{\"name\":\"terminal_read\",\"description\":\"Read current fixed 80x24 text screen (not ANSI bytes)\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
+        MCP_ADD(",{\"name\":\"terminal_close\",\"description\":\"Terminate only this PTY session\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
+#undef MCP_ADD
+    }
+    if(send_chunk(fd,"]}}",3)<0) return -1;
+    return send_all(fd,"0\r\n\r\n",5);
+}
+
+/* セッションをHTTP要求から独立して保持し，親の標準FDは必ず元へ戻す． */
+static int terminal_open_command(const char *command) {
+    if(term_master>=0) return -2;
+    /* 初版はプログラム名1個と任意の引数1個に限定する． */
+    char name[32],param[96];unsigned i=0,j=0;
+    while(command[i] && command[i]!=' ' && i<sizeof name-1) {name[i]=command[i];i++;}
+    name[i]=0;
+    if(!i || strchr(name,'/') || !strcmp(name,"mcpd") ) return -1;
+    while(command[i]==' ')i++;
+    while(command[i] && j<sizeof param-1) {
+        unsigned char c=(unsigned char)command[i++];
+        if(c<32 || c>126 || c==';' || c=='|' || c=='&' || c=='>' || c=='<') return -1;
+        param[j++]=(char)c;
+    }
+    if(command[i]) return -1;
+    param[j]=0;
+    int program=program_id(name);
+    if(program<0) return -1;
+    int master=open("/dev/ptmx",O_RDWR|O_NONBLOCK);
+    if(master<0) return -3;
+    int slave=open("/dev/pts/0",O_RDWR);
+    int saved[3]={-1,-1,-1},pid=-1,ok=slave>=0;
+    if(ok) for(int k=0;k<3;k++) if((saved[k]=dup(k))<0) ok=0;
+    if(ok) for(int k=0;k<3;k++) if(dup2(slave,k)<0) ok=0;
+    if(ok) {
+        const char *args[2]={name,param};
+        pid=spawn_foreground(program,j?2:1,args);
+    }
+    for(int k=0;k<3;k++) if(saved[k]>=0) { (void)dup2(saved[k],k);close(saved[k]); }
+    if(slave>=0)close(slave);
+    if(pid<=0) {close(master);return -4;}
+    term_master=master;term_pid=pid;
+    term_screen_seen=0;
+    return 0;
+}
+/* 現在のPTYセッションを終了し，Masterと子プロセスを解放する． */
+static void terminal_close_session(void) {
+    if(term_pid>0) {
+        int status=0;
+        if(waitpid(term_pid,&status,WNOHANG)==0) {kill(term_pid);(void)waitpid(term_pid,&status,0);}
+    }
+    if(term_master>=0)close(term_master);
+    term_master=term_pid=-1;
+    term_screen_seen=0;
+}
+/* Masterを枯渇させないため，screen取得前にANSI出力を消費する． */
+static void terminal_drain(unsigned attempts) {
+    if(term_master<0) return;
+    char buf[128];
+    for(unsigned i=0;i<attempts;i++) {
+        int n=read(term_master,buf,sizeof buf);
+        if(n==OS_EAGAIN) {if(i<4) msleep(10);else break;}
+        else if(n<=0) break;
+    }
+}
+/* /dev/pts/0.screenの1,944バイトをchunkedで送る．mcpd内に画面を複製しない． */
+static int terminal_screen_stream(int fd,const char *id) {
+    if(term_master<0) {rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"No PTY session\"}],\"isError\":true}");return 200;}
+    terminal_drain(32);
+    int screen=open("/dev/pts/0.screen",O_RDONLY);
+    if(screen<0) {rpc_error(id,-32030,"Screen unavailable");return 200;}
+    /* 同一画面ならHTTPで2 KiB送らない．固定行を2パスで処理してRAMを節約する． */
+    uint32_t hash=2166136261u;
+    char scan[81];int scan_n;
+    while((scan_n=read(screen,scan,sizeof scan))>0)
+        for(int i=0;i<scan_n;i++) hash=(hash^(uint8_t)scan[i])*16777619u;
+    close(screen);
+    if(scan_n<0) {rpc_error(id,-32030,"Screen read failed");return 200;}
+    if(term_screen_seen && hash==term_last_hash) {
+        rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"unchanged\"}]}");
+        return 200;
+    }
+    screen=open("/dev/pts/0.screen",O_RDONLY);
+    if(screen<0) {rpc_error(id,-32030,"Screen unavailable");return 200;}
+    term_last_hash=hash;term_screen_seen=1;
+    const char *headers="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n";
+    char prefix[160];
+    int n=snprintf(prefix,sizeof prefix,"{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"",id);
+    if(n<0 || (unsigned)n>=sizeof prefix || send_all(fd,headers,(unsigned)strlen(headers))<0 || send_chunk(fd,prefix,(unsigned)n)<0) goto done;
+    char row[81];
+    while((n=read(screen,row,sizeof row))>0)
+        if(send_escaped_chunk(fd,row,(unsigned)n)<0) goto done;
+    {
+      const char *suffix="\"}],\"isError\":false}}";
+      if(send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto done;
+      send_all(fd,"0\r\n\r\n",5);
+    }
+done:
+    close(screen);
+    return -1;
+}
+
 /* ROM内の/manファイルをMCPへストリーミング転送する．
  * 引数なしはREADME(目次)，topic指定は該当ページ．大きなRAM配列を使わない． */
 static int send_full_manual(int fd,const char *id,const char *topic) {
@@ -557,17 +678,56 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
         return 200;
     }
     if (!strcmp(method, "tools/list")) {
-        if (allow_shell)
-            rpc_result(id, "{\"resultType\":\"complete\",\"tools\":[{\"name\":\"get_temperature\",\"description\":\"Read onboard temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}},{\"name\":\"write_file\",\"description\":\"Overwrite /tmp/NAME with <=2048 ASCII bytes\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"],\"additionalProperties\":false}},{\"name\":\"execute_command\",\"description\":\"Run short non-interactive commands only. No mem, watch, vi, edit, fd, pong or interactive python. Call get_manual first\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"],\"additionalProperties\":false}},{\"name\":\"get_manual\",\"description\":\"Read /man/README index or one topic from /man (e.g. languages/c, memory, trace)\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"}},\"additionalProperties\":false}}],\"ttlMs\":0,\"cacheScope\":\"private\"}");
-        else
-            rpc_result(id, "{\"resultType\":\"complete\",\"tools\":[{\"name\":\"get_temperature\",\"description\":\"Read onboard temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}}],\"ttlMs\":0,\"cacheScope\":\"private\"}");
-        return 200;
+        list_tools_stream(fd,id);
+        return -1;
     }
     if (!strcmp(method, "tools/call")) {
         v = params ? member(params, params_end, "name", &v_end) : 0;
         const char *path = 0;
         if (json_equals(v, v_end, "get_temperature"))
             path = "/dev/adc/temp";
+        if(allow_shell && (json_equals(v,v_end,"terminal_open") ||
+                            json_equals(v,v_end,"terminal_send") ||
+                            json_equals(v,v_end,"terminal_read") ||
+                            json_equals(v,v_end,"terminal_close"))) {
+            const char *expected=json_equals(v,v_end,"terminal_open") ? "terminal_open" :
+                                 json_equals(v,v_end,"terminal_send") ? "terminal_send" :
+                                 json_equals(v,v_end,"terminal_read") ? "terminal_read" : "terminal_close";
+            if(strcmp(http_name,expected)) {rpc_error(id,-32020,"HeaderMismatch");return 400;}
+            if(!strcmp(expected,"terminal_read")) return terminal_screen_stream(fd,id);
+            if(!strcmp(expected,"terminal_close")) {
+                if(term_master>=0) terminal_close_session();
+                rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY closed\"}]}");return 200;
+            }
+            const char *args_end,*args=params?member(params,params_end,"arguments",&args_end):0;
+            const char *v2_end,*value=args?member(args,args_end,!strcmp(expected,"terminal_open")?"command":"key",&v2_end):0;
+            if(!strcmp(expected,"terminal_open")) {
+                char cmd[COMMAND_SIZE];
+                if(command_argument(value,v2_end,cmd)<0) {rpc_error(id,-32602,"Invalid command");return 200;}
+                int result=terminal_open_command(cmd);
+                if(result<0) rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY busy or invalid command\"}],\"isError\":true}");
+                else rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY opened: 80x24\"}]}");
+                return 200;
+            }
+            if(term_master<0) {rpc_error(id,-32030,"No PTY session");return 200;}
+            int written=-1;
+            if(value) {
+                char key[20];
+                unsigned len=(unsigned)(v2_end-value-2);
+                if(*value=='"' && len>0 && len<sizeof key) {
+                    memcpy(key,value+1,len);key[len]=0;
+                    int fdkey=open("/dev/pts/0.key",O_WRONLY);
+                    if(fdkey>=0) {written=write(fdkey,key,len);close(fdkey);}
+                }
+            } else {
+                const char *text_end,*content=args?member(args,args_end,"text",&text_end):0;
+                if(content) written=decode_file_text(content,text_end,term_master);
+            }
+            if(written<0) rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY send failed\"}],\"isError\":true}");
+            else rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Sent\"}]}");
+            terminal_drain(8);
+            return 200;
+        }
         if (allow_shell && json_equals(v,v_end,"get_manual")) {
             if (strcmp(http_name, "get_manual")) {
                 rpc_error(id, -32020, "HeaderMismatch"); return 400;
@@ -778,6 +938,7 @@ int main(int argc, char **argv) {
             handle(client);
         close(client);
     }
+    if(term_master>=0)terminal_close_session();
     close(server);
     return 0;
 }

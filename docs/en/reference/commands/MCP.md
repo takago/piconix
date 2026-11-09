@@ -19,7 +19,7 @@ mcpd --shell &
 | Startup | Exposed MCP tools | Purpose |
 |---|---|---|
 | `mcpd &` | `get_temperature` | Read onboard temperature |
-| `mcpd --shell &` | Above plus `get_manual`, `execute_command`, `write_file` | Manual lookup and remote actions |
+| `mcpd --shell &` | Above plus `get_manual`, `execute_command`, `write_file`, `terminal_open`, `terminal_send`, `terminal_read`, `terminal_close` | Manual lookup and remote actions |
 
 `get_manual()` returns the `/man/README` index; supplying `topic` returns one page. `execute_command` is for short **noninteractive** commands. `write_file` overwrites ASCII text at `/tmp/NAME` (up to 2,048 bytes, also subject to the HTTP request limit). The normal mode does not expose command execution or writes.
 
@@ -62,7 +62,7 @@ curl -i -X POST "http://$PICO_IP:8080/mcp" \
 ## 4. Current limitations
 
 - Implements part of MCP `2026-07-28`: `server/discover`, `tools/list` and `tools/call`. Interoperability with all MCP clients is not guaranteed.
-- HTTP request buffer: 3,600 bytes; maximum JSON body: 3,200 bytes; one client processed at a time.
+- HTTP request buffer: 2,800 bytes; maximum JSON body: 2,400 bytes; one client processed at a time.
 - `execute_command` accepts up to 119 ASCII bytes of command text and up to 4 KiB of output, sent using HTTP/1.1 chunked transfer.
 - No SSE, legacy `initialize`, notifications, or concurrent client processing.
 - Do not run interactive or full-screen applications such as `vi`, `edit`, `fd`, `mem`, `watch`, or `pong` with `execute_command`.
@@ -91,7 +91,7 @@ On a trusted, isolated test network:
 mcpd --shell &
 ```
 
-This mode exposes `get_temperature`, `get_manual`, `execute_command`, and `write_file`. **There is no authentication or TLS. LLM-selected commands run on Pico W, and the host client does not ask for confirmation before executing tools.** Do not expose the server to shared networks or the Internet. Implement an approval gate in the host client before using it for consequential operations.
+This mode exposes `get_temperature`, `get_manual`, `execute_command`, `write_file`, and four `terminal_*` tools. **There is no authentication or TLS. LLM-selected commands run on Pico W, and the host client does not ask for confirmation before executing tools.** Do not expose the server to shared networks or the Internet. Implement an approval gate in the host client before using it for consequential operations.
 
 ### Connect from Linux
 
@@ -181,3 +181,30 @@ The Pico W `mcpd` server successfully handled `tools/list` and `tools/call` from
 ### Register PicoNIX documentation in Open WebUI
 
 If using Open WebUI Knowledge, upload `docs/en/reference/commands/MCP.md` and separately configure the MCP endpoint `http://PICO_IP:8080/mcp`. Uploading documentation does not enable tool calls, and retrieval is not guaranteed on every turn. Enforce approval for consequential actions in the host application.
+
+## Interactive applications through PTY
+
+With `mcpd --shell &`, four terminal tools are available. `terminal_open` starts a program with at most one optional argument. `terminal_send` takes either `text` or `key`. `terminal_read` returns the current **80x24 text screen**, not raw ANSI bytes. `terminal_close` terminates only this session's child and closes its PTY.
+
+```text
+terminal_open({"command":"fd"})
+terminal_read({})
+terminal_send({"key":"DOWN"})
+terminal_read({})
+terminal_send({"key":"ENTER"})
+terminal_close({})
+```
+
+Send ordinary text with `terminal_send({"text":"hello"})`. Supported names include `UP`, `DOWN`, `LEFT`, `RIGHT`, `ENTER`, `ESC`, `TAB`, `BACKSPACE`, `DELETE`, and `CTRL_A` through `CTRL_Z`. `CTRL_C` uses PicoNIX's existing foreground-task termination, not POSIX signals. There is no scrollback.
+
+Prefer `execute_command` for ordinary noninteractive commands. Only one PTY session is available and it shares the six task slots. Starting `mcpd` as a PTY application is forbidden. Kernel-side kill protection prevents MCP descendants from killing `mcpd` or the shell that launched it; it does not provide sandboxing or replace authentication/TLS (both absent).
+
+The `.screen` interface is a PicoNIX extension with intentionally limited ANSI support. See [PTY device](../devices/PTY.md).
+
+### On-device PTY verification
+
+```sh
+python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP
+```
+
+The first read returns the 80x24 text screen. Later identical reads return `unchanged`. The two-pass comparison is not an atomic screen snapshot during concurrent updates.
