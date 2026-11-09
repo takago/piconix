@@ -33,6 +33,7 @@ int main(int argc, char **argv) {
         puts("  ps         Show processes");
         puts("  kill       Stop a process");
         puts("  tty        Show controlling terminal");
+        puts("  pty_test   Run a command through a PTY");
         puts("  stty       Terminal mode settings");
         puts("  reset      Reset terminal display/settings");
         puts("  lsof       Show open files");
@@ -113,6 +114,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"echo")) puts("echo: Print text\nusage: echo [-n] [-e] [text...]\n-e: interpret \\n, \\r, \\t, \\\\, \\033 (octal), \\x1b (hex)\n-n: omit trailing newline");
     else if(!strcmp(argv[1],"kill")) puts("kill: Stop a process\nusage: kill PID");
     else if(!strcmp(argv[1],"tty")) puts("tty: Show controlling terminal\nusage: tty");
+    else if(!strcmp(argv[1],"pty_test")) puts("pty_test: Run a command through the PTY\nusage: pty_test [command [args...]]\nNo command: run tty; examples: pty_test fd, pty_test vi /tmp/test.txt");
     else if(!strcmp(argv[1],"kitesys")) puts("kitesys: Kanazawa Institute of Tech. Embedded System Test Program\nusage: kitesys\nFB display, GP16/17 buttons and GP18 PWM");
     else if(!strcmp(argv[1],"fbctl")) puts("fbctl: 8x8 framebuffer controller\nusage: fbctl on|off|clear|status|test");
     else if(!strcmp(argv[1],"pins")) puts("pins: Show physical pin layout\nusage: pins");

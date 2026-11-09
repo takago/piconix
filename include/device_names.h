@@ -16,6 +16,8 @@ enum {
     DEV_I2C1 = 139,
     DEV_NET_PACKET = 144,
     DEV_NET_ICMP = 145,
+    DEV_PTY_MASTER = 274,
+    DEV_PTY_SLAVE = 275,
 };
 /* X(path, id)はビルド条件に依存しない固定エントリを展開する． */
 #define PICONIX_FIXED_DEVICES(X) \
@@ -23,6 +25,8 @@ enum {
     X("/dev/fb", DEV_FB) \
     X("/dev/fbchar", DEV_FBCHAR) \
     X("/dev/ttyS1", DEV_UART1) \
+    X("/dev/ptmx", DEV_PTY_MASTER) \
+    X("/dev/pts/0", DEV_PTY_SLAVE) \
     X("/dev/rand", DEV_RAND) \
     X("/dev/mem", DEV_MEM) \
     X("/dev/shm", DEV_SHM) \

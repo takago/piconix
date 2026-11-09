@@ -66,6 +66,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 | Node | Read | Write | Notes |
 |---|:---:|:---:|---|
 | `/dev/console`, `/dev/ttyS1`, `/dev/ttyN0` | Yes | Yes | Terminals; `/dev/ttyN0` only in Wi-Fi builds |
+| `/dev/ptmx`, `/dev/pts/0` | Yes | Yes | One general-purpose PTY pair; [details](devices/PTY.md) |
 | `/dev/rand` | Yes | No | Non-cryptographic PRNG; at most 4 bytes per read |
 | `/dev/mem` | Yes | Restricted | Read permitted XIP flash/SRAM; writes are limited to task slots, SHM and RAM-file payloads; absolute `lseek()` address |
 | `/dev/shm` | Yes | Yes | Shared 2-KiB RAM, indexed from offset zero |
@@ -81,7 +82,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 | `/tmp/NAME`, `/etc/NAME` | Yes | Yes | Regular RAM files |
 | Directories | List | No | Enumerate with `getdents()`; cannot `read()` as a regular file |
 
-See the [device guide](devices/README.md) and [TTY guide](commands/TTY.md) for data formats, `ioctl()` commands, and pin ownership rules. `/proc/devices` lists fixed registered devices and the `gpio/`, `adc/`, `pwm/`, and `i2c/` entry points, not every dynamically generated node.
+See the [device guide](devices/README.md) and [TTY guide](commands/TTY.md) for data formats, `ioctl()` commands, and pin ownership rules. `/proc/devices` lists fixed registered devices and the `gpio/`, `adc/`, `pwm/`, `i2c/`, and `pts/` entry points, not every dynamically generated node.
 
 ## 3. GPIO and peripheral availability
 

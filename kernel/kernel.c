@@ -78,7 +78,7 @@ enum {
 };
 enum { VDIR_ROOT=300, VDIR_BIN, VDIR_DEV, VDIR_GPIO, VDIR_ADC,
        VDIR_PWM, VDIR_PWM1, VDIR_PROC, VDIR_TASK, VDIR_SYM,
-       VDIR_USERLAND, VDIR_NET, VDIR_TMP, VDIR_ETC, VDIR_DEV_NET, VDIR_I2C, VDIR_MAN, VDIR_MAN_LANG };
+       VDIR_USERLAND, VDIR_NET, VDIR_TMP, VDIR_ETC, VDIR_DEV_NET, VDIR_I2C, VDIR_MAN, VDIR_MAN_LANG, VDIR_PTS };
 
 static int path_match(const char *p, const char *s);
 
@@ -127,7 +127,7 @@ static int vfs_fixed_path_id(const char *path) {
 static const char *const vdir_paths[] = {
     "/", "/bin", "/dev", "/dev/gpio", "/dev/adc",
     "/dev/pwm", "/dev/pwm/1", "/proc", "/proc/task",
-    "/proc/sym", "/proc/sym/userland", "/proc/net", "/tmp", "/etc", "/dev/net", "/dev/i2c", "/man", "/man/languages"
+    "/proc/sym", "/proc/sym/userland", "/proc/net", "/tmp", "/etc", "/dev/net", "/dev/i2c", "/man", "/man/languages", "/dev/pts"
 };
 /* 固定ディレクトリ名をIDへ変換する．一致しなければ-1． */
 static int vfs_directory_id(const char *path) {
@@ -139,7 +139,7 @@ static int vfs_directory_id(const char *path) {
 
 /* 固定ディレクトリIDから絶対パスを求める．該当IDがなければNULLを返す． */
 NO_TRACE static const char *vfs_directory_path(int id) {
-    return id>=VDIR_ROOT && id<=VDIR_MAN_LANG ? vdir_paths[id-VDIR_ROOT] : 0;
+    return id>=VDIR_ROOT && id<=VDIR_PTS ? vdir_paths[id-VDIR_ROOT] : 0;
 }
 
 /* 登録済みのデバイス・仮想ファイルIDをパスに戻す．見つからなければNULL． */
@@ -202,6 +202,14 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define PIPE_WRITE_DEV(i) (PIPE_DEV_BASE + (i)*2 + 1)
 typedef struct { uint8_t data[PIPE_BYTES]; uint16_t head, used; uint8_t readers, writers; } pipe_t;
 static pipe_t pipes[PIPE_COUNT];
+/* 汎用PTY 1組．デバイスIDはパイプ端点と区別し，追加タスク・ソケットを使わない． */
+#define PTY_TTY 3
+#define PTY_OUT_BYTES 1024u
+#define WAIT_PTY_READ (-7)
+#define WAIT_PTY_SLAVE_WRITE (-8)
+typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave; } pty_t;
+static pty_t pty;
+static void pty_ref(int dev, int delta);
 /* デバイスIDがパイプの読取端・書込端に属するか判定する． */
 NO_TRACE static int pipe_end(int dev) { return dev>=PIPE_DEV_BASE && dev<PIPE_DEV_BASE+PIPE_COUNT*2; }
 
@@ -276,28 +284,23 @@ static uint32_t rand32(void) {
 static volatile uint32_t svc_count, pendsv_count, context_switch_count;
 static int started;
 static int next_pid=1;
-#if PICONIX_WIFI
-#define OS_TTY_COUNT 3
-#else
-#define OS_TTY_COUNT 2
-#endif
+/* PTYは物理TTYと同じ端末状態を持つ．Picoでは番号2を予約したまま3を使う． */
+#define OS_TTY_COUNT 4
 static volatile int foreground_pid[OS_TTY_COUNT];
 /* TTYごとの前景グループ．最大3段のパイプを管理する． */
 static int foreground_group[OS_TTY_COUNT][3];
 static int tty_shell_pid[OS_TTY_COUNT];
 /* 端末モードは前景プログラムが一時的に使用し，終了時に復元する． */
-#if PICONIX_WIFI
-#define TTY_DEFAULTS {1,1,1}
-#else
-#define TTY_DEFAULTS {1,1}
-#endif
+#define TTY_DEFAULTS {1,1,1,1}
 static uint8_t tty_canonical[OS_TTY_COUNT]=TTY_DEFAULTS, tty_echo[OS_TTY_COUNT]=TTY_DEFAULTS;
-static uint8_t tty_onlcr[OS_TTY_COUNT]=TTY_DEFAULTS, tty_last_cr[OS_TTY_COUNT];
+static uint8_t tty_onlcr[OS_TTY_COUNT]=TTY_DEFAULTS, tty_interrupt[OS_TTY_COUNT]=TTY_DEFAULTS;
+static uint8_t tty_last_cr[OS_TTY_COUNT];
 #undef TTY_DEFAULTS
 static int tty_mode_owner[OS_TTY_COUNT];
 /* 前景タスクの終了時には，親の端末モードを復元する． */
 static int tty_restore_pid[OS_TTY_COUNT];
 static uint8_t tty_saved_canon[OS_TTY_COUNT], tty_saved_echo[OS_TTY_COUNT], tty_saved_onlcr[OS_TTY_COUNT];
+static uint8_t tty_saved_interrupt[OS_TTY_COUNT];
 static int tty_saved_owner[OS_TTY_COUNT];
 /* 使用されていない端末の一時的な排他利用． */
 static int tty_claim_pid[OS_TTY_COUNT];
@@ -374,13 +377,14 @@ static void __attribute__((no_instrument_function)) trace_record(uint8_t kind, u
 
 /* 指定PIDの子を現在のTTYの前景へ移す．子が走る前に設定することで，spawn後の別システムコールとの競合を避ける． */
 NO_TRACE static int foreground_child(int pid) {
-    int tty=tasks[current].tty;
     for(int i=0;i<OS_MAX_TASKS;i++) if(tasks[i].pid==pid &&
         tasks[i].parent_pid==tasks[current].pid && tasks[i].state!=DEAD) {
+        int tty=tasks[i].tty;
         if(foreground_pid[tty]!=pid && !tty_restore_pid[tty]) {
             tty_saved_canon[tty]=tty_canonical[tty];
             tty_saved_echo[tty]=tty_echo[tty];
             tty_saved_onlcr[tty]=tty_onlcr[tty];
+            tty_saved_interrupt[tty]=tty_interrupt[tty];
             tty_saved_owner[tty]=tty_mode_owner[tty];
             tty_restore_pid[tty]=pid;
         }
@@ -482,12 +486,14 @@ static void fd_release(task_t *t,int fd) {
     if(dev==DEV_NET_ICMP && --icmp_fd_refs==0)
         net_echo_close();
     pipe_ref(dev,-1);
+    pty_ref(dev,-1);
     fd_set(t,fd,-1,0,0,0);
 }
 
 /* FDを子／別番号へ複製する．パイプやパケット監視用デバイスの参照数を増やし，最後のcloseまで実体を保つ． */
 NO_TRACE static void fd_inherit(task_t *dst, int to, const task_t *src, int from) {
     pipe_ref(src->fd[from],1);
+    pty_ref(src->fd[from],1);
     if(src->fd[from]==DEV_NET_PACKET)
         net_packet_reader(1);
     if(src->fd[from]==DEV_NET_ICMP)
@@ -569,6 +575,7 @@ NO_TRACE static void finish_task(int slot, int status) {
                 tty_canonical[dev]=tty_saved_canon[dev];
                 tty_echo[dev]=tty_saved_echo[dev];
                 tty_onlcr[dev]=tty_saved_onlcr[dev];
+                tty_interrupt[dev]=tty_saved_interrupt[dev];
                 tty_last_cr[dev]=0;
                 tty_mode_owner[dev]=tty_saved_owner[dev];
                 tty_restore_pid[dev]=0;
@@ -579,6 +586,7 @@ NO_TRACE static void finish_task(int slot, int status) {
 }
 
 static int tty_rx_ready(int tty);
+static void wake_ptys(void);
 
 /* 中断中のSVCの保存フレームへ戻り値を書き込み，待機情報を消してREADYにする．通常の関数returnでは再開できない点に注意． */
 static void task_unblock(task_t *t, int result) {
@@ -696,9 +704,14 @@ NO_TRACE static int select_ready(task_t *t,int nfds,piconix_select_request_t *r)
             int listening=(dev==DEV_SOCKET_TCP && net_socket_tcp_listening(id));
             rd=listening ? net_socket_tcp_accept_peek(id) : net_socket_tcp_recv_ready(id);
             wr=listening ? 0 : net_socket_tcp_write_ready(id);
-        } else if(dev==DEV_CONSOLE || dev==DEV_UART1 || dev==DEV_WIFI_TTY) {
-            int tty=dev==DEV_CONSOLE?0:dev==DEV_UART1?1:2;
-            rd=tty_rx_ready(tty); wr=1;
+        } else if(dev==DEV_CONSOLE || dev==DEV_UART1 || dev==DEV_WIFI_TTY || dev==DEV_PTY_SLAVE) {
+            int tty=dev==DEV_CONSOLE?0:dev==DEV_UART1?1:dev==DEV_PTY_SLAVE?PTY_TTY:2;
+            rd=tty_rx_ready(tty) || (dev==DEV_PTY_SLAVE && !pty.master_refs);
+            wr=dev!=DEV_PTY_SLAVE || (pty.master_refs && PTY_OUT_BYTES-pty.used>=2u);
+        } else if(dev==DEV_PTY_MASTER) {
+            rd=pty.used>0 || (pty.ever_slave && !pty.slave_refs);
+            wr=pty.slave_refs>0 && tty_buf[PTY_TTY].used<TTY_LINES &&
+               (!tty_echo[PTY_TTY] || PTY_OUT_BYTES-pty.used>=8u);
         } else if(pipe_end(dev)) {
             pipe_t *pipe=pipe_for_dev(dev);
             if(pipe_is_writer(dev))
@@ -780,10 +793,47 @@ NO_TRACE int os_register_ram_image(int id, const void *image, size_t size,
 static struct { uint8_t buf[RX_CAP]; volatile uint16_t head, tail; } rx[2];
 /* TTYを標準の行入力・エコー・改行変換へ戻し，未完了入力も初期化する． */
 NO_TRACE static void tty_mode_reset(int dev) {
-    tty_canonical[dev]=tty_echo[dev]=tty_onlcr[dev]=1;
+    tty_canonical[dev]=tty_echo[dev]=tty_onlcr[dev]=tty_interrupt[dev]=1;
     tty_last_cr[dev]=0;
     tty_mode_owner[dev]=0;
     memset(&tty_buf[dev],0,sizeof tty_buf[dev]);
+}
+
+/* Master/SlaveのFD参照数を追う．閉鎖済みセッションの状態は両端が消えてから初期化する． */
+NO_TRACE static void pty_ref(int dev, int delta) {
+    if(dev!=DEV_PTY_MASTER && dev!=DEV_PTY_SLAVE)
+        return;
+    unsigned *refs=dev==DEV_PTY_MASTER ? &pty.master_refs : &pty.slave_refs;
+    if(delta>0) *refs+=(unsigned)delta;
+    else *refs-=(unsigned)(-delta);
+    if(dev==DEV_PTY_SLAVE && delta>0) pty.ever_slave=1;
+    if(!pty.master_refs && !pty.slave_refs) {
+        memset(&pty,0,sizeof pty);
+        tty_mode_reset(PTY_TTY);
+        foreground_pid[PTY_TTY]=tty_shell_pid[PTY_TTY]=tty_claim_pid[PTY_TTY]=0;
+        tty_restore_pid[PTY_TTY]=0;
+        memset(foreground_group[PTY_TTY],0,sizeof foreground_group[PTY_TTY]);
+    }
+}
+
+/* Masterが読み取るSlave出力を，1024バイトのリングへ欠落させずに追加する． */
+NO_TRACE static int pty_output_put(uint8_t c) {
+    if(pty.used==PTY_OUT_BYTES) return 0;
+    pty.out[(pty.head+pty.used)&(PTY_OUT_BYTES-1u)]=c;
+    pty.used++;
+    return 1;
+}
+
+/* Masterがreadで取り出す出力リング． */
+NO_TRACE static int pty_output_read(void *p, size_t n) {
+    uint8_t *dst=p;
+    unsigned count=0;
+    while(count<n && pty.used) {
+        dst[count++]=pty.out[pty.head];
+        pty.head=(pty.head+1u)&(PTY_OUT_BYTES-1u);
+        pty.used--;
+    }
+    return (int)count;
 }
 
 /* 非カノニカル入力を小さな固定キューへ積む．1バイトごとに行スロットを消費しないよう，末尾へまとめる． */
@@ -896,6 +946,7 @@ NO_TRACE static void tty_put(uint8_t c) {
 NO_TRACE static void tty_put_dev(int dev,uint8_t c) {
     if(dev==0)tty_put(c);
     else if(dev==1)uart_putc_raw(uart1,c);
+    else if(dev==PTY_TTY)(void)pty_output_put(c);
 #if PICONIX_WIFI
     else if(dev==2)(void)net_terminal_write(&c,1);
 #endif
@@ -903,6 +954,11 @@ NO_TRACE static void tty_put_dev(int dev,uint8_t c) {
 
 /* TTY固有の出力先へ1文字を書き込む．必要ならLFの前にCRを付け，両バイトを受け付けたときだけ成功を返す． */
 NO_TRACE static int tty_tx_char(int dev, uint8_t c, int insert_cr) {
+    if(dev==PTY_TTY) {
+        if(!pty.master_refs || PTY_OUT_BYTES-pty.used < (unsigned)(1+insert_cr)) return 0;
+        if(insert_cr) (void)pty_output_put('\r');
+        return pty_output_put(c);
+    }
     if(dev==0) {
         unsigned used=(console_tx_head+CONSOLE_TX_CAP-console_tx_tail)%CONSOLE_TX_CAP;
         if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) return 0;
@@ -919,6 +975,21 @@ NO_TRACE static int tty_tx_char(int dev, uint8_t c, int insert_cr) {
     if(insert_cr) tty_put_dev(dev,'\r');
     tty_put_dev(dev,c);
     return 1;
+}
+
+/* PTY Slaveの出力は文字欠落を避けるため，空き容量分だけ転送する． */
+NO_TRACE static int pty_slave_write(const task_t *t, const uint8_t *b, size_t n) {
+    if(!pty.master_refs) return OS_EIO;
+    if(tty_claim_pid[PTY_TTY] && tty_claim_pid[PTY_TTY]!=t->pid)
+        return OS_EIO;
+    size_t i=0;
+    for(;i<n;i++) {
+        uint8_t c=b[i];
+        int cr=tty_onlcr[PTY_TTY] && c=='\n' && !tty_last_cr[PTY_TTY];
+        if(!tty_tx_char(PTY_TTY,c,cr)) break;
+        tty_last_cr[PTY_TTY]=(c=='\r');
+    }
+    return i ? (int)i : (n ? OS_EAGAIN : 0);
 }
 
 /* 正規モードでTABは0x09のまま保持し，エコー表示だけ4桁タブ位置へ展開する． */
@@ -948,12 +1019,12 @@ NO_TRACE static void tty_foreground_interrupt(int dev) {
 /* TTYの入力モードに従い1文字を処理する．行編集，エコー，Ctrl+C，Ctrl+Dと非カノニカル入力を分ける． */
 static void tty_input_char(int dev,uint8_t c) {
     tty_buffer_t *t=&tty_buf[dev];
-    if(!tty_canonical[dev] && (c!=3 || tty_claim_pid[dev])){
+    if(!tty_canonical[dev] && (c!=3 || !tty_interrupt[dev] || tty_claim_pid[dev])){
         tty_raw_enqueue(dev,c);
         if(tty_echo[dev])tty_put_dev(dev,c);
         return;
     }
-    if(c==3){
+    if(c==3 && tty_interrupt[dev]){
         if(dev==1) {
             /* UART割込み内では終了を保留し，アイドル側でタスクとソケットを解放する． */
             tty1_ctrl_c_pending=1;
@@ -974,7 +1045,7 @@ static void tty_input_char(int dev,uint8_t c) {
         if(t->len<sizeof(t->line))t->line[t->len++]='\n';
         tty_enqueue(dev);
         if(tty_echo[dev]){tty_put_dev(dev,'\r');tty_put_dev(dev,'\n');}
-    }else if((c=='\t'||(c>=32&&c<=126))&&t->len<sizeof(t->line)-2){
+    }else if((c=='\t'||(c>=32&&c<=126)||(c==3 && !tty_interrupt[dev]))&&t->len<sizeof(t->line)-2){
         unsigned col=tty_line_columns(t);
         t->line[t->len++]=(char)c;
         if(tty_echo[dev]){
@@ -983,6 +1054,33 @@ static void tty_input_char(int dev,uint8_t c) {
         }
     }
 }
+/* PTY Masterは出力を読み，Slaveへの入力をTTY行規律へ渡す．
+ * 空時の待機と再試行はSYS_READ/WRITE側で行う．Masterの入力書込みは
+ * 一つのタスクがMasterを読み取れなくなるデッドロックを避けるためEAGAINを返す． */
+static int pty_master_rw(void *p, size_t n, int writing) {
+    if(!n) return 0;
+    if(!writing) {
+        int got=pty_output_read(p,n);
+        return got ? got : (pty.ever_slave && !pty.slave_refs ? 0 : OS_EAGAIN);
+    }
+    if(!pty.slave_refs) return OS_EIO;
+    const uint8_t *src=p;
+    unsigned done=0;
+    tty_buffer_t *t=&tty_buf[PTY_TTY];
+    while(done<n) {
+        uint8_t c=src[done];
+        /* 行キューとエコー出力を溢れさせない． */
+        if(t->used==TTY_LINES ||
+           (tty_canonical[PTY_TTY] && t->len>=sizeof(t->line)-2 &&
+            c!=3 && c!=4 && c!=8 && c!=127 && c!='\r' && c!='\n') ||
+           (tty_echo[PTY_TTY] && PTY_OUT_BYTES-pty.used<8u))
+            break;
+        tty_input_char(PTY_TTY,c);
+        done++;
+    }
+    return done ? (int)done : OS_EAGAIN;
+}
+
 // TinyUSB CDCの所有者はpico_stdio_usbであるため，コールバックを横取りしない．
 // SDKの標準入出力経由で読み出す．
 // シェルが入力待ちでも，アイドル側からこの処理を呼ぶ．
@@ -1143,8 +1241,9 @@ NO_TRACE void os_init(void) {
     adc_driver_init();
     i2c_driver_init();
     pwm_driver_init();
-    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(foreground_group,0,sizeof foreground_group); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
+    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(foreground_group,0,sizeof foreground_group); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_interrupt[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
     memset(rx, 0, sizeof(rx));
+    memset(&pty,0,sizeof pty);
     console_tx_head=console_tx_tail=0;
     if (!stdio_usb_init())
         panic("PicoNIX: USB CDC initialization failed");
@@ -1219,6 +1318,8 @@ NO_TRACE static int spawn_in_slot(int slot, int program_id, os_entry_t entry, co
     /* 子タスクは親の標準入出力FDを継承する． */
     if(started && current>=0 && current<OS_MAX_TASKS) {
         for(int j=0;j<3;j++) fd_inherit(t,j,&tasks[current],j);
+        /* FD継承とは別の制御TTYもSlave入力へ合わせる． */
+        if(t->fd[0]==DEV_PTY_SLAVE) t->tty=PTY_TTY;
     }
     t->state=READY;
     if(program_id==2 && !tty_shell_pid[t->tty])
@@ -1323,8 +1424,10 @@ NO_TRACE uint32_t *os_schedule(uint32_t *oldsp) {
     // フレームが完成した後で保留中のreadを再検査する．
     wake_readers(0);
     wake_readers(1);
+    wake_readers(PTY_TTY);
     wake_waiters();
     wake_pipes();
+    wake_ptys();
     wake_sockets();
     wake_selects();
     pendsv_count++;
@@ -1649,11 +1752,13 @@ NO_TRACE static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
             if(!strncmp(path,"/dev/",5) && !strchr(path+5,'/'))
                 EMIT(path+5,0);
         }
-        EMIT("gpio",1); EMIT("adc",1); EMIT("pwm",1); EMIT("i2c",1);
+        EMIT("gpio",1); EMIT("adc",1); EMIT("pwm",1); EMIT("i2c",1); EMIT("pts",1);
 #if PICONIX_WIFI
         EMIT("net",1);
 #endif
         break;
+    case VDIR_PTS:
+        EMIT("0",0); break;
     case VDIR_DEV_NET:
 #if PICONIX_WIFI
         EMIT("wifi",0); EMIT("packet",0); EMIT("icmp",0);
@@ -1718,7 +1823,7 @@ NO_TRACE static uint16_t vdir_entry_device_id(int dir, const char *name, int is_
                   dir!=VDIR_I2C && dir!=VDIR_ADC && dir!=VDIR_PWM1 &&
                   dir!=VDIR_PROC && dir!=VDIR_NET && dir!=VDIR_TASK &&
                   dir!=VDIR_SYM && dir!=VDIR_USERLAND &&
-                  dir!=VDIR_MAN && dir!=VDIR_MAN_LANG)) return 0xffff;
+                  dir!=VDIR_MAN && dir!=VDIR_MAN_LANG && dir!=VDIR_PTS)) return 0xffff;
     const char *parent=vfs_directory_path(dir);
     if(!parent)
         return 0xffff;
@@ -1744,7 +1849,7 @@ static int vfs_getdents(int fd, piconix_dirent_t *out, size_t n) {
     if(fd<0 || fd>=OS_FD_MAX)
         return OS_EBADF;
     int dir=tasks[current].fd[fd];
-    if(dir<VDIR_ROOT || dir>VDIR_MAN_LANG)
+    if(dir<VDIR_ROOT || dir>VDIR_PTS)
         return OS_EBADF;
     if(n<sizeof(*out) || !in_task_range(out,sizeof(*out)))
         return OS_EINVAL;
@@ -1817,7 +1922,13 @@ static int vfs_open(const char *p, int flags) {
                 if(tasks[i].fd[j]==DEV_NET_ICMP)
                     return OS_EBUSY;
     }
-    if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE)
+    if(dev==DEV_PTY_MASTER) {
+        if((flags & 3)!=OS_O_RDWR) return OS_EINVAL;
+        if(pty.master_refs || pty.slave_refs) return OS_EBUSY;
+    }
+    if(dev==DEV_PTY_SLAVE && !pty.master_refs) return OS_ENOENT;
+    if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE &&
+       dev!=DEV_PTY_MASTER && dev!=DEV_PTY_SLAVE)
         return OS_EINVAL;
     int fd=free_fd();
     if(fd<0)
@@ -1831,6 +1942,7 @@ static int vfs_open(const char *p, int flags) {
         net_packet_reader(1);
     if(dev==DEV_NET_ICMP)
         icmp_fd_refs++;
+    pty_ref(dev,1);
     return fd;
 }
 
@@ -1887,7 +1999,7 @@ NO_TRACE static int proc_tasks_read(int fd, void *p, size_t n) {
         uintptr_t base=(uintptr_t)task_ram[row];
         char line[128];
         int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX\n",
-            t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":t->tty==2?"wifi":"-",row+1,
+            t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":t->tty==2?"wifi":t->tty==PTY_TTY?"pts/0":"-",row+1,
             (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
             (unsigned long)(uintptr_t)t->sp);
         if(len<0 || (size_t)len>=sizeof line)
@@ -1924,11 +2036,11 @@ NO_TRACE static int proc_fb_read(int fd, void *dst, size_t n) {
 
 /* FDの表示名はカーネルが管理するデバイスIDから求める． */
 NO_TRACE static const char *fd_path(int dev, int task_pid, int tcp_id, char *buf, size_t size) {
-    if(dev>=VDIR_ROOT && dev<=VDIR_MAN_LANG)
+    if(dev>=VDIR_ROOT && dev<=VDIR_PTS)
         return vfs_directory_path(dev);
     if(dev>=MAN_BASE && dev<MAN_BASE+(int)MAN_COUNT) {
         snprintf(buf,size,"/man/%s",man_entries[dev-MAN_BASE].name);
-        return;
+        return buf;
     }
     const char *fixed=vfs_fixed_id_path(dev);
     if(fixed)
@@ -2114,9 +2226,11 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
 
 /* TTYに対するread/writeを実装する．空のブロッキングreadはタスクをBLOCKEDにし，入力後にSVC戻り値を書き換える． */
 static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
-    int uartdev=(dev==DEV_CONSOLE)?0:(dev==DEV_WIFI_TTY?2:1);
+    int uartdev=(dev==DEV_CONSOLE)?0:(dev==DEV_WIFI_TTY?2:(dev==DEV_PTY_SLAVE?PTY_TTY:1));
     uint8_t *b=p;
     if(writing) {
+        if(dev==DEV_PTY_SLAVE)
+            return pty_slave_write(&tasks[current],b,n);
         if(tty_claim_pid[uartdev] && tty_claim_pid[uartdev]!=tasks[current].pid)
             return OS_EIO;
         if(dev==DEV_CONSOLE && !stdio_usb_connected())
@@ -2144,6 +2258,9 @@ static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
         restore_interrupts(irq_state);
         return count; /* 0バイトの入力はCtrl+DによるEOFの可能性がある． */
     }
+    if(dev==DEV_PTY_SLAVE && !pty.master_refs) {
+        restore_interrupts(irq_state); return 0;
+    }
     if(tasks[current].fd_flags[fd] & OS_O_NONBLOCK) {
         restore_interrupts(irq_state); return 0;
     }
@@ -2154,6 +2271,31 @@ static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
     pend();
     restore_interrupts(irq_state);
     return 0; // SVC時点の戻り値は仮の0で，受信割込み後に保存フレームへ結果を書き込む．
+}
+
+/* PTYのブロッキングread/writeを，Masterの出力回収後などに再試行する． */
+NO_TRACE static void wake_ptys(void) {
+    for(int i=0;i<OS_MAX_TASKS;i++) {
+        task_t *t=&tasks[i];
+        if(t->state!=BLOCKED || !t->wait_frame_ready ||
+           (t->wait_dev!=WAIT_PTY_READ && t->wait_dev!=WAIT_PTY_SLAVE_WRITE))
+            continue;
+        int fd=t->wait_fd;
+        if(fd<0 || fd>=OS_FD_MAX) { task_unblock(t,OS_EBADF); continue; }
+        int result;
+        if(t->wait_dev==WAIT_PTY_READ && t->fd[fd]==DEV_PTY_MASTER)
+            result=pty_master_rw(t->wait_buf,t->wait_size,0);
+        else if(t->wait_dev==WAIT_PTY_SLAVE_WRITE && t->fd[fd]==DEV_PTY_SLAVE)
+            result=pty_slave_write(t,t->wait_buf,t->wait_size);
+        else result=OS_EBADF;
+        if(result!=OS_EAGAIN) task_unblock(t,result);
+    }
+    /* Master切断時にはSlave側のブロッキングreadもEOFにする． */
+    if(!pty.master_refs) for(int i=0;i<OS_MAX_TASKS;i++) {
+        task_t *t=&tasks[i];
+        if(t->state==BLOCKED && t->wait_frame_ready && t->wait_dev==PTY_TTY)
+            task_unblock(t,0);
+    }
 }
 
 /* /dev/pwmの文字列読書き．値はドライバへ渡し，読出しはFD位置を使って部分転送を許す．失敗時は負のエラー値を返す． */
@@ -2216,6 +2358,10 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
     if(n>0 && !in_task_range(p,n))
         return OS_EINVAL;
     int dev=tasks[current].fd[fd];
+    if((dev==DEV_PTY_MASTER || dev==DEV_PTY_SLAVE) &&
+       ((writing && (tasks[current].fd_flags[fd]&3)==OS_O_RDONLY) ||
+        (!writing && (tasks[current].fd_flags[fd]&3)==OS_O_WRONLY)))
+        return OS_EBADF;
     if(dev==DEV_SOCKET_TCP || dev==DEV_SOCKET_TCP_ACCEPTED) {
         int id=tcp_fd_slot(&tasks[current],fd);
         if(id<0)
@@ -2232,7 +2378,7 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         int r=writing ? net_socket_tcp_write(id,p,(unsigned)n) : net_socket_tcp_read(id,p,(unsigned)n);
         return r==-2 ? (writing ? OS_EIO : 0) : r<0 ? OS_EIO : r==0 ? OS_EAGAIN : r;
     }
-    if(dev>=VDIR_ROOT && dev<=VDIR_MAN_LANG)
+    if(dev>=VDIR_ROOT && dev<=VDIR_PTS)
         return OS_EBADF;
     if(dev>=MAN_BASE && dev<MAN_BASE+(int)MAN_COUNT) {
         if(writing) return OS_EBADF;
@@ -2410,6 +2556,9 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         tasks[current].fd_pos[fd] = pos + (uint32_t)n;
         return (int)n;
     }
+    if(dev==DEV_PTY_MASTER) {
+        return pty_master_rw(p,n,writing);
+    }
     if(dev==DEV_FBCHAR) {
         int mode=tasks[current].fd_flags[fd] & 3;
         if((writing && mode==OS_O_RDONLY) || (!writing && mode==OS_O_WRONLY))
@@ -2429,7 +2578,8 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         return device_rw_rand(p,n,writing);
     if(proc_device(dev))
         return device_rw_proc(fd,dev,p,n,writing);
-    if(dev==DEV_CONSOLE || dev==DEV_UART1 || (PICONIX_WIFI && dev==DEV_WIFI_TTY))
+    if(dev==DEV_CONSOLE || dev==DEV_UART1 || dev==DEV_PTY_SLAVE ||
+       (PICONIX_WIFI && dev==DEV_WIFI_TTY))
         return device_rw_tty(fd,dev,p,n,writing);
     if(dev>=DEV_GPIO_DIR_BASE && dev<=DEV_GPIO_DIR_END)
         return gpio_driver_rw(1,(unsigned)(dev-DEV_GPIO_DIR_BASE),p,n,writing);
@@ -2445,14 +2595,16 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
 static int device_ioctl_tty(int dev,int cmd,int arg) {
     int tty=dev==DEV_CONSOLE ? 0 :
             dev==DEV_UART1 ? 1 :
-            (PICONIX_WIFI && dev==DEV_WIFI_TTY) ? 2 : -1;
+            (PICONIX_WIFI && dev==DEV_WIFI_TTY) ? 2 :
+            dev==DEV_PTY_SLAVE ? PTY_TTY : -1;
     if(tty<0)
         return OS_EINVAL;
     if(cmd==OS_TTY_CLAIM) {
         if(tty_owner_pid(tty))
             return OS_EBUSY;
         /* 別タスクがFDを開いている場合も端末は占有中と判断する． */
-        int id=tty==2 ? DEV_WIFI_TTY : (tty ? DEV_UART1 : DEV_CONSOLE);
+        int id=tty==PTY_TTY ? DEV_PTY_SLAVE :
+               tty==2 ? DEV_WIFI_TTY : (tty ? DEV_UART1 : DEV_CONSOLE);
         for(int i=0;i<OS_MAX_TASKS;i++) {
             if(i==current || tasks[i].state==UNUSED || tasks[i].state==DEAD)
                 continue;
@@ -2482,6 +2634,7 @@ static int device_ioctl_tty(int dev,int cmd,int arg) {
     if(cmd==OS_TTY_GET_CANON)return tty_canonical[tty];
     if(cmd==OS_TTY_GET_ECHO)return tty_echo[tty];
     if(cmd==OS_TTY_GET_ONLCR)return tty_onlcr[tty];
+    if(cmd==OS_TTY_GET_INTR)return tty_interrupt[tty];
     if(arg!=0 && arg!=1)return OS_EINVAL;
     if(cmd==OS_TTY_SET_CANON && tty_canonical[tty]!=arg){
         /* 入力モードを切り替えても，既に受け取ったバイトは保持する． */
@@ -2489,6 +2642,7 @@ static int device_ioctl_tty(int dev,int cmd,int arg) {
     }
     if(cmd==OS_TTY_SET_ECHO)tty_echo[tty]=(uint8_t)arg;
     if(cmd==OS_TTY_SET_ONLCR)tty_onlcr[tty]=(uint8_t)arg;
+    if(cmd==OS_TTY_SET_INTR)tty_interrupt[tty]=(uint8_t)arg;
     tty_mode_owner[tty]=tasks[current].pid;
     return 0;
 }
@@ -2526,7 +2680,7 @@ static int device_ioctl(int fd,int cmd,int arg) {
     if(fd<0 || fd>=OS_FD_MAX || tasks[current].fd[fd]<0)
         return OS_EBADF;
     int dev=tasks[current].fd[fd];
-    if(cmd>=OS_TTY_GET_CANON && cmd<=OS_TTY_RELEASE)
+    if(cmd>=OS_TTY_GET_CANON && cmd<=OS_TTY_SET_INTR)
         return device_ioctl_tty(dev,cmd,arg);
     if(dev==DEV_I2C1) {
         if(cmd!=OS_I2C_TRANSFER)
@@ -2973,6 +3127,15 @@ void os_svc_dispatch(uint32_t *f) {
             task_t *t=&tasks[current];
             if(a<0 || a>=OS_FD_MAX || t->fd[a]<0 || !pipe_end(t->fd[a])) {
                 result=vfs_rw(a,(void *)(uintptr_t)b,(size_t)c,writing);
+                if(result==OS_EAGAIN && a>=0 && a<OS_FD_MAX &&
+                   ((t->fd[a]==DEV_PTY_MASTER && !writing) ||
+                    (t->fd[a]==DEV_PTY_SLAVE && writing)) &&
+                   !(t->fd_flags[a] & OS_O_NONBLOCK)) {
+                    t->wait_dev=writing ? WAIT_PTY_SLAVE_WRITE : WAIT_PTY_READ;
+                    t->wait_fd=a; t->wait_buf=(void *)(uintptr_t)b; t->wait_size=(size_t)c;
+                    t->wait_frame_ready=0; t->state=BLOCKED;
+                    pend(); result=0;
+                }
                 if(!writing && result==OS_EAGAIN && a>=0 && a<OS_FD_MAX &&
                    (t->fd[a]==DEV_SOCKET_TCP || t->fd[a]==DEV_SOCKET_TCP_ACCEPTED) &&
                    !(t->fd_flags[a] & OS_O_NONBLOCK)) {
@@ -3013,6 +3176,8 @@ void os_svc_dispatch(uint32_t *f) {
                         !pipe_end(tasks[current].fd[a]) &&
                         tasks[current].fd[a]!=DEV_CONSOLE &&
                         tasks[current].fd[a]!=DEV_UART1 &&
+                        tasks[current].fd[a]!=DEV_PTY_MASTER &&
+                        tasks[current].fd[a]!=DEV_PTY_SLAVE &&
                         !(PICONIX_WIFI && tasks[current].fd[a]==DEV_WIFI_TTY)) result=OS_EINVAL;
                 else {
                     tasks[current].fd_flags[a]=(tasks[current].fd_flags[a] & ~OS_O_NONBLOCK) | (c & OS_O_NONBLOCK);

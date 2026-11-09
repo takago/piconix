@@ -106,6 +106,10 @@ This table groups the ABI by purpose. **The full table contains 40 numbered entr
 - `pipe(fds)` returns 0 on success; invalid output storage returns `OS_EINVAL`, fewer than two available FDs returns `OS_EMFILE`, and both pipe slots already in use returns `OS_EAGAIN`. Reading an empty pipe or writing a full pipe waits; an empty pipe with no writers returns EOF (0), and writing with no readers returns `OS_EIO`.
 - `dup(oldfd)` allocates a free FD; `dup2(oldfd, newfd)` replaces a chosen FD. Invalid FDs return `OS_EBADF`; `dup()` with no free FD returns `OS_EMFILE`. A socket source, or a socket destination in `dup2()`, returns `OS_EINVAL`. `dup2(fd, fd)` returns the valid FD unchanged. Pipe endpoint references are updated on duplication, inheritance, `close()`, and task exit.
 
+## Pseudoterminals (PTY)
+
+`open("/dev/ptmx", O_RDWR)` allocates one master, and `/dev/pts/0` is its slave. Redirect the child's FDs 0–2 to the slave before `spawn_foreground()`; its controlling TTY becomes 3. The master reads the child's output and writes its terminal input. Existing `select()`, `fcntl(O_NONBLOCK)` and slave TTY `ioctl()` calls are used; there is no new syscall. See the [PTY reference](devices/PTY.md).
+
 ## C APIs versus raw ABI
 
 `bind()`, `listen()`, `accept()`, `connect()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` are user-space BSD-style adapters, not separate SVC numbers. TCP `bind()` starts listening, `listen()` does not maintain a backlog, and `accept()` cannot return the peer address. See [NETWORK-PROGRAMMING.md](../development/apps/c/NETWORK-PROGRAMMING.md).

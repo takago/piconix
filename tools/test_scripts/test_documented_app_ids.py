@@ -5,7 +5,7 @@ import re
 ROOT = Path(__file__).resolve().parents[2]
 source = (ROOT / "kernel/main.c").read_text(encoding="utf-8")
 registered = {int(x) for x in re.findall(r'register_image\(\s*(\d+)\s*,', source)}
-assert registered == set(range(1, 52)), f"Unexpected stock app IDs: {sorted(registered)}"
+assert registered == set(range(1, 52)) | {56}, f"Unexpected stock app IDs: {sorted(registered)}"
 examples = {
     "greet": 52,
     "udp_once": 53,

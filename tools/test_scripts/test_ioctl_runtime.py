@@ -29,18 +29,20 @@ boilerplate = r'''
 #define DEV_CONSOLE 0
 #define DEV_UART1 30
 #define DEV_WIFI_TTY 97
+#define DEV_PTY_SLAVE 275
+#define PTY_TTY 3
 #define DEV_GPIO_VALUE_BASE 1
 #define DEV_GPIO_VALUE_END 29
 #define UNUSED 0
 #define DEAD 3
 #define OS_FD_MAX 16
-#define OS_TTY_COUNT (PICONIX_WIFI ? 3 : 2)
+#define OS_TTY_COUNT 4
 typedef struct {int pid,state,fd[OS_FD_MAX];} task_t;
 static task_t tasks[3];
 static int current;
-static int tty_claim_pid[3], foreground_pid[3], tty_shell_pid[3];
-static uint8_t tty_canonical[3]={1,1,1},tty_echo[3]={1,1,1},tty_onlcr[3]={1,1,1};
-static int tty_mode_owner[3],tty_restore_pid[3];
+static int tty_claim_pid[4], foreground_pid[4], tty_shell_pid[4];
+static uint8_t tty_canonical[4]={1,1,1,1},tty_echo[4]={1,1,1,1},tty_onlcr[4]={1,1,1,1},tty_interrupt[4]={1,1,1,1};
+static int tty_mode_owner[4],tty_restore_pid[4];
 static struct {int head,tail;} rx[2];
 static int resets;
 static int tty_owner_pid(int tty) {return tty_claim_pid[tty] ? tty_claim_pid[tty] :
@@ -57,6 +59,7 @@ static int fb;
 static int fn;
 static int fb_active(void) {return fb;}
 static int pin_adc(unsigned n) {(void)n;return 1;}
+static int pin_reserved(unsigned n) {(void)n;return 0;}
 static int gpio_get_function(unsigned pin) {(void)pin;return fn;}
 static int gpio_get_dir(unsigned pin) {(void)pin;return GPIO_OUT;}
 static int gpio_get(unsigned pin) {(void)pin;return 1;}
@@ -73,6 +76,9 @@ int main(void) {
     foreground_pid[0]=tasks[0].pid;
     assert(device_ioctl_tty(DEV_CONSOLE,OS_TTY_SET_CANON,0)==0);
     assert(device_ioctl_tty(DEV_CONSOLE,OS_TTY_GET_CANON,0)==0);
+    assert(device_ioctl_tty(DEV_CONSOLE,OS_TTY_GET_INTR,0)==1);
+    assert(device_ioctl_tty(DEV_CONSOLE,OS_TTY_SET_INTR,0)==0);
+    assert(device_ioctl_tty(DEV_CONSOLE,OS_TTY_GET_INTR,0)==0);
     assert(device_ioctl_tty(DEV_CONSOLE,OS_TTY_SET_ECHO,0)==0);
     assert(tty_echo[0]==0 && tty_mode_owner[0]==12);
     assert(device_ioctl_tty(DEV_CONSOLE,OS_TTY_SET_CANON,3)==OS_EINVAL);
@@ -88,6 +94,10 @@ int main(void) {
 #else
     assert(device_ioctl_tty(DEV_WIFI_TTY,OS_TTY_GET_ONLCR,0)==OS_EINVAL);
 #endif
+    foreground_pid[3]=12;
+    assert(device_ioctl_tty(DEV_PTY_SLAVE,OS_TTY_GET_CANON,0)==1);
+    assert(device_ioctl_tty(DEV_PTY_SLAVE,OS_TTY_SET_CANON,0)==0);
+    assert(device_ioctl_tty(DEV_PTY_SLAVE,OS_TTY_GET_CANON,0)==0);
     fn=GPIO_FUNC_SIO;
     assert(device_ioctl_gpio_status(4,OS_GPIO_STATUS_BASE+17)==
         (GPIO_STATUS_OUT | (1<<GPIO_STATUS_LEVEL_SHIFT) | (1<<GPIO_STATUS_PULL_SHIFT)));

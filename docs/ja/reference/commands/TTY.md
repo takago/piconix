@@ -25,7 +25,7 @@ Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_
 
 `fcntl(fd, F_GETFL, 0)` でフラグを取得し，`fcntl(fd, F_SETFL, flags)` で `O_NONBLOCK` を設定します．端末のcanonical/echo設定とは独立しています．文字単位の入力が必要なら，`-icanon` と適切なブロッキング設定を組み合わせて使います．
 
-現行実装で `F_SETFL` による `O_NONBLOCK` の変更が可能なのは，USB CDCコンソール，UART1，Wi-Fi TTY（有効な場合），TCP/UDPソケットのFDです．通常ファイル，パイプ，デバイス一般への変更には対応していません．`open()` 時に `O_NONBLOCK` を指定できるのは `/dev/console` と `/dev/ttyS1` に限られ，`/dev/ttyN0` は `open()` 後に `fcntl()` で設定します．
+現行実装で `F_SETFL` による `O_NONBLOCK` の変更が可能なのは，USB CDCコンソール，UART1，Wi-Fi TTY（有効な場合），PTY，パイプ，TCP/UDPソケットのFDです．通常ファイル，パイプ，デバイス一般への変更には対応していません．`open()` 時に `O_NONBLOCK` を指定できるのは `/dev/console`，`/dev/ttyS1`とPTYのMaster/Slaveに限られ，`/dev/ttyN0` は `open()` 後に `fcntl()` で設定します．
 
 TTYで受信データがない場合，`O_NONBLOCK` が設定された `read()` はcanonical・非canonicalのどちらのモードでも **0** を返します（`EAGAIN` 相当の負値ではありません）．canonicalモードでは行が確定するまでデータがなく，Ctrl+DによるEOFでも0が返るため，0だけで両者を区別できません．ブロッキングFDではデータ到着まで待機し，`VMIN` / `VTIME` によるタイムアウト制御はありません．ソケットやパイプのI/O動作はTTYと異なるため，[パイプ](PIPE.md)と[ソケットAPI](../../development/apps/c/NETWORK-PROGRAMMING.md)も参照してください．
 
@@ -37,7 +37,7 @@ TTYで受信データがない場合，`O_NONBLOCK` が設定された `read()` 
 
 ## TTY出力の改行変換（ONLCR）
 
-通常，USB CDCコンソール，UART1，Wi-Fi TTY（有効な場合）では，LF（`\n`）をCRLF（`\r\n`）に変換します．既存のCRLFを二重変換せず，CR直後のLFはそのまま出力します．ファイルやGPIO等のデバイスには適用されません．
+通常，USB CDCコンソール，UART1，Wi-Fi TTY（有効な場合），PTY Slaveでは，LF（`\n`）をCRLF（`\r\n`）に変換します．既存のCRLFを二重変換せず，CR直後のLFはそのまま出力します．ファイルやGPIO等のデバイスには適用されません．
 
 ```text
 stty             # onlcr または -onlcr を表示
@@ -70,8 +70,10 @@ TAB（`0x09`）はシェルの行編集とcanonical入力で受け付け，フ�
 - `echo`：TTY入力のローカルエコー．パイプやネットワークへのデータ転送とは別です．
 - `onlcr`：TTY出力に限るLF→CRLF変換．パイプ・ファイル・ソケットのバイト列には適用しません．
 - `VMIN` / `VTIME`：POSIX `termios` の設定は実装されていません．非canonical入力の待機方法は `fcntl()` の設定と `read()` の結果で制御します．
-- USB CDC，UART1，Wi-Fi端末は，ビルド構成に応じて独立したTTYとして扱われます．
+- USB CDC，UART1，Wi-Fi端末に加え，PTY Slaveも独立したTTYとして扱われます．PTY Masterは端末エミュレータ側のFDで，`ioctl()`によるTTY設定の対象ではありません．詳細は[PTY](../devices/PTY.md)を参照してください．
 
+
+Ctrl+Cの割込み処理は `OS_TTY_GET_INTR`（`0x209`）と `OS_TTY_SET_INTR`（`0x20a`）でTTYごとに取得・設定できます．既定は1（前景タスクを終了）です．0にすると入力文字 `0x03`をそのままアプリへ渡せます．`pty_test`は物理TTYで一時的に0へ設定してPTYに転送し，終了時に元に戻します．これはPOSIXシグナルではありません．
 
 **実装の参照先：** `kernel/kernel.c` の `tty_canonical`，`tty_echo`，`tty_onlcr`，`tty_saved_*`，`foreground_group` と `OS_TTY_*` の処理，`userland/apps/shell.c` の行編集とパイプ処理．
 

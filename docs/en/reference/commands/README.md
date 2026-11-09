@@ -1,6 +1,6 @@
 # Command reference
 
-This index covers **all 51 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
+This index covers **all 52 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
 
 Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” links for advanced tools. Some networking commands require Pico W.
 
@@ -33,6 +33,7 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 |---|---|---|---|
 | [`ps`](../../../../userland/apps/ps.c) | List processes | `ps` | — |
 | [`kill`](../../../../userland/apps/kill.c) | Stop process | `kill PID` | — |
+| [`pty_test`](../../../../userland/apps/pty_test.c) | Run an interactive program through a PTY | `pty_test [command [args...]]` | [PTY](../devices/PTY.md) |
 | [`tty`](../../../../userland/apps/tty.c) | Show controlling terminal | `tty` | [Details](TTY.md) |
 | [`stty`](../../../../userland/apps/stty.c) | Configure TTY modes | `stty [raw\|cooked\|icanon\|-icanon\|echo\|-echo\|onlcr\|-onlcr] ...` | [Details](TTY.md) |
 | [`reset`](../../../../userland/apps/reset.c) | Reset terminal state | `reset` | [Details](TERMINAL.md) |

@@ -21,6 +21,9 @@
 #define OS_TTY_PERSIST 0x206
 #define OS_TTY_CLAIM   0x207
 #define OS_TTY_RELEASE 0x208
+/* Ctrl+Cを前景タスクの中断として扱うか（0で文字として渡す）． */
+#define OS_TTY_GET_INTR 0x209
+#define OS_TTY_SET_INTR 0x20a
 #define FB_DISABLE 0x101
 #define FB_STATUS  0x102
 /* 小型fd_set: PicoNIXではFDは0〜15．例外FD集合は未対応． */

@@ -2,7 +2,7 @@
 
 This is the **canonical inventory and detailed reference** for PicoNIX device nodes. The nodes under `/dev` are interfaces to kernel drivers, not ordinary RAM files.
 
-**Related topics:** [I²C1](I2C.md) | [UART1](UART.md) | [Hardware and wiring](../hardware/README.md) | [Filesystem](../FILESYSTEM.md) | [Networking](../network/README.md)
+**Related topics:** [PTY](PTY.md) | [I²C1](I2C.md) | [UART1](UART.md) | [Hardware and wiring](../hardware/README.md) | [Filesystem](../FILESYSTEM.md) | [Networking](../network/README.md)
 
 For the full directory and node inventory, access modes, and RAM file limits, see [Filesystem and device nodes](../FILESYSTEM.md).
 
@@ -16,6 +16,8 @@ This table lists **device types and path patterns in the standard configuration*
 |---|:---:|:---:|---|---|
 | `/dev/console` | Yes | Yes | USB CDC text terminal | [TTY](../commands/TTY.md) |
 | `/dev/ttyS1` | Yes | Yes | UART1 text terminal | [UART](UART.md) |
+| `/dev/ptmx` | Yes | Yes | PTY master (one exclusive pair) | [PTY](PTY.md) |
+| `/dev/pts/0` | Yes | Yes | PTY slave (available while master is open) | [PTY](PTY.md) |
 | `/dev/ttyN0` | Yes | Yes | Network terminal (Pico W) | [Networking](../network/NETWORK.md) |
 | `/dev/net/wifi` | — | Control | STA reconnect request (Pico W, STA mode) | [Wi-Fi](../network/WIFI-MODES.md) |
 | `/dev/net/packet` | Yes | — | IPv4 packet information (Pico W) | [tcpdump](../network/TCPDUMP.md) |

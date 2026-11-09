@@ -44,7 +44,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PICONIX_FS_INPU
 set(PICONIX_EMBED_SOURCES "")
 set(PICONIX_SYMBOL_ELFS "")
 set(PICONIX_SYMBOL_BINS "")
-foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm cc help edit vi dd mem tree find nc httpd tcp_echod udp_echod mcpd scroll)
+foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm cc help edit vi dd mem tree find nc httpd tcp_echod udp_echod mcpd scroll pty_test)
   # すべてのアプリを共通の基準アドレスでコンパイルする．
   # 続く24 KiBスロットにリンクしても結果が一致することを検査する．
   set(APP_ORIGIN 0x2000E000)
@@ -52,6 +52,7 @@ foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kite
   file(MAKE_DIRECTORY "${APP_DIR}")
   set(APP_LD "${APP_DIR}/slot.ld")
   configure_file("${CMAKE_CURRENT_LIST_DIR}/userland/lib/slot.ld" "${APP_LD}" @ONLY)
+  set(APP_SOURCE "${CMAKE_CURRENT_LIST_DIR}/userland/apps/${APP}.c")
   set(APP_OBJ "${APP_DIR}/${APP}.o")
   set(CRT_OBJ "${APP_DIR}/crt0.o")
   set(SYSCALLS_OBJ "${APP_DIR}/syscalls.o")
@@ -84,7 +85,7 @@ foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kite
             -I "${CMAKE_CURRENT_BINARY_DIR}"
             -I "${CMAKE_CURRENT_LIST_DIR}/include"
             -I "${CMAKE_CURRENT_LIST_DIR}/userland/lib"
-            -c "${CMAKE_CURRENT_LIST_DIR}/userland/apps/${APP}.c" -o "${APP_OBJ}"
+            -c "${APP_SOURCE}" -o "${APP_OBJ}"
     COMMAND "${CMAKE_C_COMPILER}" -mcpu=cortex-m0plus -mthumb ${APP_OPT} -fPIC
             -ffreestanding -fno-builtin -ffunction-sections -fdata-sections
             -fno-unwind-tables -fno-asynchronous-unwind-tables
@@ -114,7 +115,7 @@ foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kite
             --readelf "${CMAKE_READELF}"
     COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_LIST_DIR}/tools/check_slot_image.py"
             "${APP_ELF}" "${APP_BIN}" "${APP_ORIGIN}" --readelf "${CMAKE_READELF}"
-    DEPENDS "${CMAKE_CURRENT_LIST_DIR}/userland/apps/${APP}.c"
+    DEPENDS "${APP_SOURCE}"
             "${CMAKE_CURRENT_LIST_DIR}/kernel/pins.h"
             "${CMAKE_CURRENT_LIST_DIR}/userland/lib/crt0.c"
             "${CMAKE_CURRENT_LIST_DIR}/userland/lib/syscalls.c"

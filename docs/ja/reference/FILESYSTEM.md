@@ -66,6 +66,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 | ノード | 読み取り | 書き込み | 備考 |
 |---|:---:|:---:|---|
 | `/dev/console`, `/dev/ttyS1`, `/dev/ttyN0` | ○ | ○ | 端末．`/dev/ttyN0`はWi-Fiビルドのみ |
+| `/dev/ptmx`, `/dev/pts/0` | ○ | ○ | 汎用PTY（1組）．[詳細](devices/PTY.md) |
 | `/dev/rand` | ○ | × | 暗号用途には使えない疑似乱数．1回の読み取りは最大4バイト |
 | `/dev/mem` | ○ | 制限付き | XIP Flashと主SRAMの読み取り，ユーザスロット・SHM・RAMファイルデータの書き込み．`lseek()`でアドレス指定 |
 | `/dev/shm` | ○ | ○ | 全タスク共通の2 KiB RAM．先頭からの相対オフセットでアクセス |
@@ -83,7 +84,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 
 `/dev/fbchar`の使用例は`cat /dev/fbchar`，`echo heart > /dev/fbchar`です．`/dev/fb`とはデータ形式が異なります．
 
-実際の読み書き形式，`ioctl()`の値，ピンの占有・排他条件は[デバイスガイド](devices/README.md)と[TTY](commands/TTY.md)を参照してください．`/proc/devices`は固定デバイスの登録表と`gpio/`，`adc/`，`pwm/`，`i2c/`の入口を列挙するもので，すべての動的ノードを列挙するわけではありません．
+実際の読み書き形式，`ioctl()`の値，ピンの占有・排他条件は[デバイスガイド](devices/README.md)と[TTY](commands/TTY.md)を参照してください．`/proc/devices`は固定デバイスの登録表と`gpio/`，`adc/`，`pwm/`，`i2c/`，`pts/`の入口を列挙するもので，すべての動的ノードを列挙するわけではありません．
 
 ## 3．GPIOと周辺機器の公開条件
 

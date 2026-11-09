@@ -1,6 +1,6 @@
 # コマンドリファレンス
 
-この一覧は，`CMakeLists.txt`で標準組込み対象として登録されている**全51個のアプリケーション**と，シェル組込みコマンドを対象とします．一般的なUNIXのコマンドと同名でも，PicoNIXの引数や機能は限定されています．
+この一覧は，`CMakeLists.txt`で標準組込み対象として登録されている**全52個のアプリケーション**と，シェル組込みコマンドを対象とします．一般的なUNIXのコマンドと同名でも，PicoNIXの引数や機能は限定されています．
 
 構文は要約です．`help NAME`でファームウェア内の簡易ヘルプを確認できます．詳しい操作を必要とするコマンドは「詳細」から専用文書を参照してください．ネットワーク機能の一部はPico W専用です．
 
@@ -33,6 +33,7 @@
 |---|---|---|---|
 | [`ps`](../../../../userland/apps/ps.c) | プロセス一覧 | `ps` | — |
 | [`kill`](../../../../userland/apps/kill.c) | プロセスを停止 | `kill PID` | — |
+| [`pty_test`](../../../../userland/apps/pty_test.c) | PTY経由でコマンドを対話操作 | `pty_test [command [args...]]` | [PTY](../devices/PTY.md) |
 | [`tty`](../../../../userland/apps/tty.c) | 制御端末を表示 | `tty` | [解説](TTY.md) |
 | [`stty`](../../../../userland/apps/stty.c) | 端末モードを設定 | `stty [raw\|cooked\|icanon\|-icanon\|echo\|-echo\|onlcr\|-onlcr] ...` | [解説](TTY.md) |
 | [`reset`](../../../../userland/apps/reset.c) | 端末状態の復旧 | `reset` | [解説](TERMINAL.md) |

@@ -70,6 +70,7 @@ static int udp_owner_pid[UDP_USER_SLOTS];
 static int tcp_owner_pid[TCP_USER_SLOTS];
 static int udp_closes, tcp_closes, listener_closes, client_closes;
 static unsigned icmp_fd_refs;
+static void pty_ref(int dev,int delta) {(void)dev;(void)delta;}
 static void net_packet_reader(int delta) {(void)delta;}
 static void net_echo_close(void) {}
 static void net_socket_udp_close(int id) {(void)id;udp_closes++;}

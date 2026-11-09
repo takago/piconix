@@ -79,21 +79,61 @@ static void entry(const char *directory,const char *name,int directory_entry,uns
     put(name);put("\r\n");
 }
 
-/* 指定ディレクトリまたはファイルの情報を読み取って一覧表示する． */
+/* 親ディレクトリからファイル属性を取得する．通常ファイルなら開かずに表示する． */
+static int file_entry(const char *path) {
+    const char *slash=0;
+    for(const char *p=path;*p;p++)if(*p=='/')slash=p;
+    if(!slash || !slash[1])return -1;
+    char parent[128];
+    size_t len=(size_t)(slash-path);
+    if(len==0) {parent[0]='/';parent[1]=0;}
+    else {if(len>=sizeof parent)return -1;memcpy(parent,path,len);parent[len]=0;}
+    int fd=open(parent,0);
+    if(fd<0)return -1;
+    piconix_dirent_t e;
+    int n,result=-1;
+    while((n=getdents(fd,&e,sizeof e))>0) {
+        if(!strcmp(e.name,slash+1)) {
+            if(e.is_dir) result=0;
+            else { entry(parent,e.name,0,e.device_id); result=1; }
+            break;
+        }
+    }
+    close(fd);
+    return result;
+}
+
+/* ディレクトリなら内容を，通常ファイルならそのファイル自身を表示する． */
 static void ls(const char *path) {
- if(detailed)put("TYPE ID   SIZE NAME\r\n");
- int fd=open(path,0);if(fd<0){put("ls: cannot open directory\r\n");return;}
- piconix_dirent_t e;int n;
- while((n=getdents(fd,&e,sizeof e))>0) {
-     if(!show_all && e.name[0]=='.')continue;
-     char name[40];snprintf(name,sizeof name,"%s%s",e.name,e.is_dir?"/":"");
-     entry(path,name,e.is_dir,e.device_id);
- }
- close(fd);
- if(n<0)put("ls: not a directory\r\n");
- if(eq(path,"/bin")) {put("\r\n---- sh built-in commands ----\r\n");
-     entry(path,"help",0,65535);entry(path,"logout",0,65535);entry(path,"exit",0,65535);
-     entry(path,"cd",0,65535);entry(path,"getty",0,65535);}
+    /* /dev/ptmxのopenには副作用があるため，ファイルは先に親の一覧から調べる． */
+    int is_file=0;
+    if(!eq(path,"/")) {
+        /* 詳細表示の見出しは一度だけ出す． */
+        if(detailed)put("TYPE ID   SIZE NAME\r\n");
+        is_file=file_entry(path);
+        if(is_file==1)return;
+    }
+    int fd=open(path,0);
+    if(fd<0) {put("ls: cannot open\r\n");return;}
+    piconix_dirent_t e;
+    int n=getdents(fd,&e,sizeof e);
+    if(n<0) {
+        close(fd);
+        if(is_file<0)put("ls: cannot stat file\r\n");
+        return;
+    }
+    if(detailed && eq(path,"/"))put("TYPE ID   SIZE NAME\r\n");
+    do {
+        if(n>0 && (show_all || e.name[0]!='.')) {
+            char name[40];snprintf(name,sizeof name,"%s%s",e.name,e.is_dir?"/":"");
+            entry(path,name,e.is_dir,e.device_id);
+        }
+    } while((n=getdents(fd,&e,sizeof e))>0);
+    close(fd);
+    if(n<0)put("ls: cannot read directory\r\n");
+    if(eq(path,"/bin")) {put("\r\n---- sh built-in commands ----\r\n");
+        entry(path,"help",0,65535);entry(path,"logout",0,65535);entry(path,"exit",0,65535);
+        entry(path,"cd",0,65535);entry(path,"getty",0,65535);}
 }
 
 /* 指定パスの一覧を表示し，オプションに従って表示形式を切り替える． */

@@ -4,6 +4,8 @@
 
 PicoNIX keeps **terminal input modes** separate from **file-descriptor (FD) blocking flags**. It does not implement the complete POSIX `termios` interface.
 
+PTY master/slave endpoints are documented in the [PTY reference](../devices/PTY.md). The slave uses the same canonical/echo/ONLCR `ioctl()` interface as physical TTYs. `F_SETFL` supports `O_NONBLOCK` on PTY FDs and pipes as well as sockets and physical TTYs.
+
 ## Terminal modes: `stty` and `ioctl()`
 
 ```text
@@ -72,6 +74,8 @@ During shell line editing, Ctrl+L clears the terminal screen using ANSI sequence
 - POSIX `termios` `VMIN` / `VTIME` are **not implemented**. Use `fcntl()` and handle `read()` results as appropriate.
 - USB CDC, UART1, and the Wi-Fi terminal are separate TTYs when enabled in the build.
 
+
+Ctrl+C interrupt interpretation can be queried or configured per TTY with `OS_TTY_GET_INTR` (`0x209`) and `OS_TTY_SET_INTR` (`0x20a`). The default is 1 (terminate the foreground task); 0 delivers byte `0x03` as ordinary input. `pty_test` disables this on its physical console while relaying, then restores it. This is not POSIX signal handling.
 
 **Implementation references:** `tty_canonical`, `tty_echo`, `tty_onlcr`, `tty_saved_*`, `foreground_group`, and `OS_TTY_*` handling in `kernel/kernel.c`; line editing and pipelines in `userland/apps/shell.c`.
 

@@ -21,6 +21,9 @@
 #define OS_TTY_PERSIST 0x206
 #define OS_TTY_CLAIM   0x207
 #define OS_TTY_RELEASE 0x208
+/* Ctrl+Cを前景タスクの中断として扱うか（0で文字として渡す）． */
+#define OS_TTY_GET_INTR 0x209
+#define OS_TTY_SET_INTR 0x20a
 #define OS_O_CREAT 8
 #define OS_O_TRUNC 16
 #define OS_O_APPEND 32

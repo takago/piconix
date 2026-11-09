@@ -2,7 +2,7 @@
 
 PicoNIXが公開するデバイスノードの**一覧と詳細仕様**をこの文書にまとめます．デバイスの実体はカーネルにあり，`/dev`のノードを通じて操作します．
 
-**関連資料：** [I²C1](I2C.md) ｜ [UART1](UART.md) ｜ [ハードウェア・配線](../hardware/README.md) ｜ [ファイルシステム](../FILESYSTEM.md) ｜ [ネットワーク](../network/README.md)
+**関連資料：** [PTY](PTY.md) ｜ [I²C1](I2C.md) ｜ [UART1](UART.md) ｜ [ハードウェア・配線](../hardware/README.md) ｜ [ファイルシステム](../FILESYSTEM.md) ｜ [ネットワーク](../network/README.md)
 
 全ディレクトリとノードの一覧，アクセス権，RAMファイルの制限は[ファイルシステムとノード一覧](../FILESYSTEM.md)を参照してください．
 
@@ -16,6 +16,8 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 |---|:---:|:---:|---|---|
 | `/dev/console` | ○ | ○ | USB CDC端末の文字入出力 | [TTY](../commands/TTY.md) |
 | `/dev/ttyS1` | ○ | ○ | UART1端末の文字入出力 | [UART](UART.md) |
+| `/dev/ptmx` | ○ | ○ | PTY Master（排他的に1組確保） | [PTY](PTY.md) |
+| `/dev/pts/0` | ○ | ○ | PTY Slave（`ptmx`が開いている間のみ） | [PTY](PTY.md) |
 | `/dev/ttyN0` | ○ | ○ | Wi-Fi端末（Pico W） | [ネットワーク](../network/NETWORK.md) |
 | `/dev/net/wifi` | — | 制御 | STA再接続指示（Pico W，STAモード） | [Wi-Fi](../network/WIFI-MODES.md) |
 | `/dev/net/packet` | ○ | — | IPv4パケット情報（Pico W） | [tcpdump](../network/TCPDUMP.md) |
@@ -35,7 +37,7 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 | `/dev/shm` | ○ | ○ | 共有メモリ2 KiB，`lseek`対応 | [メモリ配置](../MEMORY-LAYOUT.md) |
 | `/dev/trace` | ○ | — | バイナリトレース記録 | [trace](../commands/TRACE.md) |
 
-`—`は対応しない操作を示します．`/dev/net/*`と`/dev/ttyN0`はPico W構成に依存します．GPIO・ADC・PWMは`kernel/pins.h`の設定に従って公開されます．`/dev/fb`などのノードを操作するときは，**`cat`や`echo`に適したテキスト形式か，固定長バイナリ／`ioctl()`が必要か**を区別してください．
+`—`は対応しない操作を示します．`/dev/net/*`と`/dev/ttyN0`はPico W構成に依存します．PTYは両ボードで利用でき，ソケットも専用タスクも消費しません．GPIO・ADC・PWMは`kernel/pins.h`の設定に従って公開されます．`/dev/fb`などのノードを操作するときは，**`cat`や`echo`に適したテキスト形式か，固定長バイナリ／`ioctl()`が必要か**を区別してください．
 
 ## 8×8 LEDフレームバッファ
 

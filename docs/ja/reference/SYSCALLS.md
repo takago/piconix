@@ -71,14 +71,14 @@
 
 ## 引数の意味と重要な制約
 
-- `read(fd, buf, count)` / `write(fd, buf, count)`：`fd` はファイル記述子，`buf` はデータ領域，`count` は最大バイト数です．読取時の0はEOFを表す場合があります． TTYでは非ブロッキング入力が未準備のときも`read()`は0を返します（canonical・非canonical共通）．TTYへの`write()`は部分書込みになる場合があり，USB CDCの送信キュー満杯時は0，Wi-Fi TTYでは`OS_EAGAIN`や`OS_EIO`を返す場合があります．詳細は[TTYガイド](commands/TTY.md)を参照してください．
+- `read(fd, buf, count)` / `write(fd, buf, count)`：`fd` はファイル記述子，`buf` はデータ領域，`count` は最大バイト数です．読取時の0はEOFを表す場合があります． TTY（PTY Slaveを含む）では非ブロッキング入力が未準備のときも`read()`は0を返します（canonical・非canonical共通）．TTYへの`write()`は部分書込みになる場合があり，USB CDCの送信キュー満杯時は0，Wi-Fi TTYでは`OS_EAGAIN`や`OS_EIO`を返す場合があります．詳細は[TTYガイド](commands/TTY.md)を参照してください．
 - `spawn(program, argc, argv)`：`program` は登録済みプログラムID，`argc` は1〜8，`argv` は文字列ポインタ配列です．引数文字列の合計領域にも制限があります．`program_id(name)` で名前からIDを得られます．
 - `waitpid(pid, status, options)`：`pid` は子PIDまたは `-1`，`status` は終了情報の格納先（`NULL`可），`options` は0または `WNOHANG` (1) です．現在の実装では完了時の `*status` に0が入るため，通常のPOSIXの終了ステータス保持とは異なります．
 - `set_foreground(pid)`：`pid` は自分の子タスクのPIDです．`pid=0` は前景所有の復元要求です．
 - `tty_spawn(tty, program)`：`tty` は1または2，`program` は対応するシェル／gettyの登録ID（実装では2または4）です．
 - `getcwd(buf, size)`：ABIでは書き込み成功時に0を返します．Cラッパーは成功時に `buf` を返すよう変換しています．
 - `lseek(fd, offset, whence)`：`/tmp`の通常ファイル，`/dev/shm`，読み取り専用の`/proc/sym/kernel`は`SEEK_SET` (0)，`SEEK_CUR` (1)，`SEEK_END` (2)に対応します．シンボル表は公開テキスト内のバイト位置で指定し，EOFを超える移動は拒否します．`/dev/mem`は絶対アドレスによる`SEEK_SET`のみです．`/proc/sym/userland/*`を含むその他の`/proc`ファイルはシーク非対応です．
-- `fcntl(fd, cmd, value)`：`cmd=1` は `F_GETFL`，`cmd=2` は `F_SETFL` に相当します．`F_SETFL`で`O_NONBLOCK`を変更できるのはTTY（コンソール，UART1，Wi-Fi有効時のWi-Fi TTY）とTCP/UDPソケットです．パイプや通常ファイル，その他のデバイスには対応していません．TTY設定には `ioctl()` を使用します．
+- `fcntl(fd, cmd, value)`：`cmd=1` は `F_GETFL`，`cmd=2` は `F_SETFL` に相当します．`F_SETFL`で`O_NONBLOCK`を変更できるのはTTY（コンソール，UART1，Wi-Fi有効時のWi-Fi TTY），PTY，パイプ，TCP/UDPソケットです．通常ファイルなどには対応していません．TTY設定には `ioctl()` を使用します．
 - `pipe(fds)`：`fds[0]` に読み取り側，`fds[1]` に書き込み側のFDを設定します．`dup()`／`dup2()` はソケットFDを複製できません．
 - `socket(domain, type, protocol)`：`domain=AF_INET` (2)，`type=SOCK_STREAM` (1) または `SOCK_DGRAM` (2)，`protocol=0` のみです．
 - `bind_udp(fd, port)`，`tcp_listen(fd, port)`：`port` は1〜65535です．ソケットの種類によって呼び出し先が異なります．
@@ -91,7 +91,7 @@
 
 ## `open()`，`unlink()`，`getdents()`の境界条件
 
-- `open()`で指定するフラグは`O_RDONLY`，`O_WRONLY`，`O_RDWR`と，対応する`O_CREAT`，`O_TRUNC`，`O_APPEND`，`O_NONBLOCK`の組合せに限定されます．不正な組合せは`OS_EINVAL`を返します．`O_NONBLOCK`を`open()`時に指定できるのはコンソールとUART1だけです（Wi-Fi端末を含め，対応するTTYやソケットでは開いた後に`fcntl(F_SETFL)`で変更できます）．
+- `open()`で指定するフラグは`O_RDONLY`，`O_WRONLY`，`O_RDWR`と，対応する`O_CREAT`，`O_TRUNC`，`O_APPEND`，`O_NONBLOCK`の組合せに限定されます．不正な組合せは`OS_EINVAL`を返します．`O_NONBLOCK`を`open()`時に指定できるのはコンソール，UART1，PTYのMaster/Slaveです（Wi-Fi端末を含め，対応するTTYやソケットでは開いた後に`fcntl(F_SETFL)`で変更できます）．
 - `/tmp`と`/etc`のファイルが存在せず，`O_CREAT`も指定しなければ`OS_ENOENT`です．11個のRAMファイル枠がすべて使用中なら，新規作成は`OS_ENOSPC`を返します．利用可能なFDがなければ`OS_EMFILE`です．RAMファイル名はASCIIで最大27バイト（内部形式の`tmp/`または`etc/`を含めて31バイト）です．
 - `/tmp`と`/etc`で`O_TRUNC`は書込可能モードで開いた場合だけサイズを0にします．`O_APPEND`では各書込み時にファイル末尾を使用します．2 KiBの上限では部分書込みが可能ですが，書き込めるバイトが0のときは`OS_ENOSPC`を返します．
 - `unlink()`でRAMファイルを削除するとき，どれかのタスクがそのファイルを開いていれば`OS_EBUSY`です．存在しなければ`OS_ENOENT`です．
@@ -105,6 +105,10 @@
 - `kill(pid)`は指定PIDを終了させ，成功時は0を返します．該当PIDなし，自分自身，アイドルタスクへの指定は`OS_ESRCH`です．一般的なPOSIXシグナル配信ではありません．
 - `pipe(fds)`は成功時0です．無効な格納先は`OS_EINVAL`，FDの空きが2つ未満なら`OS_EMFILE`，2本のパイプが使用中なら`OS_EAGAIN`を返します．パイプが空のときの読取り，満杯時の書込みは待機し，すべての書込み端が閉じられた空のパイプはEOF（0），読み手のないパイプへの書込みは`OS_EIO`です．
 - `dup(oldfd)`は空きFDを割り当て，`dup2(oldfd, newfd)`は指定FDを置き換えます．不正なFDは`OS_EBADF`，`dup()`で空きがなければ`OS_EMFILE`です．ソケットを複製元または`dup2()`の置換先とする操作は`OS_EINVAL`です．同じFDへの`dup2(fd, fd)`は有効なFDならその番号を返します．パイプ端点の参照数は複製，継承，`close()`，タスク終了時に調整されます．
+
+## PTY（擬似端末）
+
+`open("/dev/ptmx", O_RDWR)`で1組のMasterを確保し，`/dev/pts/0`をSlaveとして開きます．`dup2()`で子のFD 0〜2をSlaveへ付け替えてから`spawn_foreground()`すると，子の制御TTYはTTY 3になります．Masterの`read()`はSlaveの出力，`write()`はSlaveへの端末入力です．`select()`，`fcntl(O_NONBLOCK)`，SlaveのTTY用`ioctl()`に対応しています．詳細は[PTYリファレンス](devices/PTY.md)を参照してください．なお，PTY操作専用のシステムコールは追加していません．
 
 ## C APIと低水準ABIの違い
 
