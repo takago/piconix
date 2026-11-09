@@ -80,7 +80,7 @@ static uint8_t tty_interrupt[OS_TTY_COUNT], tty_saved_interrupt[OS_TTY_COUNT];
 static uint8_t tty_last_cr[OS_TTY_COUNT], tty_saved_canon[OS_TTY_COUNT];
 static uint8_t tty_saved_echo[OS_TTY_COUNT], tty_saved_onlcr[OS_TTY_COUNT];
 static int tty_saved_owner[OS_TTY_COUNT];
-static struct { int pid,parent_pid; } exited[OS_MAX_TASKS];
+static struct { int pid,parent_pid,status; } exited[OS_MAX_TASKS];
 static int udp_owner_pid[3], tcp_owner_pid[4];
 static int fd_release_count, tty_reset_count, record_count, pend_count;
 static int read_data_ready, read_bytes;
@@ -140,12 +140,22 @@ int main(void) {
     assert(foreground_group[1][0]==0 && foreground_group[1][1]==102);
     assert(foreground_pid[1]==102 && tty_shell_pid[1]==100);
     assert(tty_owner_pid(1)==102);
-    assert(exited[0].pid==101 && exited[0].parent_pid==100);
+    assert(exited[0].pid==101 && exited[0].parent_pid==100 && exited[0].status==7);
     finish_task(1,7); assert(fd_release_count==1);
     /* A completion record survives immediate slot reuse. */
     tasks[1].pid=103;tasks[1].state=READY;
-    assert(take_exit(100,101)==101 && take_exit(100,101)==0);
+    int reaped=-1;
+    assert(take_exit(100,101,&reaped)==101 && reaped==7);
+    assert(take_exit(100,101,&reaped)==0);
     assert(task_active(&tasks[1]) && !task_active(&tasks[6]));
+
+    /* Exit codes are retained as 8 bits, including forced termination. */
+    reset();
+    tasks[0].pid=100;tasks[0].state=READY;tasks[0].tty=1;
+    tasks[1].pid=101;tasks[1].parent_pid=100;tasks[1].state=READY;tasks[1].tty=1;
+    finish_task(1,511);
+    int truncated=-1;
+    assert(take_exit(100,101,&truncated)==101 && truncated==255);
 
     /* Last stage exits first: input moves to the preceding live stage. */
     reset();
@@ -206,11 +216,11 @@ int main(void) {
     tasks[0].wait_dev=-2; tasks[0].wait_pid=101; tasks[0].wait_frame_ready=0;
     int status=-1; uint32_t frame[16]={0};
     tasks[0].sp=frame;tasks[0].wait_status=&status;
-    exited[0].pid=101;exited[0].parent_pid=100;
+    exited[0].pid=101;exited[0].parent_pid=100;exited[0].status=39;
     wake_waiters(); assert(tasks[0].state==BLOCKED && exited[0].pid==101);
     tasks[0].wait_frame_ready=1;
     wake_waiters();
-    assert(tasks[0].state==READY && frame[8]==101 && status==0);
+    assert(tasks[0].state==READY && frame[8]==101 && status==39);
     assert(tasks[0].wait_dev==-1 && tasks[0].wait_status==NULL && tasks[0].wait_pid==0);
     assert(!tasks[0].wait_frame_ready && !exited[0].pid && record_count==1);
 

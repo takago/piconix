@@ -73,7 +73,7 @@
 
 - `read(fd, buf, count)` / `write(fd, buf, count)`：`fd` はファイル記述子，`buf` はデータ領域，`count` は最大バイト数です．読取時の0はEOFを表す場合があります． TTY（PTY Slaveを含む）では非ブロッキング入力が未準備のときも`read()`は0を返します（canonical・非canonical共通）．TTYへの`write()`は部分書込みになる場合があり，USB CDCの送信キュー満杯時は0，Wi-Fi TTYでは`OS_EAGAIN`や`OS_EIO`を返す場合があります．詳細は[TTYガイド](commands/TTY.md)を参照してください．
 - `spawn(program, argc, argv)`：`program` は登録済みプログラムID，`argc` は1〜8，`argv` は文字列ポインタ配列です．引数文字列の合計領域にも制限があります．`program_id(name)` で名前からIDを得られます．
-- `waitpid(pid, status, options)`：`pid` は子PIDまたは `-1`，`status` は終了情報の格納先（`NULL`可），`options` は0または `WNOHANG` (1) です．現在の実装では完了時の `*status` に0が入るため，通常のPOSIXの終了ステータス保持とは異なります．
+- `waitpid(pid, status, options)`：`pid` は子PIDまたは `-1`，`status` は終了情報の格納先（`NULL`可），`options` は0または `WNOHANG` (1) です．完了時の `*status` には子の終了コード（0〜255）を直接格納します．POSIXの`WEXITSTATUS`等を使う符号化済みステータスではありません．
 - `set_foreground(pid)`：`pid` は自分の子タスクのPIDです．`pid=0` は前景所有の復元要求です．
 - `tty_spawn(tty, program)`：`tty` は1または2，`program` は対応するシェル／gettyの登録ID（実装では2または4）です．
 - `getcwd(buf, size)`：ABIでは書き込み成功時に0を返します．Cラッパーは成功時に `buf` を返すよう変換しています．
@@ -101,7 +101,7 @@
 ## プロセス・FD操作のエラー条件と資源管理
 
 - `spawn(program, argc, argv)`は未登録IDに`OS_ENOENT`，不正な`argc`（1～8以外）・ポインタ・引数領域（文字列合計128バイト超など）に`OS_EINVAL`，6個のユーザスロットが埋まっている場合に`OS_EAGAIN`を返します．子には親の標準FD 0～2だけが継承され，それ以外のFDは継承されません．
-- `waitpid(pid, status, options)`は自分の子のPIDまたは`-1`を受け付けます．`options`は0か`WNOHANG`だけです．不正引数は`OS_EINVAL`，対象の実行中の子も未回収の終了通知もなければ`OS_ESRCH`です．`WNOHANG`で子が実行中なら0を返します．終了済みの子はタスクスロットを占有せず，通知からPIDを1回だけ取得できます．終了通知は最大6件で，満杯の場合は配列の先頭の通知を上書きするため，未回収の終了情報が失われる可能性があります．`status`の値は終了理由によらず0です．
+- `waitpid(pid, status, options)`は自分の子のPIDまたは`-1`を受け付けます．`options`は0か`WNOHANG`だけです．不正引数は`OS_EINVAL`，対象の実行中の子も未回収の終了通知もなければ`OS_ESRCH`です．`WNOHANG`で子が実行中なら0を返します．終了済みの子はタスクスロットを占有せず，通知からPIDを1回だけ取得できます．終了通知は最大6件で，満杯の場合は配列の先頭の通知を上書きするため，未回収の終了情報が失われる可能性があります．`status`には`_exit(code)`から渡された下位8ビット（0〜255）を格納します．`kill()`による強制終了は現行実装で143（128+15）です．
 - `kill(pid)`は指定PIDを終了させ，成功時は0を返します．該当PIDなし，自分自身，アイドルタスクへの指定は`OS_ESRCH`です．一般的なPOSIXシグナル配信ではありません．
 - `pipe(fds)`は成功時0です．無効な格納先は`OS_EINVAL`，FDの空きが2つ未満なら`OS_EMFILE`，2本のパイプが使用中なら`OS_EAGAIN`を返します．パイプが空のときの読取り，満杯時の書込みは待機し，すべての書込み端が閉じられた空のパイプはEOF（0），読み手のないパイプへの書込みは`OS_EIO`です．
 - `dup(oldfd)`は空きFDを割り当て，`dup2(oldfd, newfd)`は指定FDを置き換えます．不正なFDは`OS_EBADF`，`dup()`で空きがなければ`OS_EMFILE`です．ソケットを複製元または`dup2()`の置換先とする操作は`OS_EINVAL`です．同じFDへの`dup2(fd, fd)`は有効なFDならその番号を返します．パイプ端点の参照数は複製，継承，`close()`，タスク終了時に調整されます．

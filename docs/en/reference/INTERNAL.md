@@ -52,7 +52,9 @@ Applications are built as position-independent code (PIC) and embedded in Flash.
 3. It starts the Shell (program ID 2) and hands control to the scheduler.
 4. SysTick and PendSV then drive task switching; low-level exception and context handling are in `kernel/context.S`.
 
-Task states are `UNUSED`, `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn()` launches a registered program in a new slot. `waitpid()` waits for a child, or returns without blocking when `WNOHANG` is specified. Exit handling is simplified: exit status values are not retained.
+Task states are `UNUSED`, `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn()` launches a registered program in a new slot. `waitpid()` waits for a child, or returns without blocking when `WNOHANG` is specified. Exit codes (0–255) are retained in completion notices separately from reusable task slots and returned through `waitpid()`.
+
+`ps` and `/proc/tasks` show the parent PID in a trailing `PPID` column, preserving the existing fields.
 
 ## 4. System-call boundary
 
@@ -87,7 +89,7 @@ A child inherits only standard FDs (0–2). Pipe endpoints gain a reference when
 
 With `command &`, the Shell returns without waiting for the external command. `Ctrl+C` directly terminates the registered foreground tasks of the respective terminal (up to three pipeline stages); it does not deliver POSIX signals to process groups.
 
-On task exit, the kernel releases FDs and sockets and removes the completed PID from the foreground task registry. If a pipeline stage exits early, a surviving stage inherits foreground terminal ownership and responsibility for restoring saved TTY settings. `waitpid()` completion notices are kept separately from reusable task slots (the exit status is reported as zero). PID 0 is reserved for idle; regular PIDs cycle through 1–255. Allocation skips active tasks and exit notices not yet collected by `waitpid()`. When resuming a blocked terminal read, pipe I/O, or `waitpid()`, the kernel fills in the saved SVC return value and clears temporary wait state and borrowed user pointers before marking the task READY.
+On task exit, the kernel releases FDs and sockets and removes the completed PID from the foreground task registry. If a pipeline stage exits early, a surviving stage inherits foreground terminal ownership and responsibility for restoring saved TTY settings. `waitpid()` completion notices are kept separately from reusable task slots (including its exit code from 0–255). PID 0 is reserved for idle; regular PIDs cycle through 1–255. Allocation skips active tasks and exit notices not yet collected by `waitpid()`. When resuming a blocked terminal read, pipe I/O, or `waitpid()`, the kernel fills in the saved SVC return value and clears temporary wait state and borrowed user pointers before marking the task READY.
 
 ## 6. TTY and I/O
 

@@ -464,9 +464,15 @@ static int execute_command_stream(int fd, const char *id, const char *cmd) {
             error=2;
         } else if(!eof) error=2;
     }
+    if(!error && done && status!=0) error=1;
     const char *suffix=error==2?"\\n[timeout]":error?"\\n[execution error]":"";
     if(truncated && send_chunk(fd,"\\n[output truncated]",20)<0) goto finish;
     if(*suffix && send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto finish;
+    if(error==1 && done && status!=0) {
+        char code_text[32];
+        int n=snprintf(code_text,sizeof code_text,"\\n[exit code: %d]",status);
+        if(n<=0 || (unsigned)n>=sizeof code_text || send_chunk(fd,code_text,(unsigned)n)<0) goto finish;
+    }
     const char *end=error?"\"}],\"isError\":true}}":"\"}],\"isError\":false}}";
     if(send_chunk(fd,end,(unsigned)strlen(end))<0) goto finish;
     if(send_all(fd,"0\r\n\r\n",5)<0) goto finish;

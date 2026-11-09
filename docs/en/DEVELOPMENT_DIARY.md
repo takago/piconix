@@ -1,6 +1,10 @@
 # PicoNIX Development Diary
 
 
+### 2026-11-09: Preserve exit codes and show PPID in ps
+
+The kernel now retains the low eight bits of `_exit(status)` in completion notices, and returns them through `waitpid()` for both blocked and already-finished children. `sh -c` propagates the last command exit code, allowing MCP `execute_command` to report nonzero codes with `isError:true`. `ps` and `/proc/tasks` append `PPID` without shifting existing task columns. The six-notice limit and overwrite-on-full behavior remain unchanged.
+
 ### 2026-11-09: Fix MCP terminal screen delivery and trace instrumentation
 
 `terminal_read` now records the screen hash only after the complete HTTP chunked response has been sent, allowing the screen to be retried after a send failure. Errors during the second screen-device read are also detected. `fb_char_copy`, `fb_char_read`, `fb_char_write`, and `pty_master_rw` are explicitly marked `NO_TRACE`, matching the kernel trace-target policy. This change does not alter the unresolved TCP send stalls or the current `waitpid()` behavior, which does not preserve child exit codes.

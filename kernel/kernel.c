@@ -421,13 +421,14 @@ NO_TRACE static int foreground_child(int pid) {
 NO_TRACE static int tty_owner_pid(int tty) { return tty_claim_pid[tty] ? tty_claim_pid[tty] :
     (foreground_pid[tty] ? foreground_pid[tty] : tty_shell_pid[tty]); }
 /* スロットの再利用とは独立した有限個の終了通知． */
-static struct { int pid, parent_pid; } exited[OS_MAX_TASKS];
+static struct { int pid, parent_pid, status; } exited[OS_MAX_TASKS];
 /* 親PIDに紐づく終了通知を一件取り出す．通知はPIDのみ保持し，スロット再利用とwaitpidを両立する．見つからなければ0． */
-NO_TRACE static int take_exit(int parent, int requested) {
+NO_TRACE static int take_exit(int parent, int requested, int *status) {
     for(int i=0;i<OS_MAX_TASKS;i++)
         if(exited[i].pid && exited[i].parent_pid==parent &&
            (requested==-1 || exited[i].pid==requested)) {
             int pid=exited[i].pid;
+            if(status) *status=exited[i].status;
             exited[i].pid=0;
             return pid;
         }
@@ -539,7 +540,6 @@ NO_TRACE static int tty_foreground_survivor(int tty) {
 
 /* タスク終了時に通知，FD，通信資源，TTYの前景・モードを後始末する．スロットは再利用可能だがwaitpid用のPID通知は別に保持する． */
 NO_TRACE static void finish_task(int slot, int status) {
-    (void)status; /* PicoNIXが終了後に保持するのはPIDであり，終了ステータスではない． */
     task_t *t=&tasks[slot];
     if(!task_active(t))
         return;
@@ -555,6 +555,7 @@ NO_TRACE static void finish_task(int slot, int status) {
         if(pos<0) pos=0;
         exited[pos].pid=t->pid;
         exited[pos].parent_pid=t->parent_pid;
+        exited[pos].status=status & 255;
     }
     /* 終了済みの親は通知を受け取れないため破棄する． */
     for(int i=0;i<OS_MAX_TASKS;i++)
@@ -764,11 +765,12 @@ NO_TRACE static void wake_waiters(void) {
         task_t *t=&tasks[i];
         if(t->state!=BLOCKED || t->wait_dev!=-2 || !t->wait_frame_ready)
             continue;
-        int pid=take_exit(t->pid,t->wait_pid);
+        int status=0;
+        int pid=take_exit(t->pid,t->wait_pid,&status);
         if(!pid)
             continue;
         if(t->wait_status)
-            *t->wait_status=0;
+            *t->wait_status=status;
         trace_record(TRACE_SVC_EXIT,(uint8_t)t->pid,SYS_WAITPID,
                      (uint32_t)pid,t->program_id,-1,NULL,0);
         task_unblock(t,pid);
@@ -2166,7 +2168,7 @@ NO_TRACE static int proc_emit(int fd, void *dst, size_t limit, size_t *offset,
 
 /* 生存タスクの概要を/proc/tasks形式へ逐次生成する．スナップショット用の大きな配列を確保しない． */
 NO_TRACE static int proc_tasks_read(int fd, void *p, size_t n) {
-    static const char header[] = "PID  NAME              STATE    TTY      SLOT  MEMORY             SP\n";
+    static const char header[] = "PID  NAME              STATE    TTY      SLOT  MEMORY             SP        PPID\n";
     size_t offset=0, done=0;
     if(proc_emit(fd,p,n,&offset,&done,header,sizeof(header)-1))
         return (int)done;
@@ -2178,10 +2180,10 @@ NO_TRACE static int proc_tasks_read(int fd, void *p, size_t n) {
             t->state==SLEEPING?"SLEEP":t->state==BLOCKED?"BLOCKED":"?";
         uintptr_t base=(uintptr_t)task_ram[row];
         char line[128];
-        int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX\n",
+        int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX  %3d\n",
             t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":t->tty==2?"wifi":t->tty==PTY_TTY?"pts/0":"-",row+1,
             (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
-            (unsigned long)(uintptr_t)t->sp);
+            (unsigned long)(uintptr_t)t->sp,t->parent_pid);
         if(len<0 || (size_t)len>=sizeof line)
             return OS_EINVAL;
         if(proc_emit(fd,p,n,&offset,&done,line,(size_t)len))
@@ -3099,10 +3101,11 @@ void os_svc_dispatch(uint32_t *f) {
                (status && !in_task_range(status,sizeof(*status)))) {
                 result=OS_EINVAL; break;
             }
-            int pid=take_exit(tasks[current].pid,a);
+            int exit_status=0;
+            int pid=take_exit(tasks[current].pid,a,&exit_status);
             if(pid) {
                 if(status)
-                    *status=0;
+                    *status=exit_status;
                 result=pid;
                 break;
             }

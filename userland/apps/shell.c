@@ -12,6 +12,8 @@
 #include "stdio.h"
 /* 非対話実行ではTTYのフォアグラウンド所有者を変更しない． */
 static int batch_mode;
+/* sh -cが最後に実行したコマンドの終了結果． */
+static int command_status;
 
 /* 二つの文字列を完全一致で比較する． */
 static int eq(const char *a,const char *b) { return strcmp(a,b)==0; }
@@ -174,7 +176,7 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
             q++;
         if(!*q)
             break;
-        if(argc==8) {put("too many arguments (max 8)\r\n");return 1;}
+        if(argc==8) {put("too many arguments (max 8)\r\n");command_status=1;return 1;}
         args[argc++]=q;
         while(*q && *q!=' ' && *q!='\t')
             q++;
@@ -188,11 +190,11 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
         name+=5;
     if(prefix(name,"./") || prefix(name,"/tmp/")) {
         char path[128];
-        if(argc!=1 || resolve(cwd,name,path)<0) { put("invalid executable path\r\n"); return 1; }
+        if(argc!=1 || resolve(cwd,name,path)<0) { put("invalid executable path\r\n"); command_status=1; return 1; }
         int pid=(background || batch_mode)?spawn_tmp(path):spawn_tmp_foreground(path);
-        if(pid<0) { put("cannot execute image\r\n"); return 1; }
+        if(pid<0) { put("cannot execute image\r\n"); command_status=1; return 1; }
         if(background) {*bg_pid=pid;*bg_name="a.out";}
-        else { int status=0; waitpid(pid,&status,0); if(!batch_mode) set_foreground(0); }
+        else { int status=0; command_status=waitpid(pid,&status,0)<0?1:status; if(!batch_mode) set_foreground(0); }
         return 1;
     }
     int id=program_id(name);
@@ -203,13 +205,13 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
     unsigned total=0;
     for(int i=0;i<argc;i++)
         total+=(unsigned)strlen(args[i])+1;
-    if(total>128) {put("arguments too long (max 128 bytes)\r\n");return 1;}
+    if(total>128) {put("arguments too long (max 128 bytes)\r\n");command_status=1;return 1;}
     int pid=(background || batch_mode)?spawn(id,argc,(const char *const *)args):spawn_foreground(id,argc,(const char *const *)args);
-    if(pid<0) {put("cannot start program\r\n");return 1;}
+    if(pid<0) {put("cannot start program\r\n");command_status=1;return 1;}
     if(background) {*bg_pid=pid;*bg_name=name;}
     else {
         int status=0;
-        waitpid(pid,&status,0);
+        command_status=waitpid(pid,&status,0)<0?1:status;
         if(!batch_mode) set_foreground(0);
         /* 全画面アプリは終了処理前にkillされ得るため，画面復旧が必要となる． */
         if(eq(name,"mb") || eq(name,"gpio") || eq(name,"pong") ||
@@ -299,10 +301,13 @@ cleanup:
     if(previous_read>=0)
         close(previous_read);
     if(failed) put("pipe: cannot start command\r\n");
-    int status;
+    int status=0;
+    command_status=failed?1:0;
     for(int i=0;i<count;i++)
-        if(pid[i]>0)
-            waitpid(pid[i],&status,0);
+        if(pid[i]>0) {
+            int rc=waitpid(pid[i],&status,0);
+            if(i==count-1 && !failed) command_status=rc<0?1:status;
+        }
     if(!batch_mode) set_foreground(0);
 }
 
@@ -312,6 +317,7 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
         s++;
     if(!*s)
         return;
+    command_status=0;
     if(eq(s,"logout") || eq(s,"exit")) {
         put("logout\r\nPicoNIX: Session closed.\r\n");
         _exit(0);
@@ -325,7 +331,7 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
         if(!*arg)
             arg="/";
         char path[128];
-        if(resolve(cwd,arg,path)<0 || chdir(path)<0) { put("cd: no such directory\r\n"); return; }
+        if(resolve(cwd,arg,path)<0 || chdir(path)<0) { put("cd: no such directory\r\n"); command_status=1; return; }
         strcpy(cwd,path);
     } else if(prefix(s,"getty ")) {
         const char *arg=s+6;
@@ -333,14 +339,17 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
         if(prefix(arg,"/dev/ttyS1 ")) {tty=2;arg+=11;}
         else if(prefix(arg,"/dev/console ")) {tty=1;arg+=13;}
         if(!tty || !(eq(arg,"sh") || eq(arg,"python"))) {
+            command_status=1;
             put("usage: getty /dev/ttyS1 sh|python [&]\r\n");return;
         }
         int pid=tty_spawn(tty, eq(arg,"sh")?2:4);
-        if(pid<0) {put("getty: terminal busy or no free slot\r\n");return;}
+        if(pid<0) {put("getty: terminal busy or no free slot\r\n");command_status=1;return;}
         if(requested_bg) {*bg_pid=pid;*bg_name=eq(arg,"sh")?"sh":"python";}
-        else {int status=0;waitpid(pid, &status, 0);}
-    } else if(!run_external(s,cwd,requested_bg,bg_pid,bg_name))
+        else {int status=0;command_status=waitpid(pid, &status, 0)<0?1:status;}
+    } else if(!run_external(s,cwd,requested_bg,bg_pid,bg_name)) {
         put("unknown command (help)\r\n");
+        command_status=127;
+    }
 }
 /* シェルごとの小さな履歴を固定長で管理する．ヒープもカーネル変更も不要である． */
 #define HISTORY_SIZE 8
@@ -715,7 +724,7 @@ static int run_one_command(const char *input, char cwd[128]) {
         }
         if(invalid || count<2) { put("sh -c: invalid pipeline\n"); return 2; }
         run_pipeline(stage,count,cwd);
-        return 0;
+        return command_status;
     }
     int saved_in=-1,saved_out=-1,bg_pid=0;
     const char *bg_name=0;
@@ -723,7 +732,7 @@ static int run_one_command(const char *input, char cwd[128]) {
     if(rc==0) command(trim(cmd),cwd,0,&bg_pid,&bg_name);
     restore_stdio(saved_in,saved_out);
     if(rc<0) { put("sh -c: invalid redirection\n"); return 2; }
-    return 0; /* 現行shは個々のコマンドの終了状態を伝播しない． */
+    return command_status;
 }
 
 /* 端末の用意と起動時処理を終えた後，入力・解析・実行・子の回収を繰り返す． */
