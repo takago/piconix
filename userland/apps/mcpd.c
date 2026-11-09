@@ -575,7 +575,6 @@ static int terminal_screen_stream(int fd,const char *id) {
     }
     screen=open("/dev/pts/0.screen",O_RDONLY);
     if(screen<0) {rpc_error(id,-32030,"Screen unavailable");return 200;}
-    term_last_hash=hash;term_screen_seen=1;
     const char *headers="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n";
     char prefix[160];
     int n=snprintf(prefix,sizeof prefix,"{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"",id);
@@ -583,11 +582,15 @@ static int terminal_screen_stream(int fd,const char *id) {
     char row[81];
     while((n=read(screen,row,sizeof row))>0)
         if(send_escaped_chunk(fd,row,(unsigned)n)<0) goto done;
+    if(n<0) goto done;
     {
       const char *suffix="\"}],\"isError\":false}}";
       if(send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto done;
       if(send_all(fd,"0\r\n\r\n",5)<0) goto done;
     }
+    /* 送信完了前に記録すると，再試行時に未受信画面がunchangedになる． */
+    term_last_hash=hash;
+    term_screen_seen=1;
 done:
     close(screen);
     return -1;

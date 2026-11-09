@@ -1,6 +1,10 @@
 # PicoNIX Development Diary
 
 
+### 2026-11-09: Fix MCP terminal screen delivery and trace instrumentation
+
+`terminal_read` now records the screen hash only after the complete HTTP chunked response has been sent, allowing the screen to be retried after a send failure. Errors during the second screen-device read are also detected. `fb_char_copy`, `fb_char_read`, `fb_char_write`, and `pty_master_rw` are explicitly marked `NO_TRACE`, matching the kernel trace-target policy. This change does not alter the unresolved TCP send stalls or the current `waitpid()` behavior, which does not preserve child exit codes.
+
 ### 2026-11-09: Reuse process IDs 1–255 to preserve the 8-bit trace ABI
 
 During repeated MCP calls, `trace run hello` used process IDs above 255, but `trace_event_t` stores only an 8-bit PID, causing filtered syscall records to disappear. Changed PID assignment to cycle through 1–255 (0 remains reserved for idle), skipping active tasks and unreaped `waitpid()` notifications. Preserved the 32-byte trace record (8-bit PID, 16-byte preview) and the 16 KiB ring. Because PIDs are recycled, old `trace show PID` results may include earlier processes with the same number; `trace run` starts reading from the position immediately before launch. Added a host-compiled PID wraparound/collision regression test. Full Pico SDK build and hardware verification remain pending.

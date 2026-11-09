@@ -95,7 +95,7 @@ static const struct { const char *name; uint8_t rows[8]; } fb_icons[] = {
 
 /* 一覧を小さな断片に分け，fd位置から有限長だけ返す．
  * アイコン名は描画用のfb_iconsを参照し，二重定義を避ける． */
-static void fb_char_copy(char *dst,size_t max,size_t *done,size_t *skip,
+NO_TRACE static void fb_char_copy(char *dst,size_t max,size_t *done,size_t *skip,
                          const char *text) {
     size_t len=strlen(text);
     if(*skip>=len) { *skip-=len; return; }
@@ -107,7 +107,7 @@ static void fb_char_copy(char *dst,size_t max,size_t *done,size_t *skip,
 }
 
 /* 文字表示デバイスの使用方法と利用可能な図柄を位置指定で返す． */
-int fb_char_read(void *data,size_t n,uint32_t offset) {
+NO_TRACE int fb_char_read(void *data,size_t n,uint32_t offset) {
     if(!n) return 0;
     size_t done=0,skip=offset;
     char *dst=(char *)data;
@@ -121,7 +121,7 @@ int fb_char_read(void *data,size_t n,uint32_t offset) {
 }
 
 /* ASCII 1文字か記号名を8行へ変換．不明な指定は表示を変更しない． */
-int fb_char_write(const void *data,size_t n) {
+NO_TRACE int fb_char_write(const void *data,size_t n) {
     const unsigned char *src=(const unsigned char *)data;
     char name[16];
     uint8_t image[8]={0};

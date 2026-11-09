@@ -831,7 +831,7 @@ NO_TRACE static void pty_ref(int dev, int delta) {
 }
 
 static void tty_raw_enqueue(int dev,uint8_t c);
-static int pty_master_rw(void *p,size_t n,int writing);
+NO_TRACE static int pty_master_rw(void *p,size_t n,int writing);
 /* 仮想画面の最小ANSI解釈．通常のPTY出力は加工せず，画面だけを更新する． */
 NO_TRACE static void vt_clear(void) {
     memset(pty_screen.cells,' ',sizeof pty_screen.cells);
@@ -1206,7 +1206,7 @@ static void tty_input_char(int dev,uint8_t c) {
 /* PTY Masterは出力を読み，Slaveへの入力をTTY行規律へ渡す．
  * 空時の待機と再試行はSYS_READ/WRITE側で行う．Masterの入力書込みは
  * 一つのタスクがMasterを読み取れなくなるデッドロックを避けるためEAGAINを返す． */
-static int pty_master_rw(void *p, size_t n, int writing) {
+NO_TRACE static int pty_master_rw(void *p, size_t n, int writing) {
     if(!n) return 0;
     if(!writing) {
         int got=pty_output_read(p,n);
