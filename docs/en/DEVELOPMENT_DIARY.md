@@ -1,5 +1,13 @@
 # PicoNIX Development Diary
 
+### 2026-11-10: Unify PTY cursor state in screen stream
+
+Removed `/dev/pts/0.cursor` and the separate `Cursor: row/col` prefix from MCP `terminal_read`. The screen stream already marks the cursor cell with SGR 5/25, so its hash changes on cursor movement. Named keys and SGR 7/0 inverse video are preserved.
+
+
+### 2026-11-10: Mark the PTY cursor with ANSI blink attributes
+
+When reading `/dev/pts/0.screen`, synthesize ANSI SGR 5/25 (blink on/off) around the current cursor cell. This is independent of inverse-video SGR 7/0, and `/dev/pts/0.cursor` continues to provide two-byte coordinates. No additional screen buffer is allocated. Host tests cover split reads and cursors over blank or inverse-video cells. `mcpd` continues forwarding the reconstructed screen. Full firmware build and LLM interaction on hardware remain unverified.
 
 ### 2026-11-10: Add vi literal substitution and MCP terminal-operation manuals
 

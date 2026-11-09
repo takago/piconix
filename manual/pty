@@ -2,7 +2,7 @@ PSEUDOTERMINAL (PTY) / VIRTUAL 80x24 SCREEN
 
 /dev/ptmx          Master, exclusive O_RDWR
 /dev/pts/0         Slave, after opening master
-/dev/pts/0.screen  Read-only 80x24 text, 80 columns + LF per row
+/dev/pts/0.screen  80x24 ANSI text; inverse and blinking cursor markers
 /dev/pts/0.key     Named-key write (UP, DOWN, LEFT, RIGHT, ENTER,
                    ESC, TAB, BACKSPACE, DELETE, CTRL_A ... CTRL_Z)
 
@@ -21,3 +21,10 @@ by MCP descendants. This is not authentication or full isolation.
 
 The standard pty_test command can relay: pty_test fd, pty_test sh,
 pty_test vi /tmp/test.txt. Ctrl+C interrupts the foreground task.
+
+MCP terminal_read forwards .screen without separate cursor coordinates;
+cursor-only movement changes the SGR 5/25 marker in the screen.
+
+.screen emits ESC[7m/ESC[0m for inverse cells and ESC[5m/ESC[25m
+around the cursor cell, even if it is a blank. Blink means terminal
+cursor (not a vi file position). Reads may split an ANSI sequence.

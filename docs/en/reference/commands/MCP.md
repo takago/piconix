@@ -179,7 +179,7 @@ If using Open WebUI Knowledge, upload `docs/en/reference/commands/MCP.md` and se
 
 ## Interactive applications through PTY
 
-Four terminal tools are always available. `terminal_open` starts a program with at most one optional argument. `terminal_send` takes either `text` or `key`. `terminal_read` returns the current **80x24 text screen**, not raw ANSI bytes. `terminal_close` terminates only this session's child and closes its PTY.
+Four terminal tools are always available. `terminal_open` starts a program with at most one optional argument. `terminal_send` takes either `text` or `key`. `terminal_read` returns the reconstructed **80x24 screen with ANSI inverse and blinking-cursor markers**, not the raw PTY byte stream. `terminal_close` terminates only this session's child and closes its PTY.
 
 ```text
 terminal_open({"command":"fd"})
@@ -202,7 +202,7 @@ The `.screen` interface is a PicoNIX extension with intentionally limited ANSI s
 python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP
 ```
 
-The first read returns the 80x24 text screen. Later identical reads return `unchanged`. The two-pass comparison is not an atomic screen snapshot during concurrent updates.
+The first read returns the 80x24 ANSI-marked screen; `ESC[5m`/`ESC[25m` surround the terminal cursor cell. Later identical reads return `unchanged`. The two-pass comparison is not an atomic screen snapshot during concurrent updates.
 
 
 ### Repeated MCP transport test (2026-11-09)

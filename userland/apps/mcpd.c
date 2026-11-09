@@ -498,7 +498,7 @@ static int list_tools_stream(int fd,const char *id) {
         MCP_ADD(",{\"name\":\"execute_command\",\"description\":\"Run shell command (noninteractive); do not stop mcpd\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
         MCP_ADD(",{\"name\":\"terminal_open\",\"description\":\"Start interactive app (vi/fd/sh) on 80x24 PTY\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
         MCP_ADD(",{\"name\":\"terminal_send\",\"description\":\"Send text or key: UP DOWN LEFT RIGHT ENTER ESC CTRL_C\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"key\":{\"type\":\"string\"}}}}");
-        MCP_ADD(",{\"name\":\"terminal_read\",\"description\":\"Read 80x24 PTY screen text\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
+        MCP_ADD(",{\"name\":\"terminal_read\",\"description\":\"Read ANSI screen (SGR 5 cursor, 7 inverse)\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
         MCP_ADD(",{\"name\":\"terminal_close\",\"description\":\"Close PTY session\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
 #undef MCP_ADD
     }
@@ -852,17 +852,14 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
 static int read_request(int fd, unsigned *body_offset, unsigned *body_length) {
     unsigned used = 0, header = 0, waits = 0;
     while (waits < 600) {
-        fd_set set = 0;
-        FD_SET(fd, &set);
-        struct timeval timeout = {0, 5000};
-        int ready = select(fd + 1, &set, 0, 0, &timeout);
-        if (!ready) { waits++; continue; }
-        if (ready < 0)
-            return -1;
         if (used == sizeof request - 1)
             return 413;
         int n = recv(fd, request + used, sizeof request - 1 - used, 0);
-        if (n == OS_EAGAIN) { waits++; continue; }
+        if (n == OS_EAGAIN) {
+            waits++;
+            msleep(5);
+            continue;
+        }
         if (n <= 0)
             return -1;
         used += (unsigned)n;

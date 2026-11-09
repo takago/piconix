@@ -213,7 +213,7 @@ typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned maste
 #define VT_ROWS 24u
 static struct {
     char cells[VT_ROWS][VT_COLS];
-    uint8_t inverse[VT_ROWS];
+    uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u];
     uint8_t row,col,esc,params,private_csi,reverse;
     uint16_t arg[3];
     uint32_t revision;
@@ -842,9 +842,9 @@ NO_TRACE static void vt_clear(void) {
 /* 最下行を空けながら仮想画面を1行スクロールする． */
 NO_TRACE static void vt_scroll(void) {
     memmove(pty_screen.cells[0],pty_screen.cells[1],(VT_ROWS-1u)*VT_COLS);
-    memmove(pty_screen.inverse,pty_screen.inverse+1,VT_ROWS-1u);
+    memmove(pty_screen.inverse[0],pty_screen.inverse[1],(VT_ROWS-1u)*sizeof pty_screen.inverse[0]);
     memset(pty_screen.cells[VT_ROWS-1u],' ',VT_COLS);
-    pty_screen.inverse[VT_ROWS-1u]=0;
+    memset(pty_screen.inverse[VT_ROWS-1u],0,sizeof pty_screen.inverse[0]);
 }
 /* 改行時に下端を超えた場合は1行スクロールする． */
 NO_TRACE static void vt_lf(void) {
@@ -895,6 +895,7 @@ NO_TRACE static void pty_screen_byte(uint8_t c) {
             unsigned end=pty_screen.arg[0]==1 ? (unsigned)pty_screen.col+1u : VT_COLS;
             if(pty_screen.arg[0]==2) {start=0;end=VT_COLS;}
             memset(pty_screen.cells[pty_screen.row]+start,' ',end-start);
+            for(unsigned j=start;j<end;j++) pty_screen.inverse[pty_screen.row][j>>3]&=(uint8_t)~(1u<<(j&7u));
         } else if(c=='m') {
             for(unsigned i=0;i<=pty_screen.params;i++) {
                 if(pty_screen.arg[i]==0 || pty_screen.arg[i]==27) pty_screen.reverse=0;
@@ -915,27 +916,50 @@ NO_TRACE static void pty_screen_byte(uint8_t c) {
     else if(c=='\t') {unsigned col=((unsigned)pty_screen.col+8u)&~7u;pty_screen.col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);}
     else if(c>=32 && c<127) {
         pty_screen.cells[pty_screen.row][pty_screen.col]=(char)c;
-        if(pty_screen.reverse) pty_screen.inverse[pty_screen.row]=1;
+        uint8_t *attr=&pty_screen.inverse[pty_screen.row][pty_screen.col>>3];
+        uint8_t bit=(uint8_t)(1u<<(pty_screen.col&7u));
+        if(pty_screen.reverse) *attr|=bit; else *attr&=(uint8_t)~bit;
         if(++pty_screen.col>=VT_COLS) {pty_screen.col=0;vt_lf();}
     }
     pty_screen.revision++;
 }
-/* 1行80文字+LFを24行．固定長なので分割readでも位置が安定する． */
+/* 80x24の反転表示を再生成し，読取り時だけカーソル文字をSGR 5/25で示す． */
+/* カーソル属性は画面セルへ保存せず，FD位置は可変長ストリーム上のバイト位置とする． */
 NO_TRACE static int pty_screen_read(int fd, void *p, size_t n) {
-    unsigned pos=tasks[current].fd_pos[fd];
-    const unsigned size=VT_ROWS*(VT_COLS+1u);
-    if(pos>=size) return 0;
-    if(n>size-pos) n=size-pos;
+    unsigned pos=tasks[current].fd_pos[fd],at=0,out=0;
     char *dst=p;
-    for(size_t i=0;i<n;i++) {
-        unsigned at=pos+(unsigned)i;
-        unsigned row=at/(VT_COLS+1u),col=at%(VT_COLS+1u);
-        dst[i]=col==VT_COLS ? '\n' :
-               (col==0 && row>0 && pty_screen.inverse[row] &&
-                pty_screen.cells[row][0]==' ' ? '>' : pty_screen.cells[row][col]);
+    unsigned reverse=0;
+#define VT_EMIT(ch) do { \
+    if(at>=pos && out<n) dst[out++]=(char)(ch); \
+    at++; \
+} while(0)
+    for(unsigned row=0;row<VT_ROWS && out<n;row++) {
+        for(unsigned col=0;col<VT_COLS && out<n;col++) {
+            unsigned inv=(pty_screen.inverse[row][col>>3]>>(col&7u))&1u;
+            if(inv!=reverse) {
+                const char *seq=inv ? "\033[7m" : "\033[0m";
+                for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
+                reverse=inv;
+            }
+            if(row==pty_screen.row && col==pty_screen.col) {
+                const char *seq="\033[5m";
+                for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
+            }
+            VT_EMIT(pty_screen.cells[row][col]);
+            if(row==pty_screen.row && col==pty_screen.col) {
+                const char *seq="\033[25m";
+                for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
+            }
+        }
+        if(out<n) VT_EMIT('\n');
     }
-    tasks[current].fd_pos[fd]=pos+(uint32_t)n;
-    return (int)n;
+    if(reverse && out<n) {
+        const char *seq="\033[0m";
+        for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
+    }
+#undef VT_EMIT
+    tasks[current].fd_pos[fd]=pos+out;
+    return (int)out;
 }
 /* 名前による特殊キー入力．Masterと同じ行規律に渡す． */
 NO_TRACE static int pty_key_write(const void *p,size_t n) {
@@ -2107,7 +2131,7 @@ static int vfs_open(const char *p, int flags) {
         memset(&pty_screen,0,sizeof pty_screen);vt_clear();
     }
     if((dev==DEV_PTY_SLAVE || dev==DEV_PTY_SCREEN || dev==DEV_PTY_KEY) && !pty.master_refs) return OS_ENOENT;
-    if(dev==DEV_PTY_SCREEN && (flags & 3)!=OS_O_RDONLY) return OS_EINVAL;
+    if((dev==DEV_PTY_SCREEN) && (flags & 3)!=OS_O_RDONLY) return OS_EINVAL;
     if(dev==DEV_PTY_KEY && (flags & 3)!=OS_O_WRONLY) return OS_EINVAL;
     if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE &&
        dev!=DEV_PTY_MASTER && dev!=DEV_PTY_SLAVE)

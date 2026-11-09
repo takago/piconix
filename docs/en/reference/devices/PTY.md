@@ -8,7 +8,7 @@ PicoNIX provides **one general-purpose master/slave PTY pair**, independent of M
 |---|---|---|
 | `/dev/ptmx` | `open(..., O_RDWR)` | Exclusive master; a second open returns `OS_EBUSY` |
 | `/dev/pts/0` | `open(..., O_RDWR)` or other appropriate mode | Slave; available while the master is open |
-| `/dev/pts/0.screen` | `O_RDONLY` | Current 80x24 screen (80 columns + LF per row) |
+| `/dev/pts/0.screen` | `O_RDONLY` | 80x24 screen with ANSI inverse/cursor markers (variable-length stream) |
 | `/dev/pts/0.key` | `O_WRONLY` | Named-key input (e.g. `DOWN`, `CTRL_C`) |
 
 - Writing to the master supplies terminal input to the slave, including canonical input, echo, and Ctrl+C handling. Reading the master receives slave output.
@@ -75,7 +75,7 @@ echo DOWN > /dev/pts/0.key
 echo CTRL_C > /dev/pts/0.key
 ```
 
-Both nodes require an open PTY master. The screen is fixed at 80 columns and 24 rows, with no scrollback. Each row contains 80 characters plus a newline; reads advance the FD offset. Reads are not atomic snapshots if the screen changes during retrieval. Reverse-video lines may be indicated by `>` in the first column.
+The screen and key nodes require an open PTY master. MCP `terminal_read` forwards the screen with its embedded SGR 5/25 cursor marker; no separate cursor-coordinate device is provided. Cursor movement changes the screen data and therefore its change-detection hash. The screen is fixed at 80 columns and 24 rows, with no scrollback. Each row contains 80 character cells plus LF, with optional ANSI SGR sequences. `ESC[7m` and `ESC[0m` mark reversed cells; `ESC[5m` and `ESC[25m` mark the single cursor cell (blink on/off), including a blank cell. Reads advance the FD offset and may split an escape sequence. The display is not an atomic snapshot if the screen changes while reading. The cursor marker is synthesized on read, not stored as a cell attribute.
 
 `.key` accepts one named key per `write()`: `UP`, `DOWN`, `LEFT`, `RIGHT`, `ENTER`, `ESC`, `TAB`, `BACKSPACE`, `DELETE`, or `CTRL_A` through `CTRL_Z`. Use the master FD for ordinary text.
 

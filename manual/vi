@@ -35,3 +35,6 @@ terminal_read returns "unchanged" if screen has not changed since
 last successful read; it does NOT establish whether file was saved.
 Use cat for independent verification. Avoid blind retries after TCP
 errors; check the file before repeating a potentially modifying step.
+
+MCP terminal_read embeds the cursor in the screen as ESC[5m...ESC[25m.
+Read again after navigation: cursor movement changes the screen stream.

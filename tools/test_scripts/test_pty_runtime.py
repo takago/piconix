@@ -65,7 +65,7 @@ typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned maste
 static pty_t pty;
 static struct {
     char cells[VT_ROWS][VT_COLS];
-    uint8_t inverse[VT_ROWS];
+    uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u];
     uint8_t row,col,esc,params,private_csi,reverse;
     uint16_t arg[3];
     uint32_t revision;

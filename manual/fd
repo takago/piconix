@@ -34,3 +34,6 @@ A successful terminal_send means keystrokes were delivered, NOT that
 the intended screen was reached. Read screen after each navigation.
 If terminal_read says "unchanged", do not assume the key worked;
 verify current mode or send a different observable action if needed.
+
+MCP terminal_read embeds the cursor in the screen as ESC[5m...ESC[25m.
+Read again after navigation: cursor movement changes the screen stream.
