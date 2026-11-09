@@ -18,7 +18,6 @@
 static char request[REQUEST_SIZE];
 static char response[RESPONSE_SIZE];
 /* 応答用の比較的大きいバッファは4 KiBスタックを圧迫しないよう静的確保． */
-static int allow_shell; /* 明示的な --shell のときだけ任意コマンドを公開する． */
 /* HTTPの接続寿命とは独立した1組のPTYセッション． */
 static int term_master=-1,term_pid=-1;
 static uint32_t term_last_hash;
@@ -489,18 +488,18 @@ static int list_tools_stream(int fd,const char *id) {
     char prefix[128];
     int n=snprintf(prefix,sizeof prefix,"{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"resultType\":\"complete\",\"cacheScope\":\"private\",\"ttlMs\":0,\"tools\":[",id);
     if(n<=0 || (unsigned)n>=sizeof prefix || send_all(fd,headers,(unsigned)strlen(headers))<0 || send_chunk(fd,prefix,(unsigned)n)<0) return -1;
-    const char *base="{\"name\":\"get_temperature\",\"description\":\"Read onboard temperature sensor\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}}";
+    const char *base="{\"name\":\"get_temperature\",\"description\":\"Read temperature\",\"inputSchema\":{\"type\":\"object\",\"properties\":{},\"additionalProperties\":false}}";
     if(send_chunk(fd,base,(unsigned)strlen(base))<0) return -1;
-    if(allow_shell) {
+    {
         /* 定数ポインタ配列はRAMリンクアドレス依存を生むため使わない． */
 #define MCP_ADD(fragment) do { const char *part=(fragment); if(send_chunk(fd,part,(unsigned)strlen(part))<0) return -1; } while(0)
-        MCP_ADD(",{\"name\":\"get_manual\",\"description\":\"Read ROM manual topic\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\"}}}}");
-        MCP_ADD(",{\"name\":\"write_file\",\"description\":\"Write /tmp/NAME\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"]}}");
-        MCP_ADD(",{\"name\":\"execute_command\",\"description\":\"Run noninteractive shell command. Prefer this over PTY; do not stop mcpd or the managing shell\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
-        MCP_ADD(",{\"name\":\"terminal_open\",\"description\":\"Start one interactive application on 80x24 PTY; use only for vi/fd/sh or other interactive programs\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
-        MCP_ADD(",{\"name\":\"terminal_send\",\"description\":\"Send either text or named key (UP DOWN LEFT RIGHT ENTER ESC CTRL_C etc)\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"key\":{\"type\":\"string\"}}}}");
-        MCP_ADD(",{\"name\":\"terminal_read\",\"description\":\"Read current fixed 80x24 text screen (not ANSI bytes)\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
-        MCP_ADD(",{\"name\":\"terminal_close\",\"description\":\"Terminate only this PTY session\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
+        MCP_ADD(",{\"name\":\"get_manual\",\"description\":\"Read PicoNIX manual. Call get_manual({}) or topic=index for contents.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\",\"description\":\"Omit or use index for contents\"}}}}");
+        MCP_ADD(",{\"name\":\"write_file\",\"description\":\"Write /tmp file\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"]}}");
+        MCP_ADD(",{\"name\":\"execute_command\",\"description\":\"Run shell command (noninteractive); do not stop mcpd\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
+        MCP_ADD(",{\"name\":\"terminal_open\",\"description\":\"Start interactive app (vi/fd/sh) on 80x24 PTY\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
+        MCP_ADD(",{\"name\":\"terminal_send\",\"description\":\"Send text or key: UP DOWN LEFT RIGHT ENTER ESC CTRL_C\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"key\":{\"type\":\"string\"}}}}");
+        MCP_ADD(",{\"name\":\"terminal_read\",\"description\":\"Read 80x24 PTY screen text\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
+        MCP_ADD(",{\"name\":\"terminal_close\",\"description\":\"Close PTY session\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
 #undef MCP_ADD
     }
     if(send_chunk(fd,"]}}",3)<0) return -1;
@@ -609,7 +608,7 @@ static int send_full_manual(int fd,const char *id,const char *topic) {
     snprintf(path,sizeof path,"/man/%s",topic);
     int file=open(path,O_RDONLY);
     if(file<0) {
-        rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Unknown manual topic; use get_manual() for index\"}],\"isError\":true}");
+        rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Unknown topic. Use index.\"}],\"isError\":true}");
         return 200;
     }
     const char *headers="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n";
@@ -714,7 +713,7 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
         const char *path = 0;
         if (json_equals(v, v_end, "get_temperature"))
             path = "/dev/adc/temp";
-        if(allow_shell && (json_equals(v,v_end,"terminal_open") ||
+        if((json_equals(v,v_end,"terminal_open") ||
                             json_equals(v,v_end,"terminal_send") ||
                             json_equals(v,v_end,"terminal_read") ||
                             json_equals(v,v_end,"terminal_close"))) {
@@ -756,7 +755,7 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
             terminal_drain(8);
             return 200;
         }
-        if (allow_shell && json_equals(v,v_end,"get_manual")) {
+        if (json_equals(v,v_end,"get_manual")) {
             if (strcmp(http_name, "get_manual")) {
                 rpc_error(id, -32020, "HeaderMismatch"); return 400;
             }
@@ -766,23 +765,25 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
             if(topic_value) {
                 int len=(int)(topic_end-topic_value-2);
                 if(*topic_value!='"' || len<1 || len>=(int)sizeof topic) {
-                    rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Invalid topic\"}],\"isError\":true}");
+                    rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Invalid topic. Use index.\"}],\"isError\":true}");
                     return 200;
                 }
                 for(int i=0;i<len;i++) {
                     char c=topic_value[i+1];
                     if(!((c>='a'&&c<='z') || (c>='A'&&c<='Z') ||
                          (c>='0'&&c<='9') || c=='/' || c=='_' || c=='-')) {
-                        rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Invalid topic\"}],\"isError\":true}");
+                        rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Invalid topic. Use index.\"}],\"isError\":true}");
                         return 200;
                     }
                     topic[i]=c;
                 }
                 topic[len]=0;
+                /* LLMが目次を探しやすいよう，indexをREADMEの別名にする． */
+                if(!strcmp(topic,"index") || !strcmp(topic,"INDEX")) strcpy(topic,"README");
             }
             return send_full_manual(fd,id,topic); /* 成功時はchunked応答を送信済み． */
         }
-        if (allow_shell && json_equals(v,v_end,"write_file")) {
+        if (json_equals(v,v_end,"write_file")) {
             if (strcmp(http_name,"write_file")) {
                 rpc_error(id,-32020,"HeaderMismatch"); return 400;
             }
@@ -811,7 +812,7 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
             rpc_result(id,result);
             return 200;
         }
-        if (allow_shell && json_equals(v,v_end,"execute_command")) {
+        if (json_equals(v,v_end,"execute_command")) {
             if(strcmp(http_name,"execute_command")) {
                 rpc_error(id,-32020,"HeaderMismatch"); return 400;
             }
@@ -939,10 +940,7 @@ static void handle(int fd) {
 
 /* MCPサーバを起動して接続要求を受け付ける． */
 int main(int argc, char **argv) {
-    if (argc != 1 && !(argc==2 && !strcmp(argv[1],"--shell"))) {
-        puts("usage: mcpd [--shell]"); return 1;
-    }
-    allow_shell = argc==2;
+    if (argc != 1) { puts("usage: mcpd"); return 1; }
     int server = socket(AF_INET, SOCK_STREAM, 0);
     if (server < 0)
         return 1;
@@ -956,7 +954,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     puts("mcpd: listening on TCP 8080 (experimental)");
-    if(allow_shell) puts("mcpd: WARNING shell tool enabled; trusted isolated network ONLY");
+    puts("mcpd: WARNING remote commands enabled; trusted isolated network ONLY");
     for (;;) {
         int client = accept(server, 0, 0);
         if (client == OS_EAGAIN) { msleep(5); continue; }

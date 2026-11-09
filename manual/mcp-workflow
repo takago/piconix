@@ -1,9 +1,8 @@
 MCP TOOLS, COMMAND LIMITS AND ERROR CLASSIFICATION
 
-DEFAULT SERVER
-  mcpd &                temperature-only MCP service
-  mcpd --shell &        enable shell/manual/file tools
-Shell mode has no authentication or TLS. Use trusted isolated LAN.
+SERVER
+  mcpd &                all eight MCP tools enabled
+No authentication or TLS. Use only an isolated trusted LAN.
 
 TOOLS
   get_temperature()        read RP2040 onboard temperature
@@ -37,3 +36,12 @@ AGENT INSTRUCTIONS
   Prefer help, ls, cat /man and short finite commands.
   Preserve user files; do not call rm/kill/device writes unless asked.
   Report exact tool output and distinguish errors from conjecture.
+
+INTERACTIVE TERMINAL RECIPES
+  get_manual({topic:"vi"}) before editing with vi.
+  get_manual({topic:"fd"}) before navigating fd.
+  terminal_open({command:"vi /tmp/test.txt"}) then terminal_read().
+  Send ESC -> :wq -> ENTER; verify with cat after save.
+  terminal_open({command:"fd /tmp"}) then terminal_read().
+  Read screen after navigation. terminal_read unchanged is not proof
+  a keypress failed; check mode and use read-only verification.

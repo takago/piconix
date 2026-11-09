@@ -106,12 +106,12 @@ The prototype has three methods:
 | `tools/list` | Return tool names, descriptions, and input schemas |
 | `tools/call` | Invoke a named tool and return its result |
 
-Normal mode exposes only `get_temperature`. `mcpd --shell` also exposes `get_manual`, `execute_command`, and `write_file`:
+`mcpd` always exposes `get_temperature`, `get_manual`, `execute_command`, `write_file`, and the PTY tools. There is no authentication or TLS:
 
 | Tool | PicoNIX file |
 |---|---|
 | `get_temperature` | `/dev/adc/temp` |
-| `get_manual` | `/man/README` index or a ROM page selected with `topic` (`--shell` only) |
+| `get_manual` | `/man/README` index or a ROM page selected with `topic` |
 
 `tools/call` branches on `params.name`. Temperature reads a device; `get_manual` streams a ROM file selected by optional `topic` (default `README`), and `execute_command` streams short command output. Its key operations are ordinary UNIX-like I/O:
 

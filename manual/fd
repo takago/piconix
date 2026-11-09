@@ -1,0 +1,36 @@
+PICONIX FD - EXACT KEY OPERATIONS (NOT LINUX fd FIND)
+
+Start: terminal_open({"command":"fd /tmp"}); terminal_read({}).
+fd is a full-screen file browser. It is NOT the Linux fd search tool.
+
+DIRECTORY LIST:
+  UP/DOWN                select entry; traverse batches of 48
+  RIGHT / ENTER          open directory or read-only file viewer
+  LEFT / BACKSPACE       parent directory
+  /                      filter file names (case-insensitive substring)
+  ENTER                  confirm filter; ESC cancels input
+  c                      clear name filter
+  r                      reload directory
+  e                      open selected editable file with edit (NOT vi)
+  q                      quit fd
+
+FILE VIEWER (/tmp /etc /proc /man text files only):
+  UP/DOWN                scroll one line
+  PgUp/PgDn              scroll page on a physical ANSI terminal
+  /                      search within file, then ENTER
+  n / N                  next / previous matching line
+  r                      refresh viewer
+  LEFT / q / ESC         return to directory list
+  e                      launch edit for writable /tmp or /etc file
+
+IMPORTANT: q in a viewer returns to list; q at list exits fd.
+fd never previews /dev nodes and never edits /proc or /man.
+fd does not copy, rename or delete files. For vi editing, close fd
+and terminal_open({"command":"vi /tmp/NAME"}) in a fresh session.
+
+MCP workflow: open fd -> read -> send key DOWN or RIGHT -> read
+-> send key LEFT -> read -> send key q -> terminal_close({}).
+A successful terminal_send means keystrokes were delivered, NOT that
+the intended screen was reached. Read screen after each navigation.
+If terminal_read says "unchanged", do not assume the key worked;
+verify current mode or send a different observable action if needed.

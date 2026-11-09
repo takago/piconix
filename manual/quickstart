@@ -46,4 +46,4 @@ OUTPUT AND TIME LIMITS
 
 MCP tools are different from Linux shell commands. get_manual() is
 an MCP tool; 'cat /man/README' is a PicoNIX shell command.
-The --shell switch is required when starting mcpd for shell tools.
+Start mcpd with "mcpd &"; all eight MCP tools are enabled.

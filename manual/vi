@@ -1,0 +1,37 @@
+PICONIX VI - EXACT COMMANDS (NOT GNU VIM)
+
+Start on MCP PTY: terminal_open({"command":"vi /tmp/test.txt"}).
+Then terminal_read({}) to inspect screen and current mode.
+Only direct /tmp/NAME or /etc/NAME RAM files; max 2048 bytes.
+
+NORMAL MODE (press terminal_send({"key":"ESC"}) first)
+  h j k l / arrow keys    move cursor
+  0 / $                   line start / line end
+  i                       insert before cursor
+  a                       insert after cursor
+  o                       open line below, enter INSERT
+  x                       delete character at cursor
+  d then d                delete current line (two key presses)
+  :w + ENTER              save; stay in editor
+  :q + ENTER              quit only if unmodified
+  :q! + ENTER             discard edits and quit
+  :wq + ENTER             save then quit
+  :x + ENTER              save then quit
+  :help + ENTER           brief command hint
+  :%s/OLD/NEW/g + ENTER   replace literal OLD with NEW in whole file
+                            (no regex, no escaped slash; <=2048 bytes)
+
+INSERT MODE: terminal_send({"text":"hello"}) inserts characters;
+ENTER inserts newline; BACKSPACE deletes backward; ESC returns to
+NORMAL. Do NOT use : commands while in INSERT mode.
+
+MCP sequence: ESC -> send text ":%s/1000/100/g" -> ENTER ->
+terminal_read({}) -> ESC -> send ":wq" -> ENTER ->
+execute_command({"command":"cat /tmp/test.txt"}) for verification.
+Commands :set, undo, /pattern and regex substitution are NOT
+implemented. :help displays a brief command hint. Do not guess full Vim commands.
+
+terminal_read returns "unchanged" if screen has not changed since
+last successful read; it does NOT establish whether file was saved.
+Use cat for independent verification. Avoid blind retries after TCP
+errors; check the file before repeating a potentially modifying step.

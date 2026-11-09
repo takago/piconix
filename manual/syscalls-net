@@ -41,5 +41,5 @@ BOUND RECEIVE OPERATIONS
   interactive shell and send finite test requests via MCP.
 
 SECURITY
-  mcpd --shell exposes remote shell/file operations on TCP 8080
-  without authentication or TLS. Use isolated trusted lab LAN.
+  mcpd & exposes remote shell/file operations on TCP 8080
+  without authentication or TLS. Use only an isolated trusted lab LAN.

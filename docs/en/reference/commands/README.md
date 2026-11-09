@@ -70,7 +70,7 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 | [`httpd`](../../../../userland/apps/httpd.c) | HTTP/1.0 server (TCP 80) | `httpd` | [Details](../network/HTTPD.md) |
 | [`tcp_echod`](../../../../userland/apps/tcp_echod.c) | TCP echo server | `tcp_echod [PORT]— default 7` | [Details](../network/NETWORK.md) |
 | [`udp_echod`](../../../../userland/apps/udp_echod.c) | UDP echo server | `udp_echod [PORT]— default 7` | [Details](../network/NETWORK.md) |
-| [`mcpd`](../../../../userland/apps/mcpd.c) | MCP HTTP server (TCP 8080) | `mcpd [--shell]` | [Details](MCP.md) |
+| [`mcpd`](../../../../userland/apps/mcpd.c) | MCP HTTP server (TCP 8080) | `mcpd` | [Details](MCP.md) |
 | [`scroll`](../../../../userland/apps/scroll.c) | LED ticker (stdin/UDP) | `scroll [-u [PORT]]— default UDP 2001` | [Details](SCROLL.md) |
 
 ## Demos and games

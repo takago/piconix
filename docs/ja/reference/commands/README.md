@@ -70,7 +70,7 @@
 | [`httpd`](../../../../userland/apps/httpd.c) | HTTP/1.0サーバ（TCP 80） | `httpd` | [解説](../network/HTTPD.md) |
 | [`tcp_echod`](../../../../userland/apps/tcp_echod.c) | TCPエコーサーバ | `tcp_echod [PORT]（既定7）` | [解説](../network/NETWORK.md) |
 | [`udp_echod`](../../../../userland/apps/udp_echod.c) | UDPエコーサーバ | `udp_echod [PORT]（既定7）` | [解説](../network/NETWORK.md) |
-| [`mcpd`](../../../../userland/apps/mcpd.c) | MCP HTTPサーバ（TCP 8080） | `mcpd [--shell]` | [解説](MCP.md) |
+| [`mcpd`](../../../../userland/apps/mcpd.c) | MCP HTTPサーバ（TCP 8080） | `mcpd` | [解説](MCP.md) |
 | [`scroll`](../../../../userland/apps/scroll.c) | LED文字スクロール（標準入力・UDP） | `scroll [-u [PORT]]（既定UDP 2001）` | [解説](SCROLL.md) |
 
 ## デモ・ゲーム

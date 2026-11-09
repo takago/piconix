@@ -4,24 +4,19 @@ PicoNIXの`mcpd`は，Pico W上で動作する**実験用MCPサーバ**です．
 
 [English](../../../en/reference/commands/MCP.md)
 
-> **安全上の注意：** 認証・TLSはありません．`--shell`を指定すると遠隔からコマンド実行やファイル書込みが可能になります．インターネットや共有LANに公開せず，隔離した実験用ネットワークでのみ使用してください．`Origin`ヘッダを持つ要求は拒否しますが，これは認証の代わりにはなりません．
+> **安全上の注意：** 認証・TLSはありません．起動すると遠隔からコマンド実行やファイル書込みが可能になります．インターネットや共有LANに公開せず，隔離した実験用ネットワークでのみ使用してください．`Origin`ヘッダを持つ要求は拒否しますが，これは認証の代わりにはなりません．
 
 ## 1．起動とツール
 
-Pico Wでネットワークを有効にした後，次のどちらかを実行します．
+Pico Wでネットワークを有効にした後，次を実行します．
 
 ```sh
 mcpd &
-# コマンド実行を含む実験だけで使用する場合
-mcpd --shell &
 ```
 
-| 起動方法 | MCPに公開するツール | 用途 |
-|---|---|---|
-| `mcpd &` | `get_temperature` | 内蔵温度センサの読み取り |
-| `mcpd --shell &` | 上記に加えて`get_manual`，`execute_command`，`write_file`，`terminal_open`，`terminal_send`，`terminal_read`，`terminal_close` | マニュアル参照と遠隔操作 |
+`mcpd`は常に8つのツール（`get_temperature`，`get_manual`，`write_file`，`execute_command`，`terminal_open`，`terminal_send`，`terminal_read`，`terminal_close`）を公開します．`--shell`オプションは廃止しました．**認証やTLSはないため，隔離した実験用ネットワークでのみ使用してください．**
 
-`get_manual()`は`/man/README`の目次を返し，`topic`を指定すると個別ページを返します．`execute_command`は短い**非対話**コマンド専用です．`write_file`は`/tmp/NAME`のASCIIテキストを上書きします（最大2,048バイト，要求本文の制限にも依存）．通常起動では書込み・コマンド実行は公開されません．
+`get_manual({})`または`get_manual({"topic":"index"})`は`/man/README`の目次を返します．目次で確認したトピック名を`topic`に指定すると個別ページを返します．`execute_command`は短い**非対話**コマンド専用です．`write_file`は`/tmp/NAME`のASCIIテキストを上書きします（最大2,048バイト，要求本文の制限にも依存）．書込み・コマンド実行は常時有効です．
 
 `mcpd`は自動起動されません．サーバ利用中も`httpd`を停止する必要はありません．
 
@@ -37,11 +32,11 @@ pip install "mcp>=2,<3"
 # ツール一覧を表示する（呼び出しはしない）
 python host/mcp_client.py http://192.168.4.1:8080/mcp --tool none
 
-# 通常モードでも実行できる読み取りツール
+# 温度を取得する読み取りツール
 python host/mcp_client.py http://192.168.4.1:8080/mcp --tool get_temperature
 ```
 
-`mcpd --shell &`で起動している場合は，`--tool get_manual`で目次を取得できます．`--tool all`は安全側の設計で，公開中の**`get_temperature`と`get_manual`だけ**を呼び出します．`execute_command`や`write_file`を自動的には実行しません．通信モードを明示したい場合は`--mode 2026-07-28`を指定できます．
+`mcpd &`で起動している場合は，`--tool get_manual`で目次を取得できます．`--tool all`は安全側の設計で，公開中の**`get_temperature`と`get_manual`だけ**を呼び出します．`execute_command`や`write_file`を自動的には実行しません．通信モードを明示したい場合は`--mode 2026-07-28`を指定できます．
 
 ## 3．手動HTTPテスト
 
@@ -88,10 +83,10 @@ LLMがFunction Callingでツールを選び，ホストクライアントがMCP�
 隔離した実験ネットワークで実行します．
 
 ```sh
-mcpd --shell &
+mcpd &
 ```
 
-`--shell`では`get_temperature`，`get_manual`，`execute_command`，`write_file`および4つの`terminal_*`ツールが公開されます．**認証・TLSがなく，LLM経由のコマンドがPico W上で実行されます．** ホストクライアントはツール実行前の確認を自動では求めません．重要な操作はLLMに任せず，必要に応じてクライアント側へ承認機構を実装してください．一般LANやインターネットには公開しないでください．
+`mcpd`では`get_temperature`，`get_manual`，`execute_command`，`write_file`および4つの`terminal_*`ツールが常時公開されます．**認証・TLSがなく，LLM経由のコマンドがPico W上で実行されます．** ホストクライアントはツール実行前の確認を自動では求めません．重要な操作はLLMに任せず，必要に応じてクライアント側へ承認機構を実装してください．一般LANやインターネットには公開しないでください．
 
 ### Linux側で接続
 
@@ -140,8 +135,8 @@ python host/mcp_llm_client.py
 
 ### うまく動かない場合
 
-- **接続できない：** Pico Wで`mcpd --shell &`が動作しているか，`MCP_URL`のIPとポートが正しいか，まず`host/mcp_client.py --tool none`で確認します．
-- **ツールが少ない：** `mcpd &`の通常モードは温度取得だけです．必要に応じて`--shell`モードで起動し直します．
+- **接続できない：** Pico Wで`mcpd &`が動作しているか，`MCP_URL`のIPとポートが正しいか，まず`host/mcp_client.py --tool none`で確認します．
+- **ツールが少ない：** 最新の`mcpd`を再ビルドして起動し，`tools/list`を確認します．
 - **LLMがツールを呼ばない：** LLMのChat Completions APIとFunction Calling対応を確認します．モデルによっては適切にツールを選べません．
 - **`reasoning_effort`でエラー：** 対象サーバが指定値に対応しているか確認してください．
 
@@ -166,7 +161,7 @@ PicoNIXはLinuxではありません．`bash`，`sudo`，`apt`，`gcc`，`ssh`�
 
 `host/mcp_llm_client.py`を使わず，Open WebUIなどのMCP対応ホストから接続することも考えられます．ただし，PicoNIXの`mcpd`はMCPの限定的な実装なので，**特定のバージョンのOpen WebUIから直接接続できることは保証していません**．まず前述の`host/mcp_client.py`でサーバとの通信を確認してください．
 
-外部ホストに登録するときは，接続先として`http://PICO_IP:8080/mcp`を使用し，MCPツールとして登録します（OpenAPIツールではありません）．管理画面の名称や接続方式はバージョンによって変わるため，使用中のホストの説明を確認してください．また，ツール権限とモデルからの呼出し条件を確認し，読み取り専用の`get_temperature`などで接続を検証します．無認証の`mcpd --shell`を公開する場合は，利用者とネットワークの双方を厳しく制限してください．
+外部ホストに登録するときは，接続先として`http://PICO_IP:8080/mcp`を使用し，MCPツールとして登録します（OpenAPIツールではありません）．管理画面の名称や接続方式はバージョンによって変わるため，使用中のホストの説明を確認してください．また，ツール権限とモデルからの呼出し条件を確認し，読み取り専用の`get_temperature`などで接続を検証します．無認証の`mcpd`を公開する場合は，利用者とネットワークの双方を厳しく制限してください．
 
 KnowledgeなどへOSの説明を登録する場合も，内容が毎回自動的にモデルへ渡るとは限りません．重要な制限は実行ホスト側の承認処理でも守る必要があります．
 
@@ -181,7 +176,7 @@ Open WebUIのKnowledge機能を使用する場合は，この`docs/ja/reference/
 
 ## PTYによる対話型アプリの操作
 
-`mcpd --shell &`で起動した場合，4つのPTYツールが利用できます．`terminal_open`はコマンド名と任意の引数1個を渡して端末アプリを起動し，`terminal_send`は`text`か`key`のいずれかを送信します．`terminal_read`はANSI生データではなく，現在の**80×24文字画面**を返します．`terminal_close`はこのセッションで起動した子だけを終了し，PTYを閉じます．
+`mcpd &`で起動した場合，4つのPTYツールが利用できます．`terminal_open`はコマンド名と任意の引数1個を渡して端末アプリを起動し，`terminal_send`は`text`か`key`のいずれかを送信します．`terminal_read`はANSI生データではなく，現在の**80×24文字画面**を返します．`terminal_close`はこのセッションで起動した子だけを終了し，PTYを閉じます．
 
 ```text
 terminal_open({"command":"fd"})
@@ -217,7 +212,7 @@ python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOW
 # LLMを介さずに50回の温度取得を実行（標準ライブラリのみ）
 python3 host/mcp_stress.py http://192.168.4.1:8080/mcp --count 50
 
-# --shellのときだけ短い観測コマンドを繰り返す
+# 隔離ネットワーク上で短い観測コマンドを繰り返す
 python3 host/mcp_stress.py http://192.168.4.1:8080/mcp \
   --tool execute_command --command 'trace run hello' --count 50
 ```

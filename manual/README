@@ -1,8 +1,6 @@
 PicoNIX ON-DEVICE MANUAL - AGENT-FIRST INDEX
 
-This ROM manual is for humans and MCP-driven LLM agents that inspect,
-program, debug, trace, and control PicoNIX. It describes a small OS;
-Linux/ISO C/CPython behavior must not be assumed.
+ROM manual for MCP agents and humans. PicoNIX is not Linux/ISO C/CPython.
 
 START HERE
   agent          MCP limits, safe tool sequence, recovery
@@ -43,7 +41,9 @@ OPERATING AND DEBUGGING
   devices         Device ownership, GPIO, PWM, ADC, I2C
   network         TCP/UDP, Wi-Fi, loopback, diagnostics
   syscalls        System-call/API overview and FD handling
-  troubleshooting Common command, MCP and runtime failures
+  troubleshooting Command, MCP and runtime failures
+  vi             vi keys and literal substitution
+  fd             fd navigation and viewer keys
 
 
 EXTENDED TASK-ORIENTED REFERENCES
@@ -84,4 +84,5 @@ Examples of access:
 get_manual() lists pages; get_manual(topic) retrieves one page.
 Use 'help COMMAND' for CLI usage. Manuals live in XIP ROM and
 may exceed RAM file limits. Read one page at a time.
-  led-patterns   /dev/fbchar ASCII glyph and symbol display
+  led-patterns   /dev/fbchar glyphs
+  pty            Pseudoterminal interfaces

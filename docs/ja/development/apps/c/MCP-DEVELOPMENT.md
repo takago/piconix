@@ -108,12 +108,12 @@ int client = accept(server, 0, 0);
 | `tools/list` | ツール名，説明，入力スキーマを返す |
 | `tools/call` | 指定されたツールを呼び出し，結果を返す |
 
-通常起動では`get_temperature`のみ公開します．`mcpd --shell`では`get_manual`，`execute_command`，`write_file`も公開します．
+`mcpd`は`get_temperature`，`get_manual`，`execute_command`，`write_file`と疑似端末ツールを常時公開します．認証・TLSはありません．
 
 | ツール | 実際に読むファイル |
 |---|---|
 | `get_temperature` | `/dev/adc/temp` |
-| `get_manual` | `/man/README`（目次），または`topic`で指定したROMページ（`--shell`のみ） |
+| `get_manual` | `/man/README`（目次），または`topic`で指定したROMページ |
 
 `tools/call`は`params.name`を見て分岐します．温度取得ではデバイスを読み，`get_manual`では`topic`（省略時`README`）から`/man`配下のパスを求めてchunked応答で転送します．`execute_command`もchunked転送を利用します．この関数の本質は普通のUNIX系のファイル入出力です．
 

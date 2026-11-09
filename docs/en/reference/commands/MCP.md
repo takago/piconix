@@ -4,24 +4,19 @@
 
 [日本語](../../../ja/reference/commands/MCP.md)
 
-> **Security:** There is no authentication or TLS. `--shell` exposes remote command execution and file writes. Use an isolated test network only; never expose this endpoint to the Internet or a shared LAN. Requests with an `Origin` header are rejected, but this is not authentication.
+> **Security:** There is no authentication or TLS. Starting `mcpd` exposes remote command execution and file writes. Use an isolated test network only; never expose this endpoint to the Internet or a shared LAN. Requests with an `Origin` header are rejected, but this is not authentication.
 
 ## 1. Start the server and discover tools
 
-After connecting Pico W to the network, run one of the following:
+After connecting Pico W to the network, start the server:
 
 ```sh
 mcpd &
-# For isolated experiments requiring command execution:
-mcpd --shell &
 ```
 
-| Startup | Exposed MCP tools | Purpose |
-|---|---|---|
-| `mcpd &` | `get_temperature` | Read onboard temperature |
-| `mcpd --shell &` | Above plus `get_manual`, `execute_command`, `write_file`, `terminal_open`, `terminal_send`, `terminal_read`, `terminal_close` | Manual lookup and remote actions |
+`mcpd` always exposes eight tools: `get_temperature`, `get_manual`, `write_file`, `execute_command`, `terminal_open`, `terminal_send`, `terminal_read`, and `terminal_close`. The `--shell` option has been removed. **There is no authentication or TLS: use only an isolated trusted test network.**
 
-`get_manual()` returns the `/man/README` index; supplying `topic` returns one page. `execute_command` is for short **noninteractive** commands. `write_file` overwrites ASCII text at `/tmp/NAME` (up to 2,048 bytes, also subject to the HTTP request limit). The normal mode does not expose command execution or writes.
+`get_manual({})` or `get_manual({"topic":"index"})` returns the `/man/README` topic index; use an exact topic listed there to retrieve a page. `execute_command` is for short **noninteractive** commands. `write_file` overwrites ASCII text at `/tmp/NAME` (up to 2,048 bytes, also subject to the HTTP request limit). Command execution and writes are always available.
 
 `mcpd` is not started automatically, and `httpd` can continue running independently.
 
@@ -37,11 +32,11 @@ pip install "mcp>=2,<3"
 # List tools, without calling any
 python host/mcp_client.py http://192.168.4.1:8080/mcp --tool none
 
-# Read-only tool available in both modes
+# Read-only temperature tool
 python host/mcp_client.py http://192.168.4.1:8080/mcp --tool get_temperature
 ```
 
-With `mcpd --shell &`, use `--tool get_manual` to read the manual index. `--tool all` deliberately calls only the available **`get_temperature` and `get_manual`** tools, never `execute_command` or `write_file` automatically. The `--mode 2026-07-28` option selects the protocol mode explicitly.
+With `mcpd &`, use `--tool get_manual` to read the manual index. `--tool all` deliberately calls only the available **`get_temperature` and `get_manual`** tools, never `execute_command` or `write_file` automatically. The `--mode 2026-07-28` option selects the protocol mode explicitly.
 
 ## 3. Manual HTTP check
 
@@ -88,7 +83,7 @@ The LLM selects tools using Function Calling; the host client forwards calls via
 On a trusted, isolated test network:
 
 ```sh
-mcpd --shell &
+mcpd &
 ```
 
 This mode exposes `get_temperature`, `get_manual`, `execute_command`, `write_file`, and four `terminal_*` tools. **There is no authentication or TLS. LLM-selected commands run on Pico W, and the host client does not ask for confirmation before executing tools.** Do not expose the server to shared networks or the Internet. Implement an approval gate in the host client before using it for consequential operations.
@@ -140,8 +135,8 @@ Use `execute_command` only for short noninteractive commands. Do not run full-sc
 
 ### Troubleshooting
 
-- **Connection fails:** Verify `mcpd --shell &` on Pico W, the IP address, and port. First test with `host/mcp_client.py ... --tool none`.
-- **Only one tool listed:** Normal `mcpd &` mode exposes temperature reading only. Restart in `--shell` mode if appropriate.
+- **Connection fails:** Verify `mcpd &` on Pico W, the IP address, and port. First test with `host/mcp_client.py ... --tool none`.
+- **Only one tool listed:** Rebuild and restart the current `mcpd` and inspect `tools/list`.
 - **LLM does not call tools:** Check Chat Completions and Function Calling support; model behavior varies.
 - **`reasoning_effort` fails:** Verify the setting is supported by the chosen server/model.
 
@@ -166,7 +161,7 @@ Suggested model guidance:
 
 MCP-capable hosts may connect directly to `http://PICO_IP:8080/mcp`, but PicoNIX implements only a limited subset of MCP. **Direct compatibility with any particular Open WebUI version is not guaranteed.** Verify the server first with `host/mcp_client.py` as described above. Configure the endpoint as an MCP tool server rather than an OpenAPI server, using the instructions for your host version; administrator UI labels and transport support can change.
 
-Check the model's tool permissions, start with read-only `get_temperature`, and restrict access to the network and users. In particular, unauthenticated `mcpd --shell` must not be exposed to untrusted networks. Knowledge integration may not inject the operating guidelines into every model invocation, so consequential-action approval must be enforced by the host where needed.
+Check the model's tool permissions, start with read-only `get_temperature`, and restrict access to the network and users. In particular, unauthenticated `mcpd` must not be exposed to untrusted networks. Knowledge integration may not inject the operating guidelines into every model invocation, so consequential-action approval must be enforced by the host where needed.
 
 
 ## 6. Read and extend the implementation
@@ -184,7 +179,7 @@ If using Open WebUI Knowledge, upload `docs/en/reference/commands/MCP.md` and se
 
 ## Interactive applications through PTY
 
-With `mcpd --shell &`, four terminal tools are available. `terminal_open` starts a program with at most one optional argument. `terminal_send` takes either `text` or `key`. `terminal_read` returns the current **80x24 text screen**, not raw ANSI bytes. `terminal_close` terminates only this session's child and closes its PTY.
+Four terminal tools are always available. `terminal_open` starts a program with at most one optional argument. `terminal_send` takes either `text` or `key`. `terminal_read` returns the current **80x24 text screen**, not raw ANSI bytes. `terminal_close` terminates only this session's child and closes its PTY.
 
 ```text
 terminal_open({"command":"fd"})
@@ -218,7 +213,7 @@ The experimental `mcpd` processes **one HTTP connection at a time** and does not
 # 50 read-only temperature calls, no SDK or LLM required
 python3 host/mcp_stress.py http://192.168.4.1:8080/mcp --count 50
 
-# Only when running mcpd --shell; repeat a short observational command
+# On an isolated trusted test network; repeat a short observational command
 python3 host/mcp_stress.py http://192.168.4.1:8080/mcp \
   --tool execute_command --command 'trace run hello' --count 50
 ```

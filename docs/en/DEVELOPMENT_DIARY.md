@@ -1,9 +1,9 @@
 # PicoNIX Development Diary
 
 
-### 2026-11-09: Preserve exit codes and show PPID in ps
+### 2026-11-10: Add vi literal substitution and MCP terminal-operation manuals
 
-The kernel now retains the low eight bits of `_exit(status)` in completion notices, and returns them through `waitpid()` for both blocked and already-finished children. `sh -c` propagates the last command exit code, allowing MCP `execute_command` to report nonzero codes with `isError:true`. `ps` and `/proc/tasks` append `PPID` without shifting existing task columns. The six-notice limit and overwrite-on-full behavior remain unchanged.
+Added `:%s/OLD/NEW/g` whole-file literal replacement to `vi` (no regex), rejecting substitutions that would exceed the 2 KiB buffer without modifying its contents. Documented the existing `fd` navigation and viewer keys in a standalone on-device manual topic. Added `vi` and `fd` topics for MCP agents, with terminal workflows and bilingual references. Host substitution tests and ROM manual generation checks passed; hardware operation remains untested.
 
 ### 2026-11-09: Fix MCP terminal screen delivery and trace instrumentation
 

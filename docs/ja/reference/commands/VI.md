@@ -17,6 +17,7 @@
 | `dd` | 1行削除 |
 | `o` | 次の行を挿入 |
 | `:w` | 保存 |
+| `:%s/OLD/NEW/g` | ファイル全体の文字列を一括置換（正規表現ではない） |
 | `:q` | 終了 |
 | `:q!` | 変更を破棄して終了 |
 | `:wq` | 保存して終了 |
@@ -34,6 +35,24 @@
 5. `cat /tmp/hello.txt`で内容を確認します．
 
 未保存の変更があるとき，`:q`は終了せず警告を表示します．変更を破棄する場合だけ`:q!`を使用します．`Ctrl+C`による終了は保存しません．
+
+## MCPからの操作と置換
+
+まず `get_manual({"topic":"vi"})` でPicoNIX固有の操作を確認します．`terminal_open({"command":"vi /tmp/test.txt"})` で起動し，`terminal_read({})` で画面を取得します．`execute_command` で対話型エディタを直接起動しないでください．
+
+`1000` を `100` に一括置換するには，通常モードで次の順に送ります．
+
+```text
+terminal_send({"key":"ESC"})
+terminal_send({"text":":%s/1000/100/g"})
+terminal_send({"key":"ENTER"})
+terminal_read({})
+terminal_send({"key":"ESC"})
+terminal_send({"text":":wq"})
+terminal_send({"key":"ENTER"})
+```
+
+置換は**文字列の完全一致**であり，通常のVimの正規表現機能ではありません．区切り文字 `/` を含む文字列や複雑な置換式は扱えません．置換後に2,048バイトを超える場合は変更されません．`:help`で短い操作一覧を表示できます．`:set`，Undo，`/pattern`などは未実装です．`terminal_send`の成功だけで保存済みとは判断せず，終了後に`cat /tmp/test.txt`で検証してください．`terminal_read`の`unchanged`は前回取得時から画面内容に変化がないことを表し，保存成功を示すものではありません．
 
 ---
 

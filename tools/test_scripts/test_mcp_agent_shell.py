@@ -9,8 +9,9 @@ import subprocess
 ROOT = Path(__file__).resolve().parents[2]
 MCP = (ROOT / 'userland/apps/mcpd.c').read_text()
 SH = (ROOT / 'userland/apps/shell.c').read_text()
-assert 'argc==2 && !strcmp(argv[1],"--shell")' in MCP
-assert 'if (allow_shell && json_equals(v,v_end,"execute_command"))' in MCP
+assert 'if (argc != 1)' in MCP
+assert 'allow_shell' not in MCP
+assert 'if (json_equals(v,v_end,"execute_command"))' in MCP
 assert 'COMMAND_OUTPUT_LIMIT 4096' in MCP
 assert 'Transfer-Encoding: chunked' in MCP
 assert 'if(status>=0) http_reply(fd, status, response);' in MCP
@@ -28,4 +29,4 @@ if clang := shutil.which('clang'):
                     '-fPIC', '-ffreestanding', '-fsyntax-only', '-Iinclude', '-Iuserland/lib',
                     'userland/apps/shell.c', 'userland/apps/mcpd.c'],
                    cwd=ROOT, check=True)
-print('PASS: opt-in command tool, MCP JSON metadata, shell batch handling and ARM syntax')
+print('PASS: always-enabled command tool, MCP JSON metadata, shell batch handling and ARM syntax')

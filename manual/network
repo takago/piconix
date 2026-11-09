@@ -27,8 +27,8 @@ Python-like socket functions:
 See /man/languages/python for data types and exact restrictions.
 
 MCP web transport:
-  mcpd --shell enables remote command execution and file write;
-  no authentication/TLS. Only expose on trusted isolated LAN.
+  mcpd & always enables remote command execution and file writes;
+  no authentication/TLS. Use only on an isolated trusted LAN.
   MCP HTTP replies may be chunked. 'incomplete chunked read'
   indicates broken/incomplete response, not a Python syntax error.
   Reduce command output and inspect process/network resources.

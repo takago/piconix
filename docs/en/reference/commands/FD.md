@@ -56,6 +56,10 @@ The viewer is intended for text. Nonprintable bytes appear as `.`, and long line
 
 Select a writable RAM file directly under `/tmp` or `/etc` and press `e`; you can also press `e` from the viewer. Leaving `edit` normally returns to `fd`. The browser temporarily disables nonblocking input before launching the editor and restores its settings afterward. Files under `/proc` and `/man` are read-only and cannot be edited. See the [edit guide](EDIT.md).
 
+## MCP terminal operation
+
+Read `get_manual({"topic":"fd"})`, then start `terminal_open({"command":"fd /tmp"})`. Read the screen using `terminal_read({})` before sending navigation keys such as `terminal_send({"key":"DOWN"})`. **`q` behaves differently in the file viewer and directory list**, so verify the current screen after each transition. Pressing `e` launches `edit`, not `vi`. To use `vi`, exit fd, then open a new session with `terminal_open({"command":"vi /tmp/NAME"})`.
+
 ## Limits and implementation notes
 
 - Directory entries are loaded in 48-entry batches. Navigate between batches with arrow keys; filtering searches the whole current directory, not just the visible entries. The maximum layout is 40 rows × 110 columns.

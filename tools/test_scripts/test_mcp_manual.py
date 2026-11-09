@@ -8,7 +8,12 @@ for name in ('terminal_open','terminal_send','terminal_read','terminal_close','g
     assert r'\"name\":\"'+name+r'\"' in s
 assert 'scroll_message(' not in s
 assert '"get_wifi_info"' not in s and '"display_message"' not in s
-assert r'\"topic\":{\"type\":\"string\"}' in s
+assert r'\"topic\":{\"type\":\"string\"' in s
+assert 'Call get_manual({}) or topic=index for contents.' in s
+assert 'topic=index' in s
+assert 'strcmp(topic,"index")' in s and 'strcmp(topic,"INDEX")' in s
+assert 'strcpy(topic,"README")' in s
+assert 'Unknown topic. Use index.' in s
 assert 'return send_full_manual(fd,id,topic);' in s and 'Transfer-Encoding: chunked' in s
 assert 'send_full_manual(fd,id,topic);' in s
 assert 'get_manual' in s and 'read(file,part,sizeof part)' in s

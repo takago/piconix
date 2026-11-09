@@ -80,4 +80,4 @@ To find a document by task, see [Tasks](docs/en/TASKS.md) / [目的別索引](do
 
 ## Security and scope
 
-PicoNIX is intended for local experiments and trusted laboratory environments. Telnet, UDP remote device control and the optional MCP shell mode do not provide authentication or encryption. Do not expose these services to untrusted networks. For MCP's modes, limitations and examples, consult the dedicated MCP reference above.
+PicoNIX is intended for local experiments and trusted laboratory environments. Telnet, UDP remote device control and the MCP remote-command interface do not provide authentication or encryption. Do not expose these services to untrusted networks. For MCP limitations and examples, consult the dedicated MCP reference above.

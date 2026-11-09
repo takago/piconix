@@ -29,9 +29,9 @@ Use distinct names to avoid destroying work. C cc input <=1024 B.
 The assembler writes /tmp/a.out; do not run a stale binary after
 an as failure. Ensure successful compiler/assembler outputs first.
 
-mcpd (without --shell) exposes temperature only.
-mcpd --shell enables get_manual, execute_command, write_file and terminal_*;
-these services have NO authentication or TLS. Use isolated trusted LAN.
+mcpd & exposes all eight MCP tools, including get_manual,
+execute_command, write_file and terminal_*. The service has NO
+authentication or TLS. Use only an isolated trusted LAN.
 
 On 'incomplete chunked read', connection closed before HTTP response
 completed. Check mcpd is alive with ps from a physical terminal,
@@ -43,3 +43,8 @@ Before changing hardware, read gpio-board and check pins. Pico W
 GP25 is NOT the board LED. Report command success separately from
 physical observation. Never remove files not created for this task.
 Read shell-syntax/compatibility before issuing composite commands.
+
+For interactive vi/fd sessions, read get_manual(topic="vi") or
+get_manual(topic="fd") BEFORE sending keystrokes. This is NOT
+full Vim and fd is NOT a Linux fd search CLI. Read screen after
+operations and verify file changes using a separate read-only tool.

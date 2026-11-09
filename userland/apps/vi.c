@@ -5,7 +5,7 @@
 #define EDITOR_NAME "vi"
 #define EDITOR_GUTTER 0
 #define EDITOR_TITLE "PicoNIX vi    "
-#define EDITOR_HINT "ESC Normal  i Insert  :w Save  :q Quit  h/j/k/l Move"
+#define EDITOR_HINT "ESC Normal  i Insert  :w Save  :help Keys  h/j/k/l Move"
 #include "editor_common.h"
 
 /* ANSIカーソルキーの残りを読み出し，単独Escをブロックしない．Escは挿入モード終了，ESC [ A/B/C/Dは移動として扱う．無関係な文字は主入力ループへ戻す． */
@@ -29,6 +29,39 @@ static void move_arrow(char c){
  else if(c=='B'&&line_end(pos)<len)pos=position_col(line_end(pos)+1,col);
  else if(c=='D'&&pos>line_start(pos))pos--;
  else if(c=='C'&&pos<line_end(pos))pos++;
+}
+
+/* 全行の文字列を字句どおり置換する．正規表現は使わず，容量超過なら一切変更しない． */
+static int replace_all(char *old,const char *new_text){
+ int a=(int)strlen(old),b=(int)strlen(new_text),hits=0;
+ if(!a)return -1;
+ for(int i=0;i+a<=len;){
+  if(!memcmp(data+i,old,a)){hits++;i+=a;}
+  else i++;
+ }
+ if(b>a && hits>(CAP-len)/(b-a))return -2;
+ for(int i=0;i+a<=len;){
+  if(!memcmp(data+i,old,a)){
+   memmove(data+i+b,data+i+a,len-i-a);
+   memcpy(data+i,new_text,b);
+   len+=b-a;
+   i+=b;
+  }else i++;
+ }
+ if(hits){changed=1;pos=0;}
+ return hits;
+}
+
+/* :%s/old/new/g は正規表現ではなく，全ファイルのリテラル文字列置換． */
+static int substitute(char *cmd){
+ if(strncmp(cmd,"%s/",3))return -1;
+ char *old=cmd+3,*sep=strchr(old,'/');
+ if(!sep)return -1;
+ *sep++=0;
+ char *end=strchr(sep,'/');
+ if(!end || strcmp(end+1,"g"))return -1;
+ *end=0;
+ return replace_all(old,sep);
 }
 
 /* 共通の編集処理を用い，vi風キー操作でRAMファイルを編集する． */
@@ -81,8 +114,8 @@ int main(int argc,char **argv){
     memmove(data+st,data+en,len-en);len-=en-st;pos=st>len?len:st;changed=1;repaint=0;pending_d=0;}
   else if(c=='d'){pending_d=1;notice="d (press d again to delete line)";}
   else if(c==':'){
-   char cmd[12];int n=0;printf("\033[%d;1H\033[K:",visible_rows+3);
-   while(read(0,&c,1)==1&&c!='\r'&&c!='\n'&&n<11){
+   char cmd[96];int n=0;printf("\033[%d;1H\033[K:",visible_rows+3);
+   while(read(0,&c,1)==1&&c!='\r'&&c!='\n'&&n<(int)sizeof(cmd)-1){
     if(c==27){n=0;break;}if(c==127||c==8){if(n){n--;printf("\b \b");}continue;}
     if(c>=32&&c<127){cmd[n++]=c;putchar(c);}
    }cmd[n]=0;
@@ -90,6 +123,13 @@ int main(int argc,char **argv){
    else if(!strcmp(cmd,"q")){if(!changed)quit=1;else notice="Modified: :q! or :wq";}
    else if(!strcmp(cmd,"q!"))quit=1;
    else if(!strcmp(cmd,"wq")||!strcmp(cmd,"x")){if(save(path)==0)quit=1;else notice="Save failed";}
+   else if(!strcmp(cmd,"help")){notice="i/a/o x dd :w :q! :wq :%s/old/new/g";}
+   else if(!strncmp(cmd,"%s/",3)){
+    int count=substitute(cmd);
+    if(count<0)notice=count==-2?"File exceeds 2048 bytes":"Use :%s/old/new/g";
+    else notice=count?"Replaced":"No match";
+    repaint=0;
+   }
    else notice="Unknown command";
   }
   else pending_d=0;

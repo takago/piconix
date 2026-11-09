@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"httpd")) puts("httpd: HTTP/1.0 server on TCP 80 (HTML, framebuffer/PWM APIs)");
     else if(!strcmp(argv[1],"scroll")) puts("scroll: LED text ticker\nusage: scroll [-u [PORT]] (default UDP 2001)");
     else if(!strcmp(argv[1],"cc")) puts("cc: compile a tiny C subset to Thumb assembly\nusage: cc source.c\nthen: as /tmp/cc.s ; ./a.out");
-    else if(!strcmp(argv[1],"mcpd")) puts("mcpd: Experimental Streamable HTTP MCP server (Pico W)\nusage: mcpd [--shell] (TCP 8080)\nAgent manual: cat /man/agent");
+    else if(!strcmp(argv[1],"mcpd")) puts("mcpd: Experimental Streamable HTTP MCP server (Pico W)\nusage: mcpd (TCP 8080)\nAgent manual: cat /man/agent");
     else if(!strcmp(argv[1],"ip")) puts("ip: Interface addresses (Pico W)\nusage: ip [addr]\nShows loopback and actual Wi-Fi interface names; no configuration support");
     else if(!strcmp(argv[1],"net")) puts("net: Wi-Fi network status\nusage: net [-a|-r]\n-a: AP clients, -r: ARP cache");
     else if(!strcmp(argv[1],"nc")) puts("nc: Minimal IPv4 netcat\nusage: nc [-u] [-N] -l PORT | nc [-u] [-N] IPv4 PORT\n-N: exit on stdin EOF in UDP mode (not TCP)");

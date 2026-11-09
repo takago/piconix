@@ -40,5 +40,5 @@ DEBUGGING CONNECTIONS
   5) distinguish tool command failure from HTTP transport error.
 
 SECURITY WARNING
-  No MCP authentication/TLS: --shell is for isolated trusted LAN
-  only. Never expose TCP 8080 unfiltered to the public internet.
+  MCP has no authentication/TLS. Run mcpd only on an isolated,
+  trusted LAN. Never expose TCP 8080 to the public internet.

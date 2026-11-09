@@ -10,14 +10,16 @@ from mcp import Client
 from openai import AsyncOpenAI
 
 # Replace these placeholders with your own OpenAI-compatible server settings.
-LLM_URL = "http://######:11434/v1"
-LLM_MODEL = "######"
-LLM_API_KEY = "######"
+LLM_URL = "http://############:11434/v1"
+LLM_MODEL = "huihui_ai/Qwen3.8-abliterated:latest"
+LLM_API_KEY = "fake"
 LLM_REASONING_EFFORT = "low"  # Ollama: none / low / medium / high
 SHOW_THINKING = False  # True: display thinking / False: hide thinking
 
-# PicoNIX Pico W access point (unchanged).
-MCP_URL = "http://192.168.4.1:8080/mcp"
+# PicoNIX Pico/W (mcp server) 
+# MCP_URL = "http://100.64.1.24:8080/mcp"     # MTA
+MCP_URL = "http://192.168.4.1:8080/mcp"   # AP
+
 
 llm = AsyncOpenAI(base_url=LLM_URL, api_key=LLM_API_KEY, timeout=120.0)
 
