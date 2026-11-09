@@ -17,6 +17,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Programs and learning tools:** file utilities, `edit`, `vi`, `fd`, `as`, a small educational `cc`, a Python-like interpreter, `mem`, `trace`, `lsof`, and hardware experiments.
 - **Hardware:** USB CDC and UART1 terminals, GPIO, PWM, ADC, I²C1, an 8×8 LED matrix and framebuffer interfaces. Pin availability differs between Pico and Pico W.
 - **Pico W networking:** Wi-Fi AP/STA, lwIP IPv4 TCP/UDP sockets, loopback, Telnet and UDP remote device control in the kernel; `httpd`, `nc`, `mcpd`, echo servers and other network programs in user space.
+- **MCP-controlled interactive terminal (Pico W):** The user-space `mcpd` server exposes an 80×24 virtual terminal to LLM clients. Through screen reads and keystrokes, an LLM can operate existing interactive programs such as `fd` and `vi`, including editing and saving files, without modifying those programs for AI. See the [MCP reference](docs/en/reference/commands/MCP.md) ([日本語](docs/ja/reference/commands/MCP.md)).
 
 PicoNIX is an educational system rather than a POSIX-compliant or security-hardened OS. In particular, it does not provide normal UNIX user permissions or process isolation. Read the [specification](docs/en/reference/SPECIFICATION.md) ([日本語](docs/ja/reference/SPECIFICATION.md)) and [differences from Linux](docs/en/reference/DIFFERENCES.md) ([日本語](docs/ja/reference/DIFFERENCES.md)) before relying on Linux behavior.
 
