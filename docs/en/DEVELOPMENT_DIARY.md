@@ -1,5 +1,14 @@
 # PicoNIX Development Diary
 
+
+### 2026-11-09: Reuse process IDs 1–255 to preserve the 8-bit trace ABI
+
+During repeated MCP calls, `trace run hello` used process IDs above 255, but `trace_event_t` stores only an 8-bit PID, causing filtered syscall records to disappear. Changed PID assignment to cycle through 1–255 (0 remains reserved for idle), skipping active tasks and unreaped `waitpid()` notifications. Preserved the 32-byte trace record (8-bit PID, 16-byte preview) and the 16 KiB ring. Because PIDs are recycled, old `trace show PID` results may include earlier processes with the same number; `trace run` starts reading from the position immediately before launch. Added a host-compiled PID wraparound/collision regression test. Full Pico SDK build and hardware verification remain pending.
+
+### 2026-11-09: Diagnose intermittent MCP HTTP writes and TCP resource pressure
+
+Investigated intermittent `incomplete chunked read` and `ConnectError` reports using only the newly supplied source archive. Identified unchecked final HTTP chunk writes, three TCP sends per small chunk, and rejection when the single connection slot is occupied. Packed chunks up to 768 bytes into one write, added explicit send timeout/socket-error console reports, and expanded `/proc/net/memory` with TCP PCB/segment pool statistics and cumulative counters for accept, send, and close failure paths. Added `host/mcp_stress.py` to validate whole HTTP responses without an LLM and a host-side transport regression test. Updated Japanese/English documentation. This reduces queue pressure and improves diagnosis; resolution on real hardware has not yet been established.
+
 ### 2026-11-09: Audit documentation against the current source tree
 
 Cross-checked the Japanese and English references, links, development examples, generated function index and registered program IDs against the supplied source. Corrected collisions in the example application IDs (formerly 49–51; examples now use 52–55), distinguished opt-in samples under `userland/examples/` from standard firmware programs, synchronized the C listings in the socket programming tutorial with the actual example files, and updated stale MCP and index descriptions. Adjusted and added regression checks. Static documentation checks and selected tests passed; a full Pico SDK firmware build and hardware verification were not performed in this documentation pass.

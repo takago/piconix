@@ -114,6 +114,13 @@ NO_TRACE void net_socket_udp_close(int id) {
 }
 /* PicoNIXのTCPシステムコールを支えるlwIP側の実装． */
 #include "lwip/tcp.h"
+#include <stdio.h>
+/* 異常経路だけを数える固定長診断．lwIPコールバック中にprintfしない． */
+static struct {
+    unsigned pcb_alloc_fail, accept_busy, accept_error, rx_backpressure;
+    unsigned write_backpressure, write_error, output_error;
+    unsigned close_deferred, close_retry, async_error;
+} tcp_diag;
 /* 拒否したpbuf一個で受信窓が満杯になる場合もある．アプリが読出した後に全体を受け取れるよう，適切な領域を確保する． */
 #define NET_SOCKET_TCP_RX_MAX TCP_WND
 typedef struct {
@@ -153,6 +160,7 @@ NO_TRACE static err_t socket_tcp_connected_cb(void *arg, struct tcp_pcb *pcb, er
 /* lwIPがTCP PCBを破棄したときに管理スロットの参照を解除する． */
 NO_TRACE static void socket_tcp_err(void *arg, err_t err) {
     (void)err;
+    tcp_diag.async_error++;
     tcp_slot_t *s=(tcp_slot_t *)arg;
     s->client = NULL; /* lwIPが既にPCBを破棄した後である． */
     s->pending_accept = 0;
@@ -169,8 +177,10 @@ NO_TRACE static err_t socket_tcp_recv(void *arg, struct tcp_pcb *pcb,
         return err;
     if (!p) { s->peer_closed = 1; return ERR_OK; }
     /* ERR_MEMではpbufの所有権をlwIPに残し，受信窓が空くまで再試行してもらう．ユーザが読む前に受信確認を進めない． */
-    if (p->tot_len > NET_SOCKET_TCP_RX_MAX - s->rx_len)
+    if (p->tot_len > NET_SOCKET_TCP_RX_MAX - s->rx_len) {
+        tcp_diag.rx_backpressure++;
         return ERR_MEM;
+    }
     pbuf_copy_partial(p, s->rx + s->rx_len, p->tot_len, 0);
     s->rx_len += p->tot_len;
     pbuf_free(p);
@@ -181,8 +191,11 @@ NO_TRACE static err_t socket_tcp_recv(void *arg, struct tcp_pcb *pcb,
 /* 受け付けたTCP接続を管理スロットに登録し，accept側へ新しい接続の到着を通知する． */
 NO_TRACE static err_t socket_tcp_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
     tcp_slot_t *s=(tcp_slot_t *)arg;
-    if (err != ERR_OK || s->client)
+    if (err != ERR_OK || s->client) {
+        if (s->client) tcp_diag.accept_busy++;
+        else tcp_diag.accept_error++;
         return ERR_VAL;
+    }
     s->client = pcb;
     s->rx_len = 0;
     s->peer_closed = s->fault = s->connecting = s->write_shutdown = 0;
@@ -200,8 +213,7 @@ int net_socket_tcp_listen(int id, uint16_t port) {
     if(!s || !s->allocated || s->listener || s->client || !port)
         return -1;
     struct tcp_pcb *pcb=tcp_new_ip_type(IPADDR_TYPE_V4);
-    if(!pcb)
-        return -1;
+    if(!pcb) { tcp_diag.pcb_alloc_fail++; return -1; }
     /* 既存接続を閉じた後，サーバをすぐ再起動できるようにする． */
     ip_set_option(pcb, SOF_REUSEADDR);
     if(tcp_bind(pcb,IP_ANY_TYPE,port)!=ERR_OK) { tcp_close(pcb); return -1; }
@@ -219,8 +231,7 @@ int net_socket_tcp_connect(int id,uint32_t ip,uint16_t port) {
     if(!s || !s->allocated || s->listener || s->client || !port)
         return -1;
     struct tcp_pcb *pcb=tcp_new_ip_type(IPADDR_TYPE_V4);
-    if(!pcb)
-        return -1;
+    if(!pcb) { tcp_diag.pcb_alloc_fail++; return -1; }
     s->client=pcb;
     s->rx_len=0;
     s->peer_closed=s->fault=s->established=s->write_shutdown=0;
@@ -282,7 +293,7 @@ NO_TRACE void net_socket_tcp_close_listener(int id) {
 /* 保留したtcp_closeはTCPタイマーコールバックからだけ再試行する．ACK処理中にcloseするとlwIPの送信キュー処理と競合するためである． */
 NO_TRACE static err_t socket_tcp_closing_poll(void *arg,struct tcp_pcb *pcb) {
     (void)arg;
-    (void)tcp_close(pcb); /* ERR_MEMなら次のポーリングで再試行する． */
+    if(tcp_close(pcb)==ERR_MEM) tcp_diag.close_retry++; /* ACK処理中には閉じない． */
     return ERR_OK;
 }
 
@@ -305,6 +316,7 @@ NO_TRACE void net_socket_tcp_close_client(int id) {
         tcp_arg(pcb,NULL); tcp_err(pcb,NULL);
         tcp_recv(pcb,socket_tcp_closing_recv);
         if(tcp_close(pcb)!=ERR_OK) {
+            tcp_diag.close_deferred++;
             /* ACKの処理はlwIPに任せ，closeはタイマーで再試行する． */
             tcp_sent(pcb,NULL);
             tcp_poll(pcb,socket_tcp_closing_poll,2);
@@ -360,10 +372,10 @@ int net_socket_tcp_write(int id,const void *src,unsigned length) {
     if(!n)
         return 0;
     err_t err=tcp_write(s->client,src,(u16_t)n,TCP_WRITE_FLAG_COPY);
-    if(err==ERR_MEM) return 0; /* 送信キュー満杯なら次のACK後に再試行する． */
-    if(err!=ERR_OK) return -1; /* メモリ不足以外のエラーは単なる流量制限とは扱わない． */
+    if(err==ERR_MEM) { tcp_diag.write_backpressure++; return 0; } /* ACKを待って再試行する． */
+    if(err!=ERR_OK) { tcp_diag.write_error++; return -1; } /* メモリ不足以外のエラーは単なる流量制限とは扱わない． */
     /* tcp_outputに失敗してもtcp_writeで受け付けたバイトはキューに残る．呼出側が同じバイトを再送すると重複するため，成功長を返す． */
-    (void)tcp_output(s->client);
+    if(tcp_output(s->client)!=ERR_OK) tcp_diag.output_error++;
     return (int)n;
 }
 
@@ -385,6 +397,20 @@ void net_socket_tcp_close(int id) {
     tcp_slot_t *s=slot_at(id);
     if(s)
         s->allocated=0;
+}
+
+/* /proc/net/memoryから参照する累積TCPエラー統計．正常な接続は数えない． */
+NO_TRACE int net_socket_tcp_diagnostics(char *out, unsigned size) {
+    if(!size) return 0;
+    return snprintf(out,size,
+        "TCP_ALLOC_FAIL: %u\nTCP_ACCEPT_BUSY: %u\nTCP_ACCEPT_ERROR: %u\n"
+        "TCP_RX_BACKPRESSURE: %u\nTCP_WRITE_BACKPRESSURE: %u\n"
+        "TCP_WRITE_ERROR: %u\nTCP_OUTPUT_ERROR: %u\n"
+        "TCP_CLOSE_DEFERRED: %u\nTCP_CLOSE_RETRY: %u\nTCP_ASYNC_ERROR: %u\n",
+        tcp_diag.pcb_alloc_fail,tcp_diag.accept_busy,tcp_diag.accept_error,
+        tcp_diag.rx_backpressure,tcp_diag.write_backpressure,
+        tcp_diag.write_error,tcp_diag.output_error,
+        tcp_diag.close_deferred,tcp_diag.close_retry,tcp_diag.async_error);
 }
 
 /* UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． */
@@ -464,6 +490,9 @@ NO_TRACE int net_socket_tcp_shutdown_write(int id) { (void)id; return -1; }
 
 /* 指定TCPスロットのクライアントと待受を閉じ，管理スロットを解放する． */
 void net_socket_tcp_close(int id) { (void)id; }
+
+/* 非Wi-Fi版ではTCP資源を確保しない． */
+NO_TRACE int net_socket_tcp_diagnostics(char *out,unsigned size) { (void)out;(void)size;return 0; }
 
 /* UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． */
 NO_TRACE uint16_t net_socket_local_port(int kind,int id) { (void)kind; (void)id; return 0; }

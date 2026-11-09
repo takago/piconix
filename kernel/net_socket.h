@@ -42,3 +42,6 @@ void net_socket_tcp_close_client(int id);
 
 /* 使用中ソケットのローカルポート．種別0はUDP，1はTCP待受，2はTCP接続先． */
 uint16_t net_socket_local_port(int kind, int id);
+
+/* TCP送信・接続・終了の異常経路カウンタを/proc/net/memoryに表示する． */
+int net_socket_tcp_diagnostics(char *out, unsigned size);

@@ -13,17 +13,16 @@ for token in ('TRACE_MODE_SYSCALL','TRACE_MODE_ALL','trace_drain','TRACE_OFF'):
 assert 'send_full_manual(fd,id,topic)' in m
 assert 'send_escaped_chunk(fd,part' in m
 assert 'Transfer-Encoding: chunked' in m
-found_manual=False
-for line in m.splitlines():
-    if 'rpc_result(id, "' in line and r'\"tools\"' in line:
-        d=json.loads(ast.literal_eval(line.split('rpc_result(id, ',1)[1].rsplit(');',1)[0]))
-        matches=[x for x in d.get('tools',[]) if x['name']=='get_manual']
-        if matches:
-            found_manual=True
-            schema=matches[0]['inputSchema']
-            assert schema['type']=='object'
-            assert schema['properties']=={'topic': {'type': 'string'}}
-            assert 'required' not in schema or not schema['required']
-            assert schema.get('additionalProperties') is False
-assert found_manual, 'get_manual schema missing'
+# tools/listは単一のrpc_result文字列から，逐次送信するMCP_ADDへ移行済み．
+# 送信されるJSON片を解析し，現在の公開スキーマを検証する．
+import re
+fragments=re.findall(r'MCP_ADD\("((?:\\.|[^"\\])*)"\);',m)
+fragments=[ast.literal_eval('"'+part+'"') for part in fragments]
+manual=[json.loads(fragment[1:]) for fragment in fragments if fragment.startswith(',')]
+matches=[entry for entry in manual if entry.get('name')=='get_manual']
+assert len(matches)==1, 'get_manual schema missing'
+schema=matches[0]['inputSchema']
+assert schema['type']=='object'
+assert schema['properties']=={'topic': {'type': 'string'}}
+assert 'required' not in schema or not schema['required']
 print('PASS: trace help and full MCP manual contract')

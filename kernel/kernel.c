@@ -1407,6 +1407,30 @@ NO_TRACE void os_init(void) {
     *(volatile uint32_t *)0xE000ED20u = 0xC0C00000u;
 }
 
+/* トレースの8ビットPIDに合わせて1〜255を循環使用する．
+ * 実行中のタスクとwaitpid未回収の終了通知は再利用しない．
+ * 呼び出し元の割込み禁止区間内で探索する． */
+NO_TRACE static int allocate_pid(void) {
+    for(int n=0;n<255;n++) {
+        int pid=next_pid;
+        next_pid=(pid==255) ? 1 : pid+1;
+        int busy=0;
+        for(int i=0;i<OS_MAX_TASKS;i++)
+            if(tasks[i].pid==pid && task_active(&tasks[i])) {
+                busy=1;
+                break;
+            }
+        if(busy) continue;
+        for(int i=0;i<OS_MAX_TASKS;i++)
+            if(exited[i].pid==pid) {
+                busy=1;
+                break;
+            }
+        if(!busy) return pid;
+    }
+    return OS_EAGAIN;
+}
+
 // 一つのPICイメージはどの空きRAMスロットでも実行できる．
 /* 指定スロットにPICイメージを複写し，argc/argvと初期レジスタフレームを配置する．入口のThumbビットと固定末尾スタックを保ち，PIDを返す． */
 NO_TRACE static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char *name,
@@ -1416,6 +1440,8 @@ NO_TRACE static int spawn_in_slot(int slot, int program_id, os_entry_t entry, co
     uint32_t irq_state = save_and_disable_interrupts();
     task_t *t=&tasks[slot];
     if (t->state!=UNUSED && t->state!=DEAD) { restore_interrupts(irq_state); return OS_EAGAIN; }
+    int pid=allocate_pid();
+    if(pid<0) { restore_interrupts(irq_state); return pid; }
     // 位置独立イメージをコピーする前に，対象スロットを初期化する．
     memset(task_ram[slot], 0, OS_TASK_BYTES);
     if (program_id && images[program_id].image) {
@@ -1458,7 +1484,7 @@ NO_TRACE static int spawn_in_slot(int slot, int program_id, os_entry_t entry, co
     for(int k=0;k<8;k++)
         *(--s)=0; // r4〜r11はPendSVが保存・復元する．
     t->sp=s; t->entry=entry; t->name=name?name:"task"; t->program_id=(uint8_t)program_id;
-    t->pid=next_pid++; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0; t->wait_pid=0; t->wait_status=NULL;
+    t->pid=pid; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0; t->wait_pid=0; t->wait_status=NULL;
     t->wait_buf=NULL; t->wait_size=0; strcpy(t->cwd,(started && current>=0)?tasks[current].cwd:"/"); t->tty=(started && current>=0)?tasks[current].tty:0;
     for(int j=0;j<OS_FD_MAX;j++)
         fd_set(t,j,-1,0,0,0);
@@ -1473,7 +1499,6 @@ NO_TRACE static int spawn_in_slot(int slot, int program_id, os_entry_t entry, co
     t->state=READY;
     if(program_id==2 && !tty_shell_pid[t->tty])
         tty_shell_pid[t->tty]=t->pid;
-    int pid=t->pid;
     restore_interrupts(irq_state);
     return pid;
 }

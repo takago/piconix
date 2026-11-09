@@ -208,3 +208,23 @@ python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOW
 ```
 
 The first read returns the 80x24 text screen. Later identical reads return `unchanged`. The two-pass comparison is not an atomic screen snapshot during concurrent updates.
+
+
+### Repeated MCP transport test (2026-11-09)
+
+The experimental `mcpd` processes **one HTTP connection at a time** and does not guarantee concurrent acceptance. `Connection: close` causes a new TCP handshake and teardown on each request. The host stress test reads the **entire response**, including the final HTTP chunk, rather than treating HTTP 200 alone as success.
+
+```sh
+# 50 read-only temperature calls, no SDK or LLM required
+python3 host/mcp_stress.py http://192.168.4.1:8080/mcp --count 50
+
+# Only when running mcpd --shell; repeat a short observational command
+python3 host/mcp_stress.py http://192.168.4.1:8080/mcp \
+  --tool execute_command --command 'trace run hello' --count 50
+```
+
+The test prints the request number, elapsed time, and exception on failure; it stops at the first error by default. **Failed operations are never automatically retried.** `--continue-on-error` proceeds to the *next* numbered request for diagnostic runs and should not be used for commands with side effects.
+
+Compare `cat /proc/net/memory` before and after testing on the device. `TCP_PCB_POOL` and `TCP_SEG_POOL` show lwIP pool usage (current/peak/allocation errors); `TCP_ACCEPT_BUSY` counts rejected connections while the single slot is occupied; `TCP_WRITE_BACKPRESSURE` indicates a full send queue; `TCP_CLOSE_DEFERRED` and `TCP_CLOSE_RETRY` record deferred close; and `TCP_ASYNC_ERROR` counts asynchronous lwIP errors. The `mcpd` console separately reports an HTTP send timeout (bytes still unsent) or a negative socket error. Correlate these with the existing `trace` output for `write`, `close`, and `select` syscalls. All counters are cumulative since boot: examine deltas.
+
+Combining small HTTP chunks and adding diagnostics **does not prove that intermittent failures are fixed on hardware**. Keep the host failure number and the corresponding device-side observations.

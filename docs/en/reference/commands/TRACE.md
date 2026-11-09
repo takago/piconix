@@ -47,7 +47,9 @@ trace run cat /tmp/test.txt  # include selected functions when built with instru
 
 **`trace show` and `trace follow` display events; they do not start a target program.** With only one terminal, `trace run hello` is a convenient first exercise because it starts the program and displays its trace after exit.
 
-The PID argument is a decimal integer. **PID selection filters displayed records**, not the events captured by the kernel. Start with `trace on`, then run the program you want to observe. `show` stops tracing before reading the retained history; `follow` skips existing buffered records on startup and displays only events occurring afterward, without stopping capture.
+The PID argument is a decimal integer. Regular processes use **PIDs 1–255 cyclically**, with PID 0 reserved for the idle task. An active task or an exit notification not yet collected by `waitpid()` prevents reuse of its PID. The `trace_event_t` PID remains 8-bit and the record remains 32 bytes. Since PIDs are reused, `trace show PID` may contain records from different processes at different times; `trace run` skips older records before launching its command.
+
+**PID selection filters displayed records**, not the events captured by the kernel. Start with `trace on`, then run the program you want to observe. `show` stops tracing before reading the retained history; `follow` skips existing buffered records on startup and displays only events occurring afterward, without stopping capture.
 
 For `SWITCH` records, the filter matches the **destination PID** (the event's `value`); for SVC records, it matches the event PID. `follow` runs in the foreground. Stop tracing from another terminal with `trace off` to drain the remaining records and exit, or interrupt the viewer with Ctrl+C. If the viewer falls behind, it reports overwritten records.
 

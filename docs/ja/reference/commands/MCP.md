@@ -205,3 +205,34 @@ python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOW
 ```
 
 画面の初回取得は80×24のテキストを返します．変化がない場合，後続の`terminal_read`は`unchanged`を返します．`terminal_read`は2回の読み取りで画面差分を判定するため，画面が更新途中の場合の完全な一貫性は保証しません．
+
+
+### MCP通信の連続試験（2026-11-09）
+
+`mcpd`はHTTP接続を1件ずつ処理する実験的なサーバであり，接続の同時受理を保証しません．
+`Connection: close`のため，連続リクエストはTCP接続の確立・終了を繰り返します．
+部分的なHTTP応答を単なるHTTP 200の成功と誤認しないよう，ホスト側のテストでは**本文全体とchunked終端を読み取ってから**成功と判定します．
+
+```sh
+# LLMを介さずに50回の温度取得を実行（標準ライブラリのみ）
+python3 host/mcp_stress.py http://192.168.4.1:8080/mcp --count 50
+
+# --shellのときだけ短い観測コマンドを繰り返す
+python3 host/mcp_stress.py http://192.168.4.1:8080/mcp \
+  --tool execute_command --command 'trace run hello' --count 50
+```
+
+障害が発生すると呼出し番号，所要時間，例外名を表示し，標準ではその場で停止します．
+失敗したコマンドの再実行は行いません．`--continue-on-error`は**次の番号の要求を続行する**試験用オプションであり，書込みなど副作用のあるコマンドには使わないでください．
+
+実機コンソールでは，試験前後に`cat /proc/net/memory`を比較してください．
+`TCP_PCB_POOL`と`TCP_SEG_POOL`はlwIPのプール（現在／最大／確保失敗累積回数），
+`TCP_ACCEPT_BUSY`は接続枠使用中の受理拒否，`TCP_WRITE_BACKPRESSURE`は送信キュー満杯，
+`TCP_CLOSE_DEFERRED`と`TCP_CLOSE_RETRY`は遅延closeと再試行，`TCP_ASYNC_ERROR`はlwIPの非同期エラーの累積回数です．
+`mcpd`コンソールの`HTTP send timeout (bytes left=...)`の行は送信待ち上限到達，
+`HTTP send socket error (...)`はソケットAPIの失敗を表します．
+`trace`の`write`（ソケット送信），`close`，`select`の戻り値と突き合わせると原因を絞り込めます．
+カウンタは起動以来の累積値なので，必ず差分を取ってください．
+
+小チャンクのまとめ書きと診断追加は，**実機での断続的な失敗が完全に解決したことを意味しません**．
+USBコンソール等で収集した値とホスト側の失敗番号を併記して判断してください．

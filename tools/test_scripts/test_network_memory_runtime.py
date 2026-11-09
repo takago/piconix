@@ -26,19 +26,28 @@ mock = r'''
 #include <stdio.h>
 #include <string.h>
 #define MEMP_PBUF_POOL 1
+#define MEMP_TCP_PCB 2
+#define MEMP_TCP_SEG 3
 #define MEM_SIZE (10 * 1024)
 #define PBUF_POOL_SIZE 8
 struct stats_mem { unsigned avail, used, max, err; };
-struct { struct stats_mem mem; struct stats_mem *memp[3]; } lwip_stats;
+struct { struct stats_mem mem; struct stats_mem *memp[4]; } lwip_stats;
+int net_socket_tcp_diagnostics(char *out, unsigned size) {
+    return snprintf(out,size,"TCP_ACCEPT_BUSY: 5\nTCP_CLOSE_DEFERRED: 3\n");
+}
 unsigned os_idle_stack_used_bytes(void) { return 1920; }
 unsigned os_idle_stack_capacity_bytes(void) { return 4096; }
 '''
 main = r'''
 int main(void) {
-    char text[200] = {0};
+    char text[448] = {0};
 #if PICONIX_WIFI
     struct stats_mem pool = {8, 3, 6, 2};
+    struct stats_mem pcbs = {5, 2, 4, 1};
+    struct stats_mem segs = {8, 1, 3, 0};
     lwip_stats.memp[MEMP_PBUF_POOL] = &pool;
+    lwip_stats.memp[MEMP_TCP_PCB] = &pcbs;
+    lwip_stats.memp[MEMP_TCP_SEG] = &segs;
     lwip_stats.mem.used = 1024;
     lwip_stats.mem.max = 3072;
     lwip_stats.mem.err = 1;
@@ -47,6 +56,10 @@ int main(void) {
     assert(strstr(text, "LWIP_HEAP_ERRORS: 1\n"));
     assert(strstr(text, "PBUF_POOL: 3/6/8\n"));
     assert(strstr(text, "PBUF_POOL_ERRORS: 2\n"));
+    assert(strstr(text, "TCP_PCB_POOL: 2/4/1\n"));
+    assert(strstr(text, "TCP_SEG_POOL: 1/3/0\n"));
+    assert(strstr(text, "TCP_ACCEPT_BUSY: 5\n"));
+    assert(strstr(text, "TCP_CLOSE_DEFERRED: 3\n"));
 #else
     assert(net_memory_info(text, sizeof(text)) > 0);
     assert(strstr(text, "MODE: N/A\n"));

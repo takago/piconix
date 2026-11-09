@@ -199,3 +199,10 @@ The central idea is that **a network service can be built on existing UNIX-like 
 ---
 
 [MCP usage guide](../../../reference/commands/MCP.md)
+
+
+### Observe HTTP writes and TCP close (2026-11-09)
+
+`send_chunk()` packs chunks up to 768 bytes (hex length, payload, CRLF) into a single `send_all()` call to reduce the number of tiny `tcp_write()` operations consuming the fixed send queue. `send_all()` handles partial writes and `OS_EAGAIN`/zero-length writes, and records a failure after roughly three seconds without progress. It also checks the final `0\r\n\r\n` terminator. The app-level successful write is not proof that the peer received the response.
+
+The socket is released by `net_socket_tcp_close_client()` in `kernel/net_socket.c`; if `tcp_close()` must be deferred, the TCP poll callback retries. This is distinct from application-level HTTP completion. Correlate `/proc/net/memory` counters, `trace` syscalls, the `mcpd` console, and `host/mcp_stress.py`. Long-running behavior on actual hardware remains unverified.

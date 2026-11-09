@@ -127,6 +127,8 @@ The 10-KiB dynamic heap and the 4-KiB idle stack reside in the 16-KiB network
 bank with a 2-KiB safety gap. Counters reset at boot and a zero-error count
 does not guarantee a stable TCP connection. Stress-test AP and STA builds.
 
+Additional TCP diagnostics include `TCP_PCB_POOL` and `TCP_SEG_POOL` (in-use/peak/cumulative allocation failures), and socket error counters. `TCP_ALLOC_FAIL` counts failed PCB creation; `TCP_ACCEPT_BUSY` records acceptance while the single connection slot is occupied; `TCP_ACCEPT_ERROR` counts accept errors; `TCP_RX_BACKPRESSURE` and `TCP_WRITE_BACKPRESSURE` indicate receive-buffer and send-queue pressure; `TCP_WRITE_ERROR` and `TCP_OUTPUT_ERROR` count write/flush errors; `TCP_CLOSE_DEFERRED` and `TCP_CLOSE_RETRY` count delayed teardown; and `TCP_ASYNC_ERROR` counts lwIP asynchronous TCP errors. Callbacks update counters without console I/O; `/proc` formats a snapshot. All values accumulate since boot, so compare before and after a workload.
+
 ## Packet observation and ICMP Echo
 
 Pico W provides two small educational network devices. `/dev/net/packet` is a read-only stream of **fixed-size packet records**, not raw Ethernet frames. The kernel records IPv4 TCP/UDP/ICMP header summaries and at most 16 initial payload bytes; an internal 16-record ring buffer overwrites old records. Each reader starts with new traffic; `read()` returns `OS_EAGAIN` when nothing is available. It does not capture ARP, other clients’ traffic, or packets bypassing the local IPv4 stack. `tcpdump` prints records as text; it does not create pcap files.

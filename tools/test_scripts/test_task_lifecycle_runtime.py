@@ -76,6 +76,7 @@ static int foreground_group[OS_TTY_COUNT][3];
 static int foreground_pid[OS_TTY_COUNT], tty_shell_pid[OS_TTY_COUNT];
 static int tty_claim_pid[OS_TTY_COUNT], tty_restore_pid[OS_TTY_COUNT], tty_mode_owner[OS_TTY_COUNT];
 static uint8_t tty_canonical[OS_TTY_COUNT], tty_echo[OS_TTY_COUNT], tty_onlcr[OS_TTY_COUNT];
+static uint8_t tty_interrupt[OS_TTY_COUNT], tty_saved_interrupt[OS_TTY_COUNT];
 static uint8_t tty_last_cr[OS_TTY_COUNT], tty_saved_canon[OS_TTY_COUNT];
 static uint8_t tty_saved_echo[OS_TTY_COUNT], tty_saved_onlcr[OS_TTY_COUNT];
 static int tty_saved_owner[OS_TTY_COUNT];

@@ -208,3 +208,10 @@ IPアドレスは実際のPico Wのものに変更します．`--tool none`は�
 ---
 
 [MCP利用ガイド](../../../reference/commands/MCP.md)
+
+
+### HTTP送信とTCP closeの観察（2026-11-09）
+
+`send_chunk()`は768バイト以下のチャンクを「長さ行＋データ＋CRLF」にまとめて`send_all()`へ渡します．TCP送信バッファは小さく，多数の小さな`tcp_write()`が送信キューを消費するためです．`send_all()`は部分書込みと`OS_EAGAIN`／0バイトを処理しますが，約3秒間進まなければ失敗として記録します．最終の`0\r\n\r\n`も送信結果を確認します．
+
+通信切断は`kernel/net_socket.c`の`net_socket_tcp_close_client()`に伝わり，`tcp_close()`が失敗した場合はTCPポーリング経由で再試行します．この遅延closeと，アプリが正常な応答を全て送れたかどうかは別の状態です．`/proc/net/memory`のTCP診断カウンタ，既存の`trace`，`mcpd`コンソール，ホストの`host/mcp_stress.py`を組み合わせて調べます．実機での連続通信結果は未確認です．

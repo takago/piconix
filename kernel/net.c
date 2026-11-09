@@ -4,6 +4,7 @@
 
 #include "net.h"
 #include "net_services.h"
+#include "net_socket.h"
 #include "piconix.h"
 #include <stdio.h>
 #ifndef PICONIX_WIFI
@@ -606,6 +607,22 @@ int net_memory_info(char *out, unsigned size) {
         (unsigned)PBUF_POOL_SIZE,
         pool ? (unsigned)pool->err : 0u,
         os_idle_stack_used_bytes(), os_idle_stack_capacity_bytes());
+    /* lwIP PCBプールの逼迫とユーザTCP内部の失敗を同時に照合する． */
+    if(len>=0 && (unsigned)len<size) {
+        const struct stats_mem *pcbs=lwip_stats.memp[MEMP_TCP_PCB];
+        const struct stats_mem *segs=lwip_stats.memp[MEMP_TCP_SEG];
+        int extra=snprintf(out+len,size-(unsigned)len,
+            "TCP_PCB_POOL: %u/%u/%u\nTCP_SEG_POOL: %u/%u/%u\n",
+            pcbs?(unsigned)pcbs->used:0u,pcbs?(unsigned)pcbs->max:0u,
+            pcbs?(unsigned)pcbs->err:0u,
+            segs?(unsigned)segs->used:0u,segs?(unsigned)segs->max:0u,
+            segs?(unsigned)segs->err:0u);
+        if(extra>0) len+=(unsigned)extra>=size-(unsigned)len ? (int)(size-(unsigned)len-1u):extra;
+        if((unsigned)len<size) {
+            extra=net_socket_tcp_diagnostics(out+len,size-(unsigned)len);
+            if(extra>0) len+=(unsigned)extra>=size-(unsigned)len ? (int)(size-(unsigned)len-1u):extra;
+        }
+    }
 #else
     int len = snprintf(out, size, "MODE: N/A\nIDLE_STACK: %u/%u\n",
         os_idle_stack_used_bytes(), os_idle_stack_capacity_bytes());

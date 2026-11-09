@@ -17,6 +17,7 @@ if compiler := shutil.which('cc') or shutil.which('clang'):
     harness = r'''
 #include <stdio.h>
 #include <string.h>
+static char response[900]; /* MCPストリームが再利用する通常応答バッファ */
 static int send_all(int fd, const char *p, unsigned n) {
     (void)fd;
     return fwrite(p,1,n,stdout)==n ? 0 : -1;

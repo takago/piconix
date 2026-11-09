@@ -87,7 +87,7 @@ A child inherits only standard FDs (0–2). Pipe endpoints gain a reference when
 
 With `command &`, the Shell returns without waiting for the external command. `Ctrl+C` directly terminates the registered foreground tasks of the respective terminal (up to three pipeline stages); it does not deliver POSIX signals to process groups.
 
-On task exit, the kernel releases FDs and sockets and removes the completed PID from the foreground task registry. If a pipeline stage exits early, a surviving stage inherits foreground terminal ownership and responsibility for restoring saved TTY settings. `waitpid()` completion notices are kept separately from reusable task slots (the exit status is reported as zero). When resuming a blocked terminal read, pipe I/O, or `waitpid()`, the kernel fills in the saved SVC return value and clears temporary wait state and borrowed user pointers before marking the task READY.
+On task exit, the kernel releases FDs and sockets and removes the completed PID from the foreground task registry. If a pipeline stage exits early, a surviving stage inherits foreground terminal ownership and responsibility for restoring saved TTY settings. `waitpid()` completion notices are kept separately from reusable task slots (the exit status is reported as zero). PID 0 is reserved for idle; regular PIDs cycle through 1–255. Allocation skips active tasks and exit notices not yet collected by `waitpid()`. When resuming a blocked terminal read, pipe I/O, or `waitpid()`, the kernel fills in the saved SVC return value and clears temporary wait state and borrowed user pointers before marking the task READY.
 
 ## 6. TTY and I/O
 

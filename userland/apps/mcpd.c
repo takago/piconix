@@ -23,6 +23,9 @@ static int allow_shell; /* 明示的な --shell のときだけ任意コマン�
 static int term_master=-1,term_pid=-1;
 static uint32_t term_last_hash;
 static int term_screen_seen;
+/* 通信失敗をHTTP応答とは別のコンソールで観測する．1要求中の最初の失敗を保持する． */
+static int send_fail_reason, send_fail_value;
+
 
 
 /* JSON文字列とコンテナを走査し，指定された値の終端を探す． */
@@ -174,19 +177,24 @@ static int read_device(const char *path, char *out, unsigned cap) {
     return n;
 }
 
-/* 指定されたデータをソケットへ送信する． */
+/* 非ブロッキング送信は部分成功と一時的な送信キュー満杯を区別する．
+ * 実際の受信完了を保証するものではない（tcp_closeがACK待ちを引き継ぐ）． */
 static int send_all(int fd, const char *p, unsigned size) {
     unsigned retries = 0;
     while (size) {
         int n = send(fd, p, size, 0);
         if (n == OS_EAGAIN || n == 0) {
-            if (++retries > 1500)
+            if (++retries > 1500) {
+                if (!send_fail_reason) { send_fail_reason=1; send_fail_value=(int)size; }
                 return -1;
+            }
             msleep(2);
             continue;
         }
-        if (n < 0)
+        if (n < 0) {
+            if (!send_fail_reason) { send_fail_reason=2; send_fail_value=n; }
             return -1;
+        }
         p += n;
         size -= (unsigned)n;
         retries = 0;
@@ -357,10 +365,21 @@ static int file_path_argument(const char *v,const char *end,char path[32]) {
 }
 
 /* HTTP/1.1のchunked転送．HTTP本文をRAMに貯めず送信する． */
+/* 1チャンクを一つの送信バッファへ組み立てる．
+ * 小さなtcp_writeを3回発行するとTCP送信キュー（8要素）が枯渇しやすい．
+ * 768バイト以下をまとめ，それ以上は従来の分割経路で処理する． */
 static int send_chunk(int fd, const char *data, unsigned len) {
     char header[16];
     int n=snprintf(header,sizeof header,"%x\r\n",len);
     if(n<=0 || (unsigned)n>=sizeof header) return -1;
+    if(len<=768) {
+        /* ストリーム中は通常応答に未使用の静的response[]を再利用する． */
+        char *frame=response;
+        memcpy(frame,header,(unsigned)n);
+        if(len) memcpy(frame+n,data,len);
+        frame[n+len]='\r'; frame[n+len+1]='\n';
+        return send_all(fd,frame,(unsigned)n+len+2);
+    }
     return send_all(fd,header,(unsigned)n)<0 ||
            (len && send_all(fd,data,len)<0) || send_all(fd,"\r\n",2)<0 ? -1:0;
 }
@@ -450,7 +469,7 @@ static int execute_command_stream(int fd, const char *id, const char *cmd) {
     if(*suffix && send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto finish;
     const char *end=error?"\"}],\"isError\":true}}":"\"}],\"isError\":false}}";
     if(send_chunk(fd,end,(unsigned)strlen(end))<0) goto finish;
-    send_all(fd,"0\r\n\r\n",5);
+    if(send_all(fd,"0\r\n\r\n",5)<0) goto finish;
 finish:
     if(fds[0]>=0) close(fds[0]);
     if(fds[1]>=0) close(fds[1]);
@@ -567,7 +586,7 @@ static int terminal_screen_stream(int fd,const char *id) {
     {
       const char *suffix="\"}],\"isError\":false}}";
       if(send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto done;
-      send_all(fd,"0\r\n\r\n",5);
+      if(send_all(fd,"0\r\n\r\n",5)<0) goto done;
     }
 done:
     close(screen);
@@ -597,7 +616,7 @@ static int send_full_manual(int fd,const char *id,const char *topic) {
     if(got<0) goto finish;
     const char *suffix="\"}],\"isError\":false}}";
     if(send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto finish;
-    send_all(fd,"0\r\n\r\n",5);
+    if(send_all(fd,"0\r\n\r\n",5)<0) goto finish;
 finish:
     close(file);
     return -1;
@@ -934,8 +953,13 @@ int main(int argc, char **argv) {
         if (client == OS_EAGAIN) { msleep(5); continue; }
         if (client < 0)
             break;
+        send_fail_reason=send_fail_value=0;
         if (fcntl(client, F_SETFL, O_NONBLOCK) >= 0)
             handle(client);
+        if (send_fail_reason==1)
+            printf("mcpd: HTTP send timeout (bytes left=%d)\n",send_fail_value);
+        else if (send_fail_reason==2)
+            printf("mcpd: HTTP send socket error (%d)\n",send_fail_value);
         close(client);
     }
     if(term_master>=0)terminal_close_session();
