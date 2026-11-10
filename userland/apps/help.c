@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
         puts("\nGames and demos:");
         puts("  mb         Moon Buggy game");
         puts("  pong       Pong game");
+        puts("  reversi    Reversi vs computer");
         puts("  omikuji    Countdown fortune");
         puts("  kitesys    Kanazawa Institute of Tech. Embedded System Test Program");
         puts("\nManual: ls /man ; cat /man/README ; cat /man/agent");
@@ -123,6 +124,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"mb")) puts("mb: Moon Buggy game\nusage: mb\nSPACE/j: jump, q: quit (no -2 option)");
     else if(!strcmp(argv[1],"reset")) puts("reset: Reset terminal display/settings\nusage: reset");
     else if(!strcmp(argv[1],"lsof")) puts("lsof: Show open files\nusage: lsof [PID]");
+    else if(!strcmp(argv[1],"reversi")) puts("reversi: Reversi against COM\nusage: reversi\nArrow keys: move; SPACE: place; q: quit");
     else if(!strcmp(argv[1],"pong")) puts("pong: Pong game\nusage: pong [-2]\n-2: two-player mode on both terminals");
     else if(!strcmp(argv[1],"gpio")) puts("gpio: Interactive GPIO editor\nusage: gpio\nArrows: select; i/o: input/output; h/l/SPACE: output level\nu/d/n: pull up/down/none for input; q: quit");
     else if(!strcmp(argv[1],"fbed")) puts("fbed: Interactive framebuffer editor\nusage: fbed\narrows: select, SPACE: toggle, c: clear, q: quit");

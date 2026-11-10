@@ -110,6 +110,42 @@ int main(void) {
     CHECK(f.truncated && f.rows==WATCH_ROWS);
     clear_terminal();redraw(&a,&e,0);
     CHECK(strstr(terminal,"[watch: output truncated]"));
+    CHECK(strstr(terminal,"Ctrl+C: stop"));
+    CHECK(strstr(terminal,"\033[27;1H"));
+    /* Reconstructed PTY screen attributes must survive watch capture. */
+    watch_frame_t styled={0},plain={0};
+    const char *reversed="a\033[7mB\033[0mc\033[4mD\033[24mE\n";
+    for(const char *p=reversed;*p;p++)capture_byte(&styled,(unsigned char)*p);
+    CHECK(!strcmp(styled.line[0],"aBcDE"));
+    CHECK(styled.attr[0][0]==0 && styled.attr[0][1]==2);
+    CHECK(styled.attr[0][2]==0 && styled.attr[0][3]==1 && styled.attr[0][4]==0);
+    clear_terminal();redraw(&plain,&styled,1);
+    CHECK(strstr(terminal,"\033[7mB")!=0);
+    CHECK(strstr(terminal,"\033[4mD")!=0);
+    clear_terminal();redraw(&styled,&styled,0);
+    CHECK(terminal_used==0);
+    /* Redraw a row if only the display attributes change. */
+    watch_frame_t no_style={0};
+    for(const char *p="aBcDE\n";*p;p++)capture_byte(&no_style,(unsigned char)*p);
+    clear_terminal();redraw(&styled,&no_style,0);
+    CHECK(strstr(terminal,"\033[3;1H")!=0);
+    /* The last cell (column 80, row 24) must remain visible. */
+    watch_frame_t full={0},empty={0};
+    for(int row=0;row<WATCH_ROWS;row++) {
+        for(int col=0;col<WATCH_COLS;col++) capture_byte(&full,(unsigned char)('A'+(row%26)));
+        if(row+1<WATCH_ROWS) capture_byte(&full,'\n');
+    }
+    CHECK(full.rows==WATCH_ROWS && !full.truncated);
+    CHECK(strlen(full.line[23])==80);
+    clear_terminal();redraw(&empty,&full,1);
+    CHECK(strstr(terminal,"\033[26;1H")!=0);
+    CHECK(strstr(terminal,"\033[27;1HCtrl+C: stop")!=0);
+    /* Style changes in the final row are still detected. */
+    watch_frame_t full_styled=full;
+    full_styled.attr[23][79]=2;
+    clear_terminal();redraw(&full,&full_styled,0);
+    CHECK(strstr(terminal,"\033[26;1H")!=0);
+    CHECK(strstr(terminal,"\033[7m")!=0);
     return 0;
 }
 '''
@@ -117,7 +153,7 @@ with tempfile.TemporaryDirectory() as temp:
     cfile = Path(temp) / 'watch_test.c'
     binary = Path(temp) / 'watch_test'
     cfile.write_text(code)
-    subprocess.run([cc, '-std=c11','-DPICONIX_HOST_TEST', '-O1', '-Wall', '-Wextra', '-Werror',
+    subprocess.run([cc, '-std=c11','-DPICONIX_HOST_TEST', '-O1', '-ffunction-sections', '-fdata-sections', '-Wl,--gc-sections', '-Wall', '-Wextra', '-Werror',
                     '-I', str(root / 'userland' / 'lib'), '-I', str(root / 'userland' / 'apps'), '-o', str(binary), str(cfile)],
                    cwd=root / 'tools/test_scripts', check=True)
     proc = subprocess.run([str(binary)], capture_output=True, text=True)

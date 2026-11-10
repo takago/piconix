@@ -214,7 +214,7 @@ static int run_external(char *cmd,const char *cwd,int background,int *bg_pid,con
         command_status=waitpid(pid,&status,0)<0?1:status;
         if(!batch_mode) set_foreground(0);
         /* 全画面アプリは終了処理前にkillされ得るため，画面復旧が必要となる． */
-        if(eq(name,"mb") || eq(name,"gpio") || eq(name,"pong") ||
+        if(eq(name,"mb") || eq(name,"gpio") || eq(name,"pong") || eq(name,"reversi") ||
            eq(name,"fbed") || eq(name,"edit") || eq(name,"mem") || eq(name,"fd"))
             put("\033[?1049l");
     }

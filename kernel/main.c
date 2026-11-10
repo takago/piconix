@@ -72,6 +72,7 @@ extern const unsigned char piconix_udp_echod_image_start[], piconix_udp_echod_im
 extern const unsigned char piconix_mcpd_image_start[], piconix_mcpd_image_end[];
 extern const unsigned char piconix_scroll_image_start[], piconix_scroll_image_end[];
 extern const unsigned char piconix_pty_test_image_start[], piconix_pty_test_image_end[];
+extern const unsigned char piconix_reversi_image_start[], piconix_reversi_image_end[];
 #define RAM_APP_ORIGIN 0x2000E000u
 
 /* Flash内のバイナリ範囲をプログラムIDに紐づける．entryは全アプリ共通のスロット先頭アドレスを使い，spawn時に実体をコピーする． */
@@ -138,6 +139,7 @@ int main(void) {
     register_image(49,"mcpd",piconix_mcpd_image_start,piconix_mcpd_image_end);
     register_image(51,"scroll",piconix_scroll_image_start,piconix_scroll_image_end);
     register_image(56,"pty_test",piconix_pty_test_image_start,piconix_pty_test_image_end);
+    register_image(57,"reversi",piconix_reversi_image_start,piconix_reversi_image_end);
     net_init();
     os_init_idle(idle_task);
     if(os_start_program(2)<0)

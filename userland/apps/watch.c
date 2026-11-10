@@ -8,24 +8,51 @@
 #include "stdlib.h"
 #include "string.h"
 
-/* 24 KiBスロット内に収まるよう二つの画面スナップショットを小さくする．24行端末の見出しと省略表示分も確保する．TTYから端末サイズは取得できない． */
-#define WATCH_ROWS 20
-#define WATCH_COLS 78
+/* 80×24の監視領域．上部2行と下部1行は案内表示用．TTYから端末サイズは取得できない． */
+#define WATCH_ROWS 24
+#define WATCH_COLS 80
+#define WATCH_TOP 3
+#define WATCH_FOOTER (WATCH_TOP+WATCH_ROWS)
 
 typedef struct {
     char line[WATCH_ROWS][WATCH_COLS+1];
+    unsigned char attr[WATCH_ROWS][WATCH_COLS]; /* bit 0: underline, bit 1: reverse */
     unsigned rows, row, col;
-    unsigned char esc, cr, utf8, truncated;
+    unsigned char esc, cr, utf8, truncated, sgr;
+    unsigned csi_arg;
+    unsigned char csi_params[4], csi_count;
 } watch_frame_t;
 static watch_frame_t frames[2];
 
-/* 子プロセスの出力1バイトを画面スナップショットへ反映する．ANSI制御列は読み飛ばす． */
+/* SGR 4/7のみ保持する．その他のANSI制御列は従来どおり無視する． */
+static void watch_sgr(watch_frame_t *f, unsigned n) {
+    if(n==0) f->sgr=0;
+    else if(n==4) f->sgr|=1u;
+    else if(n==7) f->sgr|=2u;
+    else if(n==24) f->sgr&=(unsigned char)~1u;
+    else if(n==27) f->sgr&=(unsigned char)~2u;
+}
+
+/* 子プロセスの出力1バイトを画面スナップショットへ反映する． */
 static void capture_byte(watch_frame_t *f, unsigned char c) {
-    /* 出力中の端末制御列は無視する．全画面プログラムではなく行指向コマンド用である． */
-    if(f->esc) {
-        if(f->esc==1 && c=='[') {f->esc=2;return;}
-        if(f->esc==2 && c>=0x20 && c<0x40)
+    if(f->esc==1) {
+        f->esc=(c=='[')?2:0;
+        f->csi_arg=0;f->csi_count=0;
+        return;
+    }
+    if(f->esc==2) {
+        if(c>='0' && c<='9') {
+            if(f->csi_arg<1000) f->csi_arg=f->csi_arg*10u+(unsigned)(c-'0');
             return;
+        }
+        if(c==';') {
+            if(f->csi_count<4) f->csi_params[f->csi_count++]=(unsigned char)f->csi_arg;
+            f->csi_arg=0;return;
+        }
+        if(c=='m') {
+            for(unsigned i=0;i<f->csi_count;i++) watch_sgr(f,f->csi_params[i]);
+            watch_sgr(f,f->csi_arg);
+        }
         f->esc=0;
         return;
     }
@@ -36,6 +63,8 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
             f->col=0;
             if(f->row<WATCH_ROWS)
                 f->line[f->row][0]=0;
+            if(f->row<WATCH_ROWS)
+                memset(f->attr[f->row],0,WATCH_COLS);
         }
     }
     if(c=='\r') {f->cr=1;f->utf8=0;return;}
@@ -54,8 +83,10 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
     if(c=='\b') {
         if(f->col)
             f->col--;
-        if(f->row<WATCH_ROWS)
+        if(f->row<WATCH_ROWS) {
             f->line[f->row][f->col]=0;
+            f->attr[f->row][f->col]=0;
+        }
         return;
     }
     if(c=='\t') {
@@ -64,7 +95,7 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
             capture_byte(f,' ');
         return;
     }
-    /* 長い行の切詰め時にUTF-8の途中で分断しない．上限は文字数でなくバイト数であり，80桁より小さく設定する． */
+    /* 長い行の切詰め時にUTF-8の途中で分断しない．上限は文字数でなくバイト数． */
     if(c>=128) {
         if((c&0xc0)==0x80) {
             if(!f->utf8)
@@ -87,6 +118,7 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
             return;
     }
     if(f->row>=WATCH_ROWS || f->col>=WATCH_COLS) {f->truncated=1;return;}
+    f->attr[f->row][f->col]=f->sgr;
     f->line[f->row][f->col++]=(char)c;
     f->line[f->row][f->col]=0;
     if(f->rows<=f->row)
@@ -96,13 +128,40 @@ static void capture_byte(watch_frame_t *f, unsigned char c) {
 /* 対象コマンドの出力を再描画し，画面を更新する． */
 static void redraw(const watch_frame_t *old, const watch_frame_t *next, int first) {
     for(unsigned i=0;i<WATCH_ROWS;i++) {
-        if(!first && !strcmp(old->line[i],next->line[i]))
+        if(!first && !strcmp(old->line[i],next->line[i]) &&
+           !memcmp(old->attr[i],next->attr[i],WATCH_COLS))
             continue;
         /* まず上書きし，未使用の末尾だけ消す．全消去によるちらつきを防ぐ． */
-        printf("\033[?7l\033[%u;1H%s\033[K\033[?7h", i+3, next->line[i]);
+        unsigned len=(unsigned)strlen(next->line[i]);
+        unsigned has_attr=0;
+        for(unsigned j=0;j<len;j++) has_attr|=next->attr[i][j];
+        if(!has_attr) {
+            printf("\033[0m\033[?7l\033[%u;1H%s\033[K\033[?7h", i+WATCH_TOP, next->line[i]);
+        } else {
+            printf("\033[?7l\033[%u;1H\033[0m",i+WATCH_TOP);
+            unsigned pos=0, mode=0;
+            while(pos<len) {
+                unsigned next_mode=next->attr[i][pos];
+                if(next_mode!=mode) {
+                    printf("\033[0m");
+                    if(next_mode&1u) printf("\033[4m");
+                    if(next_mode&2u) printf("\033[7m");
+                    mode=next_mode;
+                }
+                unsigned end=pos+1;
+                while(end<len && next->attr[i][end]==mode) end++;
+                char part[WATCH_COLS+1];
+                memcpy(part,next->line[i]+pos,end-pos);
+                part[end-pos]=0;
+                printf("%s",part);
+                pos=end;
+            }
+            printf("\033[0m\033[K\033[?7h");
+        }
     }
     if(first || old->truncated!=next->truncated)
-        printf("\033[?7l\033[23;1H%s\033[K\033[?7h",next->truncated?"[watch: output truncated]":"");
+        printf("\033[0m\033[?7l\033[%u;1H%s\033[K\033[?7h", WATCH_FOOTER,
+               next->truncated?"[watch: output truncated]  Ctrl+C: stop":"Ctrl+C: stop");
 }
 
 /* 256バイトのカーネルパイプは子が動いている間に排出する．先にwaitpidすると子が満杯のパイプで停止しデッドロックする． */

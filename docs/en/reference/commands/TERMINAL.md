@@ -103,7 +103,7 @@ watch 1 ps
 watch 1 cat /proc/net/memory
 ```
 
-Output is limited to a fixed display region for terminals with at least 24 rows: 20 content rows, up to 78 bytes per row, below the header. Additional output is always drained and marked with `[watch: output truncated]`. Comparison is line-oriented, terminal control sequences in captured output are suppressed, and interactive/full-screen programs are unsupported. Commands that do not terminate prevent the next refresh, as before.
+Output is limited to a fixed display region for terminals with at least 27 rows: 24 content rows, up to 80 bytes per row. Row 1 is the title, rows 3–26 show the command output, and row 27 shows `Ctrl+C: stop`. Additional output is always drained and marked with `[watch: output truncated]` on the footer row. Comparison is line-oriented. SGR 4 (underline) and SGR 7 (reverse video) are preserved as attributes and redrawn; other terminal control sequences and running interactive/full-screen programs remain unsupported. `watch 1 cat /dev/pts/0.screen` can show the full 80×24 virtual screen with underline and reverse video. Enlarge the terminal window to at least 27 rows. Commands that do not terminate prevent the next refresh, as before.
 
 To avoid deadlocking on the kernel's 256-byte pipe, `watch` drains the pipe to EOF **before** calling `waitpid()`. Both screen snapshots live in the user process; the kernel does not store display history.
 
