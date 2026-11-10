@@ -43,5 +43,5 @@ INTERACTIVE TERMINAL RECIPES
   terminal_open({command:"vi /tmp/test.txt"}) then terminal_read().
   Send ESC -> :wq -> ENTER; verify with cat after save.
   terminal_open({command:"fd /tmp"}) then terminal_read().
-  Read screen after navigation. terminal_read unchanged is not proof
-  a keypress failed; check mode and use read-only verification.
+  Read screen after navigation. A visually unchanged screen does not
+  prove a keypress failed; check mode and use read-only verification.

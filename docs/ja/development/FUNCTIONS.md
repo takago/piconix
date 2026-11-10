@@ -719,34 +719,33 @@
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
-| [`space()`](../../../userland/apps/mcpd.c#L32) | 32 | static | JSON文字列とコンテナを走査し，指定された値の終端を探す． |
-| [`json_string_end()`](../../../userland/apps/mcpd.c#L39) | 39 | static | JSON文字列の終端位置を検証しながら取得する． |
-| [`json_end()`](../../../userland/apps/mcpd.c#L57) | 57 | static | JSON値の終端位置を調べる． |
-| [`member()`](../../../userland/apps/mcpd.c#L98) | 98 | static | 単純なJSONオブジェクトから，直下のキーのみを探す． |
-| [`json_equals()`](../../../userland/apps/mcpd.c#L131) | 131 | static | JSON文字列が指定文字列と一致するか調べる． |
-| [`append_escaped()`](../../../userland/apps/mcpd.c#L138) | 138 | static | 小さなASCIIテキストをJSON文字列に安全に入れる． |
-| [`read_device()`](../../../userland/apps/mcpd.c#L168) | 168 | static | デバイスから現在の情報を読み取る． |
-| [`send_all()`](../../../userland/apps/mcpd.c#L182) | 182 | static | 非ブロッキング送信は部分成功と一時的な送信キュー満杯を区別する． |
-| [`http_reply()`](../../../userland/apps/mcpd.c#L206) | 206 | static | HTTPレスポンスを組み立てて返す． |
-| [`header_value()`](../../../userland/apps/mcpd.c#L223) | 223 | static | ヘッダは比較に用いる名前と値だけを取得し，重複を拒否する． |
-| [`rpc_error()`](../../../userland/apps/mcpd.c#L274) | 274 | static | JSON-RPCエラー応答を作成する． |
-| [`rpc_result()`](../../../userland/apps/mcpd.c#L281) | 281 | static | JSON-RPC正常応答を作成する． |
-| [`command_argument()`](../../../userland/apps/mcpd.c#L287) | 287 | static | JSON文字列からコマンドを読み取る． |
-| [`decode_file_text()`](../../../userland/apps/mcpd.c#L306) | 306 | static | JSONの文字列を逐次復号する． |
-| [`file_path_argument()`](../../../userland/apps/mcpd.c#L354) | 354 | static | 書込先は/tmp直下の短いファイル名だけに制限する． |
-| [`send_chunk()`](../../../userland/apps/mcpd.c#L371) | 371 | static | 1チャンクを一つの送信バッファへ組み立てる． |
-| [`send_escaped_chunk()`](../../../userland/apps/mcpd.c#L388) | 388 | static | バイト列をJSON文字列の内容として送り出す． |
-| [`execute_command_stream()`](../../../userland/apps/mcpd.c#L415) | 415 | static | シェルを起動し，最大4 KiBの出力を即時にHTTPへ流す． |
-| [`list_tools_stream()`](../../../userland/apps/mcpd.c#L482) | 482 | static | 応答の総サイズをRAMに載せずMCPツール一覧を送信する． |
-| [`terminal_open_command()`](../../../userland/apps/mcpd.c#L506) | 506 | static | セッションをHTTP要求から独立して保持し，親の標準FDは必ず元へ戻す． |
-| [`terminal_close_session()`](../../../userland/apps/mcpd.c#L541) | 541 | static | 現在のPTYセッションを終了し，Masterと子プロセスを解放する． |
-| [`terminal_drain()`](../../../userland/apps/mcpd.c#L551) | 551 | static | Masterを枯渇させないため，screen取得前にANSI出力を消費する． |
-| [`terminal_screen_stream()`](../../../userland/apps/mcpd.c#L561) | 561 | static | /dev/pts/0.screenの1,944バイトをchunkedで送る． |
-| [`send_full_manual()`](../../../userland/apps/mcpd.c#L602) | 602 | static | ROM内の/manファイルをMCPへストリーミング転送する． |
-| [`process_json()`](../../../userland/apps/mcpd.c#L630) | 630 | static | MCPのJSON要求を解析して処理する． |
-| [`read_request()`](../../../userland/apps/mcpd.c#L846) | 846 | static | ヘッダ，Content-Length，本文を上限付きで受信する． |
-| [`handle()`](../../../userland/apps/mcpd.c#L900) | 900 | static | MCPの接続要求を処理する． |
-| [`main()`](../../../userland/apps/mcpd.c#L936) | 936 | 外部 | MCPサーバを起動して接続要求を受け付ける． |
+| [`space()`](../../../userland/apps/mcpd.c#L29) | 29 | static | JSON文字列とコンテナを走査し，指定された値の終端を探す． |
+| [`json_string_end()`](../../../userland/apps/mcpd.c#L36) | 36 | static | JSON文字列の終端位置を検証しながら取得する． |
+| [`json_end()`](../../../userland/apps/mcpd.c#L54) | 54 | static | JSON値の終端位置を調べる． |
+| [`member()`](../../../userland/apps/mcpd.c#L95) | 95 | static | 単純なJSONオブジェクトから，直下のキーのみを探す． |
+| [`json_equals()`](../../../userland/apps/mcpd.c#L128) | 128 | static | JSON文字列が指定文字列と一致するか調べる． |
+| [`append_escaped()`](../../../userland/apps/mcpd.c#L135) | 135 | static | 小さなASCIIテキストをJSON文字列に安全に入れる． |
+| [`read_device()`](../../../userland/apps/mcpd.c#L165) | 165 | static | デバイスから現在の情報を読み取る． |
+| [`send_all()`](../../../userland/apps/mcpd.c#L179) | 179 | static | 非ブロッキング送信は部分成功と一時的な送信キュー満杯を区別する． |
+| [`http_reply()`](../../../userland/apps/mcpd.c#L203) | 203 | static | HTTPレスポンスを組み立てて返す． |
+| [`header_value()`](../../../userland/apps/mcpd.c#L220) | 220 | static | ヘッダは比較に用いる名前と値だけを取得し，重複を拒否する． |
+| [`rpc_error()`](../../../userland/apps/mcpd.c#L271) | 271 | static | JSON-RPCエラー応答を作成する． |
+| [`rpc_result()`](../../../userland/apps/mcpd.c#L278) | 278 | static | JSON-RPC正常応答を作成する． |
+| [`command_argument()`](../../../userland/apps/mcpd.c#L284) | 284 | static | JSON文字列からコマンドを読み取る． |
+| [`decode_file_text()`](../../../userland/apps/mcpd.c#L303) | 303 | static | JSONの文字列を逐次復号する． |
+| [`file_path_argument()`](../../../userland/apps/mcpd.c#L351) | 351 | static | 書込先は/tmp直下の短いファイル名だけに制限する． |
+| [`send_chunk()`](../../../userland/apps/mcpd.c#L368) | 368 | static | 1チャンクを一つの送信バッファへ組み立てる． |
+| [`send_escaped_chunk()`](../../../userland/apps/mcpd.c#L385) | 385 | static | バイト列をJSON文字列の内容として送り出す． |
+| [`execute_command_stream()`](../../../userland/apps/mcpd.c#L412) | 412 | static | シェルを起動し，最大4 KiBの出力を即時にHTTPへ流す． |
+| [`list_tools_stream()`](../../../userland/apps/mcpd.c#L484) | 484 | static | 応答の総サイズをRAMに載せずMCPツール一覧を送信する． |
+| [`terminal_open_command()`](../../../userland/apps/mcpd.c#L508) | 508 | static | セッションをHTTP要求から独立して保持し，親の標準FDは必ず元へ戻す． |
+| [`terminal_close_session()`](../../../userland/apps/mcpd.c#L543) | 543 | static | 現在のPTYセッションを終了し，Masterと子プロセスを解放する． |
+| [`terminal_screen_stream()`](../../../userland/apps/mcpd.c#L553) | 553 | static | /dev/pts/0.screenを1回読み，現在画面をchunkedで送る． |
+| [`send_full_manual()`](../../../userland/apps/mcpd.c#L577) | 577 | static | ROM内の/manファイルをMCPへストリーミング転送する． |
+| [`process_json()`](../../../userland/apps/mcpd.c#L605) | 605 | static | MCPのJSON要求を解析して処理する． |
+| [`read_request()`](../../../userland/apps/mcpd.c#L831) | 831 | static | ヘッダ，Content-Length，本文を上限付きで受信する． |
+| [`handle()`](../../../userland/apps/mcpd.c#L882) | 882 | static | MCPの接続要求を処理する． |
+| [`main()`](../../../userland/apps/mcpd.c#L918) | 918 | 外部 | MCPサーバを起動して接続要求を受け付ける． |
 
 ### `userland/apps/mem.c`（17件）
 

@@ -48,7 +48,8 @@ assert 'pty_screen_byte(c);' in k
 assert 'pty_screen_read(fd,p,n)' in k
 assert 'pty_key_write(p,n)' in k
 assert 'terminal_screen_stream(fd,id)' in m
-assert 'term_screen_seen && hash==term_last_hash' in m
+assert 'term_last_hash' not in m
+assert m.count('open("/dev/pts/0.screen",O_RDONLY)') == 1
 assert 'protected_target' in k and 'mcp_origin' in k
 for path in ('/dev/pts/0.screen', '/dev/pts/0.key'):
     assert path in dev

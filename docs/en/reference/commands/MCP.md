@@ -204,7 +204,7 @@ The `.screen` interface is a PicoNIX extension with intentionally limited ANSI s
 python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP
 ```
 
-The first read returns the 80x24 ANSI-marked screen; `ESC[4m`/`ESC[24m` surround the visible terminal cursor cell (none while hidden by CSI ?25l, restored by CSI ?25h). Later identical reads return `unchanged`. The two-pass comparison is not an atomic screen snapshot during concurrent updates.
+The first read returns the 80x24 ANSI-marked screen; `ESC[4m`/`ESC[24m` surround the visible terminal cursor cell (none while hidden by CSI ?25l, restored by CSI ?25h). Every `terminal_read` returns the current screen, even if visually unchanged. The screen is read once, without a hash comparison. It is not an atomic snapshot during concurrent updates.
 
 
 ### Repeated MCP transport test (2026-11-09)

@@ -20,8 +20,6 @@ static char response[RESPONSE_SIZE];
 /* 応答用の比較的大きいバッファは4 KiBスタックを圧迫しないよう静的確保． */
 /* HTTPの接続寿命とは独立した1組のPTYセッション． */
 static int term_master=-1,term_pid=-1;
-static uint32_t term_last_hash;
-static int term_screen_seen;
 /* 通信失敗をHTTP応答とは別のコンソールで観測する．1要求中の最初の失敗を保持する． */
 static int send_fail_reason, send_fail_value;
 
@@ -539,7 +537,6 @@ static int terminal_open_command(const char *command) {
     if(slave>=0)close(slave);
     if(pid<=0) {close(master);return -4;}
     term_master=master;term_pid=pid;
-    term_screen_seen=0;
     return 0;
 }
 /* 現在のPTYセッションを終了し，Masterと子プロセスを解放する． */
@@ -550,45 +547,26 @@ static void terminal_close_session(void) {
     }
     if(term_master>=0)close(term_master);
     term_master=term_pid=-1;
-    term_screen_seen=0;
 }
-/* /dev/pts/0.screenの1,944バイトをchunkedで送る．mcpd内に画面を複製しない． */
+/* /dev/pts/0.screenを1回読み，現在の画面をchunkedで返す．
+ * 描画と並行した場合に一貫したスナップショットになる保証はない． */
 static int terminal_screen_stream(int fd,const char *id) {
     if(term_master<0) {rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"No PTY session\"}],\"isError\":true}");return 200;}
     int screen=open("/dev/pts/0.screen",O_RDONLY);
-    if(screen<0) {rpc_error(id,-32030,"Screen unavailable");return 200;}
-    /* 同一画面ならHTTPで2 KiB送らない．固定行を2パスで処理してRAMを節約する． */
-    uint32_t hash=2166136261u;
-    char scan[81];int scan_n;
-    while((scan_n=read(screen,scan,sizeof scan))>0)
-        for(int i=0;i<scan_n;i++) hash=(hash^(uint8_t)scan[i])*16777619u;
-    close(screen);
-    if(scan_n<0) {rpc_error(id,-32030,"Screen read failed");return 200;}
-    if(term_screen_seen && hash==term_last_hash) {
-        rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"unchanged\"}]}");
-        return 200;
-    }
-    screen=open("/dev/pts/0.screen",O_RDONLY);
     if(screen<0) {rpc_error(id,-32030,"Screen unavailable");return 200;}
     const char *headers="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n";
     char prefix[160];
     int n=snprintf(prefix,sizeof prefix,"{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"",id);
     if(n<0 || (unsigned)n>=sizeof prefix || send_all(fd,headers,(unsigned)strlen(headers))<0 || send_chunk(fd,prefix,(unsigned)n)<0) goto done;
-    uint32_t sent_hash=2166136261u;
     char row[81];
-    while((n=read(screen,row,sizeof row))>0) {
+    while((n=read(screen,row,sizeof row))>0)
         if(send_escaped_chunk(fd,row,(unsigned)n)<0) goto done;
-        for(int i=0;i<n;i++) sent_hash=(sent_hash^(uint8_t)row[i])*16777619u;
-    }
     if(n<0) goto done;
     {
-      const char *suffix="\"}],\"isError\":false}}";
-      if(send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto done;
-      if(send_all(fd,"0\r\n\r\n",5)<0) goto done;
+        const char *suffix="\"}],\"isError\":false}}";
+        if(send_chunk(fd,suffix,(unsigned)strlen(suffix))<0) goto done;
+        if(send_all(fd,"0\r\n\r\n",5)<0) goto done;
     }
-    /* 送信完了前に記録すると，再試行時に未受信画面がunchangedになる． */
-    term_last_hash=sent_hash;
-    term_screen_seen=1;
 done:
     close(screen);
     return -1;

@@ -176,7 +176,7 @@ Open WebUIのKnowledge機能を使用する場合は，この`docs/ja/reference/
 
 ## PTYによる対話型アプリの操作
 
-`mcpd &`で起動した場合，4つのPTYツールが利用できます．`terminal_open`は対話型プログラムを起動し，`terminal_send`は`text`または`key`を入力キューへ送信して受理バイト数を返します．**画面は返しません**．LLMが必要に応じて`terminal_read`を呼び，80×24の現在画面を確認します．`terminal_send`は200 msの固定待機を行いません．MCP専用PTYは画面モードで動き，出力リングを使わず仮想画面を直接更新します．`ESCAPE`は`ESC`，`BS`は`BACKSPACE`，`SP`は`SPACE`の別名です．`terminal_close`はセッションを終了します．
+`mcpd &`で起動した場合，4つのPTYツールが利用できます．`terminal_open`は対話型プログラムを起動し，`terminal_send`は`text`または`key`を入力キューへ送信して受理バイト数を返します．**画面は返しません**．LLMが必要に応じて`terminal_read`を呼び，80×24の現在画面を確認します．`terminal_send`は200 msの固定待機を行いません．`mcpd`は汎用PTYの画面専用モードを利用し，出力リングを使わず仮想画面を直接更新します．`ESCAPE`は`ESC`，`BS`は`BACKSPACE`，`SP`は`SPACE`の別名です．`terminal_close`はセッションを終了します．
 
 ```text
 terminal_open({"command":"fd"})
@@ -201,7 +201,7 @@ MCPツールの`terminal_read`の説明には，SGR 4/24がカーソル位置，
 python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP
 ```
 
-画面の初回取得は80×24のテキストを返します．変化がない場合，後続の`terminal_read`は`unchanged`を返します．`terminal_read`は2回の読み取りで画面差分を判定するため，画面が更新途中の場合の完全な一貫性は保証しません．
+`terminal_read`は毎回80×24の現在画面を返します．ハッシュによる`unchanged`判定は行いません．画面は1回だけ読み出しますが，描画と並行した場合に原子的なスナップショットになる保証はありません．
 
 
 ### MCP通信の連続試験（2026-11-09）

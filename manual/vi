@@ -32,10 +32,10 @@ execute_command({"command":"cat /tmp/test.txt"}) for verification.
 Commands :set, undo, /pattern and regex substitution are NOT
 implemented. :help displays a brief command hint. Do not guess full Vim commands.
 
-terminal_send drains PTY output for about 200ms, then returns the screen.
-This does not guarantee vi has finished redrawing.
-terminal_read returns "unchanged" if screen has not changed since
-last successful read; it does NOT establish whether file was saved.
+terminal_send only reports accepted input bytes; it neither waits
+for redraw nor returns the screen. terminal_read always returns the
+current screen and may capture an intermediate redraw. A successful
+terminal_read does NOT establish whether the file was saved.
 Use cat for independent verification. Avoid blind retries after TCP
 errors; check the file before repeating a potentially modifying step.
 

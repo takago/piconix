@@ -49,7 +49,7 @@ terminal_send({"text":":wq"})
 terminal_send({"key":"ENTER"})
 ```
 
-This is **literal whole-file substitution**, not Vim regex; `/` delimiters cannot be escaped. Replacements that would exceed 2,048 bytes are rejected without changing the text. `:help` shows a short command hint. `:set`, undo and `/pattern` search are unsupported. Verify the saved file independently with `cat /tmp/test.txt`. A successful `terminal_send` does not prove that the edit was saved, and `terminal_read` reporting `unchanged` means only that the screen did not change.
+This is **literal whole-file substitution**, not Vim regex; `/` delimiters cannot be escaped. Replacements that would exceed 2,048 bytes are rejected without changing the text. `:help` shows a short command hint. `:set`, undo and `/pattern` search are unsupported. Verify the saved file independently with `cat /tmp/test.txt`. A successful `terminal_send` does not prove that the edit was saved, and `terminal_read` always returns the current screen; it does not confirm that the file was saved.
 
 ---
 

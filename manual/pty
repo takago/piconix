@@ -14,12 +14,11 @@ commands for .screen. CSI 6n returns current cursor position.
 This is not a complete terminal emulator. No scrollback or resizes.
 
 MCP: use terminal_open({command:'fd'}), terminal_read({}),
-terminal_send({key:'DOWN'}), terminal_close({}). terminal_send
-drains PTY output for about 200ms then returns the screen;
-this does not guarantee that drawing has completed.
-terminal_read remains available.
-Ordinary commands
-should use execute_command to reduce traffic.
+terminal_send({key:'DOWN'}), terminal_read({}), terminal_close({}).
+terminal_send only reports accepted input bytes; it does not wait
+for rendering or return a screen. terminal_read always returns the
+current screen; it may be read while a program is still drawing.
+Ordinary commands should use execute_command to reduce traffic.
 
 The mcpd process and its launching shell are protected from kill
 by MCP descendants. This is not authentication or full isolation.

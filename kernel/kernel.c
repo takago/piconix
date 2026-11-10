@@ -2893,7 +2893,7 @@ static int device_ioctl(int fd,int cmd,int arg) {
     if(fd<0 || fd>=OS_FD_MAX || tasks[current].fd[fd]<0)
         return OS_EBADF;
     int dev=tasks[current].fd[fd];
-    /* MCP専用セッションではSlave出力を画面へ直接反映する．
+    /* 画面専用モードではSlave出力を仮想画面へ直接反映する．
      * 通常PTYのMaster readとの互換性を守るため明示的に選択する． */
     if(cmd==OS_PTY_SCREEN_ONLY) {
         if(dev!=DEV_PTY_MASTER) return OS_EBADF;

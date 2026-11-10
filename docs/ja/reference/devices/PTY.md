@@ -19,7 +19,7 @@ PicoNIXは，MCPだけに依存しない**汎用PTYを1組**提供します．�
 - Slaveをすべて閉じて出力を読み切ったMasterの`read()`は0（EOF）です．Masterがすべて閉じられたSlaveの`read()`は，残りの入力を消費した後に0を返し，`write()`は`OS_EIO`です．両端を閉じた後は初期状態へ戻ります．
 - 新規セッションは，前セッションのMasterとSlaveをすべて閉じるまで作れません．FDの複製は`dup()`と`dup2()`が利用可能です．
 
-### MCP専用の画面モード
+### 汎用PTYの画面専用モード
 
 `mcpd`はMasterを開いた後，Slaveを開く前に`ioctl(master, OS_PTY_SCREEN_ONLY, 1)`を設定します．このモードではSlaveの出力を1024バイトの出力リングに蓄積せず，`/dev/pts/0.screen`の仮想画面だけを直接更新します．出力リングのdrainや固定200 ms待機は不要です．Masterの生出力`read()`は使えません．通常のPTY（`pty_test`など）は変更されず，出力リングとMasterの`read()`を利用できます．両端が閉じられた時点でモードも解除されます．
 
