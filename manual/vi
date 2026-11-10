@@ -22,7 +22,8 @@ NORMAL MODE (press terminal_send({"key":"ESC"}) first)
                             (no regex, no escaped slash; <=2048 bytes)
 
 INSERT MODE: terminal_send({"text":"hello"}) inserts characters;
-ENTER inserts newline; BACKSPACE deletes backward; ESC returns to
+ENTER inserts newline; BACKSPACE (or BS) deletes backward;
+ESC (or ESCAPE) returns to
 NORMAL. Do NOT use : commands while in INSERT mode.
 
 MCP sequence: ESC -> send text ":%s/1000/100/g" -> ENTER ->
@@ -31,10 +32,12 @@ execute_command({"command":"cat /tmp/test.txt"}) for verification.
 Commands :set, undo, /pattern and regex substitution are NOT
 implemented. :help displays a brief command hint. Do not guess full Vim commands.
 
+terminal_send drains PTY output for about 200ms, then returns the screen.
+This does not guarantee vi has finished redrawing.
 terminal_read returns "unchanged" if screen has not changed since
 last successful read; it does NOT establish whether file was saved.
 Use cat for independent verification. Avoid blind retries after TCP
 errors; check the file before repeating a potentially modifying step.
 
-MCP terminal_read embeds the cursor in the screen as ESC[5m...ESC[25m.
+MCP terminal_read embeds the cursor in the screen as ESC[4m...ESC[24m.
 Read again after navigation: cursor movement changes the screen stream.

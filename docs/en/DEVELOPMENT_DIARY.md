@@ -1,5 +1,10 @@
 # PicoNIX Development Diary
 
+### 2026-11-10: Use underline attributes for the PTY cursor
+
+Changed the cursor marker in `/dev/pts/0.screen` from SGR 5/25 (blink) to SGR 4/24 (underline). Preserved SGR 7/0 inverse video, cursor visibility handling, and the 200 ms `terminal_send` wait with PTY output draining. Updated MCP descriptions, ROM manuals, bilingual references, and regression tests.
+
+
 ### 2026-11-10: Unify PTY cursor state in screen stream
 
 Removed `/dev/pts/0.cursor` and the separate `Cursor: row/col` prefix from MCP `terminal_read`. The screen stream already marks the cursor cell with SGR 5/25, so its hash changes on cursor movement. Named keys and SGR 7/0 inverse video are preserved.

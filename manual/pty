@@ -2,9 +2,10 @@ PSEUDOTERMINAL (PTY) / VIRTUAL 80x24 SCREEN
 
 /dev/ptmx          Master, exclusive O_RDWR
 /dev/pts/0         Slave, after opening master
-/dev/pts/0.screen  80x24 ANSI text; inverse and blinking cursor markers
+/dev/pts/0.screen  80x24 ANSI text; inverse and underlined cursor markers
 /dev/pts/0.key     Named-key write (UP, DOWN, LEFT, RIGHT, ENTER,
-                   ESC, TAB, BACKSPACE, DELETE, CTRL_A ... CTRL_Z)
+                   ESC or ESCAPE, TAB, SPACE or SP, BACKSPACE or BS,
+                   DELETE, CTRL_A ... CTRL_Z)
 
 A user application can attach standard FDs 0..2 to the slave, then
 spawn a child. Master read/write still transfers raw PTY bytes.
@@ -13,7 +14,11 @@ commands for .screen. CSI 6n returns current cursor position.
 This is not a complete terminal emulator. No scrollback or resizes.
 
 MCP: use terminal_open({command:'fd'}), terminal_read({}),
-terminal_send({key:'DOWN'}), terminal_close({}). Ordinary commands
+terminal_send({key:'DOWN'}), terminal_close({}). terminal_send
+drains PTY output for about 200ms then returns the screen;
+this does not guarantee that drawing has completed.
+terminal_read remains available.
+Ordinary commands
 should use execute_command to reduce traffic.
 
 The mcpd process and its launching shell are protected from kill
@@ -23,8 +28,10 @@ The standard pty_test command can relay: pty_test fd, pty_test sh,
 pty_test vi /tmp/test.txt. Ctrl+C interrupts the foreground task.
 
 MCP terminal_read forwards .screen without separate cursor coordinates;
-cursor-only movement changes the SGR 5/25 marker in the screen.
+cursor-only movement changes the SGR 4/24 marker in the screen
+when the cursor is visible. CSI ?25l hides it; CSI ?25h shows it.
 
-.screen emits ESC[7m/ESC[0m for inverse cells and ESC[5m/ESC[25m
-around the cursor cell, even if it is a blank. Blink means terminal
-cursor (not a vi file position). Reads may split an ANSI sequence.
+.screen emits ESC[7m/ESC[0m for inverse cells and ESC[4m/ESC[24m
+around the cursor cell, even if it is a blank. Underline means terminal
+cursor (not a vi file position). When hidden, no cursor marker is
+emitted. Reads may split an ANSI sequence.

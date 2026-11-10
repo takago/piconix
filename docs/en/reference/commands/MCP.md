@@ -179,7 +179,7 @@ If using Open WebUI Knowledge, upload `docs/en/reference/commands/MCP.md` and se
 
 ## Interactive applications through PTY
 
-Four terminal tools are always available. `terminal_open` starts a program with at most one optional argument. `terminal_send` takes either `text` or `key`. `terminal_read` returns the reconstructed **80x24 screen with ANSI inverse and blinking-cursor markers**, not the raw PTY byte stream. `terminal_close` terminates only this session's child and closes its PTY.
+Four terminal tools are always available. `terminal_open` starts a program with at most one optional argument. `terminal_send` takes either `text` or `key` and drains PTY output during an approximately 200 ms wait before returning the screen. This prevents a full output ring from stalling redraw, but does not guarantee that drawing has finished. `ESCAPE` aliases `ESC`, `BS` aliases `BACKSPACE`, and `SP` aliases `SPACE`. `terminal_read` returns the reconstructed **80x24 screen with ANSI inverse and underlined-cursor markers**, not the raw PTY byte stream. `terminal_close` terminates only this session's child and closes its PTY.
 
 ```text
 terminal_open({"command":"fd"})
@@ -190,9 +190,11 @@ terminal_send({"key":"ENTER"})
 terminal_close({})
 ```
 
-Send ordinary text with `terminal_send({"text":"hello"})`. Supported names include `UP`, `DOWN`, `LEFT`, `RIGHT`, `ENTER`, `ESC`, `TAB`, `BACKSPACE`, `DELETE`, and `CTRL_A` through `CTRL_Z`. `CTRL_C` uses PicoNIX's existing foreground-task termination, not POSIX signals. There is no scrollback.
+Send ordinary text with `terminal_send({"text":"hello"})`. Send a space with `terminal_send({"text":" "})` or `terminal_send({"key":"SPACE"})` (alias `SP`). Supported names include `UP`, `DOWN`, `LEFT`, `RIGHT`, `ENTER`, `ESC`, `ESCAPE`, `TAB`, `SPACE`, `SP`, `BACKSPACE`, `BS`, `DELETE`, and `CTRL_A` through `CTRL_Z`. `CTRL_C` uses PicoNIX's existing foreground-task termination, not POSIX signals. There is no scrollback.
 
 Prefer `execute_command` for ordinary noninteractive commands. Only one PTY session is available and it shares the six task slots. Starting `mcpd` as a PTY application is forbidden. Kernel-side kill protection prevents MCP descendants from killing `mcpd` or the shell that launched it; it does not provide sandboxing or replace authentication/TLS (both absent).
+
+Both `terminal_send` and `terminal_read` tool descriptions explain that SGR 4/24 marks the cursor and SGR 7/0 marks reverse video.
 
 The `.screen` interface is a PicoNIX extension with intentionally limited ANSI support. See [PTY device](../devices/PTY.md).
 
@@ -202,7 +204,7 @@ The `.screen` interface is a PicoNIX extension with intentionally limited ANSI s
 python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP
 ```
 
-The first read returns the 80x24 ANSI-marked screen; `ESC[5m`/`ESC[25m` surround the terminal cursor cell. Later identical reads return `unchanged`. The two-pass comparison is not an atomic screen snapshot during concurrent updates.
+The first read returns the 80x24 ANSI-marked screen; `ESC[4m`/`ESC[24m` surround the visible terminal cursor cell (none while hidden by CSI ?25l, restored by CSI ?25h). Later identical reads return `unchanged`. The two-pass comparison is not an atomic screen snapshot during concurrent updates.
 
 
 ### Repeated MCP transport test (2026-11-09)

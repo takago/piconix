@@ -66,7 +66,7 @@ static pty_t pty;
 static struct {
     char cells[VT_ROWS][VT_COLS];
     uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u];
-    uint8_t row,col,esc,params,private_csi,reverse;
+    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden;
     uint16_t arg[3];
     uint32_t revision;
 } pty_screen;
@@ -152,11 +152,35 @@ int main(void) {
     for(const char *p="\033[2J\033[HHello\033[3;1HWorld";*p;p++)pty_screen_byte((uint8_t)*p);
     assert(!memcmp(pty_screen.cells[0],"Hello",5));
     assert(!memcmp(pty_screen.cells[2],"World",5));
+    /* DECTCEM cursor visibility during redraw; final move restores marker. */
+    for(const char *p="\033[?25l";*p;p++) pty_screen_byte((uint8_t)*p);
+    assert(pty_screen.cursor_hidden);
+    tasks[0].fd_pos[4]=0;
+    char hidden_screen[2200];unsigned hidden_size=0;int hn;
+    while((hn=pty_screen_read(4,hidden_screen+hidden_size,sizeof hidden_screen-hidden_size))>0) hidden_size+=(unsigned)hn;
+    assert(hidden_size<sizeof hidden_screen);
+    hidden_screen[hidden_size]=0;
+    assert(strstr(hidden_screen,"\033[4m")==NULL);
+    for(const char *p="\033[3;2H\033[?25h";*p;p++) pty_screen_byte((uint8_t)*p);
+    assert(!pty_screen.cursor_hidden && pty_screen.row==2 && pty_screen.col==1);
+    tasks[0].fd_pos[4]=0;
+    char visible_screen[2200];unsigned visible_size=0;
+    while((hn=pty_screen_read(4,visible_screen+visible_size,sizeof visible_screen-visible_size))>0) visible_size+=(unsigned)hn;
+    assert(visible_size<sizeof visible_screen);
+    visible_screen[visible_size]=0;
+    assert(strstr(visible_screen,"\033[4mo\033[24m")!=NULL); /* World[1] */
+    for(const char *p="\033[?25l\033c";*p;p++) pty_screen_byte((uint8_t)*p);
+    assert(!pty_screen.cursor_hidden); /* hard reset defaults to visible */
+    for(const char *p="\033[2J\033[HHello\033[3;1HWorld";*p;p++)pty_screen_byte((uint8_t)*p);
     tasks[0].fd_pos[4]=0;
     char screen[82];
     assert(pty_screen_read(4,screen,81)==81);
     assert(!memcmp(screen,"Hello",5) && screen[80]=='\n');
     tty_canonical[3]=0; tty_echo[3]=0;
+    assert(pty_key_write("SPACE",5)==5);
+    assert(tty_dequeue(3,tmp,1)==1 && tmp[0]==' ');
+    assert(pty_key_write("SP",2)==2);
+    assert(tty_dequeue(3,tmp,1)==1 && tmp[0]==' ');
     assert(pty_key_write("DOWN",4)==4);
     assert(tty_dequeue(3,tmp,3)==3 && !memcmp(tmp,"\033[B",3));
     assert(pty_key_write("CTRL_C",6)==6);

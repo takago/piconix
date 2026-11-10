@@ -214,7 +214,7 @@ typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned maste
 static struct {
     char cells[VT_ROWS][VT_COLS];
     uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u];
-    uint8_t row,col,esc,params,private_csi,reverse;
+    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden;
     uint16_t arg[3];
     uint32_t revision;
 } pty_screen;
@@ -868,7 +868,7 @@ NO_TRACE static void pty_screen_byte(uint8_t c) {
         if(c=='[') {
             pty_screen.esc=2; pty_screen.params=0; pty_screen.private_csi=0;
             memset(pty_screen.arg,0,sizeof pty_screen.arg);
-        } else if(c=='c') { vt_clear(); pty_screen.row=pty_screen.col=0; }
+        } else if(c=='c') { vt_clear(); pty_screen.row=pty_screen.col=0; pty_screen.cursor_hidden=0; }
         return;
     }
     if(pty_screen.esc==2) {
@@ -902,7 +902,9 @@ NO_TRACE static void pty_screen_byte(uint8_t c) {
                 if(pty_screen.arg[i]==7) pty_screen.reverse=1;
             }
         } else if(c=='n' && pty_screen.arg[0]==6) vt_cursor_report();
-        else if(pty_screen.private_csi && (c=='h'||c=='l') && pty_screen.arg[0]==1049) {
+        else if(pty_screen.private_csi && (c=='h'||c=='l') && pty_screen.arg[0]==25) {
+            pty_screen.cursor_hidden=(c=='l');
+        } else if(pty_screen.private_csi && (c=='h'||c=='l') && pty_screen.arg[0]==1049) {
             if(c=='h') {vt_clear();pty_screen.row=pty_screen.col=0;}
         }
         pty_screen.esc=0;
@@ -923,7 +925,7 @@ NO_TRACE static void pty_screen_byte(uint8_t c) {
     }
     pty_screen.revision++;
 }
-/* 80x24の反転表示を再生成し，読取り時だけカーソル文字をSGR 5/25で示す． */
+/* 80x24の反転表示を再生成し，可視カーソルだけをSGR 4/24で示す． */
 /* カーソル属性は画面セルへ保存せず，FD位置は可変長ストリーム上のバイト位置とする． */
 NO_TRACE static int pty_screen_read(int fd, void *p, size_t n) {
     unsigned pos=tasks[current].fd_pos[fd],at=0,out=0;
@@ -941,13 +943,13 @@ NO_TRACE static int pty_screen_read(int fd, void *p, size_t n) {
                 for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
                 reverse=inv;
             }
-            if(row==pty_screen.row && col==pty_screen.col) {
-                const char *seq="\033[5m";
+            if(!pty_screen.cursor_hidden && row==pty_screen.row && col==pty_screen.col) {
+                const char *seq="\033[4m";
                 for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
             }
             VT_EMIT(pty_screen.cells[row][col]);
-            if(row==pty_screen.row && col==pty_screen.col) {
-                const char *seq="\033[25m";
+            if(!pty_screen.cursor_hidden && row==pty_screen.row && col==pty_screen.col) {
+                const char *seq="\033[24m";
                 for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
             }
         }
@@ -976,9 +978,10 @@ NO_TRACE static int pty_key_write(const void *p,size_t n) {
     else if(!strcmp(key,"RIGHT")) seq="\033[C";
     else if(!strcmp(key,"LEFT")) seq="\033[D";
     else if(!strcmp(key,"ENTER")) seq="\r";
-    else if(!strcmp(key,"ESC")) seq="\033";
+    else if(!strcmp(key,"ESC") || !strcmp(key,"ESCAPE")) seq="\033";
     else if(!strcmp(key,"TAB")) seq="\t";
-    else if(!strcmp(key,"BACKSPACE")) seq="\177";
+    else if(!strcmp(key,"SPACE") || !strcmp(key,"SP")) seq=" ";
+    else if(!strcmp(key,"BACKSPACE") || !strcmp(key,"BS")) seq="\177";
     else if(!strcmp(key,"DELETE")) seq="\033[3~";
     char control[2]={0,0};
     if(!seq && n==6 && !memcmp(key,"CTRL_",5) && key[5]>='A' && key[5]<='Z') {
