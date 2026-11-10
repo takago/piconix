@@ -2,6 +2,12 @@
 
 PicoNIX provides **one general-purpose master/slave PTY pair**, independent of MCP. MCP clients can also use the PTY through its virtual screen and named-key devices.
 
+### MCP screen-only mode
+
+After opening the master but before opening the slave, `mcpd` enables `ioctl(master, OS_PTY_SCREEN_ONLY, 1)`. Slave output updates the `/dev/pts/0.screen` display directly without accumulating bytes in the 1024-byte output ring. No output drain or fixed 200 ms wait is required. Raw `read()` from the master is not available in this mode. Normal PTY use (e.g. `pty_test`) retains the output ring and master reads. The mode resets when both endpoints close.
+
+`terminal_send` returns only the accepted byte count; the LLM explicitly calls `terminal_read` to inspect the screen. Screen reads are not atomic snapshots.
+
 ## Device nodes
 
 | Path | Open mode | Purpose |

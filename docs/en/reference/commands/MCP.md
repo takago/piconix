@@ -179,7 +179,7 @@ If using Open WebUI Knowledge, upload `docs/en/reference/commands/MCP.md` and se
 
 ## Interactive applications through PTY
 
-Four terminal tools are always available. `terminal_open` starts a program with at most one optional argument. `terminal_send` takes either `text` or `key` and drains PTY output during an approximately 200 ms wait before returning the screen. This prevents a full output ring from stalling redraw, but does not guarantee that drawing has finished. `ESCAPE` aliases `ESC`, `BS` aliases `BACKSPACE`, and `SP` aliases `SPACE`. `terminal_read` returns the reconstructed **80x24 screen with ANSI inverse and underlined-cursor markers**, not the raw PTY byte stream. `terminal_close` terminates only this session's child and closes its PTY.
+Four terminal tools are available. `terminal_open` starts an interactive program with at most one optional argument. `terminal_send` accepts `text` or `key` and returns the number of bytes accepted, **without returning a screen or waiting 200 ms**. The LLM calls `terminal_read` when it needs to inspect the current **80x24 screen with ANSI inverse and underlined-cursor markers**. The MCP session uses screen-only PTY mode: slave output directly updates the virtual display, without accumulating in the raw output ring. `ESCAPE` aliases `ESC`, `BS` aliases `BACKSPACE`, and `SP` aliases `SPACE`. `terminal_close` ends the session.
 
 ```text
 terminal_open({"command":"fd"})
@@ -194,7 +194,7 @@ Send ordinary text with `terminal_send({"text":"hello"})`. Send a space with `te
 
 Prefer `execute_command` for ordinary noninteractive commands. Only one PTY session is available and it shares the six task slots. Starting `mcpd` as a PTY application is forbidden. Kernel-side kill protection prevents MCP descendants from killing `mcpd` or the shell that launched it; it does not provide sandboxing or replace authentication/TLS (both absent).
 
-Both `terminal_send` and `terminal_read` tool descriptions explain that SGR 4/24 marks the cursor and SGR 7/0 marks reverse video.
+The `terminal_read` tool description explains that SGR 4/24 marks the cursor and SGR 7/0 marks reverse video.
 
 The `.screen` interface is a PicoNIX extension with intentionally limited ANSI support. See [PTY device](../devices/PTY.md).
 

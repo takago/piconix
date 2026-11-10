@@ -1,5 +1,10 @@
 # PicoNIX Development Diary
 
+### 2026-11-10: MCP screen-only PTY and separate input/screen operations
+
+`mcpd` now enables `OS_PTY_SCREEN_ONLY` immediately after opening the PTY master. In this mode slave output directly updates the virtual display without accumulating in the output ring or requiring `terminal_drain()`. Normal raw PTY master output remains unchanged. `terminal_send` returns the accepted byte count only, without a fixed 200 ms wait or automatic screen response. The LLM calls `terminal_read` as needed. Atomic screen snapshots are not yet implemented.
+
+
 ### 2026-11-10: Use underline attributes for the PTY cursor
 
 Changed the cursor marker in `/dev/pts/0.screen` from SGR 5/25 (blink) to SGR 4/24 (underline). Preserved SGR 7/0 inverse video, cursor visibility handling, and the 200 ms `terminal_send` wait with PTY output draining. Updated MCP descriptions, ROM manuals, bilingual references, and regression tests.

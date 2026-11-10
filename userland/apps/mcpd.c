@@ -497,7 +497,7 @@ static int list_tools_stream(int fd,const char *id) {
         MCP_ADD(",{\"name\":\"write_file\",\"description\":\"Write /tmp file\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"]}}");
         MCP_ADD(",{\"name\":\"execute_command\",\"description\":\"Run shell command (noninteractive); do not stop mcpd\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
         MCP_ADD(",{\"name\":\"terminal_open\",\"description\":\"Start interactive app (vi/fd/sh) on 80x24 PTY\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
-        MCP_ADD(",{\"name\":\"terminal_send\",\"description\":\"Send text or named key. Keys: UP DOWN LEFT RIGHT ENTER ESC ESCAPE TAB SPACE SP BACKSPACE BS DELETE CTRL_A..CTRL_Z. Use text for characters; key for special keys. After sending, waits 200ms then returns ANSI screen (SGR 4/24 marks cursor; 7/0 inverse).\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"key\":{\"type\":\"string\"}}}}");
+        MCP_ADD(",{\"name\":\"terminal_send\",\"description\":\"Send text or named key. Keys: UP DOWN LEFT RIGHT ENTER ESC ESCAPE TAB SPACE SP BACKSPACE BS DELETE CTRL_A..CTRL_Z. Use text for characters; key for special keys. Returns accepted byte count only; call terminal_read to inspect screen.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"key\":{\"type\":\"string\"}}}}");
         MCP_ADD(",{\"name\":\"terminal_read\",\"description\":\"Read ANSI screen: SGR 4/24 marks cursor; SGR 7/0 marks inverse\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
         MCP_ADD(",{\"name\":\"terminal_close\",\"description\":\"Close PTY session\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
 #undef MCP_ADD
@@ -526,6 +526,7 @@ static int terminal_open_command(const char *command) {
     if(program<0) return -1;
     int master=open("/dev/ptmx",O_RDWR|O_NONBLOCK);
     if(master<0) return -3;
+    if(ioctl(master,OS_PTY_SCREEN_ONLY,1)<0) {close(master);return -3;}
     int slave=open("/dev/pts/0",O_RDWR);
     int saved[3]={-1,-1,-1},pid=-1,ok=slave>=0;
     if(ok) for(int k=0;k<3;k++) if((saved[k]=dup(k))<0) ok=0;
@@ -551,20 +552,9 @@ static void terminal_close_session(void) {
     term_master=term_pid=-1;
     term_screen_seen=0;
 }
-/* Masterを枯渇させないため，screen取得前にANSI出力を消費する． */
-static void terminal_drain(unsigned attempts,int wait_empty) {
-    if(term_master<0) return;
-    char buf[128];
-    for(unsigned i=0;i<attempts;i++) {
-        int n=read(term_master,buf,sizeof buf);
-        if(n==OS_EAGAIN) {if(wait_empty && i<4) msleep(10);else break;}
-        else if(n<=0) break;
-    }
-}
 /* /dev/pts/0.screenの1,944バイトをchunkedで送る．mcpd内に画面を複製しない． */
 static int terminal_screen_stream(int fd,const char *id) {
     if(term_master<0) {rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"No PTY session\"}],\"isError\":true}");return 200;}
-    terminal_drain(32,1);
     int screen=open("/dev/pts/0.screen",O_RDONLY);
     if(screen<0) {rpc_error(id,-32030,"Screen unavailable");return 200;}
     /* 同一画面ならHTTPで2 KiB送らない．固定行を2パスで処理してRAMを節約する． */
@@ -584,9 +574,12 @@ static int terminal_screen_stream(int fd,const char *id) {
     char prefix[160];
     int n=snprintf(prefix,sizeof prefix,"{\"jsonrpc\":\"2.0\",\"id\":%s,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"",id);
     if(n<0 || (unsigned)n>=sizeof prefix || send_all(fd,headers,(unsigned)strlen(headers))<0 || send_chunk(fd,prefix,(unsigned)n)<0) goto done;
+    uint32_t sent_hash=2166136261u;
     char row[81];
-    while((n=read(screen,row,sizeof row))>0)
+    while((n=read(screen,row,sizeof row))>0) {
         if(send_escaped_chunk(fd,row,(unsigned)n)<0) goto done;
+        for(int i=0;i<n;i++) sent_hash=(sent_hash^(uint8_t)row[i])*16777619u;
+    }
     if(n<0) goto done;
     {
       const char *suffix="\"}],\"isError\":false}}";
@@ -594,7 +587,7 @@ static int terminal_screen_stream(int fd,const char *id) {
       if(send_all(fd,"0\r\n\r\n",5)<0) goto done;
     }
     /* 送信完了前に記録すると，再試行時に未受信画面がunchangedになる． */
-    term_last_hash=hash;
+    term_last_hash=sent_hash;
     term_screen_seen=1;
 done:
     close(screen);
@@ -753,17 +746,15 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
             if(written<0) {
                 if(written==OS_EINVAL && value)
                     rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Unknown key. See terminal_send key list.\"}],\"isError\":true}");
-                else rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY send failed\"}],\"isError\":true}");
+                else rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY send failed; partial input possible, do not retry blindly\"}],\"isError\":true}");
                 return 200;
             }
-            /* Keep draining the nonblocking PTY output while the child redraws.
-             * Otherwise a full output ring can block vi before cursor restore. */
-            for(int i=0;i<20;i++) {
-                terminal_drain(32,0);
-                msleep(10);
-            }
-            term_screen_seen=0; /* always return the screen after input */
-            return terminal_screen_stream(fd,id);
+            /* 入力受付のみを返す．描画完了と画面確認はterminal_readの責務． */
+            char reply[140];
+            snprintf(reply,sizeof reply,
+                     "{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"accepted: %d bytes\"}]}",written);
+            rpc_result(id,reply);
+            return 200;
         }
         if (json_equals(v,v_end,"get_manual")) {
             if (strcmp(http_name, "get_manual")) {

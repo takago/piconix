@@ -9,8 +9,16 @@ import sys
 from mcp import Client
 from openai import AsyncOpenAI
 
+# Display undecodable Unicode as escape sequences instead of terminating.
+# The original MCP/LLM messages are never changed by this setting.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(errors="backslashreplace")
+# Keep malformed bytes from a terminal or redirected stdin readable as escapes.
+if hasattr(sys.stdin, "reconfigure"):
+    sys.stdin.reconfigure(errors="backslashreplace")
+
 # Replace these placeholders with your own OpenAI-compatible server settings.
-LLM_URL = "http://##################:11434/v1"
+LLM_URL = "http://#################:11434/v1"
 LLM_MODEL = "huihui_ai/Qwen3.8-abliterated:latest"
 LLM_API_KEY = "fake"
 LLM_REASONING_EFFORT = "low"  # Ollama: none / low / medium / high
@@ -49,6 +57,11 @@ def show(label, value, kind):
     # System activity is colored as a whole; conversational text stays plain.
     print(styled(line, kind) if kind in ("tool", "result", "error", "info")
           else f"{styled(label, kind)} {value}")
+
+
+def safe_user_text(value):
+    """Escape lone Unicode surrogates before forwarding text to a UTF-8 API."""
+    return value.encode("utf-8", errors="backslashreplace").decode("utf-8")
 
 
 def reasoning_from_delta(delta):
@@ -170,10 +183,13 @@ async def main():
     
             while True:
                 try:
-                    question = input("\n" + styled("User >", "user") + " ").strip()
+                    question = safe_user_text(input("\n" + styled("User >", "user") + " ").strip())
                 except (EOFError, KeyboardInterrupt):
                     print()
                     break
+                except UnicodeError as exc:
+                    show("[ERROR]", f"入力文字を読み取れませんでした: {exc}", "error")
+                    continue
                 if question.lower() in ("exit", "quit"):
                     break
                 if not question:
@@ -182,7 +198,14 @@ async def main():
                 messages.append({"role": "user", "content": question})
                 # Keep calling the LLM until it produces a final answer.
                 while True:
-                    message, calls = await stream_reply(messages, tools)
+                    try:
+                        message, calls = await stream_reply(messages, tools)
+                    except Exception as exc:
+                        # An incomplete streamed reply must not be added to history
+                        # or retried automatically (a tool call may have side effects).
+                        print()
+                        show("[ERROR]", f"LLM応答を取得できませんでした: {exc}", "error")
+                        break
                     messages.append(message)
     
                     if not calls:

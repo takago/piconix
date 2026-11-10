@@ -176,7 +176,7 @@ Open WebUIのKnowledge機能を使用する場合は，この`docs/ja/reference/
 
 ## PTYによる対話型アプリの操作
 
-`mcpd &`で起動した場合，4つのPTYツールが利用できます．`terminal_open`はコマンド名と任意の引数1個を渡して端末アプリを起動し，`terminal_send`は`text`か`key`のいずれかを送信し，成功時はPTY出力を排出しながら約200 ms待機し，SGR 4のカーソル表示を含む画面を返します．出力リングの満杯による再描画停止を防ぎますが，描画完了を保証するものではありません．`ESCAPE`は`ESC`，`BS`は`BACKSPACE`，`SP`は`SPACE`の別名です．`terminal_read`はANSI生データではなく，現在の**80×24文字画面**を返します．`terminal_close`はこのセッションで起動した子だけを終了し，PTYを閉じます．
+`mcpd &`で起動した場合，4つのPTYツールが利用できます．`terminal_open`は対話型プログラムを起動し，`terminal_send`は`text`または`key`を入力キューへ送信して受理バイト数を返します．**画面は返しません**．LLMが必要に応じて`terminal_read`を呼び，80×24の現在画面を確認します．`terminal_send`は200 msの固定待機を行いません．MCP専用PTYは画面モードで動き，出力リングを使わず仮想画面を直接更新します．`ESCAPE`は`ESC`，`BS`は`BACKSPACE`，`SP`は`SPACE`の別名です．`terminal_close`はセッションを終了します．
 
 ```text
 terminal_open({"command":"fd"})
@@ -191,7 +191,7 @@ terminal_close({})
 
 通常コマンドには引き続き`execute_command`を優先してください．PTYは1セッションだけで，6タスク上限を共有します．コマンド起動は1つのプログラム名と任意の引数1つに限定しています．管理対象の`mcpd`をPTYから起動することは禁止しています．MCP経由で実行した子孫から`mcpd`またはその起動元のシェルを`kill()`する操作はカーネル側で拒否します．これは誤操作対策であり，完全なサンドボックスではありません．認証やTLSも未実装です．
 
-MCPツールの`terminal_send`と`terminal_read`の説明には，SGR 4/24がカーソル位置，SGR 7/0が反転表示を表すことを明記しています．
+MCPツールの`terminal_read`の説明には，SGR 4/24がカーソル位置，SGR 7/0が反転表示を表すことを明記しています．
 
 `.screen`はPicoNIX独自の端末表示補助です．反転セルはSGR 7/0，端末カーソルの1文字はSGR 4/24で表します（下線属性はカーソル位置を示すだけで，文字セルへ保存しません．`ESC[?25l`で非表示中はマーカーを出さず，`ESC[?25h`で復帰します）．完全なANSI互換性や日本語の全角文字幅などは保証しません．詳しくは[PTYデバイス](../devices/PTY.md)を参照してください．
 

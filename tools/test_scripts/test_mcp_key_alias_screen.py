@@ -1,23 +1,18 @@
 #!/usr/bin/env python3
-"""Source-level regression for PTY key aliases and send-screen response."""
+"""MCP screen-only send/read separation and PTY key aliases."""
 from pathlib import Path
-root = Path(__file__).resolve().parents[2]
-k = (root / "kernel/kernel.c").read_text()
-m = (root / "userland/apps/mcpd.c").read_text()
-assert '!strcmp(key,"ESCAPE")' in k
-assert '!strcmp(key,"BS")' in k
-assert '!strcmp(key,"SPACE") || !strcmp(key,"SP")' in k
+root=Path(__file__).resolve().parents[2]
+k=(root/'kernel/kernel.c').read_text()
+m=(root/'userland/apps/mcpd.c').read_text()
+for alias in ('ESCAPE','BS','SPACE','SP'):
+    assert f'"{alias}"' in k
 assert 'ESCAPE TAB SPACE SP BACKSPACE BS DELETE' in m
-send = m.split('if(term_master<0) {rpc_error(id,-32030,"No PTY session")',1)[1]
-send = send.split('if (json_equals(v,v_end,"get_manual"))',1)[0]
-assert 'for(int i=0;i<20;i++)' in send
-assert 'terminal_drain(32,0);' in send
-assert 'msleep(10);' in send
-assert send.index('terminal_drain(32,0);') < send.index('return terminal_screen_stream(fd,id);')
-assert 'if(wait_empty && i<4) msleep(10);else break;' in m
-assert 'term_screen_seen=0;' in send
-assert 'return terminal_screen_stream(fd,id);' in send
-assert 'Unknown key.' in send
-assert 'After sending, waits 200ms then returns ANSI screen (SGR 4/24 marks cursor; 7/0 inverse)' in m
-assert 'Read ANSI screen: SGR 4/24 marks cursor; SGR 7/0 marks inverse' in m
-print('PASS: PTY key aliases and terminal_send screen return')
+assert 'ioctl(master,OS_PTY_SCREEN_ONLY,1)' in m
+assert 'terminal_drain(' not in m
+assert 'After sending, waits 200ms' not in m
+send=m.split('if(term_master<0) {rpc_error(id,-32030,"No PTY session")',1)[1].split('if (json_equals(v,v_end,"get_manual"))',1)[0]
+assert 'accepted: %d bytes' in send
+assert 'return terminal_screen_stream(fd,id)' not in send
+assert 'rpc_result(id,reply);' in send
+assert 'if(!strcmp(expected,"terminal_read")) return terminal_screen_stream(fd,id)' in m
+print('PASS: MCP input and screen retrieval separated; screen-only mode enabled')

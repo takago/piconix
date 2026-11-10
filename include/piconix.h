@@ -24,6 +24,8 @@
 /* Ctrl+Cを前景タスクの中断として扱うか（0で文字として渡す）． */
 #define OS_TTY_GET_INTR 0x209
 #define OS_TTY_SET_INTR 0x20a
+/* MasterでSlave起動前に設定．出力リングを使わず仮想画面へ描画する． */
+#define OS_PTY_SCREEN_ONLY 0x20b
 #define OS_O_CREAT 8
 #define OS_O_TRUNC 16
 #define OS_O_APPEND 32

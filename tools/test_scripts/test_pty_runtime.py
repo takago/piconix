@@ -61,7 +61,7 @@ static unsigned tty_last_cr[4];
 static int tty_mode_owner[4], foreground_pid[4], tty_shell_pid[4], tty_claim_pid[4], tty_restore_pid[4];
 static int foreground_group[4][3];
 typedef struct { uint8_t data[PTY_OUT_BYTES]; } unused_t;
-typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave; } pty_t;
+typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave, screen_only; } pty_t;
 static pty_t pty;
 static struct {
     char cells[VT_ROWS][VT_COLS];
@@ -191,12 +191,22 @@ int main(void) {
     for(const char *p="\033[999;999H\033[6n";*p;p++)pty_screen_byte((uint8_t)*p);
     assert(tty_dequeue(3,tmp,32)==8);
     assert(!memcmp(tmp,"\033[24;80R",8));
+    /* Screen-only mode bypasses the raw output ring and never blocks redraw. */
+    pty.used=0;pty.head=0;pty.screen_only=1;
+    tty_echo[3]=1;
+    assert(pty_slave_write(&task,(const uint8_t *)"MCP\n",4)==4);
+    assert(pty.used==0);
+    assert(pty_output_put('x') && pty.used==0);
+    assert(pty_master_rw(tmp,1,0)==OS_EAGAIN);
+    assert(pty_master_rw("L",1,1)==1);
+    assert(pty.used==0);
+    assert(!pty_screen.cursor_hidden);
     /* Master close disconnects slave; resources reset only after last FD. */
     pty_ref(DEV_PTY_MASTER,-1);
     assert(pty.slave_refs==1);
     assert(pty_slave_write(&task,(const uint8_t *)"!",1)==OS_EIO);
     pty_ref(DEV_PTY_SLAVE,-1);
-    assert(!pty.used && !pty.master_refs && !pty.slave_refs);
+    assert(!pty.used && !pty.master_refs && !pty.slave_refs && !pty.screen_only);
     assert(tty_canonical[3] && tty_echo[3] && !tty_buf[3].used);
     /* No residual state between sessions. */
     pty_ref(DEV_PTY_MASTER,1);

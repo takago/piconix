@@ -207,7 +207,7 @@ static pipe_t pipes[PIPE_COUNT];
 #define PTY_OUT_BYTES 1024u
 #define WAIT_PTY_READ (-7)
 #define WAIT_PTY_SLAVE_WRITE (-8)
-typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave; } pty_t;
+typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave, screen_only; } pty_t;
 /* 80x24の仮想画面．TTY/PTYのバイト転送とは独立した表示状態である． */
 #define VT_COLS 80u
 #define VT_ROWS 24u
@@ -721,11 +721,11 @@ NO_TRACE static int select_ready(task_t *t,int nfds,piconix_select_request_t *r)
         } else if(dev==DEV_CONSOLE || dev==DEV_UART1 || dev==DEV_WIFI_TTY || dev==DEV_PTY_SLAVE) {
             int tty=dev==DEV_CONSOLE?0:dev==DEV_UART1?1:dev==DEV_PTY_SLAVE?PTY_TTY:2;
             rd=tty_rx_ready(tty) || (dev==DEV_PTY_SLAVE && !pty.master_refs);
-            wr=dev!=DEV_PTY_SLAVE || (pty.master_refs && PTY_OUT_BYTES-pty.used>=2u);
+            wr=dev!=DEV_PTY_SLAVE || (pty.master_refs && (pty.screen_only || PTY_OUT_BYTES-pty.used>=2u));
         } else if(dev==DEV_PTY_MASTER) {
             rd=pty.used>0 || (pty.ever_slave && !pty.slave_refs);
             wr=pty.slave_refs>0 && tty_buf[PTY_TTY].used<TTY_LINES &&
-               (!tty_echo[PTY_TTY] || PTY_OUT_BYTES-pty.used>=8u);
+               (!tty_echo[PTY_TTY] || pty.screen_only || PTY_OUT_BYTES-pty.used>=8u);
         } else if(pipe_end(dev)) {
             pipe_t *pipe=pipe_for_dev(dev);
             if(pipe_is_writer(dev))
@@ -995,9 +995,11 @@ NO_TRACE static int pty_key_write(const void *p,size_t n) {
 
 /* Masterが読み取るSlave出力を，1024バイトのリングへ欠落させずに追加する． */
 NO_TRACE static int pty_output_put(uint8_t c) {
-    if(pty.used==PTY_OUT_BYTES) return 0;
-    pty.out[(pty.head+pty.used)&(PTY_OUT_BYTES-1u)]=c;
-    pty.used++;
+    if(!pty.screen_only) {
+        if(pty.used==PTY_OUT_BYTES) return 0;
+        pty.out[(pty.head+pty.used)&(PTY_OUT_BYTES-1u)]=c;
+        pty.used++;
+    }
     pty_screen_byte(c);
     return 1;
 }
@@ -1133,7 +1135,7 @@ NO_TRACE static void tty_put_dev(int dev,uint8_t c) {
 /* TTY固有の出力先へ1文字を書き込む．必要ならLFの前にCRを付け，両バイトを受け付けたときだけ成功を返す． */
 NO_TRACE static int tty_tx_char(int dev, uint8_t c, int insert_cr) {
     if(dev==PTY_TTY) {
-        if(!pty.master_refs || PTY_OUT_BYTES-pty.used < (unsigned)(1+insert_cr)) return 0;
+        if(!pty.master_refs || (!pty.screen_only && PTY_OUT_BYTES-pty.used < (unsigned)(1+insert_cr))) return 0;
         if(insert_cr) (void)pty_output_put('\r');
         return pty_output_put(c);
     }
@@ -1251,7 +1253,7 @@ NO_TRACE static int pty_master_rw(void *p, size_t n, int writing) {
         if(t->used==TTY_LINES ||
            (tty_canonical[PTY_TTY] && t->len>=sizeof(t->line)-2 &&
             c!=3 && c!=4 && c!=8 && c!=127 && c!='\r' && c!='\n') ||
-           (tty_echo[PTY_TTY] && PTY_OUT_BYTES-pty.used<8u))
+           (tty_echo[PTY_TTY] && !pty.screen_only && PTY_OUT_BYTES-pty.used<8u))
             break;
         tty_input_char(PTY_TTY,c);
         done++;
@@ -2891,6 +2893,14 @@ static int device_ioctl(int fd,int cmd,int arg) {
     if(fd<0 || fd>=OS_FD_MAX || tasks[current].fd[fd]<0)
         return OS_EBADF;
     int dev=tasks[current].fd[fd];
+    /* MCP専用セッションではSlave出力を画面へ直接反映する．
+     * 通常PTYのMaster readとの互換性を守るため明示的に選択する． */
+    if(cmd==OS_PTY_SCREEN_ONLY) {
+        if(dev!=DEV_PTY_MASTER) return OS_EBADF;
+        if(arg!=1 || pty.slave_refs || pty.used) return OS_EBUSY;
+        pty.screen_only=1;
+        return 0;
+    }
     if(cmd>=OS_TTY_GET_CANON && cmd<=OS_TTY_SET_INTR)
         return device_ioctl_tty(dev,cmd,arg);
     if(dev==DEV_I2C1) {
