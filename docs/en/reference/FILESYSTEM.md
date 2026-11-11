@@ -39,7 +39,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 │           └── b           GP19 duty cycle
 ├── proc/                   System status
 │   ├── uptime, ticks, interrupts, context_switches
-│   ├── memory, devices, ramfiles, tasks, fb
+│   ├── cpu, memory, devices, ramfiles, tasks, fb
 │   ├── task/PID            Status of a running task
 │   ├── sym/
 │   │   ├── kernel          Kernel symbols
@@ -59,7 +59,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
     └── pwm.html            Pico W PWM controls
 ```
 
-`N`, `PID`, and `NAME` are placeholders, not literal filenames. `/bin` lists registered built-in programs. `/proc/task` enumerates **active PIDs**. Files under `/proc/sym/userland/NAME` can be opened directly by program name, but the current directory enumeration does not list children of `/proc/sym/userland`. `/dev/pwm/1` is available only when PWM is configured. The HTML files are part of the Pico W initial file set, not the plain Pico default. `/proc/net/memory` can also be read on plain Pico but reports only `MODE: N/A` and `IDLE_STACK` (no lwIP stack).
+`N`, `PID`, and `NAME` are placeholders, not literal filenames. `/bin` lists registered built-in programs. `/proc/task` enumerates **active PIDs**. Files under `/proc/sym/userland/NAME` can be opened directly by program name, but the current directory enumeration does not list children of `/proc/sym/userland`. `/dev/pwm/1` is available only when PWM is configured. The HTML files are part of the Pico W initial file set, not the plain Pico default. `/proc/cpu` provides up to thirty one-second samples of approximate CPU load in a newest-first fixed-width table; see [CPU accounting](CPU.md). `/proc/net/memory` can also be read on plain Pico but reports only `MODE: N/A` and `IDLE_STACK` (no lwIP stack).
 
 ## 2. Node types and access
 

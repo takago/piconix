@@ -5,16 +5,37 @@
 #include "piconix.h"
 #include "pico/stdlib.h"
 #include "hardware/sync.h"
+#include "pico/time.h"
 #include <stdint.h>
 #include <stddef.h>
 #include "net.h"
 
-/* ユーザタスクが動かない間も，通信とUSB端末を継続処理する．Pico WのlwIPはこの文脈で定期的にポーリングする． */
+/* Pico Wでは250 usごとのタイマー割込みでidleを起こす．
+ * ポーリングの間はWFIで休止し，無通信時の空回りを防ぐ．
+ * タイマー確保に失敗した場合は従来どおりbusy pollへ戻す． */
+#if PICONIX_WIFI
+static repeating_timer_t idle_network_timer;
+static int idle_network_timer_ready;
+/* IRQではネットワークに触れず，待機中のCore 0を起こすだけにする． */
+static bool idle_network_wakeup(repeating_timer_t *timer) {
+    (void)timer;
+    return true;
+}
+#endif
+
+/* ユーザタスクが動かない間のネットワーク・端末処理．割込み後も同じCoreで処理する． */
 static void idle_task(void) {
     for (;;) {
+        uint32_t start=time_us_32();
         net_poll();
+        uint32_t middle=time_us_32();
         os_console_poll();
-#if !PICONIX_WIFI
+        uint32_t end=time_us_32();
+        os_cpu_account_net(middle-start);
+        os_cpu_account_console(end-middle);
+#if PICONIX_WIFI
+        if(idle_network_timer_ready) __wfi();
+#else
         __wfi();
 #endif
     }
@@ -38,6 +59,7 @@ extern const unsigned char piconix_ps_image_start[], piconix_ps_image_end[];
 extern const unsigned char piconix_cat_image_start[], piconix_cat_image_end[];
 extern const unsigned char piconix_cp_image_start[], piconix_cp_image_end[];
 extern const unsigned char piconix_grep_image_start[], piconix_grep_image_end[];
+extern const unsigned char piconix_cut_image_start[], piconix_cut_image_end[];
 extern const unsigned char piconix_watch_image_start[], piconix_watch_image_end[];
 extern const unsigned char piconix_pwd_image_start[], piconix_pwd_image_end[];
 extern const unsigned char piconix_ls_image_start[], piconix_ls_image_end[];
@@ -105,6 +127,7 @@ int main(void) {
     register_image(9,"cat",piconix_cat_image_start,piconix_cat_image_end);
     register_image(48,"cp",piconix_cp_image_start,piconix_cp_image_end);
     register_image(38,"grep",piconix_grep_image_start,piconix_grep_image_end);
+    register_image(58,"cut",piconix_cut_image_start,piconix_cut_image_end);
     register_image(10,"watch",piconix_watch_image_start,piconix_watch_image_end);
     register_image(11,"pwd",piconix_pwd_image_start,piconix_pwd_image_end);
     register_image(12,"ls",piconix_ls_image_start,piconix_ls_image_end);
@@ -141,6 +164,11 @@ int main(void) {
     register_image(56,"pty_test",piconix_pty_test_image_start,piconix_pty_test_image_end);
     register_image(57,"reversi",piconix_reversi_image_start,piconix_reversi_image_end);
     net_init();
+#if PICONIX_WIFI
+    /* 250 usの期限で割込み起床．失敗時はネットワークのbusy pollを維持する． */
+    idle_network_timer_ready=add_repeating_timer_us(-250, idle_network_wakeup,
+                                                     NULL, &idle_network_timer);
+#endif
     os_init_idle(idle_task);
     if(os_start_program(2)<0)
         panic("PicoNIX: shell start failed");

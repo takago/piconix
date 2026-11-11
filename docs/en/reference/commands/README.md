@@ -1,6 +1,6 @@
 # Command reference
 
-This index covers **all 53 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
+This index covers **all 54 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
 
 Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” links for advanced tools. Some networking commands require Pico W.
 
@@ -21,6 +21,7 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 | [`rm`](../../../../userland/apps/rm.c) | Remove RAM file | `rm path` | — |
 | [`echo`](../../../../userland/apps/echo.c) | Print text | `echo [-n] [-e] [text...]— -n: no newline, -e: escapes` | — |
 | [`grep`](../../../../userland/apps/grep.c) | Filter lines by literal substring | `grep PATTERN [file]` | — |
+| [`cut`](../../../../userland/apps/cut.c) | Extract selected delimiter-separated fields | `cut [-d CHAR] -f LIST [FILE]` | [Details](CUT.md) |
 | [`hexdump`](../../../../userland/apps/hexdump.c) | Hex and ASCII dump | `hexdump [file [offset [count]]]` | — |
 | [`dd`](../../../../userland/apps/dd.c) | Copy byte streams or RAM data | `dd [if=FILE] [of=FILE] [bs=1..256] [count=N] [skip=N] [seek=N]` | [Details](DD.md) |
 | [`edit`](../../../../userland/apps/edit.c) | Text editor | `edit /tmp/FILE \| edit /etc/FILE` | [Details](EDIT.md) |

@@ -18,7 +18,7 @@ if hasattr(sys.stdin, "reconfigure"):
     sys.stdin.reconfigure(errors="backslashreplace")
 
 # Replace these placeholders with your own OpenAI-compatible server settings.
-LLM_URL = "http://###############:11434/v1"
+LLM_URL = "http://#############:11434/v1"
 LLM_MODEL = "huihui_ai/Qwen3.8-abliterated:latest"
 LLM_API_KEY = "fake"
 LLM_REASONING_EFFORT = "low"  # Ollama: none / low / medium / high

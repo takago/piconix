@@ -78,6 +78,9 @@ int os_tcp_status(int fd);
 void os_init(void);
 // SDKのUSB標準入出力をアイドル側でポーリングする．
 void os_console_poll(void);
+/* /proc/cpu向けのidle処理時間計測．main.cのidleタスクだけが呼び出す． */
+void os_cpu_account_net(uint32_t elapsed_us);
+void os_cpu_account_console(uint32_t elapsed_us);
 void os_init_idle(os_entry_t entry);
 /* 診断用にアイドル／CYW43スタックの使用高水位を概算する． */
 unsigned os_idle_stack_used_bytes(void);

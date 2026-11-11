@@ -21,6 +21,7 @@ int main(int argc, char **argv) {
         puts("  cat        Read file / standard input");
         puts("  cp         Copy a RAM file");
         puts("  grep       Filter lines by matching text");
+        puts("  cut        Select delimiter-separated columns");
         puts("  rm         Remove a /tmp file");
         puts("  echo       Print text");
         puts("  pwd        Print working directory");
@@ -87,6 +88,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"hexdump")) puts("hexdump: Hex and ASCII dump\nusage: hexdump [file [offset [count]]]");
     else if(!strcmp(argv[1],"trace")) puts("trace: Trace system calls and kernel events\nusage: trace on [-s|-a]|off|show [PID]|follow [PID]|run [-s|-a] CMD [args...]\n-s: syscalls only; -a: include all contexts\nTrace buffer overwrites old records when full");
     else if(!strcmp(argv[1],"ps")) puts("ps: Show processes\nusage: ps");
+    else if(!strcmp(argv[1],"cut")) puts("cut: Select text fields (not a quoted CSV parser)\nusage: cut [-d CHAR] -f LIST [FILE]\nLIST: 1-based fields 1..64, e.g. 1,4 or 2-5\nNo delimiter: pass line unchanged\nexample: cut -d, -f1,4 /tmp/data.csv");
     else if(!strcmp(argv[1],"grep")) puts("grep: Filter matching lines from a file or standard input\nusage: grep PATTERN [file]\nLiteral substring; lines over 128 bytes are skipped");
     else if(!strcmp(argv[1],"ping")) puts("ping: ICMP Echo tests (Pico W)\nusage: ping [-c COUNT] IPv4\nDefault: 4 probes; numerical IPv4 only\nexample: ping -c 2 192.168.4.2");
     else if(!strcmp(argv[1],"tcpdump")) puts("tcpdump: Observe IPv4 packets (Pico W)\nusage: tcpdump [-x] [-c COUNT]\n-x: show DATA length and up to 16 payload bytes in HEX and ASCII on an indented second line\n-c: stop after COUNT packets; Ctrl+C to stop\nexample: tcpdump -c 10");

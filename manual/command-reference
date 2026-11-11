@@ -9,6 +9,8 @@ READ-ONLY, USUALLY FINITE
   find [PATH] [-name P]  entry lookup
   cat [-n] [FILE]        finite files only
   grep PATTERN [FILE]    literal, case-sensitive, no -i
+  cut [-d C] -f LIST [F]  fields 1..64; no quoted CSV
+  cat /proc/cpu          30s CPU history (fixed-width)
   hexdump [F [O [N]]]   bounded when count supplied
   ip [addr]              IPv4 interface snapshot
   net [-a|-r]            Wi-Fi status, clients, ARP

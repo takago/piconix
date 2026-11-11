@@ -52,3 +52,5 @@
 ---
 
 **Related links:** [Documentation](../README.md) | [日本語](../../ja/reference/README.md)
+
+For CPU time measurements, see [CPU accounting (`/proc/cpu`)](CPU.md).

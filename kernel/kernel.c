@@ -31,6 +31,27 @@
 /* 関数トレース対象以外にはコンパイラの計測フックを挿入しない． */
 #define NO_TRACE __attribute__((no_instrument_function))
 
+/* /proc/cpu用の概算CPU時間．通常のタスク実行はSysTickで1ms単位に標本化し，
+ * idle内のnetwork/console呼出しはマイクロ秒単位で積算する．
+ * 累積値はidleスレッドだけが更新し，SysTickは読み取るだけなので競合時も加算を失わない． */
+static volatile uint32_t cpu_net_total_us, cpu_console_total_us;
+#define CPU_HISTORY 30
+/* SysTickが1秒ごとに書き込む履歴．時間はマイクロ秒で保持する． */
+typedef struct { uint32_t time_ms, task_us, net_us, console_us; } cpu_record_t;
+static volatile cpu_record_t cpu_history[CPU_HISTORY];
+static volatile uint32_t cpu_history_serial;
+static uint32_t cpu_last_net_us, cpu_last_console_us;
+static uint32_t cpu_busy_ticks;
+
+/* Idleタスクで測定したネットワーク処理時間を累積する． */
+NO_TRACE void os_cpu_account_net(uint32_t elapsed_us) {
+    cpu_net_total_us += elapsed_us;
+}
+/* Idleタスクで測定したコンソール処理時間を累積する． */
+NO_TRACE void os_cpu_account_console(uint32_t elapsed_us) {
+    cpu_console_total_us += elapsed_us;
+}
+
 /* Flash固有IDの下位32ビットを組み立てる．APのSSIDなどに使う識別値であり，暗号用途ではない． */
 NO_TRACE uint32_t piconix_flash_id(void) {
     pico_unique_board_id_t id;
@@ -53,6 +74,7 @@ enum {
     DEV_PROC_INTERRUPTS = 33,
     DEV_PROC_SWITCHES = 34,
     DEV_PROC_MEMORY = 35,
+    DEV_PROC_CPU = 147,
     DEV_PROC_RAMFILES = 136,
     DEV_PROC_WIFI = 137,
     DEV_PROC_AP = 141,
@@ -97,7 +119,8 @@ static const struct { const char *path; int id; } vfs_registry[] = {
     {"/proc/uptime",DEV_PROC_UPTIME}, {"/proc/ticks",DEV_PROC_TICKS},
     {"/proc/interrupts",DEV_PROC_INTERRUPTS},
     {"/proc/context_switches",DEV_PROC_SWITCHES},
-    {"/proc/memory",DEV_PROC_MEMORY}, {"/proc/devices",DEV_PROC_DEVICES},
+    {"/proc/memory",DEV_PROC_MEMORY}, {"/proc/cpu",DEV_PROC_CPU},
+    {"/proc/devices",DEV_PROC_DEVICES},
     {"/proc/ramfiles",DEV_PROC_RAMFILES},
     {"/proc/net/wifi",DEV_PROC_WIFI},
     {"/proc/net/ap",DEV_PROC_AP}, {"/proc/net/arp",DEV_PROC_ARP},
@@ -1416,6 +1439,10 @@ NO_TRACE void os_init(void) {
     memset((void *)(uintptr_t)0x20032000u,0,2048u); /* 起動時に共有RAMを初期化する． */
     memset(tasks, 0, sizeof(tasks));
     current=-1; ticks=0; uart1_irq_count=0;
+    cpu_net_total_us=cpu_console_total_us=0;
+    memset((void *)cpu_history,0,sizeof cpu_history);
+    cpu_history_serial=0;
+    cpu_last_net_us=cpu_last_console_us=cpu_busy_ticks=0;
     gpio_driver_init();
     fb_init();
     adc_driver_init();
@@ -1597,6 +1624,19 @@ NO_TRACE int os_spawn(os_entry_t entry) { return os_spawn_named(entry, "task"); 
 NO_TRACE void isr_systick(void) {
     fb_tick();
     ticks += 1u;
+    if(current>=0 && current!=IDLE_SLOT) cpu_busy_ticks++;
+    if(ticks%1000u==0u) {
+        uint32_t serial=cpu_history_serial;
+        volatile cpu_record_t *rec=&cpu_history[serial%CPU_HISTORY];
+        rec->time_ms=ticks;
+        rec->task_us=cpu_busy_ticks*1000u;
+        rec->net_us=cpu_net_total_us-cpu_last_net_us;
+        rec->console_us=cpu_console_total_us-cpu_last_console_us;
+        cpu_last_net_us=cpu_net_total_us;
+        cpu_last_console_us=cpu_console_total_us;
+        cpu_busy_ticks=0;
+        cpu_history_serial=serial+1;
+    }
     if(++tick_sample == 1000u) {
         tick_sample=0;
         if(current >= 0)
@@ -1783,7 +1823,7 @@ static int free_fd(void) {
 /* デバイスIDが/procの仮想ファイルを表すか判定する． */
 static int proc_device(int dev) {
     return (dev>=DEV_PROC_UPTIME && dev<=DEV_PROC_MEMORY) ||
-           dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS || dev==DEV_PROC_FB ||
+           dev==DEV_PROC_CPU || dev==DEV_PROC_DEVICES || dev==DEV_PROC_TASKS || dev==DEV_PROC_FB ||
            dev==DEV_PROC_RAMFILES || dev==DEV_PROC_WIFI ||
            dev==DEV_PROC_AP || dev==DEV_PROC_ARP ||
            dev==DEV_PROC_NET_MEMORY ||
@@ -1995,7 +2035,7 @@ NO_TRACE static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
         if(pin_pwm(19)) { EMIT("b",0); } break;
     case VDIR_PROC:
         EMIT("uptime",0); EMIT("ticks",0); EMIT("interrupts",0);
-        EMIT("context_switches",0); EMIT("memory",0);
+        EMIT("context_switches",0); EMIT("memory",0); EMIT("cpu",0);
         EMIT("ramfiles",0); EMIT("devices",0); EMIT("tasks",0);
         EMIT("fb",0); EMIT("task",1); EMIT("sym",1); EMIT("net",1); break;
     case VDIR_NET:
@@ -2148,7 +2188,8 @@ static int vfs_open(const char *p, int flags) {
            dev==DEV_TRACE ? trace_serial-trace_count :
            dev==DEV_NET_PACKET ? net_packet_serial() : 0,flags,
            (dev>=DEV_PROC_TASK_BASE && dev<DEV_PROC_TASK_BASE+OS_MAX_TASKS)
-           ? tasks[dev-DEV_PROC_TASK_BASE].pid : 0);
+           ? tasks[dev-DEV_PROC_TASK_BASE].pid :
+           dev==DEV_PROC_CPU ? (int)cpu_history_serial : 0);
     if(dev==DEV_NET_PACKET)
         net_packet_reader(1);
     if(dev==DEV_NET_ICMP)
@@ -2368,10 +2409,73 @@ NO_TRACE static int proc_ramfiles_read(int fd, void *p, size_t n) {
     return (int)done;
 }
 
+/* CPU履歴の最新30秒を表形式で返す．open時のserialを保持する．
+ * 読み取りが30秒以上に及ぶと，上書きされた古い記録は省略する． */
+static int proc_cpu_read(int fd, void *out, size_t n) {
+    static const char heading[] =
+        "       |                CPU Usage (%)                 |                  CPU Time (ms)                  \n"
+        "Time   |    Idle    Busy  ( Console    Task    Net )  |      Idle     Busy  ( Console     Task     Net )\n"
+        "-------+----------------------------------------------+-------------------------------------------------\n";
+    uint32_t serial=(uint32_t)tasks[current].fd_task_pid[fd];
+    size_t pos=tasks[current].fd_pos[fd],offset=0,done=0;
+    char row[192];
+    for(unsigned line=0;line<=CPU_HISTORY;line++) {
+        const char *src=heading;
+        size_t size=sizeof heading-1;
+        if(line) {
+            if(line>serial) break;
+            uint32_t number=serial-line;
+            uint32_t irq=save_and_disable_interrupts();
+            uint32_t latest=cpu_history_serial;
+            cpu_record_t sample={0};
+            if(number<latest && latest-number<=CPU_HISTORY) {
+                const volatile cpu_record_t *rec=&cpu_history[number%CPU_HISTORY];
+                sample.time_ms=rec->time_ms;
+                sample.task_us=rec->task_us;
+                sample.net_us=rec->net_us;
+                sample.console_us=rec->console_us;
+            }
+            restore_interrupts(irq);
+            if(!sample.time_ms) continue;
+            uint32_t net=sample.net_us>1000000u?1000000u:sample.net_us;
+            uint32_t con=sample.console_us>1000000u-net?1000000u-net:sample.console_us;
+            uint32_t task=sample.task_us>1000000u-net-con?1000000u-net-con:sample.task_us;
+            uint32_t busy=net+con+task;
+            /* Idle, Busy, (Console, Task, Net)の順．整数で0.1%と0.1msへ丸める． */
+            uint32_t values[]={1000000u-busy,busy,con,task,net};
+            unsigned pct[5],ms[5];
+            for(unsigned j=0;j<5;j++) {
+                pct[j]=(values[j]+500u)/1000u;
+                ms[j]=(values[j]+50u)/100u;
+            }
+            int len=snprintf(row,sizeof row,
+                "%5lus | %5u.%u %5u.%u  (%6u.%u %5u.%u %5u.%u)  | %7u.%u %6u.%u  (%6u.%u %6u.%u %6u.%u)\n",
+                (unsigned long)(sample.time_ms/1000u),
+                pct[0]/10,pct[0]%10,pct[1]/10,pct[1]%10,
+                pct[2]/10,pct[2]%10,pct[3]/10,pct[3]%10,pct[4]/10,pct[4]%10,
+                ms[0]/10,ms[0]%10,ms[1]/10,ms[1]%10,
+                ms[2]/10,ms[2]%10,ms[3]/10,ms[3]%10,ms[4]/10,ms[4]%10);
+            if(len<0 || (size_t)len>=sizeof row) return OS_EINVAL;
+            src=row;size=(size_t)len;
+        }
+        if(pos>=offset+size) {offset+=size;continue;}
+        size_t begin=pos>offset?pos-offset:0;
+        size_t take=size-begin;
+        if(take>n-done) take=n-done;
+        memcpy((char*)out+done,src+begin,take);
+        done+=take;pos+=take;offset+=size;
+        if(done==n) break;
+    }
+    tasks[current].fd_pos[fd]+=(uint32_t)done;
+    return (int)done;
+}
+
 /* /procの読み取りを担当する．小さな結果バッファを使い，FD位置からの部分読出しに対応する．書込みは拒否する． */
 static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
     if(writing)
         return OS_EBADF;
+    if(dev==DEV_PROC_CPU)
+        return proc_cpu_read(fd,p,n);
     if(dev==DEV_PROC_TASKS)
         return proc_tasks_read(fd,p,n);
     if(dev==DEV_PROC_RAMFILES)

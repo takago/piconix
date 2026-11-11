@@ -107,7 +107,7 @@ USB CDCコンソールとUART1の端末を扱えます．`getty /dev/ttyS1 sh &`
 | `/dev/gpio/N`，`/dev/adc/*`，`/dev/pwm/*` | GPIO，ADC，PWM |
 | `/dev/mem` | 許可範囲内のメモリ読み書き |
 | `/dev/trace` | バイナリトレースの読み取り |
-| `/proc/tasks`，`/proc/uptime`，`/proc/interrupts`，`/proc/memory` | カーネル状態の参照 |
+| `/proc/tasks`，`/proc/uptime`，`/proc/interrupts`，`/proc/memory`，`/proc/cpu` | カーネル状態の参照 |
 
 デバイス名は[デバイス仕様](devices/README.md)，ピンの割当は[ピン割当](hardware/PINS.md)，接続例は[配線](hardware/WIRING.md)にまとめています．FDはタスク単位で管理され，ファイル・デバイスを同じ `read()` / `write()` で操作できます．
 

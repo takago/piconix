@@ -107,7 +107,7 @@ Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) 
 | `/dev/gpio/N`, `/dev/adc/*`, `/dev/pwm/*` | GPIO, ADC and PWM |
 | `/dev/mem` | Memory read/write in permitted ranges |
 | `/dev/trace` | Binary tracing records |
-| `/proc/tasks`, `/proc/uptime`, `/proc/interrupts`, `/proc/memory` | Kernel status |
+| `/proc/tasks`, `/proc/uptime`, `/proc/interrupts`, `/proc/memory`, `/proc/cpu` | Kernel status |
 
 See [devices](devices/README.md) for device paths, and [pin assignments](hardware/PINS.md) for the corresponding GPIO roles. Each task has its own descriptors, and the same `read()` and `write()` APIs operate on files and devices.
 

@@ -1,5 +1,29 @@
 # PicoNIX Development Diary
 
+## 2026-11-11 — Show 30 seconds of CPU load in a fixed-width table
+
+Extended `/proc/cpu` history from ten to thirty records and replaced CSV output with a fixed-width table: `Time | Idle Busy (Console Task Net) | Idle Busy (Console Task Net)`, grouping percentages and milliseconds separately. Samples remain at one-second intervals with newest-first ordering. Documentation explains that `Console` and `Net` measure elapsed time in `os_console_poll()` and `net_poll()`, not complete I/O wait time or isolated interrupt load. The user's idle measurements were approximately 6%, down from 95% before the WFI change, but these are estimates rather than precise CPU or power measurements.
+
+## 2026-11-11 — Reduce Pico W idle polling and expand CPU accounting CSV
+
+Pico W's busy-spinning idle loop was responsible for the approximately 95% accounted CPU activity. A 250 µs repeating timer interrupt now wakes idle from `WFI`. Networking remains on Core 0 in idle context; failing to allocate a timer falls back to busy polling. The measurement retains its 1 ms task sampling and incomplete interrupt attribution, so hardware measurements are necessary to establish actual load reduction and networking responsiveness.
+
+Expanded `/proc/cpu` to eleven CSV fields: `time_ms, busy%, idle%, network%, console%, task%, busy, idle, network, console, task`. The final five columns restore microsecond values. Field separators use a comma followed by a space. Updated the bilingual references and host reader tests.
+
+## 2026-11-11 — CPU history CSV and cut utility
+
+Converted `/proc/cpu` into a newest-first CSV history of ten one-second samples with integer-calculated percentages to one decimal place. Documented sampling limitations. Added `cut` for delimiter-separated field extraction from stdin or files, with supporting bilingual references, function indexes, and regression tests.
+
+### 2026-11-11: Add `cut` field extraction command
+
+Added a small standalone PIC `cut` command with `-d` for a delimiter and `-f` for fields and ranges, supporting pipelines, standard input and files. The implementation supports up to 64 fields and 512-byte lines, without quoted CSV parsing. Updated the command index, built-in help, and bilingual reference documentation. At this intermediate stage `/proc/cpu` still used space-delimited output; it was converted to CSV history later on the same day.
+
+
+### 2026-11-11 — Expose approximate CPU accounting via `/proc/cpu`
+
+Added a one-second `/proc/cpu` snapshot with SysTick-based non-idle task time and microsecond timing around idle `net_poll()` and `os_console_poll()` calls. Existing `cat` and `watch` commands display the statistics; no additional application is needed. Interrupt time is not independently accounted for, and the interface is available on Pico and Pico W.
+
+
 ### 2026-11-11 — Use `select()` for `mcpd` I/O waits
 
 Replaced periodic `msleep()` polling with `select()` readiness waits for TCP 8080 acceptance, HTTP request receive and response send, and `execute_command` output pipes. HTTP connections remain sequential. The persistent PTY and six MCP tools are unchanged. Host-side tests and ARM compilation were performed; hardware execution remains unverified.

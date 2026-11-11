@@ -52,3 +52,5 @@
 ---
 
 **関連リンク：** [文書案内](../README.md) ｜ [English](../../en/reference/README.md)
+
+CPU使用時間の計測については[CPU負荷（`/proc/cpu`）](CPU.md)を参照してください．

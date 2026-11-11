@@ -27,6 +27,7 @@ REDIRECTION AND PIPES
   echo hello > /tmp/message
   cat /tmp/message
   echo hello | grep he
+  cut -d, -f1,4 /tmp/data.csv
   echo more >> /tmp/message
 Redirection opens a real file; many /dev nodes provide an infinite
 stream. Do NOT use unbounded cat on /dev/gpio/N or /dev/mem.

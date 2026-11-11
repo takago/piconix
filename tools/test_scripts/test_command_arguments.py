@@ -17,7 +17,7 @@ for name in ('python', 'hello', 'omikuji'):
     assert 'if(argc>2)' in (apps / f'{name}.c').read_text(), name
 assert 'value<1 || value>30' in (apps/'omikuji.c').read_text()
 assert 'scanf("%d",&seconds)' in (apps/'omikuji.c').read_text()
-for name in ('cat','ls','grep','dd','hexdump','tree','find','ping','tcpdump','nc',
+for name in ('cat','ls','grep','cut','dd','hexdump','tree','find','ping','tcpdump','nc',
              'watch','trace','edit','vi','fd','pwmctl','i2cctl','stty','kill','lsof',
              'asm','bh1750','fbctl','net','pong','mem','tcp_echod','udp_echod'):
     s=(apps / f'{name}.c').read_text()

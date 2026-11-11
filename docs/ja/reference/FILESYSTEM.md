@@ -39,7 +39,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 │           └── b           GP19のDuty比
 ├── proc/                   システム状態
 │   ├── uptime, ticks, interrupts, context_switches
-│   ├── memory, devices, ramfiles, tasks, fb
+│   ├── cpu, memory, devices, ramfiles, tasks, fb
 │   ├── task/PID            実行中タスクごとの状態
 │   ├── sym/
 │   │   ├── kernel          カーネルシンボル
@@ -59,7 +59,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
     └── pwm.html            Pico WのPWM画面
 ```
 
-`N`，`PID`，`NAME`はプレースホルダーであり，その文字列のファイルが存在するわけではありません．`/bin`は登録済みの組込みプログラムを列挙します．`/proc/task`には**稼働中のPID**が列挙されます．`/proc/sym/userland`はプログラム名から直接ファイルを開けますが，現在のディレクトリ列挙処理では子要素を一覧表示しません．`/dev/pwm/1`はPWM使用時のみ有効です．`/etc`のHTMLファイルはPico Wの初期構成例であり，通常のPicoには標準では配置されません．`/proc/net/memory`は通常のPicoでも読めますが，lwIPは無効で`MODE: N/A`と`IDLE_STACK`のみを返します．
+`N`，`PID`，`NAME`はプレースホルダーであり，その文字列のファイルが存在するわけではありません．`/bin`は登録済みの組込みプログラムを列挙します．`/proc/task`には**稼働中のPID**が列挙されます．`/proc/sym/userland`はプログラム名から直接ファイルを開けますが，現在のディレクトリ列挙処理では子要素を一覧表示しません．`/dev/pwm/1`はPWM使用時のみ有効です．`/etc`のHTMLファイルはPico Wの初期構成例であり，通常のPicoには標準では配置されません．`/proc/cpu`は直近30秒間のCPU負荷の概算を固定幅の表形式で新しい順に示します．詳細は[CPU負荷](CPU.md)を参照してください．`/proc/net/memory`は通常のPicoでも読めますが，lwIPは無効で`MODE: N/A`と`IDLE_STACK`のみを返します．
 
 ## 2．ノードの種類とアクセス
 

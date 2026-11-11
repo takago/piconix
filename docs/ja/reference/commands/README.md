@@ -1,6 +1,6 @@
 # コマンドリファレンス
 
-この一覧は，`CMakeLists.txt`で標準組込み対象として登録されている**全53個のアプリケーション**と，シェル組込みコマンドを対象とします．一般的なUNIXのコマンドと同名でも，PicoNIXの引数や機能は限定されています．
+この一覧は，`CMakeLists.txt`で標準組込み対象として登録されている**全54個のアプリケーション**と，シェル組込みコマンドを対象とします．一般的なUNIXのコマンドと同名でも，PicoNIXの引数や機能は限定されています．
 
 構文は要約です．`help NAME`でファームウェア内の簡易ヘルプを確認できます．詳しい操作を必要とするコマンドは「詳細」から専用文書を参照してください．ネットワーク機能の一部はPico W専用です．
 
@@ -21,6 +21,7 @@
 | [`rm`](../../../../userland/apps/rm.c) | RAMファイルを削除 | `rm path` | — |
 | [`echo`](../../../../userland/apps/echo.c) | 文字列の出力 | `echo [-n] [-e] [text...]（-n: 改行なし，-e: エスケープ）` | — |
 | [`grep`](../../../../userland/apps/grep.c) | 部分文字列を含む行を抽出 | `grep PATTERN [file]` | — |
+| [`cut`](../../../../userland/apps/cut.c) | 区切り文字で指定列を抽出 | `cut [-d CHAR] -f LIST [FILE]` | [解説](CUT.md) |
 | [`hexdump`](../../../../userland/apps/hexdump.c) | 16進数・ASCII表示 | `hexdump [file [offset [count]]]` | — |
 | [`dd`](../../../../userland/apps/dd.c) | バイト列・RAMデータ転送 | `dd [if=FILE] [of=FILE] [bs=1..256] [count=N] [skip=N] [seek=N]` | [解説](DD.md) |
 | [`edit`](../../../../userland/apps/edit.c) | 行編集型テキストエディタ | `edit /tmp/FILE \| edit /etc/FILE` | [解説](EDIT.md) |
