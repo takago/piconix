@@ -1,0 +1,27 @@
+ASSEMBLY EXAMPLE - DIRECT SVC AND PC-RELATIVE DATA
+
+Source adapted from userland/examples/asm/02-hello.s.
+Write /tmp/ah.s via write_file:
+
+  movs r0, #9
+  movs r1, #1
+  adr r2, msg
+  movs r3, #6
+  svc #0
+  movs r0, #3
+  movs r1, #0
+  svc #0
+  .align 2
+  msg:
+  .ascii "Hello\n"
+
+Run separately:
+  as /tmp/ah.s
+  /tmp/a.out
+Expected stdout: Hello and newline.
+
+ABI: r0=9 write, r1=stdout fd, r2=buffer, r3=length.
+Exit syscall r0=3, status in r1. These numbers are confirmed in
+userland/examples/asm; for other numbers refer to the syscall header.
+ADR needs forward aligned label within range (see /man/languages/asm).
+Never hard-code relocated RAM pointers in a PIC program.

@@ -1,20 +1,12 @@
-# `mcpd` source reading and extension lab
+# `mcpd` implementation and extension
 
-This source-level tutorial is separated from the [MCP usage guide](../../../reference/commands/MCP.md). It uses the Pico W user-space MCP server as an example of UNIX-style networking.
+This reference describes the user-space MCP server implementation, its UNIX-like APIs, and extension procedures. See [MCP usage](../../../reference/commands/MCP.md) for operations.
 
-## 1. `mcpd` implementation and extension
+## `mcpd` architecture and extension
 
-This lab walks through `userland/apps/mcpd.c`, linking TCP, HTTP, JSON-RPC, MCP and file operations using the existing OS APIs.
+`userland/apps/mcpd.c` combines TCP, HTTP, JSON-RPC, MCP, and file operations using existing OS APIs.
 
-### Goals and architecture
-
-By the end of this lab, you should understand:
-
-1. Why `socket()`, `bind()`, `listen()`, and `accept()` are used by a TCP server.
-2. How to extract HTTP headers and a message body from a TCP byte stream.
-3. How JSON-RPC uses the `method` and `id` fields.
-4. How `tools/list` and `tools/call` expose ordinary device-file reads.
-5. What PIC, a 24 KiB task slot, and a reserved 4 KiB stack mean in PicoNIX.
+### Architecture
 
 ```text
 Linux PC                       Pico W / PicoNIX
@@ -32,7 +24,7 @@ host/mcp_client.py             userland/apps/mcpd.c
 
 ### Preparation and source map
 
-Use a Pico W, Linux PC, USB console, Pico SDK, and ARM toolchain. Start with [setup](../../../setup/SETUP.md) and [networking](../../../reference/network/NETWORK.md). A standard Pico has no Wi-Fi support for this exercise.
+Use a Pico W, Linux PC, USB console, Pico SDK, and ARM toolchain. Start with [setup](../../../setup/SETUP.md) and [networking](../../../reference/network/NETWORK.md). A standard Pico has no Wi-Fi support for network operations.
 
 | File | Purpose |
 |---|---|
@@ -46,9 +38,9 @@ Use a Pico W, Linux PC, USB console, Pico SDK, and ARM toolchain. Start with [se
 
 The current `kernel/main.c` registers the bundled `mcpd` at **program ID 49**. It is already part of the standard Pico W firmware build; no experimental patch or separate application registration is required. Choose another unused ID when adding your own program.
 
-### Stage A: accept a TCP connection
+### TCP connection acceptance
 
-Read `main()` at the bottom of `mcpd.c`. The essential calls are:
+The connection path in `main()` uses the following calls:
 
 ```c
 int server = socket(AF_INET, SOCK_STREAM, 0);
@@ -58,47 +50,48 @@ address.sin_port = htons(8080);
 
 bind(server, (const struct sockaddr *)&address, sizeof address);
 listen(server, 1);
+/* Wait until the listening socket is readable. */
+fd_set rd = 0;
+FD_SET(server, &rd);
+select(server + 1, &rd, 0, 0, 0);
 int client = accept(server, 0, 0);
 ```
 
 *This is an outline only. The full source checks errors, loops, and closes descriptors; keep those checks in real programs.*
 
-By default, `accept()` waits for a connection. After accepting, the prototype sets the accepted descriptor to nonblocking using `fcntl(client, F_SETFL, O_NONBLOCK)`, processes one client, and closes it. **Connections are handled sequentially, not concurrently.**
+`mcpd` waits for readability on the listening socket with `select()` before calling `accept()`. After accepting, the server sets the accepted descriptor to nonblocking using `fcntl(client, F_SETFL, O_NONBLOCK)`, processes one client, and closes it. **Connections are handled sequentially, not concurrently.**
 
-**Exercise:** Find the failure paths for `socket()` and `bind()`, and locate every corresponding `close()`.
 
-### Stage B: receive an HTTP request
+### HTTP request reception
 
-Follow `handle()` into `read_request()`. It accumulates bytes in a static `request[]` array, searches for the `\r\n\r\n` header terminator, parses `Content-Length`, and waits for the specified number of body bytes.
+`handle()` invokes `read_request()`, which accumulates bytes in a static `request[]` array, searches for the `\r\n\r\n` header terminator, parses `Content-Length`, and waits for the specified number of body bytes.
 
-- `REQUEST_SIZE = 3600`: entire request buffer.
-- `BODY_LIMIT = 3200`: maximum JSON request body.
-- `RESPONSE_SIZE = 1400`: JSON response buffer.
+- `REQUEST_SIZE = 2800`: entire request buffer.
+- `BODY_LIMIT = 2400`: maximum JSON request body.
+- `RESPONSE_SIZE = 900`: JSON response buffer.
 - Large buffers are static instead of local stack variables to preserve the 4 KiB stack.
 
-The accepted descriptor is nonblocking. `read_request()` uses `select()` with `{0, 5000}` (up to 5 ms per wait) and retries when `recv()` returns `OS_EAGAIN`. A retry limit is also present.
+The accepted descriptor is nonblocking. `read_request()` uses `select()` for up to 5 ms per wait and retries when `recv()` returns `OS_EAGAIN`. The write-readiness wait uses 2 ms; the `execute_command` output pipe uses 10 ms. These are per-wait bounds, with separate retry and command-duration limits. A retry limit is also present.
 
-**Key lesson:** One `recv()` does **not** necessarily equal one complete HTTP request. TCP may split the headers and body across multiple reads. The prototype handles some such fragmentation but is not a complete HTTP implementation.
+**TCP framing:** One `recv()` does **not** necessarily equal one complete HTTP request. TCP may split the headers and body across multiple reads. The server accumulates fragmented headers and bodies within fixed buffer and retry limits; it is not a general HTTP implementation.
 
-**Exercise:** Find the handling of missing `Content-Length`, excessive request size, and methods other than `POST /mcp`.
 
-### Stage C: parse JSON-RPC
+### JSON-RPC parsing
 
-Read `process_json()`, `member()`, `json_end()`, `rpc_result()`, and `rpc_error()`. A basic JSON-RPC request looks like:
+`process_json()`, `member()`, `json_end()`, `rpc_result()`, and `rpc_error()` implement parsing and responses. A basic JSON-RPC request looks like:
 
 ```json
 {"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}
 ```
 
-An `id` associates a response with its request. A successful result uses `result`; failures use `error`. **This simplified JSON is not enough for the current prototype:** the server also expects MCP HTTP headers (`MCP-Protocol-Version`, `Mcp-Method`, etc.) and client metadata in `params._meta`. See the 「基本的な使い方」章 for a complete example.
+An `id` associates a response with its request. A successful result uses `result`; failures use `error`. **This JSON body alone is not a complete MCP request:** the server also expects MCP HTTP headers (`MCP-Protocol-Version`, `Mcp-Method`, etc.) and client metadata in `params._meta`. See the [MCP reference](../../../reference/commands/MCP.md) for the required HTTP request format.
 
 The parser is deliberately small: bounded buffers, limited string handling, and a maximum JSON nesting depth of eight. It is **not a general-purpose, fully compliant JSON parser**.
 
-**Exercise:** Trace responses for a missing `id`, an unknown `method`, and disagreement between the HTTP `Mcp-Method` header and the JSON `method`.
 
-### Stage D: publish MCP tools
+### MCP tool publication
 
-The prototype has three methods:
+The MCP endpoint supports these methods:
 
 | Method | Function |
 |---|---|
@@ -125,9 +118,8 @@ close(fd);
 
 The result is JSON-escaped with `append_escaped()` and returned as a `content` array containing `type: "text"`. Device-read failures produce `isError: true`. ROM manuals and command output are returned using HTTP chunked transfer; consult the source for current limits.
 
-**Exercise:** Compare ordinary JSON replies with chunked streaming of a ROM manual page.
 
-### Stage E: build and launch on Pico W
+### Pico W build and launch
 
 After checking the current `mcpd` application registration, build from the repository root:
 
@@ -137,7 +129,7 @@ PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-Check that the `-Oz` PIC application fits a 24 KiB user slot, including its reserved 4 KiB stack. A preliminary link with replacement EABI helpers suggested it might fit, **but does not establish that a normal build will pass**.
+Check that the `-Oz` PIC application fits a 24 KiB user slot, including its reserved 4 KiB stack. The actual build output is the authority for PIC, flash image, and RAM-slot capacity; check it for each build.
 
 Flash the updated UF2, connect to Wi-Fi, and try:
 
@@ -149,9 +141,9 @@ ps
 
 If `mcpd` is absent, inspect the app list in `CMakeLists.txt`, image declaration and registration in `kernel/main.c`, and the actual UF2 version. Check that TCP port 8080 is not already occupied.
 
-### Stage F: test from Linux
+### Linux host communication
 
-Start with the full `curl` request in the 「基本的な使い方」章, then test the official Python SDK v2 client:
+Start with the full `curl` request in the [MCP reference](../../../reference/commands/MCP.md), then test the official Python SDK v2 client:
 
 ```sh
 python3 -m venv .venv
@@ -162,11 +154,11 @@ python host/mcp_client.py http://192.168.1.50:8080/mcp --tool get_temperature
 python host/mcp_client.py http://192.168.1.50:8080/mcp --tool get_manual
 ```
 
-Replace the IP address with the actual Pico W address. `--tool none` lists tools without calling them. **The client does not use an LLM.** The SDK and device have not been tested together yet, so if a connection fails, record the exact failure and return to the manual HTTP test to isolate protocol issues.
+Replace the IP address with the actual Pico W address. `--tool none` lists tools without calling them. **The client does not use an LLM.** The SDK and device have been checked for basic interoperability. A failed connection should be diagnosed with the manual HTTP request and the exact error output; complete protocol conformance is not established.
 
-### Stage G: add a tool (design exercise)
+### Adding a read-only tool
 
-Design one more **read-only** tool. A short textual `/proc` file may be suitable, but verify that the path actually exists and check FD usage, output size, and error cases before writing the code.
+When adding a **read-only** tool, a short textual `/proc` file may be suitable, but verify that the path actually exists and check FD usage, output size, and error cases before writing the code.
 
 1. Choose the name, description, and `inputSchema`.
 2. Add the tool to the JSON returned by `tools/list`.
@@ -177,31 +169,26 @@ Design one more **read-only** tool. A short textual `/proc` file may be suitable
 
 Do **not** begin with GPIO-write tools. Authentication, input validation, and restrictions on operations must come first.
 
-### Observation and further work
+### Diagnostics
 
-| What to inspect | Tool | Question |
+| Component | Tool | Diagnostic detail |
 |---|---|---|
-| Running task | `ps` | Does `mcpd` remain running? |
-| TCP connections / FDs | `lsof` | Which descriptors exist during a connection? |
-| System calls | `trace` | Where are `accept`, `select`, `recv`, `open`, `read` used? |
-| RAM layout | `mem`, build layout checks | How are PIC, BSS, and stack fitted into 24 KiB? |
-| Error paths | Malformed HTTP / unknown tool | How is failure reported and the connection closed? |
+| Running task | `ps` | Confirm that `mcpd` is running in the background |
+| TCP connections / FDs | `lsof` | Compare open FDs during and after the connection |
+| System calls | `trace` | Observe `accept`, `select`, `recv`, `open`, `read` |
+| RAM layout | `mem`, build layout checks | Check PIC, BSS, stack and the 24 KiB slot limit |
+| Error paths | Malformed HTTP / unknown tool | Check errors and connection cleanup |
 
 Consult the [trace guide](../../../reference/commands/TRACE.md) and [mem guide](../../../reference/commands/MEM.md) for exact command options.
 
-**Not implemented or not verified:** SSE, legacy `initialize`, complete HTTP/JSON validation, authentication, TLS, concurrent clients, and complete MCP conformance or long-term stability. Basic SDK interoperability was verified on hardware on 2026-11-06. Do not describe this experiment as fully MCP-compliant.
+**Not implemented or not verified:** SSE, `initialize`, complete HTTP/JSON validation, authentication, TLS, concurrent clients, and complete MCP conformance or long-term stability. Basic SDK interoperability has been verified on hardware. Do not describe this experiment as fully MCP-compliant.
 
-### Takeaway
+### Implementation summary
 
-The central idea is that **a network service can be built on existing UNIX-like APIs without adding a special MCP system call**. Read the source, validate its HTTP exchanges, and measure its RAM usage before extending it.
-
-
----
-
-[MCP usage guide](../../../reference/commands/MCP.md)
+The implementation demonstrates that **a network service can be built on existing UNIX-like APIs without adding a special MCP system call**. Read the source, validate its HTTP exchanges, and measure its RAM usage before extending it.
 
 
-### Observe HTTP writes and TCP close (2026-11-09)
+### HTTP writes and TCP close
 
 `send_chunk()` packs chunks up to 768 bytes (hex length, payload, CRLF) into a single `send_all()` call to reduce the number of tiny `tcp_write()` operations consuming the fixed send queue. `send_all()` handles partial writes and `OS_EAGAIN`/zero-length writes, and records a failure after roughly three seconds without progress. It also checks the final `0\r\n\r\n` terminator. The app-level successful write is not proof that the peer received the response.
 

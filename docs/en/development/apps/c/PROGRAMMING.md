@@ -2,20 +2,20 @@
 
 *Development guide*
 
-## Before you start
+## Requirements
 
-Review C functions, arrays and command-line arguments first. Run the existing `hello` program before adding `greet.c`. Edit the source on the build PC; changes require a new UF2 firmware flash.
+The example assumes C functions, arrays and command-line arguments. Source changes on the build PC require a new firmware build and UF2 flash.
 
 
 [日本語](../../../../ja/development/apps/c/PROGRAMMING.md) | [Documentation guide](../../../README.md) | [C library](LIBC.md)
 
-This guide shows how to add a **new C command** to PicoNIX, build it on a host computer, and run it on a board. It documents the build mechanism in the current source tree. For the toolchain and board setup, first see [Setup](../../../setup/SETUP.md).
+This guide shows how to add a **new C command** to PicoNIX, build it on a host computer, and run it on a board. It documents the build mechanism in the current source tree. For the toolchain and board setup, see [Setup](../../../setup/SETUP.md).
 
 PicoNIX applications are **not Linux executables**. The host compiler produces small position-independent (PIC) images. The firmware stores them in Flash; launching a command copies its image into an available RAM task slot. The kernel itself runs code from Flash using XIP.
 
-## 1. Before writing a new command
+## 1. Existing command implementation
 
-Once PicoNIX boots, try the existing example:
+The existing `hello` command produces:
 
 ```text
 piconix# hello
@@ -52,10 +52,10 @@ There are **two required changes** in the current build system.
 Find `foreach(APP IN ITEMS ...)` near the top of `CMakeLists.txt` and append `greet` **without the `.c` suffix**:
 
 ```cmake
-foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm cc help edit vi dd mem tree find nc httpd tcp_echod udp_echod mcpd scroll greet)
+foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong reversi gpio fbed asm cc help edit vi dd mem tree find nc httpd tcp_echod udp_echod mcpd scroll pty_test greet)
 ```
 
-The line above shows the current `CMakeLists.txt` with `greet` appended. Keep all existing application names; if the list changes in a newer version, append `greet` to that version instead. The common loop automatically compiles `userland/apps/greet.c` with `crt0.c`, `syscalls.c`, and `libc.c`, links the RAM image, validates its PIC behavior and size, and embeds the binary in firmware Flash. No separate custom build rule is needed.
+The line above shows the current application list with `greet` appended. Keep all existing application names when extending the list. The common loop automatically compiles `userland/apps/greet.c` with `crt0.c`, `syscalls.c`, and `libc.c`, links the RAM image, validates its PIC behavior and size, and embeds the binary in firmware Flash. No separate custom build rule is needed.
 
 ### 3.2 Register the embedded image in `kernel/main.c`
 
@@ -71,7 +71,7 @@ Add a call alongside the other `register_image(...)` calls in `main()`:
 register_image(52, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**52 is an unused example ID in the standard firmware (49 is `mcpd`, 50 is `cc`, and 51 is `scroll`).** Before using the example in a newer version, check the existing IDs and choose an unused one. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
+**52 is available in the current `kernel/main.c`.** Choose an unused program ID when adding an application. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
 
 ## 4. Build and run
 
@@ -166,7 +166,7 @@ If no pointer is necessary, `static const char message[] = "Hello";` defines the
 - `ld.lld: task image overlaps reserved stack` indicates that the program image exceeds the non-stack portion. Reduce code or static storage rather than increasing the slot limit.
 - `PIC image changes with link address` indicates an address-dependent binary. Inspect static pointer initializers, absolute references and relocation requirements.
 
-When adding the `fd` browser, `static const char *notice = "";` caused exactly this PIC error. Moving the pointer assignment to runtime fixed it. This illustrates why **a successful C compilation alone is not enough**.
+A static pointer initializer such as `static const char *notice = "";` can fail the PIC check. Initializing the pointer at runtime avoids the absolute relocation; **successful C compilation alone does not establish PIC validity**.
 
 ## 7. Diagnose problems
 
@@ -264,4 +264,4 @@ Like the earlier `greet` example, this application must be added to CMake and re
 
 ---
 
-**Related links:** [Development guide index](../../README.md) | [Learning roadmap](../../../ROADMAP.md)
+**Related links:** [Development guide index](../../README.md)

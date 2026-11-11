@@ -2,7 +2,7 @@
 
 *Usage guide*
 
-**Before you start:** A pipe (`|`) connects the previous command’s standard output to the next command’s standard input. Data not shown on screen is not necessarily lost.
+**Pipe semantics:** A pipe (`|`) connects the previous command’s standard output to the next command’s standard input. Data not shown on screen is not necessarily lost.
 
 
 The PicoNIX shell supports `|` to connect one command's standard output to the next command's standard input. `grep` selects lines containing a literal string.
@@ -23,7 +23,7 @@ Pipelines may contain two or three commands; four or more stages are not support
 - The shell saves stdin/stdout using `dup()` and connects FD 0 (stdin) and FD 1 (stdout) with `dup2()`.
 - Child tasks inherit descriptors on spawn. The shell closes unused endpoints and restores its standard descriptors afterward.
 - After all writers close and buffered data is consumed, reading returns EOF (zero bytes). Writing with no readers returns an error.
-- Reading from an empty pipe or writing to a full pipe waits for progress. The internal implementation has an `O_NONBLOCK` branch returning `OS_EAGAIN`, but the current `fcntl(F_SETFL)` does not support pipe descriptors. Therefore applications cannot enable nonblocking pipes through the public API.
+- Normally, reading an empty pipe or writing a full pipe blocks until progress is possible. **Pipe FDs support `fcntl(fd, F_SETFL, flags | O_NONBLOCK)`**. In nonblocking mode, an empty pipe with a writer still open or a full pipe returns `OS_EAGAIN`; after all writers close and the buffer drains, reading returns `0` (EOF). The F_SETFL descriptor support list is distinct from the paths that accept `O_NONBLOCK` in `open()`.
 
 ## FD inheritance and resource exhaustion
 

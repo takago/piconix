@@ -2,11 +2,11 @@
 
 *開発ガイド*
 
-学習目的で最初から読む場合は[カーネル読解ガイド](KERNEL-READING-GUIDE.md)を利用してください．
+カーネルの構造を調べる場合は[カーネル読解ガイド](KERNEL-READING-GUIDE.md)を利用してください．
 
 ## 読み始める前に
 
-**事前学習：** [全体構成](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[トレース](../../reference/commands/TRACE.md)を先に確認してください．最初はソースを読み，タスクの生成から終了までの流れを追うことを勧めます．
+**参照資料：** [全体構成](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[トレース](../../reference/commands/TRACE.md)を先に確認してください．最初はソースを読み，タスクの生成から終了までの流れを追うことを勧めます．
 
 
 [文書案内](../../README.md) | [内部構造](../../reference/INTERNAL.md) | [システムコール](../../reference/SYSCALLS.md) | [デバイス](../../reference/devices/README.md) | [English](../../../en/development/kernel/KERNEL-DEVELOPMENT.md)
@@ -35,21 +35,17 @@
 - [デバイスドライバの追加](../drivers/DRIVER-DEVELOPMENT.md)：VFS登録，入出力，ioctl，テスト
 - [ネットワーク機能の拡張（Pico W）](../network/NETWORK-DEVELOPMENT.md)：Wi-Fi，lwIP，ソケット，カーネル常駐サービス
 
-以下の演習では両方の拡張方法を比較します．
+以下はSVCとVFSを利用する拡張の実装例です．
 
-## 3．実践演習：システムコールと独立した仮想デバイス
+## 3．実装例：システムコールと独立した仮想デバイス
 
-この実習では，**同じ起動後経過時間を2通りのインターフェースから取得**します．既存の`/proc/ticks`と`/proc/uptime`を変更せず，学習用に`getuptime()`と`/dev/uptime`を追加します．
+この実装例では，**同じ起動後経過時間を2通りのインターフェースから取得**します．既存の`/proc/ticks`と`/proc/uptime`を変更せず，実装例として`getuptime()`と`/dev/uptime`を追加します．
 
 | 何を追加するか | 詳細な手順（コード付き） | 最終確認 |
 |---|---|---|
 | `getuptime()`のSVC | [システムコール追加ガイド](../syscalls/SYSCALL-DEVELOPMENT.md) | `labuptime`と`trace run labuptime` |
 | `/dev/uptime`と独立したドライバ | [デバイスノード・ドライバ追加ガイド](../drivers/DRIVER-DEVELOPMENT.md) | `ls /dev`，`cat /dev/uptime`，EOFの確認 |
 | プログラム登録・UF2作成 | [Cアプリケーション開発](../apps/c/PROGRAMMING.md)・[セットアップ](../../setup/SETUP.md) | `ls /bin`と実機実行 |
-
-
-**課題：** カーネルの1 msカウンタから，SVC経由で数値を返す経路と，VFS/FD経由で文字列を返す経路をそれぞれ図示します．`/dev/uptime`はハードウェアを直接制御しない仮想デバイスなので，まずは配線不要でデバイスドライバの基本を学習できます．
-
 
 
 ## 4．変更と検証の進め方
@@ -75,4 +71,4 @@
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md)
+**関連リンク：** [開発ガイド一覧](../README.md)

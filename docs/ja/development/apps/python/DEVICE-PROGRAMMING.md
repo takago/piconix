@@ -6,7 +6,7 @@
 
 PicoNIXのデバイスは`/dev`のファイルとして公開されます．Python専用のGPIOライブラリは不要で，`open()`，`read()`，`write()`，`close()`で操作します．本書は`userland/apps/python.c`と現行のデバイス文書を基準にしています．
 
-## 実習の準備
+## 実行環境と準備
 
 シェルで`ls /dev`，`ls /dev/gpio`，`ls /dev/adc`を確認してください．`edit /tmp/demo.py`でスクリプトを作り，`python /tmp/demo.py`で実行します．Pythonの標準的な`import`，`def`，`try`は使えません．ファイル名は`/tmp`の容量・名前長の制約を受けます．
 
@@ -112,9 +112,9 @@ if fd >= 0:
 ## 6．実行時の注意
 
 - スクリプト上限は2048バイト，有効行は最大64，変数は最大16個です．配列・受信バイト列は各64要素までです．
-- `open()`や`ioctl()`は操作失敗時に`-1`を返します．実習では先に`ls`，`cat`，`fbctl`などでデバイスの有無を確認してください．
+- `open()`や`ioctl()`は操作失敗時に`-1`を返します．利用前に`ls`，`cat`，`fbctl`などでデバイスの有無を確認してください．
 - 長時間のデバイス制御では，終了前にPWM出力を0にするなど，安全な状態へ戻してください．
 - `/dev/mem`や`/dev/trace`のような特殊なバイナリデバイスは，一般的な文字列の読書きとは制約が異なります．仕様を確認してから利用してください．
 - Pythonからデバイスを直接操作する場合も，GPIOとPWM・ADC・I²Cのピンの競合は解消されません．
 
-**次の実習：** [Pico WでのTCP/UDP通信](SOCKET-PROGRAMMING.md) ／ [Python基本ガイド](PYTHON.md)
+**関連資料：** [Pico WでのTCP/UDP通信](SOCKET-PROGRAMMING.md) ／ [Python基本ガイド](PYTHON.md)

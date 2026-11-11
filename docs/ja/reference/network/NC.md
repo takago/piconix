@@ -39,4 +39,4 @@ Linux側で`nc -u -l 12345`を起動し，PicoNIX側から上記の`echo hello |
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [操作ガイド一覧](../commands/README.md) ｜ [English](../../../en/reference/network/NC.md) ｜ [パイプ](../commands/PIPE.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [操作ガイド一覧](../commands/README.md) ｜ [English](../../../en/reference/network/NC.md) ｜ [パイプ](../commands/PIPE.md)

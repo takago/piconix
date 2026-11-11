@@ -4,7 +4,7 @@
 
 [Python fundamentals](PYTHON.md) | [Device programming](DEVICE-PROGRAMMING.md) | [Network reference](../../../reference/network/NETWORK.md) | [日本語](../../../../ja/development/apps/python/SOCKET-PROGRAMMING.md)
 
-PicoNIX does not implement CPython's `socket` module. Instead, its Tiny Python uses a dedicated API with **integer file descriptors (FDs)**. Standard Pico boards lack Wi-Fi sockets; use Pico W for these exercises. Traffic is unencrypted, so use only a trusted lab network.
+PicoNIX does not implement CPython's `socket` module. Instead, its Tiny Python uses a dedicated API with **integer file descriptors (FDs)**. Standard Pico boards lack Wi-Fi sockets; use Pico W for socket operations. Traffic is unencrypted, so use only a trusted isolated network.
 
 ## Preparation
 
@@ -114,7 +114,7 @@ The expected response is `OK`. UDP has a one-datagram receive buffer. If a read 
 ## 4. Educational implementation limits
 
 - Each Python `while` loop is limited to 10,000 iterations, so these examples are not designed as permanent background services.
-- TCP has a limited number of management slots; UDP permits only one user socket system-wide. See the [network reference](../../../reference/network/NETWORK.md).
+- TCP has a limited number of management slots; UDP permits up to three user sockets system-wide. See the [network reference](../../../reference/network/NETWORK.md). Each socket holds at most one pending received datagram.
 - `recv()` and `recvfrom()` return `-1` for non-blocking unavailability or failures, and `[]` for a zero-byte result. `-1` does not distinguish temporary unavailability from a fatal error; check `status(fd)` where applicable.
 - Splitting larger messages, retrying partial TCP sends, recognizing disconnections and enforcing timeouts are application responsibilities.
 - These functions are not compatible with the standard Python `socket` module. `import socket` is not supported.
@@ -122,7 +122,6 @@ The expected response is `OK`. UDP has a one-datagram receive buffer. If a read 
 **See also:** [Python fundamentals](PYTHON.md) / [C networking API](../c/NETWORK-PROGRAMMING.md)
 
 **Initialization failures:** The bundled TCP/UDP examples report failed `socket()`, `listen()`, or `bind()` calls, close any allocated FD, and call `exit()`. A failed client connection or individual sensor read does not terminate the server. `exit()` returns status 0.
-
 
 
 **TCP/UDP temperature servers:** `accept()` and `recvfrom()` block by default. The examples therefore do not poll with `msleep()`; the task blocks while waiting for input.

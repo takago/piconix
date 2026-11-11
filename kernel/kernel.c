@@ -3581,7 +3581,7 @@ NO_TRACE int os_tcp_status(int fd) { return call(SYS_TCP_STATUS,fd,0,0); }
 NO_TRACE int os_tcp_accept(int fd) { return call(SYS_ACCEPT_TCP,fd,0,0); }
 
 #if PICONIX_KERNEL_FUNCTION_TRACE
-/* コンパイラの関数入口・出口フックを受け，教材用の選抜関数だけ記録する．
+/* コンパイラの関数入口・出口フックを受け，指定した関数だけ記録する．
  * -finstrument-functions は kernel.c 以外の指定ドライバにも適用される．
  * 他モジュールの公開関数は devices.h / net_socket.h / net.h 等の宣言を参照する．
  * TRACE_MATCH は関数のアドレスを比べる記録対象フィルタであり，

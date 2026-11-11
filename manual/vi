@@ -1,6 +1,6 @@
 PICONIX VI - EXACT COMMANDS (NOT GNU VIM)
 
-Start on MCP PTY: terminal_open({"command":"vi /tmp/test.txt"}).
+Start on MCP PTY: terminal_send({"text":"vi /tmp/test.txt"}) then terminal_send({"key":"ENTER"}).
 Then terminal_read({}) to inspect screen and current mode.
 Only direct /tmp/NAME or /etc/NAME RAM files; max 2048 bytes.
 

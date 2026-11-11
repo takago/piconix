@@ -25,17 +25,16 @@ Printable ASCII 0x20–0x7e is supported. Control characters from stdin are igno
 
 UDP datagrams contain plain ASCII text with no request ID or header. Printable bytes (0x20–0x7e) are appended to the ring; control characters such as newlines are ignored. If the ring is full, excess characters are dropped. `scroll` sends no UDP reply.
 
+The following command example uses the explicit UDP port **1234**; the default for `scroll -u` remains **2001**.
+
 ```sh
 scroll -u 1234 &
 echo hello | nc -u 127.0.0.1 1234
 ```
 
-## Experiments
+## Input and buffering examples
 
-1. Run `echo HELLO | scroll` to examine pipe input and EOF.
-2. Start `scroll -u 1234 &` and use `echo hello | nc -u 127.0.0.1 1234`.
-3. Inspect `select`, `read`, `recvfrom`, `sendto`, and `write` with `trace`.
-4. Explore dropped bytes when the buffer fills and the limits of unreliable UDP delivery.
+`echo HELLO | scroll` supplies stdin; `scroll -u 1234 &` with `echo hello | nc -u 127.0.0.1 1234` supplies UDP. The `trace` command can show `select`, `read`, and `recvfrom` activity. UDP delivery is not guaranteed. When input exceeds display capacity, the 1,024-byte ring drops excess characters.
 
 ## Limitations and security
 

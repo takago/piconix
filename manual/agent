@@ -1,50 +1,60 @@
-MCP AGENT OPERATING RULES
+MCP AGENT - DECISION RULES AND EVIDENCE
 
-SESSION: First get_manual() or cat /man/README; then relevant page;
-then help COMMAND, if needed. Avoid guessing GNU/Linux options.
+START: get_manual({}) for topic index; then get_manual({topic:...})
+for the relevant operation. 'help CMD' gives CLI syntax. PicoNIX
+is not Linux, bash, GCC, GNU as or CPython. Never guess options.
 
-MCP execute_command sends a command to sh -c, NOT a real terminal.
-Use terminal_open/send/read/close for interactive PTY applications; execute_command has no interactive keyboard. Command <=119 ASCII bytes,
-output <=4096 bytes, nominal child execution timeout 3 seconds.
-Calls create extra processes; PicoNIX has only six 24 KiB user slots.
-Use ps before complex operations. Never kill mcpd accidentally.
+CHOOSE THE TOOL
+  get_manual       look up ROM specification; one topic per call
+  get_temperature  read board temperature
+  execute_command  short, finite, noninteractive CLI; fresh sh -c
+  write_file       create/overwrite /tmp/NAME ASCII text
+  terminal_read    inspect persistent interactive PTY screen
+  terminal_send    type text / key into PTY after checking state
+See /man/mcp-workflow for tool limits and /man/terminal-operations
+for keyboard, cursor, state and recovery. Six MCP tools total.
 
-DO NOT RUN via execute_command: full-screen or interactive mem,
-mb, watch, edit, vi, fd, fbed, gpio, pong, interactive python,
-trace follow, or indefinite foreground servers. Use finite commands
-instead: ps, hexdump, mem -s, trace show, cat, ip, pwmctl status.
-Trace run may spawn more processes and consume much output: prefer
-trace on -s, execute a short command, trace show, then trace on.
+ROUTE EACH REQUEST
+  1. Identify actual target command, file, device or interface.
+  2. Retrieve its manual topic; use help CMD if syntax is unclear.
+  3. For observation, prefer bounded read-only execute_command.
+     Never cat a streaming /dev node without bounds.
+  4. For vi/fd/reversi/other interactive apps, terminal_read FIRST;
+     check whether the PTY is at shell prompt or inside an app.
+  5. Before any irreversible or hardware-affecting change, obtain
+     user approval and inspect file/device/pin ownership.
+  6. Execute one action, check its tool result, and independently
+     verify observed effects. Report uncertainty explicitly.
 
-READ-ONLY -> MUTATE -> VERIFY:
-  1. Identify path, pin, device ownership and output size.
-  2. Read current value; avoid unbounded cat of streaming devices.
-  3. Explain risk, request authorization for hardware or destructive
-     file changes, and issue one short modifying command.
-  4. Verify with another short read-only command.
-  5. Report observed result; don't claim success from tool invocation.
+DO NOT USE execute_command FOR
+  vi, edit, fd, mem interactive view, fbed, watch, reversi, pong,
+  bare python REPL, trace follow, or indefinite listeners.
+  Short commands may include ps, ip, help, cat of finite files,
+  hexdump with count, trace show, pwmctl status, mem -s.
+  execute_command has no interactive keyboard; it creates new
+  processes, consumes task slots and does not preserve shell cwd.
+  See /man/command-reference and /man/shell-syntax.
 
-write_file creates/overwrites a /tmp/NAME ASCII file, max 2048 B.
-Use distinct names to avoid destroying work. C cc input <=1024 B.
-The assembler writes /tmp/a.out; do not run a stale binary after
-an as failure. Ensure successful compiler/assembler outputs first.
+FAILURE HANDLING
+  HTTP timeout / incomplete chunked read does NOT prove failure
+  or success of the operation. Do not blindly retry mutations.
+  First inspect ps or affected state, then retry only a bounded
+  idempotent read if appropriate. terminal_send might have partly
+  applied input: inspect terminal_read before further keys.
+  If shell was restarted, terminal_send refuses that input; read
+  and confirm prompt before issuing a new command.
+  If all six user-process slots are occupied, avoid spawning.
+  See /man/safety-recovery and /man/debug-checklist.
 
-mcpd & exposes all eight MCP tools, including get_manual,
-execute_command, write_file and terminal_*. The service has NO
-authentication or TLS. Use only an isolated trusted LAN.
+COMPILATION
+  Read /man/languages/c, /man/languages/asm or
+  /man/languages/python BEFORE generating code. C cc source <=1024 B.
+  C: write /tmp/name.c -> cc -> check -> as -> check -> /tmp/a.out.
+  Do not execute a stale /tmp/a.out after an assembly error.
+  Use /man/workflows and specific language examples for details.
 
-On 'incomplete chunked read', connection closed before HTTP response
-completed. Check mcpd is alive with ps from a physical terminal,
-check process slots, and retry read-only operations cautiously.
-A modifying command might have executed before the response failed.
-Use bounded hexdump and trace; don't fill TCP with endless output.
-
-Before changing hardware, read gpio-board and check pins. Pico W
-GP25 is NOT the board LED. Report command success separately from
-physical observation. Never remove files not created for this task.
-Read shell-syntax/compatibility before issuing composite commands.
-
-For interactive vi/fd sessions, read get_manual(topic="vi") or
-get_manual(topic="fd") BEFORE sending keystrokes. This is NOT
-full Vim and fd is NOT a Linux fd search CLI. Read screen after
-operations and verify file changes using a separate read-only tool.
+SECURITY
+  MCP exposes remote execution and file writes without auth/TLS.
+  Only run on an isolated trusted test LAN; client-side approval
+  is required for consequential operations. Never kill mcpd.
+  A successful device write does not verify physical behavior.

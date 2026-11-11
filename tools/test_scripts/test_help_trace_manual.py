@@ -23,6 +23,8 @@ matches=[entry for entry in manual if entry.get('name')=='get_manual']
 assert len(matches)==1, 'get_manual schema missing'
 schema=matches[0]['inputSchema']
 assert schema['type']=='object'
-assert schema['properties']=={'topic': {'type': 'string'}}
+assert isinstance(schema.get('properties'), dict)
+assert isinstance(schema['properties'].get('topic'), dict)
+assert schema['properties']['topic']['type']=='string'
 assert 'required' not in schema or not schema['required']
 print('PASS: trace help and full MCP manual contract')

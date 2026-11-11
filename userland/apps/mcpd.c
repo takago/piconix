@@ -18,7 +18,7 @@
 static char request[REQUEST_SIZE];
 static char response[RESPONSE_SIZE];
 /* 応答用の比較的大きいバッファは4 KiBスタックを圧迫しないよう静的確保． */
-/* HTTPの接続寿命とは独立した1組のPTYセッション． */
+/* mcpdの起動時に生成し，HTTP要求とは独立して保持するシェルPTY． */
 static int term_master=-1,term_pid=-1;
 /* 通信失敗をHTTP応答とは別のコンソールで観測する．1要求中の最初の失敗を保持する． */
 static int send_fail_reason, send_fail_value;
@@ -174,6 +174,20 @@ static int read_device(const char *path, char *out, unsigned cap) {
     return n;
 }
 
+/* FDの読書き可能状態を待つ．timeout_ms<0なら無期限待機する．
+ * PicoNIXのselectはTCP listenソケット，パイプ，PTYにも対応する． */
+static int wait_fd(int fd, int writing, int timeout_ms) {
+    fd_set r=0,w=0;
+    if(fd>=16 || fd < -1 || (fd<0 && timeout_ms<0)) return -1;
+    if(fd>=0) {
+        if(writing) FD_SET(fd,&w);
+        else FD_SET(fd,&r);
+    }
+    if(timeout_ms<0) return select(fd+1,writing?0:&r,writing?&w:0,0,0);
+    struct timeval tv={timeout_ms/1000,(timeout_ms%1000)*1000};
+    return select(fd+1,fd<0?0:(writing?0:&r),fd<0?0:(writing?&w:0),0,&tv);
+}
+
 /* 非ブロッキング送信は部分成功と一時的な送信キュー満杯を区別する．
  * 実際の受信完了を保証するものではない（tcp_closeがACK待ちを引き継ぐ）． */
 static int send_all(int fd, const char *p, unsigned size) {
@@ -185,7 +199,10 @@ static int send_all(int fd, const char *p, unsigned size) {
                 if (!send_fail_reason) { send_fail_reason=1; send_fail_value=(int)size; }
                 return -1;
             }
-            msleep(2);
+            if(wait_fd(fd,1,2)<0) {
+                if(!send_fail_reason) { send_fail_reason=2; send_fail_value=-1; }
+                return -1;
+            }
             continue;
         }
         if (n < 0) {
@@ -452,7 +469,8 @@ static int execute_command_stream(int fd, const char *id, const char *cmd) {
             else if(n!=OS_EAGAIN) {error=1;break;}
             if(!done && waitpid(pid,&status,WNOHANG)==pid) done=1;
             if(done && eof) break;
-            msleep(10);
+            /* EOFは常にreadableなので，子の終了待ちは時間付きselect(0)で行う． */
+            if(wait_fd(eof?-1:fds[0],0,10)<0) { error=1; break; }
         }
         if(!done) {
             kill(pid);
@@ -494,48 +512,31 @@ static int list_tools_stream(int fd,const char *id) {
         MCP_ADD(",{\"name\":\"get_manual\",\"description\":\"Read PicoNIX manual. Call get_manual({}) or topic=index for contents.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"topic\":{\"type\":\"string\",\"description\":\"Omit or use index for contents\"}}}}");
         MCP_ADD(",{\"name\":\"write_file\",\"description\":\"Write /tmp file\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"path\":{\"type\":\"string\"},\"content\":{\"type\":\"string\"}},\"required\":[\"path\",\"content\"]}}");
         MCP_ADD(",{\"name\":\"execute_command\",\"description\":\"Run shell command (noninteractive); do not stop mcpd\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
-        MCP_ADD(",{\"name\":\"terminal_open\",\"description\":\"Start interactive app (vi/fd/sh) on 80x24 PTY\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"command\":{\"type\":\"string\"}},\"required\":[\"command\"]}}");
         MCP_ADD(",{\"name\":\"terminal_send\",\"description\":\"Send text or named key. Keys: UP DOWN LEFT RIGHT ENTER ESC ESCAPE TAB SPACE SP BACKSPACE BS DELETE CTRL_A..CTRL_Z. Use text for characters; key for special keys. Returns accepted byte count only; call terminal_read to inspect screen.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"text\":{\"type\":\"string\"},\"key\":{\"type\":\"string\"}}}}");
         MCP_ADD(",{\"name\":\"terminal_read\",\"description\":\"Read ANSI screen: SGR 4/24 marks cursor; SGR 7/0 marks inverse\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
-        MCP_ADD(",{\"name\":\"terminal_close\",\"description\":\"Close PTY session\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}");
 #undef MCP_ADD
     }
     if(send_chunk(fd,"]}}",3)<0) return -1;
     return send_all(fd,"0\r\n\r\n",5);
 }
 
-/* セッションをHTTP要求から独立して保持し，親の標準FDは必ず元へ戻す． */
-static int terminal_open_command(const char *command) {
-    if(term_master>=0) return -2;
-    /* 初版はプログラム名1個と任意の引数1個に限定する． */
-    char name[32],param[96];unsigned i=0,j=0;
-    while(command[i] && command[i]!=' ' && i<sizeof name-1) {name[i]=command[i];i++;}
-    name[i]=0;
-    if(!i || strchr(name,'/') || !strcmp(name,"mcpd") ) return -1;
-    while(command[i]==' ')i++;
-    while(command[i] && j<sizeof param-1) {
-        unsigned char c=(unsigned char)command[i++];
-        if(c<32 || c>126 || c==';' || c=='|' || c=='&' || c=='>' || c=='<') return -1;
-        param[j++]=(char)c;
-    }
-    if(command[i]) return -1;
-    param[j]=0;
-    int program=program_id(name);
-    if(program<0) return -1;
+/* mcpd専用PTYに対話シェルを起動する．親の標準FDは復元する． */
+static int terminal_start_shell(void) {
+    if(term_master>=0) return -1;
     int master=open("/dev/ptmx",O_RDWR|O_NONBLOCK);
-    if(master<0) return -3;
-    if(ioctl(master,OS_PTY_SCREEN_ONLY,1)<0) {close(master);return -3;}
+    if(master<0) return -1;
+    if(ioctl(master,OS_PTY_SCREEN_ONLY,1)<0) {close(master);return -1;}
     int slave=open("/dev/pts/0",O_RDWR);
     int saved[3]={-1,-1,-1},pid=-1,ok=slave>=0;
     if(ok) for(int k=0;k<3;k++) if((saved[k]=dup(k))<0) ok=0;
     if(ok) for(int k=0;k<3;k++) if(dup2(slave,k)<0) ok=0;
     if(ok) {
-        const char *args[2]={name,param};
-        pid=spawn_foreground(program,j?2:1,args);
+        const char *args[1]={"sh"};
+        pid=spawn_foreground(program_id("sh"),1,args);
     }
-    for(int k=0;k<3;k++) if(saved[k]>=0) { (void)dup2(saved[k],k);close(saved[k]); }
+    for(int k=0;k<3;k++) if(saved[k]>=0) {(void)dup2(saved[k],k);close(saved[k]);}
     if(slave>=0)close(slave);
-    if(pid<=0) {close(master);return -4;}
+    if(pid<=0) {close(master);return -1;}
     term_master=master;term_pid=pid;
     return 0;
 }
@@ -548,10 +549,20 @@ static void terminal_close_session(void) {
     if(term_master>=0)close(term_master);
     term_master=term_pid=-1;
 }
+/* シェルがexit等で終了したらPTYを新しく確保する．
+ * 入力側では復旧直後のキー入力を破棄し，意図しないコマンド実行を防ぐ． */
+static int terminal_ensure_shell(void) {
+    if(term_pid>0) {
+        int status=0;
+        if(waitpid(term_pid,&status,WNOHANG)==0) return 0;
+    }
+    terminal_close_session();
+    return terminal_start_shell()<0 ? -1 : 1;
+}
 /* /dev/pts/0.screenを1回読み，現在の画面をchunkedで返す．
  * 描画と並行した場合に一貫したスナップショットになる保証はない． */
 static int terminal_screen_stream(int fd,const char *id) {
-    if(term_master<0) {rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"No PTY session\"}],\"isError\":true}");return 200;}
+    if(terminal_ensure_shell()<0) {rpc_error(id,-32030,"PTY shell unavailable");return 200;}
     int screen=open("/dev/pts/0.screen",O_RDONLY);
     if(screen<0) {rpc_error(id,-32030,"Screen unavailable");return 200;}
     const char *headers="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n";
@@ -684,30 +695,19 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
         const char *path = 0;
         if (json_equals(v, v_end, "get_temperature"))
             path = "/dev/adc/temp";
-        if((json_equals(v,v_end,"terminal_open") ||
-                            json_equals(v,v_end,"terminal_send") ||
-                            json_equals(v,v_end,"terminal_read") ||
-                            json_equals(v,v_end,"terminal_close"))) {
-            const char *expected=json_equals(v,v_end,"terminal_open") ? "terminal_open" :
-                                 json_equals(v,v_end,"terminal_send") ? "terminal_send" :
-                                 json_equals(v,v_end,"terminal_read") ? "terminal_read" : "terminal_close";
+        if(json_equals(v,v_end,"terminal_send") || json_equals(v,v_end,"terminal_read")) {
+            const char *expected=json_equals(v,v_end,"terminal_send") ? "terminal_send" : "terminal_read";
             if(strcmp(http_name,expected)) {rpc_error(id,-32020,"HeaderMismatch");return 400;}
             if(!strcmp(expected,"terminal_read")) return terminal_screen_stream(fd,id);
-            if(!strcmp(expected,"terminal_close")) {
-                if(term_master>=0) terminal_close_session();
-                rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY closed\"}]}");return 200;
-            }
-            const char *args_end,*args=params?member(params,params_end,"arguments",&args_end):0;
-            const char *v2_end,*value=args?member(args,args_end,!strcmp(expected,"terminal_open")?"command":"key",&v2_end):0;
-            if(!strcmp(expected,"terminal_open")) {
-                char cmd[COMMAND_SIZE];
-                if(command_argument(value,v2_end,cmd)<0) {rpc_error(id,-32602,"Invalid command");return 200;}
-                int result=terminal_open_command(cmd);
-                if(result<0) rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY busy or invalid command\"}],\"isError\":true}");
-                else rpc_result(id,"{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY opened: 80x24\"}]}");
+            int state=terminal_ensure_shell();
+            if(state!=0) {
+                rpc_result(id,state<0 ?
+                    "{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"PTY shell unavailable\"}],\"isError\":true}" :
+                    "{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"Shell restarted; read terminal before sending input\"}],\"isError\":true}");
                 return 200;
             }
-            if(term_master<0) {rpc_error(id,-32030,"No PTY session");return 200;}
+            const char *args_end,*args=params?member(params,params_end,"arguments",&args_end):0;
+            const char *v2_end,*value=args?member(args,args_end,"key",&v2_end):0;
             int written=-1;
             if(value) {
                 char key[20];
@@ -833,12 +833,11 @@ static int read_request(int fd, unsigned *body_offset, unsigned *body_length) {
     while (waits < 600) {
         if (used == sizeof request - 1)
             return 413;
+        int ready=wait_fd(fd,0,5);
+        if(ready<0) return -1;
+        if(!ready) { waits++; continue; }
         int n = recv(fd, request + used, sizeof request - 1 - used, 0);
-        if (n == OS_EAGAIN) {
-            waits++;
-            msleep(5);
-            continue;
-        }
+        if(n == OS_EAGAIN) { waits++; continue; }
         if (n <= 0)
             return -1;
         used += (unsigned)n;
@@ -929,11 +928,19 @@ int main(int argc, char **argv) {
         close(server);
         return 1;
     }
+    if(terminal_start_shell()<0) {
+        puts("mcpd: cannot start PTY shell");
+        close(server);
+        return 1;
+    }
     puts("mcpd: listening on TCP 8080 (experimental)");
     puts("mcpd: WARNING remote commands enabled; trusted isolated network ONLY");
     for (;;) {
+        int ready=wait_fd(server,0,-1);
+        if(ready<0) break;
+        if(!ready) continue;
         int client = accept(server, 0, 0);
-        if (client == OS_EAGAIN) { msleep(5); continue; }
+        if (client == OS_EAGAIN) continue;
         if (client < 0)
             break;
         send_fail_reason=send_fail_value=0;

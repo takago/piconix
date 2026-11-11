@@ -1,9 +1,10 @@
 PicoNIX ON-DEVICE MANUAL - AGENT-FIRST INDEX
 
-ROM manual for MCP agents and humans. PicoNIX is not Linux/ISO C/CPython.
+ROM reference for agents and humans; not Linux, ISO C or CPython.
 
 START HERE
-  agent          MCP limits, safe tool sequence, recovery
+  agent          Tool selection, safe reasoning, error handling
+  terminal-operations  Shared PTY, keys, state, recovery
   workflows      Task recipes: compile, memory, trace, devices
   programming    Write -> compile/interpret -> execute -> check
   limits         Memory, process, file, interpreter limits
@@ -17,23 +18,23 @@ LANGUAGE SPECIFICATIONS (read before writing code)
   languages/asm     Actual as Thumb-1 subset and directives
   languages/python  Actual Python subset and built-ins
 
-LANGUAGE RECIPES
-  c-examples, asm-examples, python-examples  Basic program examples
+LANGUAGE EXAMPLES
+  c-examples, asm-examples, python-examples  Program examples
 
-HANDS-ON PROGRAMMING LABS (copy source, execute, verify)
-  lab-c-hello          Minimal C stdout + cc/as pipeline
-  lab-c-loops          C while/if/else and exact output
-  lab-c-functions      C pointer parameter and local update
-  lab-c-arrays         Char array indexing and output
-  lab-asm-hello        Thumb-1 SVC write and PC-relative data
-  lab-asm-stack        Thumb-1 push/pop and exit
-  lab-asm-pid          Source-based PID decimal printing exercise
-  lab-python-basics    Python subset arithmetic/loops/conditions
-  lab-python-arrays    Fixed lists and bytes
-  lab-python-files     Bounded read of /proc
-  lab-python-temperature  Read /dev/adc/temp
-  lab-python-udp       Authenticated-intent loopback UDP demo
-  lab-agent-verify     LLM create/build/execute/verify/recover sequence
+PROGRAM EXAMPLES (source, commands, expected output)
+  example-c-hello          Minimal C stdout + cc/as pipeline
+  example-c-loops          C while/if/else and exact output
+  example-c-functions      C pointer parameter and local update
+  example-c-arrays         Char array indexing and output
+  example-asm-hello        Thumb-1 SVC write and PC-relative data
+  example-asm-stack        Thumb-1 push/pop and exit
+  example-asm-pid          PID decimal printing
+  example-python-basics    Python subset arithmetic/loops/conditions
+  example-python-arrays    Fixed lists and bytes
+  example-python-files     Bounded read of /proc
+  example-python-temperature  Read /dev/adc/temp
+  example-python-udp       Authenticated-intent loopback UDP demo
+  example-agent-verify     LLM build, run and verify
 
 OPERATING AND DEBUGGING
   memory          Safe bounded inspection, symbols, slots
@@ -44,6 +45,9 @@ OPERATING AND DEBUGGING
   troubleshooting Command, MCP and runtime failures
   vi             vi keys and literal substitution
   fd             fd navigation and viewer keys
+  reversi        Reversi controls, PTY operation, turns and passes
+  led-patterns   /dev/fbchar glyphs
+  pty            Pseudoterminal interfaces
 
 
 EXTENDED TASK-ORIENTED REFERENCES
@@ -65,7 +69,7 @@ EXTENDED TASK-ORIENTED REFERENCES
   adc-workflow        Temperature and ADC handling
   framebuffer-workflow LED matrix and scroll
   network-workflow    Network, listeners and diagnostics
-  mcp-workflow        MCP tools, transport, timeouts
+  mcp-workflow        MCP tool schemas, limits, execution
   safety-recovery     Safe retries and sensitive commands
   debug-checklist    Error classification and next steps
 
@@ -75,14 +79,6 @@ DEEP-DIVE TROUBLESHOOTING
   memory-investigation, memory-symbols, memory-failures
   devices-discovery, devices-gpio, devices-pwm, devices-i2c
   devices-adc, devices-framebuffer, agent-diagnostic-cases
-Examples of access:
-  ls /man
-  cat /man/languages/c
-  cat /man/c-examples
-  grep socket /man/network
-
 get_manual() lists pages; get_manual(topic) retrieves one page.
 Use 'help COMMAND' for CLI usage. Manuals live in XIP ROM and
 may exceed RAM file limits. Read one page at a time.
-  led-patterns   /dev/fbchar glyphs
-  pty            Pseudoterminal interfaces

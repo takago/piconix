@@ -5,7 +5,7 @@ import asyncio
 
 
 async def main():
-    """MCP SDKでPTYを起動し，画面取得とキー入力を実機検証する．"""
+    """常駐PTYのシェルでコマンドを起動し，画面取得とキー入力を実機検証する．"""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("url", nargs="?", default="http://192.168.4.1:8080/mcp")
     parser.add_argument("--command", default="fd", help="PicoNIX app and optional argument")
@@ -26,7 +26,10 @@ async def main():
                 raise RuntimeError(f"{name}: {result}")
             return result
 
-        print("terminal_open:", await call("terminal_open", {"command": args.command}))
+        print("initial shell screen:\n" + await call("terminal_read", {}))
+        if args.command:
+            print("terminal_send:", await call("terminal_send", {"text": args.command}))
+            print("terminal_send:", await call("terminal_send", {"key": "ENTER"}))
         try:
             for i in range(8):
                 screen = await call("terminal_read", {})
@@ -39,7 +42,7 @@ async def main():
                 await asyncio.sleep(0.08)
                 print("terminal_read:\n" + await call("terminal_read", {}))
         finally:
-            print("terminal_close:", await call("terminal_close", {}))
+            print("PTY remains open; exit the application with its own quit command")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,42 @@
 # PicoNIX Development Diary
 
+### 2026-11-11 — Use `select()` for `mcpd` I/O waits
+
+Replaced periodic `msleep()` polling with `select()` readiness waits for TCP 8080 acceptance, HTTP request receive and response send, and `execute_command` output pipes. HTTP connections remain sequential. The persistent PTY and six MCP tools are unchanged. Host-side tests and ARM compilation were performed; hardware execution remains unverified.
+
+
+### 2026-11-11 — Reorganized the ROM manual for LLM-driven operation
+
+Reorganized `get_manual` entry points across `agent`, `mcp-workflow`, and new `terminal-operations`. Documented persistent PTY state checks, literal text versus named keys, redraw timing, shell restart safety and transport-error retries against the current implementation. Reduced duplicate guidance in `pty` and `quickstart` and standardized the bilingual MCP references on six tools.
+
+### 2026-11-11: Use a persistent PTY shell for MCP terminal operations
+
+`mcpd` now allocates a dedicated PTY at startup and launches an interactive `sh` on its slave. Removed the `terminal_open` and `terminal_close` MCP tools, leaving `terminal_send` and `terminal_read`. Interactive applications run from the persistent shell and return to it when they exit. A shell that has exited is recreated on the next terminal request; a `terminal_send` detecting that restart rejects the pending input so the agent can inspect the screen before issuing new commands. Startup consumes an additional user task slot and fails if the PTY shell cannot be created.
+
+The MCP tool surface shrank from eight tools to six. With identical ARM Clang flags, the `mcpd` object text section decreased from 13,818 to 13,037 bytes (781 bytes). Updated the bilingual references, ROM manuals, host PTY example, function indexes, and associated regression tests. A complete firmware build and long-running hardware test have not been performed.
+
+### 2026-11-11: Consolidate regression tests and remove stale source-pattern assumptions
+
+Removed `test_seek_kernel_symbols.py` and `test_vfs_dot_and_foreground.py`, which were tied to particular source spellings. Other tests partially cover symbol paths, `fd` seek behavior and `ls` argument handling, but do not replace every assertion from the removed tests. Removed the obsolete UDP PCB count assertion from `test_udp_devices.py`, leaving the current capacity check in `test_udp_multi_slot.py`. Repaired the host execution harness in `test_select_ready_runtime.py` and expanded it to cover PTY master/slave readiness, backpressure and EOF. No kernel or user application runtime code changed. Hardware validation was not performed, and the complete regression suite did not finish within the execution limit.
+
+### 2026-11-11: Convert instructional material into technical references
+
+Reaudited the Japanese and English Markdown documentation and removed exercises, coursework, solutions, classroom instructions, and prescribed learning sequences outside the development diary. Deleted both `ROADMAP.md` learning paths and kept useful navigation links in the documentation indexes. Reorganized the kernel reading material into a source-file and call-path reference. Preserved complete, usable system-call, device-driver, C, Python, and assembly examples as implementation and diagnostic procedures rather than assignments.
+
+Renamed 13 ROM manual `lab-*` topics to `example-*` references, updated the index and its regression tests, and checked duplicated source listings against the actual examples. Corrected the current C subset `++`/`--` constraints, application registration listings, and remaining transitional language. These changes concern documentation, comments, and tests; they do not modify kernel or application runtime behavior. A complete firmware build and on-device verification remain separate tasks.
+
+### 2026-11-11: Keep non-diary documentation limited to the current specification
+
+Reaudited the Japanese and English documentation following the preceding technical fixes, removing historical implementation details and transitional explanations from all non-diary materials. Network references now focus on current TCP receive behavior, polling constraints and diagnostics instead of former buffer sizes, tuning experiments and investigations of past lwIP failures. Wi-Fi references likewise describe the current 60-second GARP behavior and remaining verification limits without retaining comparisons to older firmware or earlier experiments.
+
+Removed obsolete references to `PICONIX_WIFI_LAYOUT`, `/dev/gpio/fb`, `/dev/fb0`, `/dev/pts/0.cursor`, `GETARG`, `trace kernel`, and superseded MCP interfaces while preserving current constraints. Corrected the English `TRACE.md` against `CMakeLists.txt`: the build-time default for kernel function tracing is ON, whereas event recording at startup is OFF. Updated 32 bilingual documentation files and passed checks for 66 Japanese/English pairs, 3,592 local links, function indexes, ROM manuals, semantic contracts, and relevant MCP/application-ID tests. Full firmware build, hardware operation and the entire regression suite were not completed.
+
+Going forward, `README.md`, `reference/`, `development/` and other non-diary documentation describe only the current supported behavior; superseded implementations, design decisions and migration histories belong in this development diary.
+
+### 2026-11-11: Repair source-to-documentation drift across both languages
+
+Rebuilt the Japanese and English `cc` references around the current parser, functions, pointers, arithmetic, increment/decrement, and limits. Corrected the pipe `O_NONBLOCK` description and distinguished three global user UDP sockets from the one pending datagram per socket. Integrated `reversi` into command indexes, MCP interactive guidance, and the ROM manual. Fixed function-index extraction of C declaration attributes, generated indexes in both languages, and updated stale registration and MCP-schema tests. Checked documentation links, ROM manuals and host-side compiler/assembler output. Interactive hardware validation was not performed as part of this revision.
+
 ### 2026-11-10: Simplified MCP screen reads and aligned documentation
 
 `terminal_read` now reads the screen once and returns it on every call, removing the second read, hash comparison, and `unchanged` state. Concurrent rendering can still produce a non-atomic screen view. Updated ROM manuals with the no-wait `terminal_send` behavior, bilingual references, generic PTY screen-only comments, function index, and regression tests.

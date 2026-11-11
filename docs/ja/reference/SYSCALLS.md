@@ -125,11 +125,11 @@
 `getdents()`の`device_id`フィールドはディレクトリ項目のIDです．`/dev`と`/proc`ではデバイスID，`/bin`ではプログラムID，`/tmp`・`/etc`ではRAMファイルのスロット番号（0始まり）を返します．ディレクトリやIDのない項目は`0xffff`です．`ls -l`は`TYPE ID SIZE NAME`の見出しを表示し，`p`をプログラム，`f`をRAMファイル，`c`をデバイス，`d`をディレクトリとして区別します．スロット番号はファイルの削除・再生成で変わるため，恒久的な識別子ではありません．
 
 
-`spawn_foreground()`と`spawn_tmp_foreground()`は新しいシステムコール番号ではありません．`SYS_SPAWN`の引数個数に`0x100`を付加する方法，または`SYS_SPAWN_TMP`の第2引数を1にする方法で，起動とフォアグラウンドTTY制御権の移譲を不可分に行います．従来の`spawn()`はバックグラウンド起動に使えます．
+`spawn_foreground()`と`spawn_tmp_foreground()`は新しいシステムコール番号ではありません．`SYS_SPAWN`の引数個数に`0x100`を付加する方法，または`SYS_SPAWN_TMP`の第2引数を1にする方法で，起動とフォアグラウンドTTY制御権の移譲を不可分に行います．`spawn()`はバックグラウンド起動に使えます．
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/SYSCALLS.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [English](../../en/reference/SYSCALLS.md)
 
 ## `select()`によるI/O多重化
 

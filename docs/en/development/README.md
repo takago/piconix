@@ -1,8 +1,8 @@
 # Development Guides
-**Prerequisites:** Familiarity with C, UNIX and OS concepts such as processes, FDs and syscalls is assumed. These guides focus on reading and changing the actual implementation. Before editing, consult [Differences from Linux](../reference/DIFFERENCES.md) and [Memory layout](../reference/MEMORY-LAYOUT.md).
+**Required background:** Familiarity with C, UNIX and OS concepts such as processes, FDs and syscalls is assumed. These guides focus on reading and changing the actual implementation. Before editing, consult [Differences from Linux](../reference/DIFFERENCES.md) and [Memory layout](../reference/MEMORY-LAYOUT.md).
 
 
-These contain detailed implementation instructions and API information. Follow the [Learning roadmap](../ROADMAP.md) for learning order and consult these guides as needed.
+These documents describe current APIs, implementation details, extension procedures and complete code examples. Choose a reference by topic.
 
 **Find by goal:** [Task index](../TASKS.md).
 
@@ -20,9 +20,9 @@ These contain detailed implementation instructions and API information. Follow t
 - [TCP/UDP Socket Programming with Tiny Python (Pico W)](apps/python/SOCKET-PROGRAMMING.md)
 - [PicoNIX Tiny Thumb Assembler](apps/asm/ASM.md)
 
-## Reading and extending the kernel
+## Kernel source and extension references
 
-- [PicoNIX Kernel Reading Guide](kernel/KERNEL-READING-GUIDE.md)
+- [Kernel source and call-path reference](kernel/KERNEL-READING-GUIDE.md)
 - [Kernel Development Guide](kernel/KERNEL-DEVELOPMENT.md)
 
 ## System calls
@@ -33,15 +33,15 @@ These contain detailed implementation instructions and API information. Follow t
 
 - [Device Driver Development](drivers/DRIVER-DEVELOPMENT.md)
 
-## Kernel networking (Pico W, optional)
+## Kernel networking (Pico W)
 
 - [Network development guide index](network/README.md)
 - [Wi-Fi, lwIP, sockets and kernel service implementation](network/NETWORK-DEVELOPMENT.md)
 
-**Source index:** [Function list (Japanese)](../../ja/development/FUNCTIONS.md). Line locations change with code revisions.
+**Source index:** [Function index](FUNCTIONS.md). Line locations change with code revisions.
 
-**Complete code labs:** [Build UDP/TCP clients](apps/c/NETWORK-PROGRAMMING.md) / [Add a system call](syscalls/SYSCALL-DEVELOPMENT.md) / [Add a device node and driver](drivers/DRIVER-DEVELOPMENT.md). Each includes preparation, source, build, execution and checks.
+**Implementation examples and extension procedures:** [Build UDP/TCP clients](apps/c/NETWORK-PROGRAMMING.md) / [Add a system call](syscalls/SYSCALL-DEVELOPMENT.md) / [Add a device node and driver](drivers/DRIVER-DEVELOPMENT.md). Each includes preparation, source, build, execution and checks.
 
 ---
 
-**Related links:** [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/development/README.md)
+**Related links:** [日本語](../../ja/development/README.md)

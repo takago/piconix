@@ -1,0 +1,69 @@
+MCP PERSISTENT TERMINAL - STATE-AWARE OPERATION
+
+USE FOR: vi, edit, fd, reversi, watch, interactive python and
+other full-screen or keyboard-driven programs. Do not use
+execute_command for these programs.
+
+SESSION
+  mcpd creates one PTY and an interactive sh at startup.
+  terminal_read({})       inspect current 80x24 ANSI screen
+  terminal_send({text:...}) send ordinary characters (NO Enter)
+  terminal_send({key:'ENTER'}) submit shell command / newline
+  terminal_send({key:'ESC'})   leave vi INSERT mode
+  terminal_send({key:'CTRL_C'}) interrupt foreground program
+  No terminal_open or terminal_close tools exist.
+  The session is shared by all MCP clients: do not assume an idle sh.
+
+STATE CHECK BEFORE INPUT
+  1. Call terminal_read({}); identify prompt, current application,
+     active mode and whether it is waiting for a key or command.
+  2. If a shell prompt is visible, send command text, then ENTER.
+     If an app is running, use its documented keys instead.
+  3. Inspect terminal_read({}) after each meaningful action.
+     terminal_send reports accepted bytes, NOT a completed action.
+  4. If rendering or COM move is still in progress, read again
+     after the operation has had time to advance; do not resend.
+  5. After quitting an app, confirm the shell prompt before typing
+     another command. Never type a shell command inside an app.
+
+KEYS VS TEXT
+  Named key parameter: UP DOWN LEFT RIGHT ENTER ESC ESCAPE TAB
+  SPACE SP BACKSPACE BS DELETE CTRL_A ... CTRL_Z.
+  text:"L" sends an uppercase L; key:"LEFT" sends left arrow.
+  text:" " or key:"SPACE" sends a space.
+  A letter, including q, h, j, k, l, i, is ordinary text.
+  Use key for control keys, text for literal characters.
+
+SCREEN INTERPRETATION
+  terminal_read returns the current 80x24 screen as ANSI text.
+  ESC[4m/ESC[24m underline the visible cursor cell; ESC[7m/
+  ESC[0m indicate reverse video. A blank cursor cell is marked.
+  No separate row/column metadata, scrollback, or atomic snapshot.
+  Screen may show an intermediate draw. Cursor != selection/turn.
+  Read /man/pty for device and display details.
+
+ERRORS AND RECOVERY
+  The shell may restart after exit. A terminal_send detecting that
+  restart RETURNS ERROR without sending the input: read screen,
+  confirm the new prompt, then decide whether to send input.
+  An interrupted HTTP reply or 'PTY send failed' may mean input
+  was partly delivered. Read the screen; verify effects before
+  retrying. NEVER blindly repeat writes or Enter.
+  Avoid exiting the shared shell, killing mcpd, or starting mcpd
+  inside its own PTY. No authentication or TLS: isolated LAN only.
+
+APPLICATION TOPICS
+  /man/vi       vi mode, save, quit, literal replacement
+  /man/fd       viewer vs list, keys, q behavior
+  /man/reversi  player turn, COM delay, legal/illegal moves
+  /man/pty      PTY device details, cursor markers
+
+EXAMPLE: READ FIRST, THEN START REVERSI
+  terminal_read({})
+  get_manual({topic:'reversi'})
+  terminal_send({text:'reversi'})      # only at sh prompt
+  terminal_send({key:'ENTER'})
+  terminal_read({})
+  ... send keys only when Turn: PLAYER; inspect after each move
+  terminal_send({text:'q'})            # when game accepts keys
+  terminal_read({})                    # confirm sh prompt

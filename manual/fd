@@ -1,6 +1,6 @@
 PICONIX FD - EXACT KEY OPERATIONS (NOT LINUX fd FIND)
 
-Start: terminal_open({"command":"fd /tmp"}); terminal_read({}).
+Start: terminal_send({"text":"fd /tmp"}) then terminal_send({"key":"ENTER"}); terminal_read({}).
 fd is a full-screen file browser. It is NOT the Linux fd search tool.
 
 DIRECTORY LIST:
@@ -26,10 +26,10 @@ FILE VIEWER (/tmp /etc /proc /man text files only):
 IMPORTANT: q in a viewer returns to list; q at list exits fd.
 fd never previews /dev nodes and never edits /proc or /man.
 fd does not copy, rename or delete files. For vi editing, close fd
-and terminal_open({"command":"vi /tmp/NAME"}) in a fresh session.
+and terminal_send({"text":"vi /tmp/NAME"}) followed by ENTER at the shell prompt.
 
 MCP workflow: open fd -> read -> send key DOWN or RIGHT -> read
--> send key LEFT -> read -> send key q -> terminal_close({}).
+-> send key LEFT -> read -> send key q -> back to shell.
 A successful terminal_send means keystrokes were delivered, NOT that
 the intended screen was reached. Read screen after each navigation.
 terminal_read always returns the current screen; if it looks unchanged,

@@ -17,7 +17,7 @@ Run `edit /tmp/test.s` to edit or create a file. Use arrow keys to move, Enter f
 3. Press **Ctrl+S** to save. Confirm the `Saved` message at the bottom of the screen.
 4. Press **Ctrl+Q** to exit. If unsaved changes remain, press Ctrl+Q again to discard the changes, or Ctrl+S to save.
 
-For a simple exercise, run `edit /tmp/hello.txt`, type and save a short line, then run `cat /tmp/hello.txt` in the shell to check what was stored. On Pico W, `edit /etc/index.html` edits the HTTP introduction page directly; changes are lost on reboot.
+For example, run `edit /tmp/hello.txt`, type and save a short line, then run `cat /tmp/hello.txt` in the shell to check what was stored. On Pico W, `edit /etc/index.html` edits the HTTP introduction page directly; changes are lost on reboot.
 
 ## Limits and cautions
 

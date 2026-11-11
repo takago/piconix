@@ -2,7 +2,7 @@
 
 *Technical reference*
 
-This guide explains **how PicoNIX works**, from boot and task switching to system calls and I/O. For step-by-step application development, see [C application development](../development/apps/c/PROGRAMMING.md). For physical pin assignments and connections, see [pin assignments](hardware/PINS.md) and [wiring](hardware/WIRING.md); see [devices](devices/README.md) for `/dev` interfaces.
+This guide explains **how PicoNIX works**, from boot and task switching to system calls and I/O. For application implementation details, see [C application development](../development/apps/c/PROGRAMMING.md). For physical pin assignments and connections, see [pin assignments](hardware/PINS.md) and [wiring](hardware/WIRING.md); see [devices](devices/README.md) for `/dev` interfaces.
 
 ## 1. Architecture at a glance
 
@@ -54,7 +54,7 @@ Applications are built as position-independent code (PIC) and embedded in Flash.
 
 Task states are `UNUSED`, `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn()` launches a registered program in a new slot. `waitpid()` waits for a child, or returns without blocking when `WNOHANG` is specified. Exit codes (0–255) are retained in completion notices separately from reusable task slots and returned through `waitpid()`.
 
-`ps` and `/proc/tasks` show the parent PID in a trailing `PPID` column, preserving the existing fields.
+`ps` and `/proc/tasks` show the parent PID in a trailing `PPID` column.
 
 ## 4. System-call boundary
 
@@ -67,7 +67,7 @@ RAM applications do not call kernel functions directly. The wrappers in `userlan
 | Directories | `chdir()`, `getcwd()` |
 | TTY and control | `get_tty()`, `ioctl()`, `fcntl()`, `set_foreground()` |
 
-The kernel and user-side system-call numbers must agree. Number 15 is reserved for the former `GETARG` call and must not be reused. Startup arguments reach `main(argc, argv)` through the initial stack and `crt0.c`.
+The kernel and user-side system-call numbers must agree. System-call number 15 is reserved and must not be allocated. Startup arguments reach `main(argc, argv)` through the initial stack and `crt0.c`.
 
 For the complete numbered ABI, see [System Call Reference](SYSCALLS.md).
 
@@ -128,7 +128,7 @@ The standard build enables function instrumentation, but event capture starts OF
 
 `/dev/trace` provides the binary records. See [Tracing](commands/TRACE.md) for event formats and interpretation.
 
-## 9. Where to look in the source
+## 9. Implementation sources
 
 | File | Responsibility |
 |---|---|
@@ -147,4 +147,4 @@ Pico W uses the 16-KiB network reserve for its 10-KiB lwIP heap and 4-KiB idle t
 
 ---
 
-**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/INTERNAL.md) | [Usage guides](commands/README.md)
+**Related links:** [Reference index](README.md) | [日本語](../../ja/reference/INTERNAL.md) | [Usage guides](commands/README.md)

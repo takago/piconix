@@ -1,17 +1,17 @@
 # ネットワーク — 技術リファレンス
 
-Pico WのWi-Fi接続，TCP/UDP通信，ネットワークサービスに関する仕様をまとめています．Pico Wがない場合，ネットワーク関連の学習章は選択です．
+Pico WのWi-Fi接続，TCP/UDP通信，ネットワークサービスに関する仕様をまとめています．通常のPicoでは，Wi-FiとPico W用ネットワークサービスを利用できません．
 
-## 通信を調べるコマンド（初めて使う人向け）
+## 通信診断コマンド
 
-`ip`，`ping`，`tcpdump`は**違う層**を観察します．次の順序で試すと，原因を切り分けやすくなります．
+`ip`，`ping`，`tcpdump`は**違う層**を観察します．目的に応じて使い分けます．
 
 1. [`ip`：自分のIPv4アドレス・インターフェースを確認](IP.md)
 2. [`ping`：ICMP Echoで通信可能か確認](PING.md)
 3. [`tcpdump`：TCP・UDP・ICMPのパケット要約を読む](TCPDUMP.md)
 4. [`net`：Wi-Fi状態・AP接続端末・ARPを確認](NET.md)
 
-実習は[ネットワーク接続](NETWORK.md)から始められます．**Pico W専用**の操作とPC側で実行する操作を混同しないでください．
+通信設定と操作方法は[ネットワーク接続](NETWORK.md)を参照してください．**Pico W専用**の操作とPC側で実行する操作を混同しないでください．
 
 
 ## 接続と状態確認
@@ -32,4 +32,4 @@ Pico WのWi-Fi接続，TCP/UDP通信，ネットワークサービスに関す�
 
 ---
 
-**関連リンク：** [リファレンス総目次](../README.md) ｜ [デバイス](../devices/README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/network/README.md)
+**関連リンク：** [リファレンス総目次](../README.md) ｜ [デバイス](../devices/README.md) ｜ [English](../../../en/reference/network/README.md)

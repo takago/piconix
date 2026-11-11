@@ -28,6 +28,11 @@ prefix = r'''
 #define FB_ENABLE 0x100
 #define AF_INET 2
 #define SOCK_STREAM 1
+#define F_SETFL 4
+#define O_NONBLOCK 0x800
+typedef unsigned fd_set;
+#define FD_SET(fd, set) ((void)(fd), *(set) = 1u)
+struct timeval { long tv_sec; long tv_usec; };
 struct in_addr { uint32_t s_addr; };
 struct sockaddr { uint16_t sa_family; char sa_data[14]; };
 struct sockaddr_in { uint16_t sin_family, sin_port; struct in_addr sin_addr; char unused[8]; };
@@ -40,6 +45,8 @@ static int stub_read(int,void *,size_t);
 static int stub_write(int,const void *,size_t);
 static int stub_ioctl(int,int,int);
 static int stub_msleep(unsigned);
+static int stub_fcntl(int,int,int);
+static int stub_select(int,fd_set *,fd_set *,fd_set *,struct timeval *);
 static int stub_socket(int,int,int);
 static int stub_bind(int,const struct sockaddr *,unsigned);
 static int stub_listen(int,int);
@@ -52,6 +59,8 @@ static int stub_accept(int,struct sockaddr *,unsigned *);
 #define write stub_write
 #define ioctl stub_ioctl
 #define msleep stub_msleep
+#define fcntl stub_fcntl
+#define select stub_select
 #define socket stub_socket
 #define bind stub_bind
 #define listen stub_listen
@@ -135,6 +144,10 @@ static int stub_ioctl(int fd,int cmd,int value) {
     (void)fd;(void)value;assert(cmd==FB_ENABLE);enabled++;return 0;
 }
 static int stub_msleep(unsigned t) {slept+=t;return 0;}
+static int stub_fcntl(int fd,int cmd,int flags) { (void)fd;assert(cmd==F_SETFL&&flags==O_NONBLOCK);return 0;}
+static int stub_select(int n,fd_set *rd,fd_set *wr,fd_set *ex,struct timeval *tv) {
+    (void)n;(void)wr;(void)ex;assert(rd&&*rd&&tv&&tv->tv_usec==5000);return 1;
+}
 static int stub_socket(int x,int y,int z){(void)x;(void)y;(void)z;return -1;}
 static int stub_bind(int x,const struct sockaddr *y,unsigned z){(void)x;(void)y;(void)z;return -1;}
 static int stub_listen(int x,int y){(void)x;(void)y;return -1;}
@@ -187,7 +200,7 @@ int main(void) {
     /* EAGAIN is still retryable for both receive and send. */
     reset("GET / HTTP/1.1\r\n\r\n",18,256);
     recv_stall=2;send_stall=1;handle(4);
-    status(200);assert(slept==12);
+    status(200);assert(slept==2); /* The select-ready stub avoids receive-side sleeps. */
     puts("PASS: actual HTTP parser, routes, length validation, TCP EOF and EAGAIN");
     return 0;
 }

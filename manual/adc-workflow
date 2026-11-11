@@ -16,7 +16,7 @@ Use the published device encoding before interpreting output.
 
 WHAT IS SAFE
   Reading onboard temperature is non-destructive and makes a
-  good MCP introductory exercise. Repeated rapid polling still
+  useful MCP device-access example. Repeated rapid polling still
   uses CPU and consumes connection bandwidth.
 
 WHAT NEEDS CHECKING

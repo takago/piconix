@@ -60,7 +60,7 @@ fd /man
 
 ## MCPからの操作
 
-`get_manual({"topic":"fd"})`でキー操作を確認し，`terminal_open({"command":"fd /tmp"})`で開始します．`terminal_read({})`で画面を確認してから，`terminal_send({"key":"DOWN"})`などを送信します．**一覧画面とファイル閲覧画面で`q`の動作が違う**ため，画面遷移のたびに`terminal_read`で確認してください．`fd`の`e`は`vi`ではなく`edit`を起動します．`vi`で編集したい場合は`fd`を終了し，`terminal_open({"command":"vi /tmp/NAME"})`で新しいセッションを開きます．
+`get_manual({"topic":"fd"})`でキー操作を確認し，`terminal_send({"text":"fd /tmp"})`に続いて`terminal_send({"key":"ENTER"})`で開始します．`terminal_read({})`で画面を確認してから，`terminal_send({"key":"DOWN"})`などを送信します．**一覧画面とファイル閲覧画面で`q`の動作が違う**ため，画面遷移のたびに`terminal_read`で確認してください．`fd`の`e`は`vi`ではなく`edit`を起動します．`vi`で編集したい場合は`fd`を終了し，`terminal_send({"text":"vi /tmp/NAME"})`と`terminal_send({"key":"ENTER"})`で新しいセッションを開きます．
 
 ## 制限と内部動作
 

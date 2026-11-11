@@ -2,11 +2,11 @@
 
 *Development guide*
 
-To study the kernel before modifying it, see the [kernel reading guide](KERNEL-READING-GUIDE.md).
+For the kernel structure, see the [kernel reading guide](KERNEL-READING-GUIDE.md).
 
 ## Before you start
 
-**Prerequisites:** Read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Tracing](../../reference/commands/TRACE.md). Begin by following task creation and termination in the existing source code.
+**References:** See [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Tracing](../../reference/commands/TRACE.md). Begin by following task creation and termination in the existing source code.
 
 
 [Documentation guide](../../README.md) | [Internals](../../reference/INTERNAL.md) | [System calls](../../reference/SYSCALLS.md) | [Devices](../../reference/devices/README.md) | [日本語](../../../ja/development/kernel/KERNEL-DEVELOPMENT.md)
@@ -35,9 +35,9 @@ Read [ARCHITECTURE.md](../../reference/ARCHITECTURE.md) and [INTERNAL.md](../../
 - [Add a device driver](../drivers/DRIVER-DEVELOPMENT.md) — VFS registration, I/O, ioctl, and tests
 - [Kernel networking (Pico W)](../network/NETWORK-DEVELOPMENT.md) — Wi-Fi, lwIP, sockets, and built-in services
 
-The following worked exercise compares both extension mechanisms.
+The following implementation example compares both extension mechanisms.
 
-## 3. Complete exercise: one syscall and an independent virtual device
+## 3. Implementation example: a syscall and an independent virtual device
 
 Expose the existing boot-time counter through **two different interfaces**: `getuptime()` (numeric SVC return) and `/dev/uptime` (read-only text via VFS). The existing `/proc/ticks` and `/proc/uptime` remain unchanged.
 
@@ -48,10 +48,6 @@ Expose the existing boot-time counter through **two different interfaces**: `get
 | Register and flash an app | [C programming](../apps/c/PROGRAMMING.md) and [Setup](../../setup/SETUP.md) | `ls /bin`, device execution |
 
 
-**Exercise:** Draw both paths from the 1 ms kernel counter: through SVC returning an integer, and through VFS/FD returning formatted text. No physical hardware is connected in this virtual-driver exercise.
-
-
-
 ## 4. Change and verification workflow
 
 Before editing, trace the relevant **entry point (SVC/VFS/driver) → internal state → user-visible result**, and check declarations shared with `include/` and `userland/lib/`. Avoid unnecessary cross-module dependencies or exposing `static` helpers merely for convenience.
@@ -60,7 +56,7 @@ Before editing, trace the relevant **entry point (SVC/VFS/driver) → internal s
 2. Make the smallest change possible. Recheck syscall numbers, event ABI, device IDs, SRAM layout and PIC constraints; update the corresponding reference if any of these change.
 3. Run `python3 tools/run_tests.py` for host-side tests. Record passes, failures and tests not run separately; some tests require host tools or configurations that may not be available.
 4. Build the target board using [Setup](../../setup/SETUP.md). If a shared change affects both Pico and Pico W, build both. Retain the build output including PIC and memory-layout checks.
-5. Verify the changed path on hardware. For example, use `trace run hello` to observe syscall entry/exit, or exercise the affected `/dev` node for a driver. Record the board and build configuration with the result.
+5. Verify the changed path on hardware. For example, use `trace run hello` to observe syscall entry/exit, or read/write the affected `/dev` node for a driver. Record the board and build configuration with the result.
 
 **Verification boundaries:** Passing host tests does not prove hardware behavior; passing a build does not, by itself, establish the status of every PIC, SRAM-layout or trace check.
 
@@ -75,4 +71,4 @@ Before editing, trace the relevant **entry point (SVC/VFS/driver) → internal s
 
 ---
 
-**Related links:** [Development guide index](../README.md) | [Learning roadmap](../../ROADMAP.md)
+**Related links:** [Development guide index](../README.md)

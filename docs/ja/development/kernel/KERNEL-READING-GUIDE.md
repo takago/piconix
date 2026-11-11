@@ -1,69 +1,64 @@
-# PicoNIX カーネル読解ガイド
+# PicoNIX カーネルソース・処理経路索引
 
 *開発ガイド*
 
-このガイドは，PicoNIXの**現行ソースを読んでOSの動作原理を理解する**ための道順です．機能の追加手順は[カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)を参照してください．ソースをファイルの先頭から順番に読む必要はありません．**起動 → タスクの準備 → スケジューリング → 例外 → システムコール → ファイル → TTY・パイプ → デバイス → ネットワーク**の順で，関心のある処理を追います．
+この資料は，カーネルの機能とソースファイル，主要な呼び出し経路を対応付ける索引です．変更手順は[カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)を参照してください．
 
-## 読み進め方
+## ソースファイルの対応関係
 
-各段階で「**実行して観察する → 関数の入口を見つける → 引数・状態変化・復帰を追う → リファレンスで仕様を照合する**」を繰り返します．例えば`trace run hello`の`write`を起点に，`call()`，`isr_svcall`，`os_svc_dispatch()`，`vfs_rw()`へ進みます．トレースの表示が関数呼出しの完全な履歴ではない点にも注意してください．
+例えば`write()`のカーネル内経路は，`call()`，`isr_svcall`，`os_svc_dispatch()`，`vfs_rw()`の順に通ります．実際の呼び出し元・呼び出し先は`rg -n '関数名\(' kernel userland`で検索できます．`trace run hello`は実行時のイベントを表示しますが，すべての関数呼び出しを記録するものではありません．
 
-1. 各段階の「読む順序」に従ってソースを開き，該当関数のコメント・引数・戻り値を確認します．
-2. 呼び出し元と呼び出し先を探し，処理の流れを紙などに図示します．`rg -n '関数名\(' kernel userland`が使えます．
-3. 可能なら実機でコマンドを実行し，`ps`・`trace`・`mem`などで結果を確認します．機器に依存する実験は省略可能です．
-4. 各段階の内容を確認してから次へ進みます．まず**既存のコードを変更せず**読むことを推奨します．
+UNIX/Linuxのプロセス・FD・システムコール，C言語，Cortex-M0+の例外処理の知識を前提にします．関連する仕様は[全体構造](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[Linuxとの違い](../../reference/DIFFERENCES.md)にあります．**PicoNIXは一般的なLinuxのプロセス分離・仮想記憶をそのまま実装したOSではありません．**
 
-UNIX/Linuxの利用経験とOS基礎，Cの関数・構造体・ポインタを前提にします．第4段階だけはCortex-M0+の例外処理とThumbアセンブリを補助資料で確認します．最初に[全体構造](../../reference/ARCHITECTURE.md)，[メモリ配置](../../reference/MEMORY-LAYOUT.md)，[Linuxとの違い](../../reference/DIFFERENCES.md)に目を通すと理解しやすくなります．**PicoNIXは一般的なLinuxのプロセス分離・仮想記憶をそのまま実装したOSではありません．**
-
-| 段階 | 学習テーマ | 主なファイル | 学ぶこと |
+| 分野 | 対象機能 | 主なファイル | 内容 |
 |---|---|---|---|
-| 1 | 起動 | `kernel/main.c` | 初期化，プログラム登録，最初のシェル |
-| 2 | タスクとメモリ | `kernel/kernel.c`，`include/piconix.h` | 固定長スロット，プログラムイメージ，初期スタック |
-| 3 | スケジューリング | `kernel/kernel.c` | SysTick，READY，BLOCKED，アイドル |
-| 4 | コンテキスト切替 | `kernel/context.S` | PendSV，PSP，レジスタ退避・復元 |
-| 5 | システムコール | `userland/lib/syscalls.c`，`kernel/context.S`，`kernel/kernel.c` | SVCとカーネルへの入口 |
-| 6 | ファイル・FD | `kernel/kernel.c` | open/read/write/close，VFS，/tmp，/proc |
-| 7 | TTY・パイプ | `kernel/kernel.c`，`userland/apps/shell.c` | 入力待ち，FDの複製，EOF，起床 |
-| 8 | デバイス | `kernel/gpio.c`，`kernel/fb.c`など | VFSとデバイスドライバの役割分担 |
-| 9（任意） | ネットワーク（Pico W） | `kernel/net.c`，`kernel/net_socket.c`など | Wi-Fi，lwIP，ソケットの役割分担 |
+| 起動 | 起動 | `kernel/main.c` | 初期化，プログラム登録，最初のシェル |
+| タスク | タスクとメモリ | `kernel/kernel.c`，`include/piconix.h` | 固定長スロット，プログラムイメージ，初期スタック |
+| スケジューラ | スケジューリング | `kernel/kernel.c` | SysTick，READY，BLOCKED，アイドル |
+| 例外 | コンテキスト切替 | `kernel/context.S` | PendSV，PSP，レジスタ退避・復元 |
+| SVC | システムコール | `userland/lib/syscalls.c`，`kernel/context.S`，`kernel/kernel.c` | SVCとカーネルへの入口 |
+| VFS | ファイル・FD | `kernel/kernel.c` | open/read/write/close，VFS，/tmp，/proc |
+| 端末・IPC | TTY・パイプ | `kernel/kernel.c`，`userland/apps/shell.c` | 入力待ち，FDの複製，EOF，起床 |
+| デバイス | デバイス | `kernel/gpio.c`，`kernel/fb.c`など | VFSとデバイスドライバの役割分担 |
+| ネットワーク | ネットワーク（Pico W） | `kernel/net.c`，`kernel/net_socket.c`など | Wi-Fi，lwIP，ソケットの役割分担 |
 
 > **ファイルの探し方：** 関数定義と概説は[関数一覧](../FUNCTIONS.md)を利用してください．同一覧の行番号はソースを編集すると変わるため，本ガイドでは固定の行番号を記しません．
 
-## 第1段階：カーネルの起動
+## カーネルの起動
 
-**読む順序：** `kernel/main.c`の`main()` → `os_init()` → `register_image()` → `net_init()` → `os_init_idle()` → `os_start_program(2)` → `os_start()`．`idle_task()`も読みます．
+**処理経路：** `kernel/main.c`の`main()` → `os_init()` → `register_image()` → `net_init()` → `os_init_idle()` → `os_start_program(2)` → `os_start()`．`idle_task()`も読みます．
 
 `register_image()`はFlash上の実行イメージを**登録**し，その時点ではユーザスロットへコピーしません．シェルのプログラムIDは2です．`idle_task()`では`net_poll()`と`os_console_poll()`が動きます．
 
 
-## 第2段階：タスク生成とメモリ
+## タスク生成とメモリ
 
-**読む順序：** `include/piconix.h`の`OS_MAX_TASKS`・`OS_TASK_BYTES` → `kernel/kernel.c`の`os_register_program()` → `os_register_ram_image()` → `free_program_slot()` → `spawn_in_slot()` → `os_start_program()`．`spawn_in_slot()`には前方宣言と定義があるので，定義の本体を読みます．
+**処理経路：** `include/piconix.h`の`OS_MAX_TASKS`・`OS_TASK_BYTES` → `kernel/kernel.c`の`os_register_program()` → `os_register_ram_image()` → `free_program_slot()` → `spawn_in_slot()` → `os_start_program()`．`spawn_in_slot()`には前方宣言と定義があるので，定義の本体を読みます．
 
-プログラムの登録情報と実行中タスクの状態を区別し，Flashのイメージ，RAM上の固定長タスクスロット，初期スタックのつながりを追います．スタック・レジスタ初期化が第4段階の復帰処理にどのようにつながるかも控えます．
+プログラムの登録情報と実行中タスクの状態を区別し，Flashのイメージ，RAM上の固定長タスクスロット，初期スタックのつながりを追います．スタック・レジスタ初期化がコンテキスト切替の復帰処理にどのようにつながるかも控えます．
 
-**実験：** `ps`でタスクを確認し，`mem -s kernel`や`mem -s sh`でシンボルを調べます．詳しい操作は[メモリ参照](../../reference/commands/MEM.md)を参照してください．
+**観測例：** `ps`でタスクを確認し，`mem -s kernel`や`mem -s sh`でシンボルを調べます．詳しい操作は[メモリ参照](../../reference/commands/MEM.md)を参照してください．
 
 
-## 第3段階：スケジューラ
+## スケジューラ
 
-**読む順序：** `os_start()` → `isr_systick()` → `pend()` → `os_schedule()`．補助としてタスク状態の定義と`wake_readers()`・`wake_waiters()`・`wake_pipes()`を探します．
+**処理経路：** `os_start()` → `isr_systick()` → `pend()` → `os_schedule()`．補助としてタスク状態の定義と`wake_readers()`・`wake_waiters()`・`wake_pipes()`を探します．
 
 SysTickは1 ms周期で時刻を進め，通常10 tickごとにPendSVを要求します．割込みのたびに重いタスク選択処理を直接行うのではなく，PendSV側から`os_schedule()`を呼びます．READYでないタスクとアイドルタスクの扱いも確認してください．Pico Wではネットワークのためアイドル側へ実行機会を渡す分岐があります．
 
-**実験：** 複数のコマンドが動く状態で`ps`を確認します．コンテキスト切替の観察方法は[トレース](../../reference/commands/TRACE.md)を参照してください．
+**観測例：** 複数のコマンドが動く状態で`ps`を確認します．コンテキスト切替の観察方法は[トレース](../../reference/commands/TRACE.md)を参照してください．
 
 
-## 第4段階：コンテキストスイッチ
+## コンテキストスイッチ
 
-**読む順序：** `kernel/context.S`の`isr_pendsv` → `kernel/kernel.c`の`os_schedule()` → `isr_pendsv`に戻って復元処理．
+**処理経路：** `kernel/context.S`の`isr_pendsv` → `kernel/kernel.c`の`os_schedule()` → `isr_pendsv`に戻って復元処理．
 
 PSP（プロセススタック），MSP（例外処理側のスタック），ハードウェアによる例外フレームの保存と，ソフトウェアによるr4〜r11の退避・復元を区別します．`os_schedule(oldsp)`が旧PSPを保存し次のPSPを返す点が中心です．
 
 
-## 第5段階：システムコール
+## システムコール
 
-**読む順序：** `userland/apps/hello.c`（または別の`write()`使用アプリ） → `userland/lib/syscalls.c`の`write()`と`call()` → `include/piconix_syscall.h` → `kernel/context.S`の`isr_svcall` → `kernel/kernel.c`の`os_svc_dispatch()`．
+**処理経路：** `userland/apps/hello.c`（または別の`write()`使用アプリ） → `userland/lib/syscalls.c`の`write()`と`call()` → `include/piconix_syscall.h` → `kernel/context.S`の`isr_svcall` → `kernel/kernel.c`の`os_svc_dispatch()`．
 
 ```text
 ユーザプログラム
@@ -78,48 +73,48 @@ PSP（プロセススタック），MSP（例外処理側のスタック），�
 
 `call()`はr0にシステムコール番号，r1〜r3に引数を置きます．`os_svc_dispatch()`の`SYS_WRITE`分岐を読み，バッファの範囲検査を行う場所も探してください．SVCは「別のアドレス空間へ移動する」ことと同義ではありません．PicoNIXのメモリ保護上の限界は[内部構造](../../reference/INTERNAL.md)を参照してください．
 
-**実験：** `trace run hello`でwriteのENTER/EXITを観察します．
+**観測例：** `trace run hello`でwriteのENTER/EXITを観察します．
 
 
-## 第6段階：ファイルとFD
+## ファイルとFD
 
-**読む順序：** `fd_set()` → `fd_release()` → `vfs_open()` → `vfs_rw()` → `tmp_open()`・`tmp_rw()` → `device_rw_proc()`・`device_rw_tty()`．最後に`os_svc_dispatch()`の`SYS_OPEN`・`SYS_READ`・`SYS_WRITE`・`SYS_CLOSE`を見直します．
+**処理経路：** `fd_set()` → `fd_release()` → `vfs_open()` → `vfs_rw()` → `tmp_open()`・`tmp_rw()` → `device_rw_proc()`・`device_rw_tty()`．最後に`os_svc_dispatch()`の`SYS_OPEN`・`SYS_READ`・`SYS_WRITE`・`SYS_CLOSE`を見直します．
 
 FD番号と，FDに結び付けられた対象の内部ID・ファイル位置・フラグは別の情報です．`/tmp`のRAMファイル，`/proc`の仮想情報，`/dev`のデバイスは，パスの振り分け先が異なります．
 
-**実験：** `cat /proc/uptime`，`ls /dev`，`lsof`を使い，[ファイルシステム](../../reference/FILESYSTEM.md)と比較します．
+**観測例：** `cat /proc/uptime`，`ls /dev`，`lsof`を使い，[ファイルシステム](../../reference/FILESYSTEM.md)と比較します．
 
 
-## 第7段階：TTYとパイプ
+## TTYとパイプ
 
-**TTYを読む順序：** `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`．[端末](../../reference/commands/TERMINAL.md)と[TTY設定](../../reference/commands/TTY.md)も参照します．
+**TTYの処理経路：** `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`．[端末](../../reference/commands/TERMINAL.md)と[TTY設定](../../reference/commands/TTY.md)も参照します．
 
-**パイプを読む順序：** `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → `fd_set()`・`fd_release()` → `os_svc_dispatch()`の`SYS_PIPE`・`SYS_DUP2`・`SYS_CLOSE` → シェルの`|`処理．
+**パイプの処理経路：** `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → `fd_set()`・`fd_release()` → `os_svc_dispatch()`の`SYS_PIPE`・`SYS_DUP2`・`SYS_CLOSE` → シェルの`|`処理．
 
 ```sh
 echo hello | grep hello | cat
 ```
 
 
-## 第8段階：デバイス
+## デバイス
 
-**読む順序：** `kernel/kernel.c`のデバイスI/O振り分け → `kernel/gpio.c` → `kernel/fb.c` → `kernel/adc.c` → `kernel/i2c.c` → `kernel/pwm.c`．ハードウェアの定義は`kernel/pins.h`・`kernel/devices.h`・`include/device_names.h`も参照します．
+**処理経路：** `kernel/kernel.c`のデバイスI/O振り分け → `kernel/gpio.c` → `kernel/fb.c` → `kernel/adc.c` → `kernel/i2c.c` → `kernel/pwm.c`．ハードウェアの定義は`kernel/pins.h`・`kernel/devices.h`・`include/device_names.h`も参照します．
 
-GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．**ネットワークはこの段階では扱いません．** [デバイス仕様](../../reference/devices/README.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
+GPIOなどのデバイス固有処理が，VFSと`read()`・`write()`・`ioctl()`の入口からどのように呼ばれるかを調べます．ネットワーク側の処理経路は別項に示します． [デバイス仕様](../../reference/devices/README.md)と[ドライバ開発](../drivers/DRIVER-DEVELOPMENT.md)も参照してください．
 
 
-## 第9段階：ネットワーク（Pico Wのみ・任意）
+## ネットワーク（Pico W）
 
-**読む順序：** `kernel/main.c`での`net_init()` → `kernel/net.c`の`net_init()`・`net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c`・`kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c`．
+**処理経路：** `kernel/main.c`での`net_init()` → `kernel/net.c`の`net_init()`・`net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c`・`kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c`．
 
-Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイス制御，ユーザアプリのTCP/UDPソケットを区別します．ソケットAPIとユーザ側の例は[ネットワークプログラミング](../apps/c/NETWORK-PROGRAMMING.md)を参照してください．**通常のPicoだけで学ぶ場合はこの段階を省略できます．**
+Wi-Fi接続・lwIPのポーリング，カーネル内のTelnet／UDPデバイス制御，ユーザアプリのTCP/UDPソケットを区別します．ソケットAPIとユーザ側の例は[ネットワークプログラミング](../apps/c/NETWORK-PROGRAMMING.md)を参照してください．ネットワーク側の処理はPico W専用です．
 
 **補助資料：** [ネットワーク実装・拡張ガイド](../network/NETWORK-DEVELOPMENT.md)で各ファイルの責任分担と改造時の注意点を確認できます．
 
 
-## 補講：CPUモード・スタック・SVC・PendSVをソースで追う
+## CPUモード・スタック・SVC・PendSVの実装
 
-この節は**第2〜第5段階を読んだ後**に取り組みます．Cortex-M0+一般の動作と，PicoNIX固有の実装を区別してください．以下の関数名・構造体メンバは`kernel/context.S`と`kernel/kernel.c`で確認できます．
+この節ではCortex-M0+のアーキテクチャ上の動作とPicoNIX固有の処理を区別します．以下の関数名・構造体メンバは`kernel/context.S`と`kernel/kernel.c`で確認できます．
 
 ### 1．Thread／Handlerモードと特権レベル
 
@@ -193,22 +188,17 @@ read(fd, buf, size) → SVC
 
 Research UNIX V5/V6では，カーネル内の`sleep()`で待機したプロセスが，**プロセス固有のカーネルスタックに呼び出し状態を残したまま**切り替わり，起床後にその続きから処理を再開できます．カーネルが原則非プリエンプティブでも，カーネル内部で自発的にスケジュールアウトできるため，この仕組みが必要です．
 
-対してPicoNIXは，待機条件とシステムコールの復帰状態を保存し，**カーネル関数の呼び出し状態を残さず**別タスクへ移ります．この違いを，プロセス別カーネルスタックの必要性と結び付けて考えてください．両方式とも「ユーザプログラムからはブロッキング`read()`に見える」という点は同じです．
+対してPicoNIXは，待機条件とシステムコールの復帰状態を保存し，**カーネル関数の呼び出し状態を残さず**別タスクへ移ります．この違いは，プロセス別カーネルスタックの必要性と対応します．両方式とも「ユーザプログラムからはブロッキング`read()`に見える」という点は同じです．
 
 
-## まとめと演習
-
-
-
-
-## 次に読む文書
+## 関連する仕様と実装資料
 
 - [関数一覧](../FUNCTIONS.md)：定義箇所と処理概要の索引
 - [内部構造](../../reference/INTERNAL.md)：メモリ・スケジューラ・SVCの補足
 - [システムコール一覧](../../reference/SYSCALLS.md)：番号，引数と動作
-- [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md)：自分で呼び出しを追加する
-- [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)：機能を変更する実習
+- [システムコール開発](../syscalls/SYSCALL-DEVELOPMENT.md)：システムコールの追加手順
+- [カーネル拡張ガイド](KERNEL-DEVELOPMENT.md)：カーネルの拡張手順
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [文書案内](../../README.md) ｜ [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)
+**関連リンク：** [開発ガイド一覧](../README.md) ｜ [文書案内](../../README.md) ｜ [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)

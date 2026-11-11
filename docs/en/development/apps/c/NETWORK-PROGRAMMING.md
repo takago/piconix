@@ -1,6 +1,6 @@
-# Socket API and network programming: hands-on guide
+# Socket API and C networking implementation examples
 
-This tutorial builds **two ordinary C programs** for Pico W: a UDP echo client and a TCP HTTP client. `nc` is only a diagnostic comparison, not the programming exercise itself. A regular Pico has no Wi-Fi interface. Use an isolated, trusted lab network: the built-in Telnet and remote device service provide neither encryption nor authentication.
+The examples implement **two ordinary C programs** for Pico W: a UDP echo client and a TCP HTTP client. `nc` is only a diagnostic comparison, not a substitute for the socket API examples. A regular Pico has no Wi-Fi interface. Use an isolated, trusted isolated network: the built-in Telnet and remote device service provide neither encryption nor authentication.
 
 ## 1. Equipment and data path
 
@@ -12,7 +12,7 @@ Pico W: tcp_get    → TCP 8000  → PC: python3 -m http.server
 C application → syscalls.c → SVC → kernel.c → net_socket.c → lwIP
 ```
 
-On PicoNIX, run `ip addr` and `net` to confirm its IP state. On the **PC**, run `ip addr` to confirm the PC address (often `192.168.4.2` in AP mode; never assume this value). Stop competing UDP applications: PicoNIX supports only **one user UDP socket at a time**. Allow UDP 12345 and TCP 8000 through the PC firewall for the lab.
+On PicoNIX, run `ip addr` and `net` to confirm its IP state. On the **PC**, run `ip addr` to confirm the PC address (often `192.168.4.2` in AP mode; never assume this value). Check other UDP applications if resources are exhausted: PicoNIX supports **up to three user UDP sockets globally**. Allow UDP 12345 and TCP 8000 through the PC firewall for network access.
 
 ## 2. Socket API contracts
 
@@ -31,15 +31,15 @@ The implementation is **not** a full BSD/POSIX stack. Errors are returned as neg
 
 ## Socket polling, errors, and resource lifetime
 
-- **`accept()`, TCP `recv()`/`read()`, and UDP `recvfrom()` block by default**. If no connection or data is available, the task enters `BLOCKED` until the kernel scheduler detects readiness. Set `fcntl(fd,F_SETFL,O_NONBLOCK)` to return `OS_EAGAIN` instead. Sending and `connect()` retain their previous asynchronous behavior.
+- **`accept()`, TCP `recv()`/`read()`, and UDP `recvfrom()` block by default**. If no connection or data is available, the task enters `BLOCKED` until the kernel scheduler detects readiness. Set `fcntl(fd,F_SETFL,O_NONBLOCK)` to return `OS_EAGAIN` instead. Sending and `connect()` use asynchronous behavior.
 - `connect()` returning 0 means that asynchronous connection setup started, not that the connection is established. Use `tcp_status()` (1 connected, 0 pending, -2 peer closed after buffered data drains, -1 fault). `accept()` waits by default and returns `OS_EAGAIN` only with `O_NONBLOCK`; `read()`/`write()` on a listening TCP FD return `OS_EBADF`.
 - TCP `send()` may accept fewer bytes than requested, limited by `TCP_MSS` and the transmit queue; `recv()` returns only currently buffered bytes. After a normal peer close and drain, `recv()` returns 0 (EOF). Sending after `shutdown(SHUT_WR)` returns `OS_EIO`.
-- UDP supports one user socket globally and stores at most one incoming datagram. An undersized receive buffer produces `OS_EINVAL` **without consuming** the datagram. A valid zero-length datagram returns 0, distinct from `OS_EAGAIN` when `O_NONBLOCK` is used. Sending before `bind()` assigns an ephemeral local port; a later `bind()` fails. Bind first if a fixed receive port is required.
+- UDP supports up to three user sockets globally; **each socket** buffers at most one incoming datagram. An undersized receive buffer produces `OS_EINVAL` **without consuming** the datagram. A valid zero-length datagram returns 0, distinct from `OS_EAGAIN` when `O_NONBLOCK` is used. Sending before `bind()` assigns an ephemeral local port; a later `bind()` fails. Bind first if a fixed receive port is required.
 - Socket descriptors cannot be passed to `dup()`/`dup2()`. `close()` releases their resources and task termination also reclaims owned sockets. A TCP listening FD and its accepted FD share one management slot, so serve connections sequentially.
 
 ## 3. Opt in to building the examples
 
-The examples under `userland/examples/` are **not standard firmware commands**. To enable them for this exercise only, work on a separate branch and copy their sources into `userland/apps/`. Revert these modifications after the exercise so optional examples are not accidentally shipped as standard applications. From the **Linux PC, in the repository root**:
+The examples under `userland/examples/` are **not standard firmware commands**. To enable them when adding these optional applications, work on a separate branch and copy their sources into `userland/apps/`. Revert these modifications after verifying the optional applications so optional examples are not accidentally shipped as standard applications. From the **Linux PC, in the repository root**:
 
 ```sh
 cp userland/examples/c/network/udp_once.c userland/apps/udp_once.c
@@ -60,7 +60,7 @@ register_image(53, "udp_once", piconix_udp_once_image_start, piconix_udp_once_im
 register_image(54, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image_end);
 ```
 
-53 and 54 are unused in the unmodified source tree (49 = `mcpd`, 50 = `cc`, 51 = `scroll`). **Recheck all registrations in `kernel/main.c` before using them, especially if other exercises were applied.** See the [C application build tutorial](PROGRAMMING.md) for the PIC/RAM-slot model and flashing instructions.
+53 and 54 are unused in the unmodified source tree (49 = `mcpd`, 50 = `cc`, 51 = `scroll`). **Recheck all registrations in `kernel/main.c` before using them, especially if other applications were registered.** See the [C application development reference](PROGRAMMING.md) for the PIC/RAM-slot model and flashing instructions.
 
 ```sh
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
@@ -81,7 +81,7 @@ python3 host/udp_echo.py 12345
 Its full source code:
 
 ```python
-"""One-client UDP echo server for the PicoNIX networking tutorial (host PC)."""
+"""One-client UDP echo server for PicoNIX (host PC)."""
 import socket
 import sys
 
@@ -301,7 +301,7 @@ HTTP/1.0 200 OK
 
 The response is illustrative. Note that `connect()` initiating a TCP connection does **not** mean it has finished. Wait for `tcp_status() == 1`. `send()` can send fewer bytes than requested; continue with the remainder. A `recv()` of 0 indicates EOF; `OS_EAGAIN` means try later.
 
-## 6. Troubleshooting and experiments
+## 6. Errors and diagnostics
 
 | Symptom | First checks |
 |---|---|
@@ -312,7 +312,7 @@ The response is illustrative. Note that `connect()` initiating a TCP connection 
 | Repeated `OS_EAGAIN` | Not necessarily an error: sleep briefly and retry, with a timeout |
 | Command missing from `/bin` | Both CMake and `register_image`, and the flashed UF2 |
 
-**Exercises:** Explain (1) TCP byte streams versus UDP datagrams, (2) why partial TCP sends require a loop, and (3) the difference between a user-space `httpd` and the kernel Telnet service. Compare the code to `userland/apps/tcp_echod.c`, `udp_echod.c`, and `httpd.c`. For the kernel side, see [Network development](../../network/NETWORK-DEVELOPMENT.md); for command comparison, see [`nc`](../../../reference/network/NC.md).
+For the kernel side, see [Network development](../../network/NETWORK-DEVELOPMENT.md); for command comparison, see [`nc`](../../../reference/network/NC.md).
 
 ---
 

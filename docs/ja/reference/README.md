@@ -1,6 +1,5 @@
 # 技術リファレンス — 目次
 
-OSの仕様，API，機能の制限などを分野別に調べられます．順番にUNIXを学ぶ場合は[学習ロードマップ](../ROADMAP.md)を参照してください．
 
 **目的から探す：** [やりたいこと → 関連資料](../TASKS.md)．
 
@@ -48,7 +47,7 @@ OSの仕様，API，機能の制限などを分野別に調べられます．順
 - [ピン割当と40ピン配置図](hardware/PINS.md)
 - [配線・電気的注意](hardware/WIRING.md)
 
-[学習ロードマップ](../ROADMAP.md) ｜ [コマンドリファレンス](commands/README.md) ｜ [開発ガイド一覧](../development/README.md)
+[コマンドリファレンス](commands/README.md) ｜ [開発ガイド一覧](../development/README.md)
 
 ---
 

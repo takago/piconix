@@ -49,7 +49,7 @@ RX TCP 192.168.4.2:52000 > 192.168.4.1:80 LEN=60 DATA=16 ACK PSH
 - **TCP:** Run PC-side `curl` to observe SYN, ACK and FIN.
 - **UDP:** Run the included `udp_echo.py` on the PC and `udp_once` on the Pico W, then inspect the UDP packets. See [socket programming](../../development/apps/c/NETWORK-PROGRAMMING.md).
 
-**Privacy:** `-x` may expose application data. Use only on your own trusted lab network, especially with cleartext Telnet.
+**Privacy:** `-x` may expose application data. Use only on your own trusted isolated network, especially with cleartext Telnet.
 
 ---
 

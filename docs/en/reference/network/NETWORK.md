@@ -2,7 +2,7 @@
 
 *Technical reference*
 
-The Pico W build defaults to Wi-Fi AP mode with a small DHCP server; it can also join an existing network in build-time STA mode. The network shell is independent of the USB CDC console. The ordinary Pico has no Wi-Fi support. The current Pico W firmware has also been tested successfully on a regular Pico, but Wi-Fi is unavailable on that hardware.
+The Pico W build defaults to Wi-Fi AP mode with a small DHCP server; it can also join an existing network in build-time STA mode. The network shell is independent of the USB CDC console. The ordinary Pico has no Wi-Fi support. A Pico W build can boot on a regular Pico in the tested configuration, but Wi-Fi is unavailable on that hardware.
 
 ## Build
 
@@ -14,7 +14,7 @@ LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
-Set `PICO_TOOLCHAIN_PATH` if using a separately installed toolchain. The UF2 is `build-pico_w/piconix.uf2`. Flash it in BOOTSEL mode. `PICONIX_WIFI_LAYOUT` is obsolete; use `-DPICO_BOARD=pico_w`. For the regular Pico use `-DPICO_BOARD=pico`.
+Set `PICO_TOOLCHAIN_PATH` if using a separately installed toolchain. The UF2 is `build-pico_w/piconix.uf2`. Flash it in BOOTSEL mode. Use `-DPICO_BOARD=pico_w`. For the regular Pico use `-DPICO_BOARD=pico`.
 
 For STA build options and connection status, see [Wi-Fi modes](WIFI-MODES.md).
 
@@ -45,13 +45,13 @@ On Linux, install clients as needed (e.g. `sudo apt install telnet socat`). On W
 
 ## Notes and security
 
-Telnet and raw TCP are unencrypted. Use only on a trusted experimental network. The AP password is a published fixed value; do not send secrets. Terminal behavior can vary with the Telnet client. For current Wi-Fi and DHCP diagnostics, see [Wi-Fi modes](WIFI-MODES.md) and [network status](NET.md). Earlier investigations are retained in Git history.
+Telnet and raw TCP are unencrypted. Use only on a trusted experimental network. The AP password is a published fixed value; do not send secrets. Terminal behavior can vary with the Telnet client. For current Wi-Fi and DHCP diagnostics, see [Wi-Fi modes](WIFI-MODES.md) and [network status](NET.md).
 
 ## TCP/UDP applications and remote device control
 
 Alongside Telnet (TCP 23), Pico W supports user-space `nc`, `httpd` (TCP 80), `tcp_echod`, and `udp_echod`. UDP 2000 offers remote access to permitted device paths. See [Remote device control](REMOTE-DEVICE.md) for the UDP protocol and [Socket API and network applications](../../development/apps/c/NETWORK-PROGRAMMING.md) for user-space sockets.
 
-Wi-Fi STA reassociation can be requested with `echo restart > /dev/net/wifi`. The request is processed in the network poll loop; an active remote session may disconnect. `/dev/ttyN0` remains the terminal device.
+Wi-Fi STA reassociation can be requested with `echo restart > /dev/net/wifi`. The request is processed in the network poll loop; an active remote session may disconnect. The terminal device is `/dev/ttyN0`.
 
 ## Local loopback (Pico W)
 
@@ -84,12 +84,6 @@ reads data, lwIP can retry delivery. `tcp_recved()` is called only for bytes
 read by the application. On a Telnet disconnect, an aborted PCB is signalled
 with `ERR_ABRT` to prevent lwIP from using an already freed PCB.
 
-The receive-buffer change adds 48 bytes per slot (192 bytes total) of static
-RAM compared with the previous 1,024-byte buffers. Verify the kernel RAM limit
-with `tools/build_sdk.sh` and its ELF layout checks after integrating this
-change. These safeguards do not yet establish that the earlier
-`tcp_receive: valid queue length` assertion has been completely eliminated.
-
 TCP `accept()` and `read()`, and UDP `recvfrom()`, block the task by default when not ready. With `O_NONBLOCK`, they return `OS_EAGAIN` instead. Sending and asynchronous `connect()` have different semantics, including partial sends or temporary unavailability. UDP buffers just one datagram; an undersized receive buffer returns `OS_EINVAL` without consuming it. See the [socket programming guide](../../development/apps/c/NETWORK-PROGRAMMING.md).
 
 ## TCP transmission and half-close
@@ -98,18 +92,11 @@ Each user TCP write is bounded by `TCP_MSS` (536 bytes) and the available `tcp_s
 
 After successful `shutdown(SHUT_WR)`, writes fail for that socket. If `tcp_close()` temporarily returns `ERR_MEM`, the backend retries from its TCP poll callback rather than closing during ACK processing. Late pbufs received by a detached closing PCB are consumed, and a callback that frees a pbuf returns `ERR_OK`.
 
-**About the prior assertion:** `tcp_receive: valid queue length` detects a nonzero send-queue count despite both `unacked` and `unsent` lists being empty during ACK processing. Raw-API reentrancy, send-queue ownership and memory corruption remain under investigation; these changes do not prove the underlying cause has been eliminated.
-
 ## Polling and Wi-Fi stability
 
 PicoNIX uses the polling-based CYW43/lwIP integration. `net_poll()` runs in the idle task, **not** in the 1 ms timer interrupt. It calls `cyw43_arch_poll()` and runs the network services only when at least **250 µs** have elapsed since the previous network poll. This interval applies to both STA and AP modes; it is a **minimum interval**, not a guaranteed 250 µs schedule. Other tasks can delay the idle task.
 
-The setting is defined by `NET_POLL_INTERVAL_US` in `kernel/net.c`. Its history and rationale are:
-
-- Initially, polling was unrestricted, with roughly 100,000 calls/s observed during idle time.
-- A 1 ms minimum interval reduced calls to at most approximately 1,000/s, but interactive Telnet responsiveness appeared worse.
-- 500 µs (at most approximately 2,000 calls/s) improved perceived responsiveness.
-- 250 µs (at most approximately 4,000 calls/s) is the current setting, chosen for responsiveness; its performance and long-term stability have not been systematically measured.
+The interval is defined by `NET_POLL_INTERVAL_US` in `kernel/net.c` and is set to 250 µs (theoretical maximum approximately 4,000 calls/s). Systematic responsiveness and long-term stability tests have not yet been performed.
 
 For STA, PicoNIX explicitly disables CYW43 Wi-Fi power saving using `CYW43_NONE_PM`. The idle task stack is 4 KiB. `/proc/net/wifi` reports `POLL_COUNT` (cumulative **executed** polls), `POLL_MAX_GAP_MS` (largest observed gap), `PM_ERROR` (STA power-management setup result), and `IDLE_STACK` (estimated stack usage). `POLL_COUNT` does not reset when the STA connection is restarted and does **not** count received packets.
 
@@ -140,7 +127,7 @@ piconix# tcpdump -c 10
 piconix# ping -c 2 192.168.4.2
 ```
 
-`tcpdump [-x] [-c COUNT]` runs on Pico W and the options may be combined. Start `tcpdump -x -c 10` on the USB console, then generate traffic using `curl http://192.168.4.1/` on a PC or `ping` on a second PicoNIX terminal. For step-by-step instructions and sample output, see the [Network reference](NETWORK.md). `LEN` is the IPv4 packet length; `DATA` is the transport payload length (for a first TCP/UDP fragment). `tcpdump` normally displays one summary line per packet. With `-x`, the first line includes `DATA=` (transport payload length); when data is present, an indented second line labelled `DATA:` shows the first 16 bytes in spaced hexadecimal with an aligned ASCII column (`|...|`), as in `hexdump`. Packets without payload (for example, TCP SYN/ACK) show `DATA=0` without a sample. ICMP uses TYPE to distinguish Echo Request (8) and Reply (0). Commands that wait for traffic can be stopped using the shell’s Ctrl+C mechanism. Packets arriving before capture starts are intentionally not stored. Traffic inspection can expose application data: use only a trusted lab network.
+`tcpdump [-x] [-c COUNT]` runs on Pico W and the options may be combined. Start `tcpdump -x -c 10` on the USB console, then generate traffic using `curl http://192.168.4.1/` on a PC or `ping` on a second PicoNIX terminal. For usage details and sample output, see the [Network reference](NETWORK.md). `LEN` is the IPv4 packet length; `DATA` is the transport payload length (for a first TCP/UDP fragment). `tcpdump` normally displays one summary line per packet. With `-x`, the first line includes `DATA=` (transport payload length); when data is present, an indented second line labelled `DATA:` shows the first 16 bytes in spaced hexadecimal with an aligned ASCII column (`|...|`), as in `hexdump`. Packets without payload (for example, TCP SYN/ACK) show `DATA=0` without a sample. ICMP uses TYPE to distinguish Echo Request (8) and Reply (0). Commands that wait for traffic can be stopped using the shell’s Ctrl+C mechanism. Packets arriving before capture starts are intentionally not stored. Traffic inspection can expose application data: use only a trusted isolated network.
 
 ### Practical command guides
 
@@ -148,9 +135,9 @@ piconix# ping -c 2 192.168.4.2
 - [`ping`](PING.md): ICMP reachability and failures
 - [`tcpdump`](TCPDUMP.md): TCP/UDP/ICMP packet summaries
 - [`net`](NET.md): Wi-Fi, AP clients and ARP
-- [C networking lab](../../development/apps/c/NETWORK-PROGRAMMING.md): complete code and build steps
+- [C networking implementation examples](../../development/apps/c/NETWORK-PROGRAMMING.md): complete code and build steps
 
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/network/NETWORK.md) | [Setup](../../setup/SETUP.md)
+**Related links:** [Reference index](../README.md) | [日本語](../../../ja/reference/network/NETWORK.md) | [Setup](../../setup/SETUP.md)

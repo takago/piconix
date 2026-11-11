@@ -1,4 +1,4 @@
-PWM LAB: OBSERVE -> CHANGE -> VERIFY -> RESTORE
+PWM CONTROL AND VERIFICATION
 
 Current pwmctl.c syntax:
   pwmctl status

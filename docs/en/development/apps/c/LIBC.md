@@ -118,7 +118,7 @@ For standard input, use `scanf("%d", &first)`. Repeated numeric conversions cons
 
 For teaching and predictable error handling, reading a line with `fgets()` and parsing it with `sscanf()` is often simpler.
 
-## Learning standard input with `omikuji -i`
+## Standard input handling with `omikuji -i`
 
 `omikuji` runs once with a 10-second default, while `omikuji 3` runs once with three seconds. With `omikuji -i`, `scanf("%d", &seconds)` repeatedly reads integers from standard input. `echo "3 4" | omikuji -i` runs twice and ends at EOF. Blank lines are skipped by `scanf()`; invalid tokens are discarded through `getchar()` until a separator. **A failed conversion leaves unread input behind and may cause an infinite loop if the program does not consume it.**
 
@@ -163,4 +163,4 @@ Interactive child programs can use `spawn_foreground(program, argc, argv)` or `s
 
 ---
 
-**Related links:** [Development guide index](../../README.md) | [Learning roadmap](../../../ROADMAP.md) | [日本語](../../../../ja/development/apps/c/LIBC.md)
+**Related links:** [Development guide index](../../README.md) | [日本語](../../../../ja/development/apps/c/LIBC.md)

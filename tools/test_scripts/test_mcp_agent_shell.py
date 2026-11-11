@@ -20,7 +20,7 @@ assert 'COMMAND_TIMEOUT_MS 3000' in MCP
 assert 'if(argc==3) { batch_mode=1; return run_one_command(argv[2],cwd); }' in SH
 assert 'if(!batch_mode) set_foreground(pid[i]);' in SH
 assert 'list_tools_stream(fd,id)' in MCP
-for name in ('terminal_open','terminal_send','terminal_read','terminal_close','execute_command','get_manual'):
+for name in ('terminal_send','terminal_read','execute_command','get_manual'):
     assert r'\"name\":\"'+name+r'\"' in MCP, name
 for lang in ('en', 'ja'):
     assert (ROOT / f'docs/{lang}/reference/commands/MCP.md').exists()

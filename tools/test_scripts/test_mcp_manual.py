@@ -4,7 +4,7 @@ import ast, json, re, shutil, subprocess
 root=Path(__file__).resolve().parents[2]
 s=(root/'userland/apps/mcpd.c').read_text()
 assert 'list_tools_stream(fd,id)' in s
-for name in ('terminal_open','terminal_send','terminal_read','terminal_close','get_manual'):
+for name in ('terminal_send','terminal_read','get_manual'):
     assert r'\"name\":\"'+name+r'\"' in s
 assert 'scroll_message(' not in s
 assert '"get_wifi_info"' not in s and '"display_message"' not in s

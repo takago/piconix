@@ -195,7 +195,7 @@ The main console uses USB CDC only. UART0 console builds are not supported. UART
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/devices/README.md) | [Hardware and wiring](../hardware/README.md)
+**Related links:** [Reference index](../README.md) | [日本語](../../../ja/reference/devices/README.md) | [Hardware and wiring](../hardware/README.md)
 
 ---
 

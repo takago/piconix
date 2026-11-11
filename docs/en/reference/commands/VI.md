@@ -23,7 +23,7 @@ The normal-mode `dd` command for deleting a line is distinct from the separate [
 
 The editing area starts at the left edge with no line-number gutter. Arrow keys require a terminal that sends ANSI escape sequences.
 
-## First editing exercise
+## Editing example
 
 1. Start `vi /tmp/hello.txt`.
 2. Press `i` and type some text.
@@ -35,7 +35,7 @@ If there are unsaved changes, `:q` displays a warning instead of quitting. Use `
 
 ## MCP terminal operation and substitution
 
-Read `get_manual({"topic":"vi"})` first. Start with `terminal_open({"command":"vi /tmp/test.txt"})`, then inspect `terminal_read({})`. Do not launch an interactive editor through `execute_command`.
+Read `get_manual({"topic":"vi"})` first. Start with `terminal_send({"text":"vi /tmp/test.txt"})` followed by `terminal_send({"key":"ENTER"})`, then inspect `terminal_read({})`. Do not launch an interactive editor through `execute_command`.
 
 To replace every literal `1000` with `100`, send:
 

@@ -1,6 +1,6 @@
 # Command reference
 
-This index covers **all 52 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
+This index covers **all 53 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
 
 Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” links for advanced tools. Some networking commands require Pico W.
 
@@ -65,7 +65,7 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 | [`net`](../../../../userland/apps/net.c) | Wi-Fi status, clients and ARP | `net [-a\|-r]` | [Details](../network/NET.md) |
 | [`ip`](../../../../userland/apps/ip.c) | Show IP interfaces | `ip [addr]` | [Details](../network/NETWORK.md) |
 | [`nc`](../../../../userland/apps/nc.c) | TCP/UDP netcat | `nc [-u] [-N] -l PORT \| nc [-u] [-N] IPv4 PORT` | [Details](../network/NC.md) |
-| [`ping`](../../../../userland/apps/ping.c) | ICMP Echo probes | `ping [-c COUNT] IPv4` | [Details](../network/NETWORK.md) |
+| [`ping`](../../../../userland/apps/ping.c) | ICMP Echo probes | `ping [-c COUNT] IPv4` | [Details](../network/PING.md) |
 | [`tcpdump`](../../../../userland/apps/tcpdump.c) | Inspect IPv4 packets | `tcpdump [-x] [-c COUNT]` | [Details](../network/TCPDUMP.md) |
 | [`httpd`](../../../../userland/apps/httpd.c) | HTTP/1.0 server (TCP 80) | `httpd` | [Details](../network/HTTPD.md) |
 | [`tcp_echod`](../../../../userland/apps/tcp_echod.c) | TCP echo server | `tcp_echod [PORT]— default 7` | [Details](../network/NETWORK.md) |
@@ -80,6 +80,7 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 | [`hello`](../../../../userland/apps/hello.c) | Print greeting | `hello [name]` | — |
 | [`mb`](../../../../userland/apps/mb.c) | Moon Buggy game | `mb` | — |
 | [`pong`](../../../../userland/apps/pong.c) | Pong game | `pong [-2]` | [Details](PONG.md) |
+| [`reversi`](../../../../userland/apps/reversi.c) | Reversi against the computer | `reversi` | [Details](REVERSI.md) |
 | [`omikuji`](../../../../userland/apps/omikuji.c) | Fortune and input demo | `omikuji [-i \| seconds]` | — |
 | [`kitesys`](../../../../userland/apps/kitesys.c) | Embedded-system demo | `kitesys` | — |
 

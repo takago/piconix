@@ -11,7 +11,7 @@ COMMANDS THAT CAN CHANGE STATE
 Ask the user before irreversible or hardware-affecting changes.
 
 DO NOT EXECUTE THROUGH MCP
-  bare python, edit, vi, fd, mem, gpio, fbed, pong, mb,
+  bare python, edit, vi, fd, mem, gpio, fbed, pong, reversi, mb,
   watch, trace follow, interactive omikuji -i, indefinite tcpdump,
   raw cat on infinite /dev nodes, long-running network listeners.
 

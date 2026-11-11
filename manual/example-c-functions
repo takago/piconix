@@ -1,0 +1,28 @@
+C EXAMPLE - LOCAL POINTERS AND FUNCTION CALLS
+
+PURPOSE: Confirm that a function updates a caller local through int*.
+Write /tmp/set.c via write_file:
+
+  void set(int *p) {
+      *p = 65;
+      return;
+  }
+  int main() {
+      int n = 0;
+      set(&n);
+      if (n == 65) {
+          write(1, "Y\n", 2);
+      } else {
+          write(1, "N\n", 2);
+      }
+      return 0;
+  }
+
+Run: cc /tmp/set.c, then as /tmp/set.s, then /tmp/a.out.
+Expected stdout: Y
+
+No global variables or arbitrary C library functions. A function
+accepts at most four parameters; local frame is fixed at 256 bytes.
+Pointers are not bounds-checked; never use fabricated hardware
+addresses just to demonstrate pointer arithmetic.
+For limits see /man/languages/c and /man/limits.

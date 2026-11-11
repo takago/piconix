@@ -1,6 +1,6 @@
 # デバイスノードとドライバ開発：`/dev/uptime`を作る
 
-この実習では，**配線不要の仮想デバイス**`/dev/uptime`を新設します．パス名，内部デバイスID，open時のアクセス制御，FD位置，デバイス固有のread処理を**一通り自分で実装**するための題材です．外部GPIOを不用意に操作しないので，通常のPicoでも試せます．システムコールの追加実習と組み合わせると，同じ起動時間が異なる経路で提供される様子を比較できます．
+この拡張例では，**配線不要の仮想デバイス**`/dev/uptime`を新設します．パス名，内部デバイスID，open時のアクセス制御，FD位置，デバイス固有のread処理を**独立して実装する手順**の具体例です．外部GPIOを不用意に操作しないので，通常のPicoでも試せます．システムコールの追加例と組み合わせると，同じ起動時間が異なる経路で提供される様子を比較できます．
 
 ## 1．何を実装するのか
 
@@ -11,9 +11,9 @@ cat /dev/uptime
   → 「12.345 s\n」などのテキスト → 標準出力
 ```
 
-既存の`/proc/uptime`と機能的に重複しますが，ここでは**ドライバを独立したCファイルとして作る練習**が目的です．デバイスノードは物理部品を必要としません．パスがVFSから参照できることと，実際に`read()`が働くことは別々の実装段階です．
+既存の`/proc/uptime`と機能的に重複しますが，ここでは**ドライバを独立したCファイルとして実装する例**が目的です．デバイスノードは物理部品を必要としません．パスがVFSから参照できることと，実際に`read()`が働くことは別々の実装段階です．
 
-**先に確認：** [ファイルシステム](../../reference/FILESYSTEM.md)，[デバイス仕様](../../reference/devices/README.md)，[システムコール演習](../syscalls/SYSCALL-DEVELOPMENT.md)．ユーザアプリに使う`read()`や`open()`の使い方は[C開発](../apps/c/PROGRAMMING.md)を参照してください．
+**関連仕様：** [ファイルシステム](../../reference/FILESYSTEM.md)，[デバイス仕様](../../reference/devices/README.md)，[システムコールの拡張例](../syscalls/SYSCALL-DEVELOPMENT.md)．ユーザアプリに使う`read()`や`open()`の使い方は[C開発](../apps/c/PROGRAMMING.md)を参照してください．
 
 ## 2．デバイスIDとパスを登録する
 
@@ -38,7 +38,7 @@ cat /dev/uptime
 新しい`kernel/uptime_device.h`を作成します．
 
 ```c
-/* Simple read-only virtual device used by the documentation exercise. */
+/* Example read-only virtual device; not part of the standard firmware. */
 #ifndef PICONIX_UPTIME_DEVICE_H
 #define PICONIX_UPTIME_DEVICE_H
 #include <stdint.h>
@@ -126,11 +126,11 @@ getuptime: 12399 ms
 
 上記は**想定表示**であり，実測ログではありません．数値が一致しないのは呼び出し時間が異なるからです．`echo 1 > /dev/uptime`のように書き込みで開こうとすると失敗することも確認してください．`cat /dev/uptime`が空や無限表示なら，FD位置更新，0バイトでのEOF，VFSの振り分けを調べます．
 
-**確認項目**：`open`の読み取り専用制限／`read`の短いバッファ・EOF／複数回open/close／未知パスの拒否／`ls /dev`での列挙．PicoとPico Wでビルドし，他のデバイス機能に影響がないかも確認します．
+**実装時の検証項目**：`open`の読み取り専用制限／`read`の短いバッファ・EOF／複数回open/close／未知パスの拒否／`ls /dev`での列挙．PicoとPico Wでビルドし，他のデバイス機能に影響がないかも確認します．
 
 ## 7．物理デバイスへ発展させるには
 
-この演習は**仮想ドライバ**です．外部LEDやI²Cセンサーなどの実デバイスへ進むときは次の実装を照合します．
+この実装例は**仮想ドライバ**です．外部LEDやI²Cセンサーなどの実デバイスへ進むときは次の実装を照合します．
 
 | 読む対象 | 調べるポイント |
 |---|---|
@@ -142,11 +142,9 @@ getuptime: 12399 ms
 
 例えば既存のGPIOをPicoNIXで操作するには`gpio`コマンドまたは`/dev/gpio/N`を使い，それらが`kernel/gpio.c`の`gpio_driver_rw()`を通ることを追ってください．物理ピンの割当は[ピン配置](../../reference/hardware/PINS.md)と[配線](../../reference/hardware/WIRING.md)を必ず参照し，LEDマトリクスやUART，I²C，PWMが使う予約ピンを別の周辺機器へ流用しないでください．**新規の物理ドライバを追加する場合は安全なGPIO所有権・初期化・競合管理・電気的制限も必要**であり，この仮想ドライバのコードをそのままハードウェア制御に流用しないでください．
 
-## 8．実験後に確認する文書
-
 
 **検証範囲：** ドライバ単体のC構文は確認済みですが，SDKでの完全ビルド・実機の読み書きは未検証です．
 
 ---
 
-[開発ガイド一覧](../README.md) ｜ [システムコール演習](../syscalls/SYSCALL-DEVELOPMENT.md) ｜ [English](../../../en/development/drivers/DRIVER-DEVELOPMENT.md)
+[開発ガイド一覧](../README.md) ｜ [システムコールの拡張例](../syscalls/SYSCALL-DEVELOPMENT.md) ｜ [English](../../../en/development/drivers/DRIVER-DEVELOPMENT.md)

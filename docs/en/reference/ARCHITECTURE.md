@@ -47,10 +47,10 @@ Registered user programs are stored as PIC images in Flash and copied into RAM s
 - The kernel manages TTY input settings and ONLCR; applications and host terminal emulators manage cursors, alternate screen, and display effects. See [TTY](commands/TTY.md) and [Terminal](commands/TERMINAL.md).
 - On Pico W, Telnet (TCP 23) and UDP device control (UDP 2000) are kernel services; HTTP (TCP 80) is provided by user-space `httpd`. Availability depends on build configuration. See [Networking](network/NETWORK.md).
 
-## 4. Suggested reading order
+## 4. Implementation references
 
 Start with `kernel/main.c`, `userland/apps/shell.c`, `userland/lib/syscalls.c`, `kernel/kernel.c`, and `kernel/context.S`. Follow network or device subsystems as needed. Update both language versions of the documentation and `userland/apps/help.c` whenever user-facing behavior changes.
 
 ---
 
-**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/ARCHITECTURE.md) | [Internals](INTERNAL.md) | [Documentation](../README.md)
+**Related links:** [Reference index](README.md) | [日本語](../../ja/reference/ARCHITECTURE.md) | [Internals](INTERNAL.md) | [Documentation](../README.md)

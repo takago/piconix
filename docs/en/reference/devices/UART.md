@@ -45,7 +45,7 @@ Ordinary redirection does **not** change terminal affiliation. For example, `pyt
 
 **Ctrl+D:** Only while UART1 is attached by `getty`, the byte `0x04` is interpreted as EOF. Already collected input is returned first; a subsequent `read()` returns zero. The UART1 `sh` stays active and displays a new prompt on EOF; the Python REPL also stays active and displays another prompt. Use `exit()` to end the session.
 
-For Python started with `getty /dev/ttyS1 python &`, `exit()` prints `PicoNIX: Session closed.` before quitting. Script execution is unchanged.
+For Python started with `getty /dev/ttyS1 python &`, `exit()` prints `PicoNIX: Session closed.` before quitting.
 
 When UART1 has no terminal owner, `0x04` remains an ordinary received byte, allowing raw or binary protocols to use it unchanged.
 
@@ -75,4 +75,4 @@ Foreground pipelines: Ctrl+C interrupts the registered foreground pipeline stage
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/devices/UART.md) | [Usage guides](../commands/README.md)
+**Related links:** [Reference index](../README.md) | [日本語](../../../ja/reference/devices/UART.md) | [Usage guides](../commands/README.md)

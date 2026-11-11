@@ -2,9 +2,9 @@
 
 *開発ガイド*
 
-## 読み始める前に
+## 前提と対象ファイル
 
-C言語の関数，配列，コマンドライン引数を復習してから始めてください．最初は既存の`hello`を実行し，次に`greet.c`を追加します．編集するソースはPC側にあり，反映にはUF2の再書き込みが必要です．
+C言語の関数，配列，コマンドライン引数の知識を前提にします．PC側のソースを変更した場合は，ファームウェアの再ビルドとUF2の書き込みが必要です．
 
 
 [English](../../../../en/development/apps/c/PROGRAMMING.md) | [文書案内](../../../README.md) | [Cライブラリ](LIBC.md)
@@ -13,9 +13,9 @@ C言語の関数，配列，コマンドライン引数を復習してから始�
 
 PicoNIXのCアプリケーションは，Linuxの実行ファイルではありません．ホストPCで位置独立コード（PIC）としてビルドし，ファームウェアのFlashに組み込みます．起動時にイメージを空きRAMスロットへコピーして実行します．一方，カーネルのコードはFlash上でXIP実行されます．
 
-## 1．既存のプログラムを確認する
+## 1．既存のコマンド実装
 
-PicoNIXを起動したら，次を試します．
+既存の`hello`コマンドの出力例です．
 
 ```text
 piconix# hello
@@ -52,10 +52,10 @@ int main(int argc, char *argv[])
 ファイル上部の`foreach(APP IN ITEMS ...)`に，拡張子`.c`を付けずに`greet`を加えます．
 
 ```cmake
-foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong gpio fbed asm cc help edit vi dd mem tree find nc httpd tcp_echod udp_echod mcpd scroll greet)
+foreach(APP IN ITEMS fd net ip tcpdump ping pins i2cctl bh1750 fbctl pwmctl kitesys shell blink omikuji python hello hexdump trace ps cat cp grep watch pwd ls rm echo kill tty stty mb reset lsof pong reversi gpio fbed asm cc help edit vi dd mem tree find nc httpd tcp_echod udp_echod mcpd scroll pty_test greet)
 ```
 
-上記は添付された現行`CMakeLists.txt`に`greet`を末尾へ追加した例です．既存のアプリ名は削除せず，新しい版で一覧が変わっている場合はその版の末尾へ`greet`を追加してください．この共通ループによって，ソースのコンパイル，共通の`crt0.c`・`syscalls.c`・`libc.c`のリンク，PIC検査，サイズ検査，Flashへのイメージ埋め込みが行われます．個別のビルドルールは不要です．
+上記は現行のアプリケーション一覧に`greet`を追加した例です．既存のアプリ名を残したまま拡張します．この共通ループによって，ソースのコンパイル，共通の`crt0.c`・`syscalls.c`・`libc.c`のリンク，PIC検査，サイズ検査，Flashへのイメージ埋め込みが行われます．個別のビルドルールは不要です．
 
 ### 3.2．`kernel/main.c`へ登録
 
@@ -71,7 +71,7 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 register_image(52, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**52は標準ファームウェアで未使用の登録IDの一例です（49は`mcpd`，50は`cc`，51は`scroll`が使用）．** 今後アプリが増えた場合は，登録済みIDを確認して空いている番号に変更してください．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
+**現在の`kernel/main.c`では52番は未使用です．** アプリを追加するときは未使用の登録IDを選びます．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
 
 ## 4．ビルド・書き込み・実行
 
@@ -166,7 +166,7 @@ int main(void)
 - `ld.lld: task image overlaps reserved stack`は，イメージがスタック予約領域に食い込んだことを意味します．スロットを広げる前に，静的データやコードを減らします．
 - `PIC image changes with link address`は，2つの配置アドレスでバイナリが一致しなかったことを意味します．静的ポインタ初期化，絶対アドレス参照，リンク時再配置などを確認します．
 
-実際に`fd`を追加した際には，`static const char *notice = "";`がPIC検査に失敗し，ポインタの初期化を実行時へ移すことで解消しました．**Cコンパイル成功とPIC検査成功は別**である点を確認できる例です．
+`static const char *notice = "";`のような静的ポインタ初期化はPIC検査に失敗する場合があります．実行時にポインタを初期化すれば絶対再配置を避けられます．**Cコンパイル成功とPIC検査成功は別**です．
 
 ## 7．問題が起きたとき
 
@@ -264,4 +264,4 @@ restore:
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [学習ロードマップ](../../../ROADMAP.md)
+**関連リンク：** [開発ガイド一覧](../../README.md)

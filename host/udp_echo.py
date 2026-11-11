@@ -1,4 +1,4 @@
-"""One-client UDP echo server for the PicoNIX networking tutorial (host PC)."""
+"""One-client UDP echo server for PicoNIX (host PC)."""
 import socket
 import sys
 

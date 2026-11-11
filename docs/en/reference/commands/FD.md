@@ -58,7 +58,7 @@ Select a writable RAM file directly under `/tmp` or `/etc` and press `e`; you ca
 
 ## MCP terminal operation
 
-Read `get_manual({"topic":"fd"})`, then start `terminal_open({"command":"fd /tmp"})`. Read the screen using `terminal_read({})` before sending navigation keys such as `terminal_send({"key":"DOWN"})`. **`q` behaves differently in the file viewer and directory list**, so verify the current screen after each transition. Pressing `e` launches `edit`, not `vi`. To use `vi`, exit fd, then open a new session with `terminal_open({"command":"vi /tmp/NAME"})`.
+Read `get_manual({"topic":"fd"})`, then start `terminal_send({"text":"fd /tmp"})` followed by `terminal_send({"key":"ENTER"})`. Read the screen using `terminal_read({})` before sending navigation keys such as `terminal_send({"key":"DOWN"})`. **`q` behaves differently in the file viewer and directory list**, so verify the current screen after each transition. Pressing `e` launches `edit`, not `vi`. To use `vi`, exit fd, then open a new session with `terminal_send({"text":"vi /tmp/NAME"})` and `terminal_send({"key":"ENTER"})`.
 
 ## Limits and implementation notes
 

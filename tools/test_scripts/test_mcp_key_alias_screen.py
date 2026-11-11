@@ -10,9 +10,11 @@ assert 'ESCAPE TAB SPACE SP BACKSPACE BS DELETE' in m
 assert 'ioctl(master,OS_PTY_SCREEN_ONLY,1)' in m
 assert 'terminal_drain(' not in m
 assert 'After sending, waits 200ms' not in m
-send=m.split('if(term_master<0) {rpc_error(id,-32030,"No PTY session")',1)[1].split('if (json_equals(v,v_end,"get_manual"))',1)[0]
+send=m.split('int state=terminal_ensure_shell();',1)[1].split('if (json_equals(v,v_end,"get_manual"))',1)[0]
 assert 'accepted: %d bytes' in send
 assert 'return terminal_screen_stream(fd,id)' not in send
 assert 'rpc_result(id,reply);' in send
 assert 'if(!strcmp(expected,"terminal_read")) return terminal_screen_stream(fd,id)' in m
+assert 'if(terminal_start_shell()<0)' in m
+assert 'if(term_master>=0)terminal_close_session();' in m
 print('PASS: MCP input and screen retrieval separated; screen-only mode enabled')

@@ -12,7 +12,9 @@
 #define WHITE 2
 
 /* Board state is local: PIC applications must not require writable global data. */
+/* Test that coordinates fall inside the 8x8 board. */
 static int inside(int x,int y){return (unsigned)x<N && (unsigned)y<N;}
+/* Return the opposite side (BLACK or WHITE). */
 static int opponent(int stone){return 3-stone;}
 
 /* Return the number of reversals; write changes only when apply is nonzero. */
@@ -41,6 +43,7 @@ static int player_move(unsigned char board[64],int x,int y,int *invalid){
     return flips;
 }
 
+/* Find whether this side has at least one legal placement. */
 static int can_move(unsigned char board[64],int stone){
     for(int y=0;y<N;y++)for(int x=0;x<N;x++)if(move(board,x,y,stone,0))return 1;
     return 0;
@@ -65,6 +68,7 @@ static void computer_move(unsigned char board[64],int *mx,int *my,int *invalid){
     if(xbest>=0 && !move(board,xbest,ybest,WHITE,1))(*invalid)++;
 }
 
+/* Draw the 8x8 board and status on a physical TTY or PTY. */
 static void render(unsigned char board[64],int cx,int cy,int turn,int finished,
                    int moves,int lastx,int lasty,int invalid_black,int invalid_white,const char *notice){
     int black=0,white=0;
@@ -97,6 +101,7 @@ static void render(unsigned char board[64],int cx,int cy,int turn,int finished,
     fflush(stdout);
 }
 
+/* Set up a full-screen TTY session, play against COM, and restore modes. */
 int main(int argc,char **argv){
     (void)argv;
     if(argc!=1){puts("usage: reversi");return 1;}

@@ -14,7 +14,7 @@ k = (root / 'kernel/kernel.c').read_text()
 dev = (root / 'include/device_names.h').read_text()
 
 # Streamed tools/list is assembled from independently transmitted JSON fragments.
-section = m[m.index('static int list_tools_stream'):m.index('/* セッションをHTTP要求')]
+section = m[m.index('static int list_tools_stream'):m.index('/* mcpd専用PTY')]
 fragments = []
 for line in section.splitlines():
     found = re.search(r'const char \*base=(".*");', line)
@@ -36,9 +36,10 @@ assert result['cacheScope'] == 'private'
 assert isinstance(result['ttlMs'], int) and result['ttlMs'] >= 0
 tools = json.loads('[' + ''.join(fragments) + ']')
 names = [tool['name'] for tool in tools]
-assert len(names) == len(set(names))
-assert {'get_manual', 'execute_command', 'terminal_open', 'terminal_send',
-        'terminal_read', 'terminal_close'} <= set(names)
+assert len(names) == len(set(names)) == 6
+assert 'terminal_open' not in names and 'terminal_close' not in names
+assert {'get_manual', 'execute_command', 'terminal_send',
+        'terminal_read'} <= set(names)
 for item in tools:
     assert item['inputSchema']['type'] == 'object'
 

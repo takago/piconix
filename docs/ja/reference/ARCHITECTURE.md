@@ -47,10 +47,10 @@
 - TTYの入力設定・ONLCR等はカーネル，画面のカーソル・代替画面等はアプリとホスト端末が管理します．[TTY](commands/TTY.md)と[画面制御](commands/TERMINAL.md)を参照してください．
 - Pico WのTelnet（TCP 23）とUDPデバイス制御（UDP 2000）はカーネル側，HTTP（TCP 80）はユーザ空間の`httpd`です．Wi-Fi動作はビルド構成に依存します．[ネットワーク](network/NETWORK.md)を参照してください．
 
-## 4．ソースコードの読み順
+## 4．実装ファイルの参照先
 
 初めて読む場合は，`kernel/main.c` → `userland/apps/shell.c` → `userland/lib/syscalls.c` → `kernel/kernel.c` → `kernel/context.S`の順が理解しやすいでしょう．ネットワークは`kernel/net_socket.c`，デバイスは各ドライバへ進みます．変更時には日英双方の文書と`userland/apps/help.c`の整合性も確認してください．
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/ARCHITECTURE.md) ｜ [内部構造](INTERNAL.md) ｜ [文書案内](../README.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [English](../../en/reference/ARCHITECTURE.md) ｜ [内部構造](INTERNAL.md) ｜ [文書案内](../README.md)

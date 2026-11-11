@@ -1,0 +1,21 @@
+AGENT VERIFICATION - OBSERVE RESULTS
+
+1. DISCOVER: get_manual(), then get_manual(topic='languages/c') or
+   another relevant page, and help COMMAND for exact CLI syntax.
+2. INSPECT: ps; check free task slots before tool-driven execution.
+3. CREATE: write_file a uniquely named ASCII /tmp source; respect the
+   2048-byte RAM-file limit (cc accepts at most 1024-byte source).
+4. BUILD: execute_command('cc /tmp/name.c'); read RESULT first.
+5. ASSEMBLE: execute_command('as /tmp/name.s'); read RESULT first.
+6. EXECUTE: execute_command('/tmp/a.out') only if as succeeded.
+7. VERIFY: compare exact observable output with the test expectation.
+8. DIAGNOSE: inspect source, generated assembly, /proc, hexdump or
+   trace; avoid interactive/full-screen apps through execute_command.
+9. RECOVER: if incomplete HTTP response, first check process/file/
+   device state. Do not blindly repeat writes or hardware commands.
+
+TOOLS: get_manual is read-only. write_file overwrites a /tmp file.
+execute_command runs non-interactive sh -c (<=119 ASCII command
+bytes, <=4096 output bytes, nominal 3s child execution timeout).
+Even a successful MCP result does not prove external side effects.
+Use /man/safety-recovery and /man/debug-checklist for failures.

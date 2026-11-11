@@ -45,9 +45,9 @@ trace run -a ping 127.0.0.1 # include selected asynchronous functions
 trace run cat /tmp/test.txt  # include selected functions when built with instrumentation
 ```
 
-**`trace show` and `trace follow` display events; they do not start a target program.** With only one terminal, `trace run hello` is a convenient first exercise because it starts the program and displays its trace after exit.
+**`trace show` and `trace follow` display events; they do not start a target program.** With only one terminal, `trace run hello` is a single-terminal usage example because it starts the program and displays its trace after exit.
 
-The PID argument is a decimal integer. Regular processes use **PIDs 1–255 cyclically**, with PID 0 reserved for the idle task. An active task or an exit notification not yet collected by `waitpid()` prevents reuse of its PID. The `trace_event_t` PID remains 8-bit and the record remains 32 bytes. Since PIDs are reused, `trace show PID` may contain records from different processes at different times; `trace run` skips older records before launching its command.
+The PID argument is a decimal integer. Regular processes use **PIDs 1–255 cyclically**, with PID 0 reserved for the idle task. An active task or an exit notification not yet collected by `waitpid()` prevents reuse of its PID. The `trace_event_t` PID is 8-bit and the record remains 32 bytes. Since PIDs are reused, `trace show PID` may contain records from different processes at different times; `trace run` skips older records before launching its command.
 
 **PID selection filters displayed records**, not the events captured by the kernel. Start with `trace on`, then run the program you want to observe. `show` stops tracing before reading the retained history; `follow` skips existing buffered records on startup and displays only events occurring afterward, without stopping capture.
 
@@ -67,13 +67,11 @@ trace run ./a.out
 
 The reader advances its `/dev/trace` cursor past existing events before launching the program, so earlier records are excluded. If tracing was off, this command enables it for the run and then disables it. If tracing was already enabled, **it leaves both the existing records and the tracing state intact**. Concurrent events from unrelated processes are excluded from the output by PID.
 
-The 16 KiB (512-event) ring buffer is still used, located in dedicated RAM at `0x20038000`–`0x2003BFFF`. Long-running programs may overwrite their earliest records, including startup events. Only the directly spawned process is filtered; descendants are not automatically followed. Interactive programs must exit before the trace report is printed.
+The 16 KiB (512-event) ring buffer is used, located in dedicated RAM at `0x20038000`–`0x2003BFFF`. Long-running programs may overwrite their earliest records, including startup events. Only the directly spawned process is filtered; descendants are not automatically followed. Interactive programs must exit before the trace report is printed.
 
 ## Selected kernel function tracing
 
-The default build records system calls, scheduling and periodic SysTick events. Build with
-`-DPICONIX_KERNEL_FUNCTION_TRACE=ON` to include entry/exit events for selected kernel functions.
-The default is OFF; CMake may cache a previous ON value.
+The standard build includes instrumentation for selected kernel functions (`PICONIX_KERNEL_FUNCTION_TRACE=ON` by default), but event recording starts OFF at boot. Use `trace on` or `trace run` to capture events. Set `-DPICONIX_KERNEL_FUNCTION_TRACE=OFF` explicitly for a smaller build without function instrumentation. CMake caches the selected option.
 
 ```text
 trace on              # record ordinary events + selected functions in SVC
@@ -107,17 +105,17 @@ When instrumentation is enabled, the compiler adds `-finstrument-functions` hook
 
 The kernel symbol table shown by `mem -s kernel` is instead generated from the linked ELF. It provides symbol names and addresses for inspection; it does not select trace targets. Run `tools/test_scripts/test_kernel_trace_targets.py` to check the selected list for duplicates, source definitions and instrumentation coverage.
 
-The target list now also includes `os_svc_dispatch()` (SVC dispatch) and `task_unblock()` (resuming blocked tasks). The former intentionally overlaps the existing `SYSCALL` events to show the function boundary. The latter can run outside SVC, so observing it may require `trace on -a`. `tty_input_char()` is now included experimentally. It processes input characters from USB CDC and Telnet and can run in the UART1 receive interrupt once per character. Use `trace on -a` to observe non-SVC calls. Check UART1 continuous reception for lost bytes on hardware, as interrupt overhead and ring-buffer overwrites may increase. PID-less interrupt events are not shown by the PID-filtered `trace run -a` output.
+The target list includes `os_svc_dispatch()` (SVC dispatch) and `task_unblock()` (resuming blocked tasks). The former intentionally overlaps the existing `SYSCALL` events to show the function boundary. The latter can run outside SVC, so observing it may require `trace on -a`. `tty_input_char()` is an experimental trace target. It processes input characters from USB CDC and Telnet and can run in the UART1 receive interrupt once per character. Use `trace on -a` to observe non-SVC calls. Check UART1 continuous reception for lost bytes on hardware, as interrupt overhead and ring-buffer overwrites may increase. PID-less interrupt events are not shown by the PID-filtered `trace run -a` output.
 
 Coverage includes selected VFS, file-descriptor, RAM-file, TTY, ADC, I2C, PWM, GPIO,
 framebuffer and TCP/UDP functions. ICMP device calls `net_echo_write`, `net_echo_read`,
 and `net_echo_close` are included, but `net_capture_poll` and `echo_received` are not.
-The existing record ABI is 32 bytes, with at most 16 bytes for function names, and the
-shared 16 KiB ring stores 512 events. Function entries/exits normally appear as `name` / `name/`. **An immediately adjacent entry/exit for the same function, PID, and recorded millisecond** is condensed to a single `(name)` row at display time. A nested call, intervening event, or differing timestamp prevents condensation. The underlying records and buffer usage are unchanged. `trace follow` briefly holds at most one entry record for matching, then prints it separately when no further records are available.
+The record ABI is 32 bytes, with at most 16 bytes for function names, and the
+shared 16 KiB ring stores 512 events. Function entries/exits normally appear as `name` / `name/`. **An immediately adjacent entry/exit for the same function, PID, and recorded millisecond** is condensed to a single `(name)` row at display time. A nested call, intervening event, or differing timestamp prevents condensation. This is only a display transformation; it does not alter the recorded events or buffer usage. `trace follow` briefly holds at most one entry record for matching, then prints it separately when no further records are available.
 Display indentation is approximate, especially across interrupts or overwritten events.
 Compiler optimizations may inline calls. All-context recording increases runtime overhead.
 The ring buffer is protected against interrupt-time re-entry, but real-device timing and
-capacity must still be validated. The old `trace kernel` command has been removed.
+capacity must still be validated.
 
 #
 ## Event types and display
@@ -129,9 +127,9 @@ capacity must still be validated. The old `trace kernel` command has been remove
 | `TICKx1K` | One record for every 1,000 ticks of the 1ms SysTick |
 | `vfs_rw` / `vfs_rw/` etc. | Entry/exit of selected kernel functions (experimental) |
 
-The display contains `Time | PID | Command | TTY | Type | Function | Arg | Ret | Info`. The `Type` column distinguishes `SYSCALL`, `KERNEL`, `SWITCH`, `TIMER`, and `OTHER`. With `os_svc_dispatch()` instrumented, the syscall row is nested inside it, and internal kernel calls are indented one level further. Without the dispatcher event, syscall rows start at depth 0. `Arg` carries the previously displayed target or recorded argument, not necessarily every function argument. `Ret` is the recorded syscall return value; internal kernel-function return values are not captured. `Info` contains auxiliary details such as I/O previews or task switches. Missing or inapplicable fields show `--`. The `exit` record is an OS termination event, not a conventional function return. The trace command's own system calls and related context switches are excluded from capture.
+The display contains `Time | PID | Command | TTY | Type | Function | Arg | Ret | Info`. The `Type` column distinguishes `SYSCALL`, `KERNEL`, `SWITCH`, `TIMER`, and `OTHER`. With `os_svc_dispatch()` instrumented, the syscall row is nested inside it, and internal kernel calls are indented one level further. Without the dispatcher event, syscall rows start at depth 0. `Arg` carries the recorded target or argument, not necessarily every function argument. `Ret` is the recorded syscall return value; internal kernel-function return values are not captured. `Info` contains auxiliary details such as I/O previews or task switches. Missing or inapplicable fields show `--`. The `exit` record is an OS termination event, not a conventional function return. The trace command's own system calls and related context switches are excluded from capture.
 
-## Try it: observe system calls and task switches
+## Syscall and task-switch examples
 
 ```text
 trace run hello
@@ -141,7 +139,6 @@ trace run ls
 After each program exits, its trace is displayed. Compare `function` and `function/` records to see which system calls it made. `SWITCH` marks a context switch; filtering uses the destination PID.
 
 For a longer capture, start with `trace on`, run another command, then inspect the result using `trace show` (which stops capture). On long runs, older events may be overwritten in the ring buffer.
-
 
 
 ## Kernel function and syscall nesting; switch emphasis

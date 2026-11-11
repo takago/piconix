@@ -1,6 +1,6 @@
 # Device node and driver development: implement `/dev/uptime`
 
-This exercise adds a **virtual read-only device** with its own C driver module. It requires no wires or extra hardware, and thus works on both Pico and Pico W. The purpose is to learn the difference between registering a path, opening a file descriptor, dispatching I/O and implementing a device backend. Pair it with the [getuptime syscall exercise](../syscalls/SYSCALL-DEVELOPMENT.md).
+This implementation example adds a **virtual read-only device** with its own C driver module. It requires no wires or extra hardware, and thus works on both Pico and Pico W. The example documents path registration, file descriptor allocation, I/O dispatch and a dedicated device backend. Pair it with the [getuptime syscall extension](../syscalls/SYSCALL-DEVELOPMENT.md).
 
 ## 1. Data path and prerequisites
 
@@ -9,7 +9,7 @@ cat /dev/uptime → vfs_open() → DEV_UPTIME → vfs_rw()
 → uptime_device_read() → "12.345 s\n" → user read()
 ```
 
-`/proc/uptime` already exists. This deliberate duplication is for the lab. Before modifying code, read the [File system](../../reference/FILESYSTEM.md) and [Device reference](../../reference/devices/README.md).
+`/proc/uptime` already exists. The duplication isolates the VFS implementation steps from the existing `/proc` interface. Before modifying code, read the [File system](../../reference/FILESYSTEM.md) and [Device reference](../../reference/devices/README.md).
 
 ## 2. Register the ID and path
 
@@ -34,7 +34,7 @@ In the checked source, 200–263 are user symbol IDs and internal pipe IDs start
 Create `kernel/uptime_device.h`:
 
 ```c
-/* Simple read-only virtual device used by the documentation exercise. */
+/* Simple read-only virtual device used by the documentation example. */
 #ifndef PICONIX_UPTIME_DEVICE_H
 #define PICONIX_UPTIME_DEVICE_H
 #include <stdint.h>
@@ -122,7 +122,7 @@ These are **illustrative outputs**. Confirm read-only opens, short reads, EOF, r
 
 ## 7. Extending the pattern to physical hardware
 
-This lab shows a **virtual driver**, not a real GPIO electrical driver. For a physical device, trace existing `kernel/gpio.c` (`gpio_driver_rw`), `kernel/i2c.c`, `kernel/pins.h`, and the VFS dispatch in `kernel/kernel.c`. Before wiring or accessing a physical pin, consult [PINS](../../reference/hardware/PINS.md) and [WIRING](../../reference/hardware/WIRING.md). Avoid reserved pins owned by the LED matrix, UART, I²C or PWM. A production driver needs hardware initialization, ownership/locking, I/O bounds and electrical safety as well as VFS registration.
+This example implements a **virtual driver**, not a real GPIO electrical driver. For a physical device, trace existing `kernel/gpio.c` (`gpio_driver_rw`), `kernel/i2c.c`, `kernel/pins.h`, and the VFS dispatch in `kernel/kernel.c`. Before wiring or accessing a physical pin, consult [PINS](../../reference/hardware/PINS.md) and [WIRING](../../reference/hardware/WIRING.md). Avoid reserved pins owned by the LED matrix, UART, I²C or PWM. A production driver needs hardware initialization, ownership/locking, I/O bounds and electrical safety as well as VFS registration.
 
 If adopted as a supported feature, update [DEVICES](../../reference/devices/README.md) and [FILESYSTEM](../../reference/FILESYSTEM.md) in both languages.
 
@@ -130,4 +130,4 @@ If adopted as a supported feature, update [DEVICES](../../reference/devices/READ
 
 ---
 
-[Development index](../README.md) | [Syscall exercise](../syscalls/SYSCALL-DEVELOPMENT.md) | [日本語](../../../ja/development/drivers/DRIVER-DEVELOPMENT.md)
+[Development index](../README.md) | [Syscall implementation example](../syscalls/SYSCALL-DEVELOPMENT.md) | [日本語](../../../ja/development/drivers/DRIVER-DEVELOPMENT.md)

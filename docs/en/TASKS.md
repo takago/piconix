@@ -38,11 +38,11 @@ Find documentation for **what you want to do**. Each task links to starting expl
 | I want to… | Related pages |
 |---|---|
 | Inspect processes with ps and stop them with kill | [System specifications](reference/SPECIFICATION.md) · [mem guide](reference/commands/MEM.md) |
-| Use background execution or Ctrl+C | [System specifications](reference/SPECIFICATION.md) · [Lab: TTY settings](reference/commands/TTY.md) |
+| Use background execution or Ctrl+C | [System specifications](reference/SPECIFICATION.md) · [TTY settings](reference/commands/TTY.md) |
 | Inspect open descriptors with lsof | [File system](reference/FILESYSTEM.md) · [trace guide](reference/commands/TRACE.md) |
 | Use a separate shell on UART1 | [TTY guide](reference/commands/TTY.md) · [Reference: UART1](reference/devices/UART.md) |
 | Understand stty and raw/cooked input | [TTY guide](reference/commands/TTY.md) |
-| Understand screen control and full-screen apps | [How-to: terminal screen](reference/commands/TERMINAL.md) · [Lab: TTY settings](reference/commands/TTY.md) |
+| Understand screen control and full-screen apps | [How-to: terminal screen](reference/commands/TERMINAL.md) · [TTY settings](reference/commands/TTY.md) |
 
 ### Inspect OS internals
 
@@ -51,20 +51,17 @@ Find documentation for **what you want to do**. Each task links to starting expl
 | Trace system calls | [trace guide](reference/commands/TRACE.md) · [Reference: syscalls](reference/SYSCALLS.md) |
 | Inspect RAM and tasks with mem | [mem guide](reference/commands/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
 | Understand Flash, RAM, and PIC placement | [mem guide](reference/commands/MEM.md) · [Reference: SRAM layout](reference/MEMORY-LAYOUT.md) |
-| Inspect kernel symbols | [Reference: kernel symbols](reference/KERNEL-SYMBOLS.md) · [How-to: mem](reference/commands/MEM.md) · [Index: source functions](../ja/development/FUNCTIONS.md) |
+| Inspect kernel symbols | [Reference: kernel symbols](reference/KERNEL-SYMBOLS.md) · [How-to: mem](reference/commands/MEM.md) · [Index: source functions](development/FUNCTIONS.md) |
 | Understand how VFS and FDs relate | [File system](reference/FILESYSTEM.md) · [System call development](development/syscalls/SYSCALL-DEVELOPMENT.md) |
 
-### Devices
-
-Use `/dev/fbchar` to display ASCII characters or icons ([device reference](reference/devices/README.md)); use [scroll](reference/commands/SCROLL.md) for longer messages and [LLM/MCP](reference/commands/MCP.md) for remote tool calling.
- and electronics
+### Devices and electronics
 
 | I want to… | Related pages |
 |---|---|
 | Check GPIO pins and wiring | [Reference: pin assignments](reference/hardware/PINS.md) · [Reference: wiring](reference/hardware/WIRING.md) · [Device reference](reference/devices/README.md) |
 | Control GPIO input/output | [Device reference](reference/devices/README.md) |
 | Control an 8×8 LED matrix | [Device reference](reference/devices/README.md) · [Reference: LED wiring](reference/hardware/WIRING.md) |
-| Try PWM, buzzer, or servo control | [Device reference](reference/devices/README.md) · [Reference: wiring](reference/hardware/WIRING.md) |
+| Control PWM, buzzer, or servo | [Device reference](reference/devices/README.md) · [Reference: wiring](reference/hardware/WIRING.md) |
 | Read ADC inputs or sensors | [Device reference](reference/devices/README.md) · [Reference: wiring](reference/hardware/WIRING.md) |
 | Connect an I²C1 sensor | [How-to: I²C](reference/devices/I2C.md) · [Reference: wiring](reference/hardware/WIRING.md) · [Device reference](reference/devices/README.md) |
 
@@ -75,18 +72,18 @@ Use `/dev/fbchar` to display ASCII characters or icons ([device reference](refer
 | Configure Wi-Fi AP or STA mode | [Network reference](reference/network/NETWORK.md) · [Reference: Wi-Fi modes](reference/network/WIFI-MODES.md) |
 | Inspect IP addresses and link state | [Network reference](reference/network/NETWORK.md) · [How-to: net](reference/network/NET.md) · [Reference: Wi-Fi modes](reference/network/WIFI-MODES.md) |
 | Use a remote shell over Telnet | [Network reference](reference/network/NETWORK.md) · [How-to: net](reference/network/NET.md) |
-| Try TCP/UDP with nc | [Network reference](reference/network/NETWORK.md) · [How-to: nc](reference/network/NC.md) |
+| Use TCP/UDP with nc | [Network reference](reference/network/NETWORK.md) · [How-to: nc](reference/network/NC.md) |
 | Serve a web page with httpd | [How-to: httpd](reference/network/HTTPD.md) · [Reference: initial files and rc](reference/INITIAL-FILES.md) · [Network reference](reference/network/NETWORK.md) |
-| Build and test an MCP server (Pico W) | [Unified MCP guide (including development lab)](reference/commands/MCP.md) |
+| Inspect or extend the MCP server (Pico W) | [MCP implementation and extension](development/apps/c/MCP-DEVELOPMENT.md) |
 | Inspect network traffic with ping or tcpdump | [`ip`](reference/network/IP.md) · [`ping`](reference/network/PING.md) · [`tcpdump`](reference/network/TCPDUMP.md) |
-| Control devices remotely over UDP | [Reference: remote device control](reference/network/REMOTE-DEVICE.md) · [Lab: remote GPIO](reference/network/REMOTE_GPIO.md) · [Network reference](reference/network/NETWORK.md) |
+| Control devices remotely over UDP | [Reference: remote device control](reference/network/REMOTE-DEVICE.md) · [Remote GPIO reference](reference/network/REMOTE_GPIO.md) · [Network reference](reference/network/NETWORK.md) |
 
 ### Programming and kernel development
 
 | I want to… | Related pages |
 |---|---|
 | Use the lightweight Python interpreter | [Develop: Python](development/apps/python/PYTHON.md) · [C programming](development/apps/c/PROGRAMMING.md) |
-| Experiment with the Thumb assembler | [Develop: assembly](development/apps/asm/ASM.md) · [C programming](development/apps/c/PROGRAMMING.md) |
+| Write Thumb assembly programs | [Develop: assembly](development/apps/asm/ASM.md) · [C programming](development/apps/c/PROGRAMMING.md) |
 | Write a new C command | [C programming](development/apps/c/PROGRAMMING.md) · [Develop: C library](development/apps/c/LIBC.md) |
 | Look up the user C library | [Develop: C library](development/apps/c/LIBC.md) · [Reference: syscalls](reference/SYSCALLS.md) |
 | Write TCP/UDP socket applications (Pico W) | [Develop: network apps](development/apps/c/NETWORK-PROGRAMMING.md) · [Network development](development/network/NETWORK-DEVELOPMENT.md) · [Reference: syscalls](reference/SYSCALLS.md) |
@@ -96,25 +93,24 @@ Use `/dev/fbchar` to display ASCII characters or icons ([device reference](refer
 | Add a device driver | [Driver development](development/drivers/DRIVER-DEVELOPMENT.md) · [Reference: devices](reference/devices/README.md) |
 | Modify Wi-Fi, lwIP, or kernel networking (Pico W) | [Develop: kernel networking](development/network/NETWORK-DEVELOPMENT.md) · [Reference: networking](reference/network/README.md) |
 | Make and validate a small kernel change | [Kernel development](development/kernel/KERNEL-DEVELOPMENT.md) · [Read: kernel](development/kernel/KERNEL-READING-GUIDE.md) |
-| Find source code by function name | [Index: source functions](../ja/development/FUNCTIONS.md) · [Read: kernel](development/kernel/KERNEL-READING-GUIDE.md) |
+| Find source code by function name | [Index: source functions](development/FUNCTIONS.md) · [Read: kernel](development/kernel/KERNEL-READING-GUIDE.md) |
 
 ## Other ways to navigate
 
-- **Follow a course:** [Learning roadmap](ROADMAP.md)
 - **Browse command examples:** [Command reference](reference/commands/README.md)
 - **Look up exact specifications:** [Technical reference](reference/README.md)
 - **Find implementation guides:** [Development guides](development/README.md)
 - **Troubleshoot build or flashing:** [Setup and troubleshooting](setup/SETUP.md)
 
-## Hands-on networking and kernel extension
+## Networking and kernel extension references
 
 | I want to... | Start with | Details |
 |---|---|---|
-| Inspect my IP | [`ip` lab](reference/network/IP.md) | [Network connection](reference/network/NETWORK.md) |
-| Check IP reachability | [`ping` lab](reference/network/PING.md) | [`net` diagnostics](reference/network/NET.md) |
-| Interpret TCP/UDP/ICMP traffic | [`tcpdump` lab](reference/network/TCPDUMP.md) | [Network reference](reference/network/NETWORK.md) |
+| Inspect my IP | [`ip` reference](reference/network/IP.md) | [Network connection](reference/network/NETWORK.md) |
+| Check IP reachability | [`ping` reference](reference/network/PING.md) | [`net` diagnostics](reference/network/NET.md) |
+| Interpret TCP/UDP/ICMP traffic | [`tcpdump` reference](reference/network/TCPDUMP.md) | [Network reference](reference/network/NETWORK.md) |
 | Write a TCP/UDP C program | [Complete client examples](development/apps/c/NETWORK-PROGRAMMING.md) | [Register an application](development/apps/c/PROGRAMMING.md) |
-| Add a syscall | [getuptime lab](development/syscalls/SYSCALL-DEVELOPMENT.md) | [SVC reference](reference/SYSCALLS.md) |
-| Add a node and driver | [/dev/uptime lab](development/drivers/DRIVER-DEVELOPMENT.md) | [Devices](reference/devices/README.md) |
+| Add a syscall | [getuptime implementation example](development/syscalls/SYSCALL-DEVELOPMENT.md) | [SVC reference](reference/SYSCALLS.md) |
+| Add a node and driver | [/dev/uptime implementation example](development/drivers/DRIVER-DEVELOPMENT.md) | [Devices](reference/devices/README.md) |
 
 [日本語](../ja/TASKS.md) | [Documentation directory](README.md)

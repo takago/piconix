@@ -1,6 +1,6 @@
 # コマンドリファレンス
 
-この一覧は，`CMakeLists.txt`で標準組込み対象として登録されている**全52個のアプリケーション**と，シェル組込みコマンドを対象とします．一般的なUNIXのコマンドと同名でも，PicoNIXの引数や機能は限定されています．
+この一覧は，`CMakeLists.txt`で標準組込み対象として登録されている**全53個のアプリケーション**と，シェル組込みコマンドを対象とします．一般的なUNIXのコマンドと同名でも，PicoNIXの引数や機能は限定されています．
 
 構文は要約です．`help NAME`でファームウェア内の簡易ヘルプを確認できます．詳しい操作を必要とするコマンドは「詳細」から専用文書を参照してください．ネットワーク機能の一部はPico W専用です．
 
@@ -65,7 +65,7 @@
 | [`net`](../../../../userland/apps/net.c) | Wi-Fi状態・接続端末・ARP表 | `net [-a\|-r]` | [解説](../network/NET.md) |
 | [`ip`](../../../../userland/apps/ip.c) | IPインタフェースの表示 | `ip [addr]` | [解説](../network/NETWORK.md) |
 | [`nc`](../../../../userland/apps/nc.c) | TCP/UDP通信 | `nc [-u] [-N] -l PORT \| nc [-u] [-N] IPv4 PORT` | [解説](../network/NC.md) |
-| [`ping`](../../../../userland/apps/ping.c) | ICMP応答確認 | `ping [-c COUNT] IPv4` | [解説](../network/NETWORK.md) |
+| [`ping`](../../../../userland/apps/ping.c) | ICMP応答確認 | `ping [-c COUNT] IPv4` | [解説](../network/PING.md) |
 | [`tcpdump`](../../../../userland/apps/tcpdump.c) | IPv4パケットを観察 | `tcpdump [-x] [-c COUNT]` | [解説](../network/TCPDUMP.md) |
 | [`httpd`](../../../../userland/apps/httpd.c) | HTTP/1.0サーバ（TCP 80） | `httpd` | [解説](../network/HTTPD.md) |
 | [`tcp_echod`](../../../../userland/apps/tcp_echod.c) | TCPエコーサーバ | `tcp_echod [PORT]（既定7）` | [解説](../network/NETWORK.md) |
@@ -80,6 +80,7 @@
 | [`hello`](../../../../userland/apps/hello.c) | 挨拶表示 | `hello [name]` | — |
 | [`mb`](../../../../userland/apps/mb.c) | Moon Buggyゲーム | `mb` | — |
 | [`pong`](../../../../userland/apps/pong.c) | Pongゲーム | `pong [-2]` | [解説](PONG.md) |
+| [`reversi`](../../../../userland/apps/reversi.c) | コンピュータ対戦のリバーシ | `reversi` | [解説](REVERSI.md) |
 | [`omikuji`](../../../../userland/apps/omikuji.c) | おみくじ・入力デモ | `omikuji [-i \| seconds]` | — |
 | [`kitesys`](../../../../userland/apps/kitesys.c) | 組込みシステムのデモ | `kitesys` | — |
 

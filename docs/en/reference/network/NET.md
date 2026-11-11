@@ -18,7 +18,7 @@ piconix# net -h
 | `net -r` | `/proc/net/arp` | Read the current IP/MAC ARP cache |
 | `net -h` | Usage | Confirm command syntax |
 
-**Exercise:** Run `net` and check MODE/STATUS. In AP mode, associate the PC and run `net -a`. Make an HTTP request from the PC and then run `net -r`. Finally run [`ping`](PING.md) to test reachability. An empty ARP table is not proof of a network failure, and the values depend on the network.
+**Example:** Run `net` and check MODE/STATUS. In AP mode, associate the PC and run `net -a`. Make an HTTP request from the PC and then run `net -r`. Finally run [`ping`](PING.md) to test reachability. An empty ARP table is not proof of a network failure, and the values depend on the network.
 
 Use [`ip`](IP.md) for your own IPv4 address, [`ping`](PING.md) for ICMP reachability and [`tcpdump`](TCPDUMP.md) for packet summaries. These features are for Pico W, not regular Pico.
 

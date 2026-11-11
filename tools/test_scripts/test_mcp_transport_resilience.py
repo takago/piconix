@@ -23,7 +23,7 @@ harness = r'''
 #define OS_EAGAIN (-11)
 static int send_fail_reason,send_fail_value;
 static char response[900];
-static int mode, calls, sleeps;
+static int mode, calls, waits;
 static char sent[2048];
 static unsigned used;
 int send(int fd,const char *p,unsigned n,int flags) {
@@ -37,7 +37,7 @@ int send(int fd,const char *p,unsigned n,int flags) {
     memcpy(sent+used,p,n); used+=n;
     return (int)n;
 }
-void msleep(unsigned n) { assert(n==2); ++sleeps; }
+static int wait_fd(int fd,int writing,int timeout_ms) { assert(fd==1 && writing==1 && timeout_ms==2); ++waits; return 0; }
 ''' + code + r'''
 int main(void) {
     const char *payload="{\"hello\":\"test\"}";
@@ -47,7 +47,7 @@ int main(void) {
     assert(!memcmp(sent,"10\r\n",4));
     assert(!memcmp(sent+4,payload,strlen(payload)));
     assert(!memcmp(sent+used-7,"\r\n0\r\n\r\n",7));
-    assert(sleeps>0);
+    assert(waits>0);
     mode=1;send_fail_reason=0;
     assert(send_all(1,"x",1)==-1);
     assert(send_fail_reason==1 && send_fail_value==1);

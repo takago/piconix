@@ -16,6 +16,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "docs/ja/development/FUNCTIONS.md"
+OUTPUT_EN = ROOT / "docs/en/development/FUNCTIONS.md"
+EN_GROUPS = {
+    "カーネル": "Kernel", "アプリケーション": "Applications",
+    "ライブラリ": "Library", "ホスト用ユーティリティ": "Host utilities",
+}
 # PicoNIXの実装関数を用途別に分類する．
 # tools/ はビルド・テスト用であり，userland/examples/ と userland/fs/ は
 # 実行例・初期ファイルなので，関数索引には含めない．
@@ -113,7 +118,13 @@ def c_functions(source):
         if ch == "{":
             if depth == 0:
                 header = code[boundary:i]
-                match = re.search(r"\b([a-zA-Z_]\w*)\s*\((.*)\)\s*$", header, re.S)
+                # __attribute__((...)) between return type and function name
+                # has its own parentheses. Mask the attribute (at the same
+                # length) before finding the final declarator, preserving
+                # source offsets, comments and line numbers.
+                declarator = re.sub(r"__attribute__\s*\(\((?:[^()]|\([^()]*\))*\)\)",
+                                    lambda m: " " * len(m.group()), header)
+                match = re.search(r"\b([a-zA-Z_]\w*)\s*\((.*)\)\s*$", declarator, re.S)
                 if match:
                     name = match.group(1)
                     prefix = header[:match.start(1)].strip()
@@ -176,7 +187,10 @@ def sources():
                     yield path
 
 # 対象ファイルの関数定義と説明を集計し，Markdown形式の関数一覧を構築する．
-def render():
+def render(lang="ja"):
+    """Generate a Japanese or English navigation index from one function scan."""
+    if lang not in ("ja", "en"):
+        raise ValueError("unknown language")
     grouped = {heading: [] for heading, _ in GROUPS}
     count = 0
     documented = 0
@@ -215,43 +229,69 @@ def render():
         f"**掲載関数：{count}件（概要コメントあり：{documented}件）**", "",
         "## 分類別目次", "",
     ]
+    if lang == "en":
+        out = [
+            "# Function index (generated)", "",
+            "Generated from the current sources by `python3 tools/gen_functions.py`.",
+            "**Do not edit this index by hand.** Update source comments and regenerate.",
+            "Descriptions are preserved in their original source language (mostly Japanese);",
+            "function names, paths, line numbers and links are language-neutral.", "",
+            "- **Scope:** Kernel, user applications, common library and host utilities.",
+            "- **Excluded:** tools, examples and initial filesystem.",
+            "- **Source lines:** regenerate after changing source files.",
+            "- **Coverage:** only definitions; comments are extracted by a lightweight parser,",
+            "  which does not evaluate preprocessor conditionals.", "",
+            f"**Indexed functions: {count} (with summaries: {documented})**", "",
+            "## By component", "",
+        ]
     for title, _ in GROUPS:
         if grouped[title]:
-            out.append(f"- [{title}](#{anchor(title)})：{len(grouped[title])}ファイル")
+            visible = title if lang == "ja" else EN_GROUPS[title]
+            if lang == "ja":
+                out.append(f"- [{visible}](#{anchor(visible)})：{len(grouped[title])}ファイル")
+            else:
+                out.append(f"- [{visible}](#{anchor(visible)}) — {len(grouped[title])} source files")
     out += [""]
     for title, _ in GROUPS:
         if not grouped[title]:
             continue
-        out.extend((f"## {title}", ""))
+        visible = title if lang == "ja" else EN_GROUPS[title]
+        out.extend((f"## {visible}", ""))
         for relative, entries in grouped[title]:
-            out.extend((f"### `{relative}`（{len(entries)}件）", "", "| 関数 | 行 | 範囲 | 概要 |", "|---|---:|---|---|"))
+            label = f"### `{relative}`（{len(entries)}件）" if lang == "ja" else f"### `{relative}` ({len(entries)} functions)"
+            head = "| 関数 | 行 | 範囲 | 概要 |" if lang == "ja" else "| Function | Line | Linkage | Source comment |"
+            out.extend((label, "", head, "|---|---:|---|---|"))
             for name, line, scope, comment in entries:
-                # 相対パスリンクはGitHub上でもソースの該当行に移動できる．
                 link = f"../../../{relative}#L{line}"
                 synopsis = (comment or "—").replace("|", "\\|").replace("`", "\\`")
+                if lang == "en":
+                    scope = {"外部": "external", "モジュール": "module", "内部名": "internal", "大域": "global"}.get(scope, scope)
                 out.append(f"| [`{name}()`]({link}) | {line} | {scope} | {synopsis} |")
+
             out.append("")
     return "\n".join(out).rstrip() + "\n"
 
-# GitHub Markdownにおける日本語見出しのアンカー文字列を返す．
+# GitHub Markdownの見出しアンカーを生成する．日本語文字は保持する．
 def anchor(heading):
-    # 章タイトルのGitHub Markdown見出しアンカーは日本語をそのまま使える．
-    return heading
+    return re.sub(r"\s+", "-", heading.strip().lower())
 
 # --check指定時は再生成漏れを検出し，通常時は関数一覧ファイルを書き出す．
 def main():
     parser = argparse.ArgumentParser(description="PicoNIXの関数一覧をソースから自動生成")
     parser.add_argument("--check", action="store_true", help="生成結果と既存文書を比較し，不一致なら終了コード1")
     args = parser.parse_args()
-    content = render()
+    outputs = ((OUTPUT, render("ja")), (OUTPUT_EN, render("en")))
     if args.check:
-        if not OUTPUT.exists() or OUTPUT.read_text(encoding="utf-8") != content:
-            parser.exit(1, "FAIL: docs/ja/development/FUNCTIONS.md は古くなっています．python3 tools/gen_functions.py で更新してください．\n")
-        print("PASS: docs/ja/development/FUNCTIONS.md は現行ソースと一致")
+        stale = [path for path, content in outputs
+                 if not path.exists() or path.read_text(encoding="utf-8") != content]
+        if stale:
+            parser.exit(1, "FAIL: stale function index(es): " + ", ".join(str(x.relative_to(ROOT)) for x in stale) + "\n")
+        print("PASS: Japanese and English function indexes match current sources")
     else:
-        if not OUTPUT.exists() or OUTPUT.read_text(encoding="utf-8") != content:
-            OUTPUT.write_text(content, encoding="utf-8")
-        print(f"Wrote {OUTPUT.relative_to(ROOT)}")
+        for path, content in outputs:
+            if not path.exists() or path.read_text(encoding="utf-8") != content:
+                path.write_text(content, encoding="utf-8")
+            print(f"Wrote {path.relative_to(ROOT)}")
 
 
 if __name__ == "__main__":

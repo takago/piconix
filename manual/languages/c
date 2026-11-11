@@ -35,7 +35,8 @@ STATEMENTS
   Expressions are small: + - * / %, unary + - & *, indexing,
   parentheses, constants, variables, sizeof(variable).
   Comparisons == != < <= > >= only in if/while conditions.
-  Avoid &&, ||, !, ++, +=, for, switch, ternary, casts.
+  Avoid &&, ||, !, +=, for, switch, ternary, casts.
+  Scalar local int ++/-- is supported; see INCREMENT/DECREMENT below.
 
 POINTERS AND NUMBERS
   Local int* and char* pointers, address-of local variable or

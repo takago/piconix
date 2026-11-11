@@ -1,0 +1,13 @@
+REVERSI - INTERACTIVE 8x8 BLACK vs COM (WHITE)
+
+Use a physical terminal or MCP PTY. Never execute_command reversi.
+For MCP: terminal_send({text:"reversi"}), terminal_send({key:"ENTER"}), terminal_read({}),
+terminal_send({key:"SPACE"}), terminal_read({}); press q to exit.
+Keys: arrows or h/j/k/l move; SPACE places Black; q quits.
+B = player, W = COM, . = empty. Latest move: [B] or [W].
+The cursor is inverse video. Turn: PLAYER means input is expected.
+After a legal move, Turn: COM / COM is thinking... appears and
+COM responds about one second later. Sending keys does not wait.
+No legal move: automatic pass. Neither can move: game over.
+Invalid moves: PLAYER n COM m counts illegal SPACE attempts.
+See /man/pty for terminal screen markers and key names.

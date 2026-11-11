@@ -14,7 +14,7 @@ Start with interactive calculations and printing, then save and run a short scri
 
 PicoNIX provides a small Python-like interpreter, not CPython or MicroPython. This guide describes the current `userland/apps/python.c`, including I²C, sequences, and generic file I/O; full Python compatibility is not intended.
 
-**Hands-on guides:** [Device files, GPIO, ADC, PWM, LED and I²C](DEVICE-PROGRAMMING.md) / [TCP/UDP sockets (Pico W)](SOCKET-PROGRAMMING.md). This page covers the syntax and API overview; the linked guides contain step-by-step exercises.
+**Related API and implementation examples:** [Device files, GPIO, ADC, PWM, LED and I²C](DEVICE-PROGRAMMING.md) / [TCP/UDP sockets (Pico W)](SOCKET-PROGRAMMING.md). This page covers the syntax and API overview; the linked guides include complete code and API examples.
 
 ## First steps
 
@@ -105,7 +105,7 @@ Frequency is 8–100000 Hz and duty is an integer percentage 0–100, both as te
 
 ## I²C1
 
-Use `i2c_write(fd, addr, sequence)`, `data = i2c_read(fd, addr, count)`, or `data = i2c_xfer(fd, addr, sequence, count)`. Valid addresses are 0x08–0x77, and each phase is limited to 32 bytes. `i2c_xfer()` uses repeated START. `i2c_write()` returns the number of bytes written, or `-1` on transfer failure. `i2c_read()` and `i2c_xfer()` return a byte list, or the integer `-1` on failure. Use `if data != -1:` to test the result. `open()` also returns `-1` if opening fails. `read()`, `recv()`, and `recvfrom()` return a byte sequence on success or `-1` on operation failure. An empty sequence represents a zero-length result. `EAGAIN` also becomes `-1`, so pending data cannot be distinguished from other failures. Invalid syntax or arguments still cause an error. Inline payloads such as `i2c_write(i2c, 0x23, bytes([0x10]))` are supported. Both `i2c_write()` and `i2c_xfer()` accept either inline `bytes([0x00])` or a byte-array variable as the write payload; for example, `data = i2c_xfer(fd, 0x48, bytes([0x00]), 2)`. Values must be 0–255 and each write is limited to 32 bytes. Read operations still return a byte array or `-1`; assign the result before checking it. `i2c_write()` is an integer-valued expression and may be used in conditions such as `if i2c_write(fd, 0x23, bytes([0x10])) < 0:`, assignments, or standalone calls. Use these helpers for the pointer-based transfer request. Open the bus once with `fd = open("/dev/i2c/1", 2)`, reuse that FD for transfers, and `close(fd)` when finished. The FD argument is required; the previous two-argument `i2c_write()` form is no longer supported.
+Use `i2c_write(fd, addr, sequence)`, `data = i2c_read(fd, addr, count)`, or `data = i2c_xfer(fd, addr, sequence, count)`. Valid addresses are 0x08–0x77, and each phase is limited to 32 bytes. `i2c_xfer()` uses repeated START. `i2c_write()` returns the number of bytes written, or `-1` on transfer failure. `i2c_read()` and `i2c_xfer()` return a byte list, or the integer `-1` on failure. Use `if data != -1:` to test the result. `open()` also returns `-1` if opening fails. `read()`, `recv()`, and `recvfrom()` return a byte sequence on success or `-1` on operation failure. An empty sequence represents a zero-length result. `EAGAIN` also becomes `-1`, so pending data cannot be distinguished from other failures. Invalid syntax or arguments still cause an error. Inline payloads such as `i2c_write(i2c, 0x23, bytes([0x10]))` are supported. Both `i2c_write()` and `i2c_xfer()` accept either inline `bytes([0x00])` or a byte-array variable as the write payload; for example, `data = i2c_xfer(fd, 0x48, bytes([0x00]), 2)`. Values must be 0–255 and each write is limited to 32 bytes. Read operations still return a byte array or `-1`; assign the result before checking it. `i2c_write()` is an integer-valued expression and may be used in conditions such as `if i2c_write(fd, 0x23, bytes([0x10])) < 0:`, assignments, or standalone calls. Use these helpers for the pointer-based transfer request. Open the bus once with `fd = open("/dev/i2c/1", 2)`, reuse that FD for transfers, and `close(fd)` when finished. The FD argument is mandatory for `i2c_write()` and the related I²C operations.
 
 ### BH1750 (address 0x23)
 
@@ -138,7 +138,7 @@ Output is **lux multiplied by 1000** (for example, 125833 means about 125.833 lx
 - Sequence elements use 32-bit storage internally, including `bytes`.
 - `print()` accepts multiple arguments. `input()` returns a string (up to 64 bytes); use `int(input())` for integer input. `msleep()` accepts 0–60000 ms.
 - Hardware operation has been confirmed for BH1750 I²C readings, framebuffer writes and `FB_ENABLE`, and multi-line `bytes([...])` in scripts and the REPL. This is not exhaustive testing of all features.
-- Former GPIO-specific Python helpers are replaced by the common file API and `/dev/gpio/<pin>`, `/dev/gpio/<pin>.dir`, `/dev/gpio/<pin>.pull`.
+- GPIO access uses the common file API and `/dev/gpio/<pin>`, `/dev/gpio/<pin>.dir`, `/dev/gpio/<pin>.pull`.
 
 ## String input and conversions
 
@@ -152,11 +152,11 @@ text = str(age)
 print(text, len(name))
 ```
 
-An empty input line produces an empty string. The existing 16-variable limit remains. String concatenation and general string expressions are unsupported. Replace old integer input `n = input()` with `n = int(input())`.
+An empty input line produces an empty string. Up to 16 variables are supported. String concatenation and general string expressions are unsupported. Use `n = int(input())` to read an integer.
 
 ## Example: light-controlled LED wave
 
-A BH1750 illuminance sensor controls the speed of a wave on the 8×8 LED matrix: brighter light makes the wave move faster and darkness slows it down. This example combines I²C input, integer and bitwise operations, and framebuffer output. The previous sensor-driven version was tested on hardware; this fallback variant has not yet been tested on a device.
+A BH1750 illuminance sensor controls the speed of a wave on the 8×8 LED matrix: brighter light makes the wave move faster and darkness slows it down. This example combines I²C input, integer and bitwise operations, and framebuffer output. This example has not yet been tested on a device.
 
 Connect the BH1750 to 3.3 V and GND, SDA to GP26, and SCL to GP27. Connect ADDR to GND to select I²C address `0x23`. See [hardware wiring](../../../reference/hardware/WIRING.md) for electrical connections and the [I²C guide](../../../reference/devices/I2C.md) for the bus interface.
 
@@ -282,7 +282,7 @@ TCP and UDP have separate port spaces. `accept()` and `recvfrom()` block by defa
 
 ---
 
-**Related links:** [Development guide index](../../README.md) | [Learning roadmap](../../../ROADMAP.md)
+**Related links:** [Development guide index](../../README.md)
 
 **Error handling:** Samples print an error and call `exit()` if a required device or socket cannot be initialized, closing open FDs where necessary. `exit()` terminates with status 0; it is not a substitute for `exit(1)` or exceptions. The optional BH1750 sensor falls back to fixed-speed animation when unavailable.
 

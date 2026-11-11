@@ -1,38 +1,31 @@
 # PicoNIX ドキュメント案内
 
-PicoNIXの文書は，目的に応じて**セットアップ・技術リファレンス・開発**に分けています．学習順序を知りたい場合は[学習ロードマップ](ROADMAP.md)を参照してください．
+PicoNIXの文書は，**セットアップ，技術リファレンス，開発者向け資料**に分かれています．各文書は現行実装の仕様・制限・操作例を説明します．変更履歴と旧仕様は[開発日誌](DEVELOPMENT_DIARY.md)にまとめています．
 
-**想定読者：** UNIX/Linux，OSの基礎，C言語を履修済みで，実装を読んで確認したい学生です．概念の一般解説ではなくPicoNIX固有の仕様・観察・改造を扱います．[前提知識と学習経路](ROADMAP.md#対象読者と前提知識)を確認してください．
+**利用条件：** カーネル・アプリ開発資料は，C言語とUNIX/Linuxの基本操作，プロセス・FD・システムコールの知識を前提にしています．PicoNIXとLinuxの差異は[互換性の説明](reference/DIFFERENCES.md)を参照してください．
 
-## はじめに：セットアップ
+## セットアップ
 
-**[セットアップ手順](setup/SETUP.md)**：Pico／Pico Wへの書き込みと，Linux PCからのUSB端末接続を準備します．
+[セットアップと書き込み](setup/SETUP.md)：開発環境，ビルド，Pico／Pico Wへの書き込み，端末接続．
 
-## 1．順番に学ぶ（学習ロードマップ）
+## 技術リファレンス
 
-**[学習ロードマップ](ROADMAP.md)**：操作からOSの観察，プログラムとカーネルの改造まで，関連資料を読む推奨順序を案内します．
+[リファレンス総目次](reference/README.md)：API，システムコール，FD，メモリ配置，デバイス，ネットワーク，実装上の制限．
 
-## 2．やりたいことから探す（目的別索引）
+分野別：[コマンド](reference/commands/README.md) ｜ [ハードウェアと配線](reference/hardware/README.md) ｜ [デバイスとI/O](reference/devices/README.md) ｜ [ネットワーク（Pico W）](reference/network/README.md)．
 
-**[目的別索引：何をしたい？ → 関連ページ一覧](TASKS.md)**
+## 開発者向け資料
 
-特定の目的が決まっている場合は，「ファイルを編集したい」「`trace`で確認したい」「ドライバを追加したい」など，**目的からコマンドリファレンス・技術リファレンス・開発文書を横断して探せます**．
+[開発資料一覧](development/README.md)：C・Python・アセンブラのAPIと実装例，カーネル構造，システムコール・デバイス・ネットワークの拡張手順．
 
-## 3．現行仕様を調べる（技術リファレンス）
+## 目的別索引
 
-**[技術リファレンス目次](reference/README.md)**：システムコール，FD，メモリ配置，デバイスノード，ネットワーク仕様，制限値など．学習順序を持たない辞書として使用します．
-
-分野別： [コマンド](reference/commands/README.md) ｜ [ハードウェア・ピン割当・配線](reference/hardware/README.md) ｜ [デバイスとI/O](reference/devices/README.md) ｜ [ネットワーク（Pico W）](reference/network/README.md)．
-
-## 4．開発方法を調べる（開発ガイド）
-
-**[開発ガイド一覧](development/README.md)**：C・Python・アセンブラ，カーネル読解，システムコール，ドライバ追加，Pico Wネットワークの実装など．最初に[学習ロードマップ](ROADMAP.md)で順序を確認してください．
+[目的別索引](TASKS.md)：具体的な操作・仕様・ソースの機能名から参照先を探せます．
 
 ## 関数索引と開発記録
 
 - [関数一覧（自動生成）](development/FUNCTIONS.md)：ソースコードを調べるときの索引．
-- [開発日誌](DEVELOPMENT_DIARY.md)：設計の経緯．
-過去の設計変更や検討経緯は[開発日誌](DEVELOPMENT_DIARY.md)とGitのコミット履歴を参照してください．
+- [開発日誌](DEVELOPMENT_DIARY.md)：設計の経緯と仕様変更の履歴．
 
 ---
 

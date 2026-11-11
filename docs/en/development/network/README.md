@@ -1,6 +1,6 @@
 # Network Development Guides
 
-Start here to **read or modify the kernel-side networking implementation**. For sequential learning, use [Network development](NETWORK-DEVELOPMENT.md); for current connection behavior and command specifications, use the [network reference](../../reference/network/README.md).
+Start here to **read or modify the kernel-side networking implementation**. For reference navigation, use [Network development](NETWORK-DEVELOPMENT.md); for current connection behavior and command specifications, use the [network reference](../../reference/network/README.md).
 
 ## Find the right guide
 

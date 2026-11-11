@@ -54,7 +54,7 @@ LinuxのELF実行ファイルをロードする仕組み，MMUによるプロセ
 
 タスクの状態は `UNUSED`，`READY`，`SLEEPING`，`BLOCKED`，`DEAD` です．`spawn()` は登録済みプログラムを新しいスロットで実行し，`waitpid()` は子の終了を待ちます．`WNOHANG` ならブロックしません．終了通知は簡素化されており，終了コード（0〜255）をタスクスロットとは別の終了通知に保持し，`waitpid()`で親へ渡します．
 
-`ps`および`/proc/tasks`は末尾の`PPID`列に親PIDを表示します．従来の列順はそのままです．
+`ps`および`/proc/tasks`は末尾の`PPID`列に親PIDを表示します．
 
 ## 4．システムコールの境界
 
@@ -67,7 +67,7 @@ RAMアプリはカーネルの関数を直接呼ばず，`userland/lib/syscalls.
 | ディレクトリ | `chdir()`，`getcwd()` |
 | 端末・制御 | `get_tty()`，`ioctl()`，`fcntl()`，`set_foreground()` |
 
-システムコール番号はカーネルとユーザ側の両方で一致している必要があります．番号15は旧 `GETARG` の予約番号であり，新しい機能に流用しません．起動引数は初期スタックと `crt0.c` を介して `main(argc, argv)` に渡されます．
+システムコール番号はカーネルとユーザ側の両方で一致している必要があります．システムコール番号15は予約済みで，割り当てません．起動引数は初期スタックと `crt0.c` を介して `main(argc, argv)` に渡されます．
 
 詳細な番号一覧は[システムコール一覧](SYSCALLS.md)を参照してください．
 
@@ -128,7 +128,7 @@ trace show
 
 `/dev/trace` はバイナリレコードを読み出すデバイスです．詳しいイベント定義と解釈は[トレース](commands/TRACE.md)を参照してください．
 
-## 9．ソースコードの読み方
+## 9．実装の参照先
 
 | ファイル | 読むポイント |
 |---|---|
@@ -147,4 +147,4 @@ Pico Wではネットワーク予約16 KiBにlwIPヒープ10 KiBとアイドル�
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [文書案内](../README.md) ｜ [操作ガイド一覧](commands/README.md) ｜ [English](../../en/reference/INTERNAL.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [文書案内](../README.md) ｜ [操作ガイド一覧](commands/README.md) ｜ [English](../../en/reference/INTERNAL.md)

@@ -47,7 +47,7 @@ getty /dev/ttyS1 python &
 
 UART1が端末として占有されていない場合，`0x04`は変換されず通常の受信データとして扱われます．したがって，バイナリ通信でCtrl+D相当の値を使うこともできます．
 
-**Pythonの終了**：`getty /dev/ttyS1 python &`で起動したPythonは，`exit()`で終了すると`PicoNIX: Session closed.`を表示します．スクリプト実行は従来どおりです．
+**Pythonの終了**：`getty /dev/ttyS1 python &`で起動したPythonは，`exit()`で終了すると`PicoNIX: Session closed.`を表示します．
 
 **Shellの終了**：UART1側の`sh`はCtrl+Dではログアウトしません．`logout`または`exit`を入力すると，`logout`と`PicoNIX: Session closed.`を表示して終了し，端末を解放します．`getty`は常駐していないため，自動再起動は行いません．
 
@@ -75,4 +75,4 @@ USB側では`tty`は`/dev/console`，UART1側のShellでは`/dev/ttyS1`を表示
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/devices/UART.md) ｜ [概要へ戻る](../commands/README.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [English](../../../en/reference/devices/UART.md) ｜ [概要へ戻る](../commands/README.md)

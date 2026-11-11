@@ -1,63 +1,63 @@
-# PicoNIX Kernel Reading Guide
+# PicoNIX Kernel Source and Call-Path Reference
 
 *Development guide*
 
-This guide explains **how to read the current PicoNIX kernel source**, rather than how to extend it. Follow one path through the system: **boot → task creation → scheduling → context switching → system calls → files → IPC → devices → networking (optional)**. Read one function and its callers and callees at a time. For modifications, use the [kernel development guide](KERNEL-DEVELOPMENT.md).
+This reference maps kernel functions to source files and shows the call paths of the current implementation. For source modifications, see the [kernel development guide](KERNEL-DEVELOPMENT.md).
 
-Before starting, read [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Differences from Linux](../../reference/DIFFERENCES.md). PicoNIX uses fixed-size task slots and does **not** implement the full process isolation or virtual memory of Linux. Use `rg -n 'function_name\(' kernel userland` to locate calls and definitions; line numbers can change as code is edited.
+Related specifications: [Architecture](../../reference/ARCHITECTURE.md), [Memory layout](../../reference/MEMORY-LAYOUT.md), and [Differences from Linux](../../reference/DIFFERENCES.md). PicoNIX uses fixed-size task slots and does **not** implement the full process isolation or virtual memory of Linux. Use `rg -n 'function_name\(' kernel userland` to locate calls and definitions; line numbers can change as code is edited.
 
-| Step | Topic | Read in this order |
-|---|---|---|
-| 1 | Boot | `kernel/main.c`: `main()` → `os_init()` → `register_image()` → `net_init()` → `os_init_idle()` → `os_start_program(2)` → `os_start()`; also `idle_task()` |
-| 2 | Task creation and RAM | `include/piconix.h` constants → `os_register_program()` → `os_register_ram_image()` → `free_program_slot()` → `spawn_in_slot()` → `os_start_program()` in `kernel/kernel.c` |
-| 3 | Scheduling | `os_start()` → `isr_systick()` → `pend()` → `os_schedule()`; inspect task states and `wake_readers()` / `wake_waiters()` / `wake_pipes()` |
-| 4 | Context switching | `kernel/context.S`: `isr_pendsv` → `kernel/kernel.c`: `os_schedule()` → return to `isr_pendsv` |
-| 5 | System calls | An application using `write()` → `userland/lib/syscalls.c`: `write()`, `call()` → `include/piconix_syscall.h` → `kernel/context.S`: `isr_svcall` → `kernel/kernel.c`: `os_svc_dispatch()` |
-| 6 | Files and FDs | `fd_set()` → `fd_release()` → `vfs_open()` → `vfs_rw()` → `tmp_open()` / `tmp_rw()` → `device_rw_proc()` / `device_rw_tty()` |
-| 7 | TTY and pipes | `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`; then `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → FD helpers → `SYS_PIPE` / `SYS_DUP2` / `SYS_CLOSE` → shell pipeline handling |
-| 8 | Devices | VFS device dispatch in `kernel/kernel.c` → `kernel/gpio.c` → `fb.c` → `adc.c` → `i2c.c` → `pwm.c` |
-| 9 (optional) | Networking (Pico W) | `kernel/main.c`: `net_init()` → `kernel/net.c`: `net_init()` / `net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c` / `kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c` |
+| Subsystem | Function path and source location |
+|---|---|
+| Boot | `kernel/main.c`: `main()` → `os_init()` → `register_image()` → `net_init()` → `os_init_idle()` → `os_start_program(2)` → `os_start()`; also `idle_task()` |
+| Task creation and RAM | `include/piconix.h` constants → `os_register_program()` → `os_register_ram_image()` → `free_program_slot()` → `spawn_in_slot()` → `os_start_program()` in `kernel/kernel.c` |
+| Scheduling | `os_start()` → `isr_systick()` → `pend()` → `os_schedule()`; inspect task states and `wake_readers()` / `wake_waiters()` / `wake_pipes()` |
+| Context switching | `kernel/context.S`: `isr_pendsv` → `kernel/kernel.c`: `os_schedule()` → return to `isr_pendsv` |
+| System calls | An application using `write()` → `userland/lib/syscalls.c`: `write()`, `call()` → `include/piconix_syscall.h` → `kernel/context.S`: `isr_svcall` → `kernel/kernel.c`: `os_svc_dispatch()` |
+| Files and FDs | `fd_set()` → `fd_release()` → `vfs_open()` → `vfs_rw()` → `tmp_open()` / `tmp_rw()` → `device_rw_proc()` / `device_rw_tty()` |
+| TTY and pipes | `tty_input_char()` → `tty_enqueue()` → `tty_dequeue()` → `device_rw_tty()` → `wake_readers()`; then `pipe_ref()` → `pipe_transfer()` → `wake_pipes()` → FD helpers → `SYS_PIPE` / `SYS_DUP2` / `SYS_CLOSE` → shell pipeline handling |
+| Devices | VFS device dispatch in `kernel/kernel.c` → `kernel/gpio.c` → `fb.c` → `adc.c` → `i2c.c` → `pwm.c` |
+| Networking (Pico W) | `kernel/main.c`: `net_init()` → `kernel/net.c`: `net_init()` / `net_poll()` → `kernel/net_socket.c` → `kernel/net_service_telnet.c` / `kernel/net_service_remote_devctl.c` → `userland/apps/httpd.c` |
 
 
-## How to follow the code
+## Source map by subsystem
 
-Assume prior knowledge of UNIX processes, FDs, syscalls and C. The aim is not to review their definitions, but to follow their **PicoNIX-specific implementation**. For each stage: observe an operation, locate its entry point, trace state changes and return paths, then compare with the reference. The [function index](../../../ja/development/FUNCTIONS.md) helps locate definitions; line numbers may shift.
+Assume prior knowledge of UNIX processes, FDs, syscalls and C. The following entries identify PicoNIX-specific entry points, state changes, and return paths. The [function index](../FUNCTIONS.md) helps locate definitions; line numbers may shift.
 
-### Steps 1–2: Boot, image registration and task slots
+### Boot, image registration and task slots
 
 Start with `kernel/main.c` and follow registration of flash-resident application images, then `spawn_in_slot()` in `kernel/kernel.c`. Distinguish *registering an image* from *loading and starting a task*. Inspect `OS_TASK_BYTES` and the fixed memory map in [Memory layout](../../reference/MEMORY-LAYOUT.md). Observe processes with `ps`, and use `mem -s kernel` / `mem -s sh` to inspect symbols.
 
-### Steps 3–4: Tick, scheduling and context switch
+### Tick, scheduling and context switch
 
 Follow `isr_systick()` → `pend()` → `os_schedule()`, then `isr_pendsv` in `kernel/context.S`. Identify what is saved on each task's PSP and what runs on the shared MSP. Trace task states and the READY/BLOCKED transitions; do not assume that syscall handlers retain suspended C call frames.
 
-### Step 5: Syscall entry and return
+### Syscall entry and return
 
 Use `trace run hello`, then connect a visible `write` event to `write()` and `call()` in `userland/lib/syscalls.c`, `isr_svcall` in `context.S`, and `os_svc_dispatch()` in `kernel.c`. Follow the argument validation and result path. Consult [Syscalls](../../reference/SYSCALLS.md) for the PicoNIX ABI.
 
-### Steps 6–7: VFS, FD, terminal and pipe
+### VFS, FD, terminal and pipe
 
 Compare `cat /proc/uptime`, `ls /dev`, and `lsof`. Follow FD lookup and VFS dispatch to the RAM file, `/proc`, or device backend. For pipelines, try `echo hello | grep hello | cat`, then locate shell pipe construction, `SYS_PIPE`, `SYS_DUP2`, `pipe_transfer()` and wake-up handling. See [Pipes](../../reference/commands/PIPE.md) and [TTY](../../reference/commands/TTY.md).
 
-### Step 8: Device I/O
+### Device I/O
 
 Begin at VFS device dispatch in `kernel/kernel.c`, then follow a selected backend such as `kernel/gpio.c`. Separate path/device identification from the read/write/ioctl operation and hardware-specific code. Consult [Device reference](../../reference/devices/README.md) and [Driver development](../drivers/DRIVER-DEVELOPMENT.md).
 
-### Step 9: Networking (Pico W only)
+### Networking (Pico W only)
 
-Follow `net_init()` and `net_poll()` in `kernel/net.c`, the socket adaptation in `kernel/net_socket.c`, and the kernel's Telnet/remote-control services. Compare these with the **user-space** `userland/apps/httpd.c`. Read [Kernel networking development](../network/NETWORK-DEVELOPMENT.md) and [Socket programming](../apps/c/NETWORK-PROGRAMMING.md). This step can be skipped on a non-W Pico.
+Follow `net_init()` and `net_poll()` in `kernel/net.c`, the socket adaptation in `kernel/net_socket.c`, and the kernel's Telnet/remote-control services. Compare these with the **user-space** `userland/apps/httpd.c`. Read [Kernel networking development](../network/NETWORK-DEVELOPMENT.md) and [Socket programming](../apps/c/NETWORK-PROGRAMMING.md). The network subsystem is available only on Pico W.
 
 
 ## Deep dive: CPU modes, stacks, SVC and PendSV in the source
 
-Read this section **after steps 2–5**. Distinguish Cortex-M0+ architectural behavior from PicoNIX's choices. Follow the named symbols in `kernel/context.S` and `kernel/kernel.c` rather than relying on fixed line numbers.
+Distinguish Cortex-M0+ architectural behavior from PicoNIX's choices. Follow the named symbols in `kernel/context.S` and `kernel/kernel.c` rather than relying on fixed line numbers.
 
 ### 1. Thread/Handler mode and privilege
 
 The processor runs ordinary application code in **Thread mode**, and SVC, PendSV, SysTick and interrupt handlers in **Handler mode**. Mode and privilege are different concepts: Handler mode is always privileged; Thread mode may be privileged or unprivileged. PicoNIX user tasks run in privileged Thread mode and use the PSP. This does **not** provide Linux-style hardware-enforced isolation between user and kernel code.
 
 | Execution | Mode | Stack | Source |
-|---|---|---|
+|---|---|---|---|
 | PicoNIX task | Thread | Per-task PSP | `spawn_in_slot()` in `kernel/kernel.c` |
 | System call | Handler (SVC) | Shared MSP | `isr_svcall` in `kernel/context.S` |
 | Context switch | Handler (PendSV) | Shared MSP | `isr_pendsv` in `kernel/context.S` |
@@ -126,22 +126,22 @@ In Research UNIX V5/V6, a process can call `sleep()` **inside the kernel**, swit
 PicoNIX instead retains the wait condition and the **user-side syscall-return context**, without keeping the kernel C call chain suspended. Both implementations can present an ordinary blocking `read()` interface to applications, but they manage the waiting process differently.
 
 
-For step 2, try `ps`, `mem -s kernel`, and `mem -s sh`. For step 5, use `trace run hello` and follow this path:
+Useful observation commands include `ps`, `mem -s kernel`, `mem -s sh` and `trace run hello`. The syscall path for `write()` is:
 
 ```text
 application → write() → call(SYS_WRITE, ...) → svc #0
             → isr_svcall → os_svc_dispatch() → vfs_rw() → TTY
 ```
 
-For step 6, try `cat /proc/uptime`, `ls /dev`, and `lsof`. In step 8, follow VFS device dispatch before inspecting hardware backends; use the [Device reference](../../reference/devices/README.md). Step 9 is a separate, optional Pico W topic; use the [kernel networking development guide](../network/NETWORK-DEVELOPMENT.md) for kernel internals, and the [user socket programming guide](../apps/c/NETWORK-PROGRAMMING.md) for applications; distinguish built-in services from user-space `httpd`. For step 7, run:
+Additional VFS observations: `cat /proc/uptime`, `ls /dev`, and `lsof`. The [device reference](../../reference/devices/README.md) covers hardware backends. Pico W networking is described in [kernel networking](../network/NETWORK-DEVELOPMENT.md) and [user socket programming](../apps/c/NETWORK-PROGRAMMING.md); the kernel services differ from user-space `httpd`. A shell pipeline example is:
 
 ```sh
 echo hello | grep hello | cat
 ```
 
 
-Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../reference/commands/TRACE.md), [Memory inspection](../../reference/commands/MEM.md), [TTY](../../reference/commands/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../../../ja/development/FUNCTIONS.md).
+Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../reference/SYSCALLS.md), [Trace](../../reference/commands/TRACE.md), [Memory inspection](../../reference/commands/MEM.md), [TTY](../../reference/commands/TTY.md), [Driver development](../drivers/DRIVER-DEVELOPMENT.md), [System call development](../syscalls/SYSCALL-DEVELOPMENT.md), and the [function index](../FUNCTIONS.md).
 
 ---
 
-**Related links:** [Development guide index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [Documentation](../../README.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)
+**Related links:** [Development guide index](../README.md) | [Documentation](../../README.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)

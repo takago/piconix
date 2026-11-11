@@ -28,8 +28,8 @@ The status includes `MODE`, `STATUS`, `SSID`, `ATTEMPTS`, `CONNECT_ERROR`, `WIFI
 ## STA communication diagnostics
 
 STA mode explicitly selects `CYW43_NONE_PM` after enabling the STA interface.
-This disables Wi-Fi power saving for a reproducible comparison with AP mode.
-AP mode is unchanged. The idle/network stack is 4 KiB; its use is sampled
+This disables Wi-Fi power saving in STA mode.
+AP mode does not use this setting. The idle/network stack is 4 KiB; its use is sampled
 with a high-water mark when reading `/proc/net/wifi`.
 
 The additional STA-only fields are:
@@ -44,12 +44,11 @@ The additional STA-only fields are:
 
 An `UP` status and a DHCP lease do **not** prove that ARP, ICMP, or TCP
 packets can be exchanged. Test ICMP reachability from the Linux/host computer with `ping`, and test from PicoNIX using its Pico W-only `ping -c 2 HOST_IPV4` command (see [Ping](PING.md)). Also test Telnet from the same network,
-repeat after several power cycles, and compare with the previous firmware.
+and repeat after several power cycles.
 For stalled communication, capture ARP/ICMP traffic on the host.
 
 The firmware must still pass the linked ELF's 56-KiB kernel SRAM limit checks.
-Build and hardware validation are required before treating the workaround
-as a confirmed solution.
+Build checks and hardware tests are necessary to evaluate communication stability.
 
 
 ## MAC address and signal-strength indicator
@@ -99,11 +98,11 @@ telnet piconix.local
 
 After obtaining an IPv4 address through DHCP, STA mode sends a gratuitous ARP (GARP) every 60 seconds as an experimental workaround. `GARP_INTERVAL_S` reports the interval; `GARP_OK` and `GARP_ERROR` count the lwIP transmission API's results. API success does not prove delivery over the air or arrival at another host. AP mode does not perform these periodic transmissions.
 
-In diagnostic testing, GARP packets arrived irregularly over one Linux Wi-Fi/AP combination, but regularly on a wired interface on that AP and over Wi-Fi with a different AP. This does not establish a PicoNIX timer defect; investigate access-point and client-driver combinations before drawing conclusions. Periodic GARP is not a permanent fix for ARP connectivity faults.
+GARP arrival intervals can depend on the access point and client driver. Check transmit and receive timestamps separately. Periodic GARP does not guarantee resolution of ARP connectivity faults.
 
 
 The additional `cat /proc/net/memory` snapshot is available in both AP and STA modes.
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/network/WIFI-MODES.md)
+**Related links:** [Reference index](../README.md) | [日本語](../../../ja/reference/network/WIFI-MODES.md)

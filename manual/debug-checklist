@@ -1,7 +1,7 @@
 LLM DIAGNOSTIC DECISION TREE
 
 1) MCP TOOL FAILED TO RUN
-  Is mcpd running? Run tools/list; all eight tools are always available.
+  Is mcpd running? Run tools/list; all six tools are always available.
   Is the command noninteractive and <3 seconds?
   Are all six process slots occupied? ps on console.
 

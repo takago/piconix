@@ -1,8 +1,8 @@
-# ソケットAPIとネットワークプログラミング（実習付き）
+# ソケットAPIとCネットワークプログラミング実装例
 
-このガイドでは，**自分のCプログラム**を作り，Pico WからLinux PCへUDPを送り，続いてTCPでHTTPサーバに接続します．`nc`は完成した通信の比較・障害切り分けに使いますが，プログラミングの代わりにはしません．普通のPicoにはWi-Fi機能がないので，この実習にはPico Wが必要です．
+この文書では，**独立したCプログラムの実装例**を用い，Pico WからLinux PCへUDPを送り，続いてTCPでHTTPサーバに接続します．`nc`は完成した通信の比較・障害切り分けに使いますが，ソケットAPIの実装例ではありません．普通のPicoにはWi-Fi機能がないので，この機能にはPico Wが必要です．
 
-## 1．実習の準備と全体像
+## 1．実行環境とデータ経路
 
 必要なもの：Pico W，USBコンソール，Linux PC，Pico SDKとARMツールチェーン，両者が接続できる隔離された実験用ネットワーク．[セットアップ](../../../setup/SETUP.md)と[ネットワーク接続](../../../reference/network/NETWORK.md)でAPモードまたはSTAモードを準備してください．TelnetやUDPデバイス制御に認証・暗号化はありません．公開ネットワークでは使用しないでください．
 
@@ -14,7 +14,7 @@ Pico W上のtcp_get         → TCP 8000  → Linux PCのpython -m http.server
 ```
 
 1. PicoNIXで`ip addr`と`net`を実行し，Pico Wが接続済みか確認します．APモードならPico Wが通常`192.168.4.1`，PCが通常`192.168.4.2`ですが，**必ずPC側の`ip addr`で実際のPCアドレスを確認**してください．
-2. Pico Wで`ps`と`lsof`を確認します．必要なら`udp_echod`や`nc -u`など，**UDPソケットを占有するプログラム**を終了してください．PicoNIXのユーザUDPソケットは同時に1つという制約があります．
+2. Pico Wで`ps`と`lsof`を確認します．必要なら`udp_echod`や`nc -u`など，**UDPソケットを占有するプログラム**を終了してください．ユーザUDPソケットはシステム全体で最大3個です．利用済みのスロットが多い場合は新規作成に失敗することがあります．
 3. Linux上の`python3`とファイアウォールを確認します．PC側の受信ポート12345（UDP）と8000（TCP）へのアクセスが許可された実験環境を使用します．
 
 ## 2．PicoNIXのソケットAPIの特徴
@@ -34,15 +34,15 @@ PicoNIXのC APIは完全なPOSIX互換ではありません．`errno`ではな�
 
 ## ソケットの待機・エラー・資源管理（実装上の制約）
 
-- **`accept()`，TCPの`recv()`／`read()`，UDPの`recvfrom()`は，既定でブロッキング動作**です．接続やデータが未到着ならタスクを`BLOCKED`にし，カーネルのスケジューラが到着を確認して起こします．`fcntl(fd,F_SETFL,O_NONBLOCK)`を指定したFDは，未到着時に`OS_EAGAIN`を返します．ソケット送信と`connect()`は従来の非同期方式を維持します．
+- **`accept()`，TCPの`recv()`／`read()`，UDPの`recvfrom()`は，既定でブロッキング動作**です．接続やデータが未到着ならタスクを`BLOCKED`にし，カーネルのスケジューラが到着を確認して起こします．`fcntl(fd,F_SETFL,O_NONBLOCK)`を指定したFDは，未到着時に`OS_EAGAIN`を返します．ソケット送信と`connect()`は非同期に動作します．
 - TCPの`connect()`が0を返すのは接続開始に成功した場合です．接続確立は`tcp_status()`が1になったことで確認します（進行中は0，終了した受信側は-2，通信異常は-1）．`accept()`は既定で接続待ちを行い，`O_NONBLOCK`指定時のみ未到着を`OS_EAGAIN`で返します．TCP待受FDに対する`read()`／`write()`は`OS_EBADF`です．
 - TCPの`send()`は最大`TCP_MSS`と送信キューの空きに応じて部分送信になり，`recv()`も蓄積済みの範囲だけ返します．正常なTCP終端で受信データを読み終えた後の`recv()`は0（EOF）です．`shutdown(SHUT_WR)`後の送信は`OS_EIO`になります．
-- UDPはユーザ全体で1ソケット，受信待ちのデータグラムは1件だけです．受信バッファが小さい場合は`OS_EINVAL`となり，そのデータグラムは保持されます．ゼロ長データグラムの受信結果0と，非ブロッキング時の未着`OS_EAGAIN`は区別してください．送信を先に行うとUDPのローカルポートは自動割当てされるため，その後の`bind()`は失敗します．先に受信ポートを指定する場合は送信前に`bind()`してください．
+- UDPユーザソケットはシステム全体で最大3個で，**各ソケット**が保留する受信データグラムは最大1件です．受信バッファが小さい場合は`OS_EINVAL`となり，そのデータグラムは保持されます．ゼロ長データグラムの受信結果0と，非ブロッキング時の未着`OS_EAGAIN`は区別してください．送信を先に行うとUDPのローカルポートは自動割当てされるため，その後の`bind()`は失敗します．先に受信ポートを指定する場合は送信前に`bind()`してください．
 - ソケットの`dup()`／`dup2()`は非対応です．`close()`すると対応するソケット資源を解放し，タスク終了時にも所有ソケットを回収します．TCPの待受FDと`accept()`済みFDは同一管理スロットを使用するため，接続を1件ずつ処理する設計です．
 
 ## 3．新しいコマンドをファームウェアに組み込む
 
-以下のサンプルソースは`userland/examples/c/network/`にあります．**標準アプリではなく，通常のファームウェアには登録されません．** 以下は実習時に限って有効にする手順です．別ブランチで作業し，実習後は`userland/apps/`へのコピーとCMake・カーネル登録を元に戻してください．Linux PCの**リポジトリ直下**で実行します．
+以下のサンプルソースは`userland/examples/c/network/`にあります．**標準アプリではなく，通常のファームウェアには登録されません．** 以下は標準アプリ以外を追加する手順です．別ブランチで作業し，確認後は必要に応じて`userland/apps/`へのコピーとCMake・カーネル登録を元に戻してください．Linux PCの**リポジトリ直下**で実行します．
 
 ```sh
 cp userland/examples/c/network/udp_once.c userland/apps/udp_once.c
@@ -56,7 +56,7 @@ extern const unsigned char piconix_udp_once_image_start[], piconix_udp_once_imag
 extern const unsigned char piconix_tcp_get_image_start[], piconix_tcp_get_image_end[];
 ```
 
-同じ`main()`内で，既存の`register_image()`に続けて登録します．未改造の現行ソースでは登録ID53・54が未使用です（49は`mcpd`，50は`cc`，51は`scroll`が使用中）．**別の実習などで登録を追加した場合は`kernel/main.c`で空きを再確認**してください．
+同じ`main()`内で，既存の`register_image()`に続けて登録します．未改造の現行ソースでは登録ID53・54が未使用です（49は`mcpd`，50は`cc`，51は`scroll`が使用中）．**別のアプリを登録している場合は`kernel/main.c`で空きを再確認**してください．
 
 ```c
 register_image(53, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
@@ -86,7 +86,7 @@ python3 host/udp_echo.py 12345
 サーバの全ソース（`host/udp_echo.py`）は次のとおりです．
 
 ```python
-"""One-client UDP echo server for the PicoNIX networking tutorial (host PC)."""
+"""One-client UDP echo server for PicoNIX (host PC)."""
 import socket
 import sys
 
@@ -193,7 +193,7 @@ received 18 bytes: hello from PicoNIX
 
 上の表示は**成功時の想定例**であり，実機で取得したログではありません．PC側のサーバには送信元IP・ポートが表示されます．`sendto()`の結果は送信バイト数，`recvfrom()`は受信バイト数です．サンプルのように時間制限付きでポーリングするときは，ソケットFDを`O_NONBLOCK`に設定してください．`OS_EAGAIN`は「まだデータがない」ことなので，短時間`msleep()`して再試行します．
 
-### 4.3 比較実験
+### 4.3 通信結果の比較
 
 - PC側のサーバを止めて`udp_once`を実行し，**UDPは送信成功でも返事が保証されない**ことを確認します．
 - PCのファイアウォールで受信が遮断された場合とIPの間違いを比較します．
@@ -201,7 +201,7 @@ received 18 bytes: hello from PicoNIX
 
 ## 5．TCPプログラミング：HTTP応答を受け取る
 
-Linux PCで次を実行します（この端末は実習中開いたままにします）．
+Linux PCで次を実行します（この端末は起動中開いたままにします）．
 
 ```sh
 python3 -m http.server 8000 --bind 0.0.0.0
@@ -314,7 +314,7 @@ HTTP/1.0 200 OK
 
 `HTTP/1.0 200 OK`はPC側HTTPサーバの応答例です．ディレクトリやPython版で結果は変わります．`tcp_status()`が1以外で終了したらWi-Fi，接続先アドレス，TCP 8000の待受を確認します．長時間待機する場合は`Ctrl+C`で停止してください．
 
-## 6．観察することとよくある失敗
+## 6．エラーと診断
 
 | 症状 | 最初に確かめること |
 |---|---|
@@ -324,8 +324,6 @@ HTTP/1.0 200 OK
 | TCPが接続できない | PCのTCP 8000待受・STA/AP接続・IPアドレス |
 | `OS_EAGAIN`が続く | データ未到着．短く待って再確認する．無限busy-loopにしない |
 | `cannot start program` | RAMスロット不足やイメージのサイズを`ps`・ビルドログで調べる |
-
-**考えてみよう：** (1) TCPとUDPで「送信の単位」はどう違うか．(2) TCPの`send()`が要求サイズより小さい値を返したら，なぜ再送処理が必要か．(3) カーネルに常駐するTelnetと，今作ったユーザプログラムはどこで動作するか．
 
 既存の通信確認には[`nc`](../../../reference/network/NC.md)を使えますが，実装理解には`userland/apps/tcp_echod.c`・`udp_echod.c`・`httpd.c`を読み比べてください．カーネルのlwIP処理を拡張する場合は[ネットワーク実装ガイド](../../network/NETWORK-DEVELOPMENT.md)に進みます．
 

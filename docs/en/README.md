@@ -1,37 +1,30 @@
-# PicoNIX documentation directory
+# PicoNIX Documentation
 
-**Audience:** Readers who already know UNIX/Linux operations, basic OS concepts and C. These documents explain how PicoNIX implements those ideas, not the underlying theory. See the [prerequisites and roadmap](ROADMAP.md#audience-and-prerequisites).
+Documentation is grouped into **setup, technical references, and developer references**. Each document describes the current implementation, its limits, and relevant usage or implementation examples. Historical behavior and design changes belong in the [development diary](DEVELOPMENT_DIARY.md).
 
-PicoNIX documentation is organized into **setup, technical reference, and development**. For a suggested learning order, use the [Learning roadmap](ROADMAP.md).
+**Prerequisites:** Kernel and application development references assume familiarity with C, basic UNIX/Linux operations, processes, file descriptors, and system calls. See [Differences from Linux](reference/DIFFERENCES.md) for PicoNIX-specific behavior.
 
-## Start here: Setup
+## Setup
 
-**[Setup guide](setup/SETUP.md)**: Prepare the Linux build environment, flash Pico or Pico W, and connect through USB.
+[Setup and flashing](setup/SETUP.md): toolchains, builds, Pico/Pico W flashing, and terminal connections.
 
-## 1. Learn in order (roadmap)
+## Technical references
 
-**[Learning roadmap](ROADMAP.md)** gives a suggested path through command references, OS observation, and source-code development.
+[Reference index](reference/README.md): APIs, system calls, file descriptors, memory layout, devices, networking, and resource limits.
 
-## 2. Find documentation by goal (task index)
+By topic: [Commands](reference/commands/README.md) | [Hardware and wiring](reference/hardware/README.md) | [Devices and I/O](reference/devices/README.md) | [Networking (Pico W)](reference/network/README.md).
 
-**[Task index: “I want to…” → related pages](TASKS.md)**
+## Developer references
 
-Find learning steps, command references and development documents for goals such as editing files, tracing a syscall, or adding a device driver. This index is **not** part of the learning roadmap sequence.
+[Development index](development/README.md): C, Python and assembler interfaces and examples, kernel internals, and extension procedures for syscalls, drivers, and networking.
 
+## Task index
 
-## 3. Look up current behavior (technical reference)
-
-**[Technical reference index](reference/README.md)** covers syscalls, FDs, memory layout, device nodes, networking, and limits. It is intended for lookup, not linear study.
-
-Browse by area: [Commands](reference/commands/README.md) | [Devices and I/O](reference/devices/README.md) | [Hardware / pins / wiring](reference/hardware/README.md) | [Networking (Pico W)](reference/network/README.md).
-
-## 4. Read implementation instructions (development guides)
-
-**[Development guide index](development/README.md)** covers C, Python, assembly, kernel reading, syscalls, drivers, and Pico W kernel networking. Follow [Learning roadmap](ROADMAP.md) for learning order.
+[Find documentation by task](TASKS.md): find a command, specification, or source-level interface by purpose.
 
 ## Source index and development records
 
-- [Function index (Japanese)](../ja/development/FUNCTIONS.md): locating source functions.
+- [Function index](development/FUNCTIONS.md): locating source functions.
 - [Development diary](DEVELOPMENT_DIARY.md): chronological project record (not the current specification).
 
 ---

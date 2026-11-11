@@ -21,6 +21,11 @@ header=r'''
 #define DEV_CONSOLE 100
 #define DEV_UART1 101
 #define DEV_WIFI_TTY 102
+#define DEV_PTY_MASTER 103
+#define DEV_PTY_SLAVE 104
+#define PTY_TTY 3
+#define PTY_OUT_BYTES 512
+#define TTY_LINES 8
 #define PIPE_DEV_BASE 268
 #define PIPE_BYTES 256
 #define BLOCKED 4
@@ -42,6 +47,9 @@ static task_t tasks[OS_MAX_TASKS];
 static int tcp_owner_pid[TCP_USER_SLOTS],udp_owner_pid[3],accept_pending,rx_bytes,udp_pending,tty_pending,poll_busy,can_write;
 static uint32_t ticks;
 static pipe_t pipe_storage;
+static struct {int master_refs,slave_refs,ever_slave,screen_only;unsigned used;} pty;
+static struct {unsigned used;} tty_buf[4];
+static int tty_echo[4];
 static int pipe_end(int d) {return d==PIPE_DEV_BASE || d==PIPE_DEV_BASE+1;}
 static pipe_t *pipe_for_dev(int d) {(void)d;return &pipe_storage;}
 static int pipe_is_writer(int d) {return d==PIPE_DEV_BASE+1;}
@@ -76,6 +84,27 @@ int main(void) {
  req.read_mask=(1u<<5)|(1u<<0)|(1u<<6);
  udp_pending=1;tty_pending=1;pipe_storage.used=1;
  assert(select_ready(t,7,&req)==3);
+ /* PTY master/slave readiness and EOF/writable backpressure. */
+ t->fd[7]=DEV_PTY_MASTER;t->fd[8]=DEV_PTY_SLAVE;
+ pty.master_refs=1;pty.slave_refs=1;pty.ever_slave=1;
+ req.read_mask=(1u<<7)|(1u<<8);req.write_mask=(1u<<7)|(1u<<8);
+ assert(select_ready(t,9,&req)==2); /* both descriptors writable */
+ assert(req.ready_write==((1u<<7)|(1u<<8)));
+ pty.used=PTY_OUT_BYTES;tty_echo[PTY_TTY]=1;tty_pending=0;
+ assert(select_ready(t,9,&req)==1); /* master has buffered read data */
+ tty_echo[PTY_TTY]=0;
+ assert(select_ready(t,9,&req)==1); /* master now also writable */
+ assert(req.ready_write==(1u<<7));
+ tty_buf[PTY_TTY].used=TTY_LINES;
+ assert(select_ready(t,9,&req)==1); /* master readable, not writable */
+ assert(req.ready_write==0);
+ pty.used=1;tty_buf[PTY_TTY].used=0;tty_echo[PTY_TTY]=0;
+ assert(select_ready(t,9,&req)==2);
+ assert(req.ready_read==(1u<<7));
+ pty.used=0;pty.slave_refs=0;pty.master_refs=0;
+ assert(select_ready(t,9,&req)==2); /* EOF on both sides */
+ assert(req.ready_read==((1u<<7)|(1u<<8)));
+ req.write_mask=0;
  req.read_mask=(1u<<2);assert(select_ready(t,7,&req)==OS_EBADF);
  req.read_mask=(1u<<6);assert(select_ready(t,3,&req)==OS_EINVAL);
  req.read_mask=(1u<<3);accept_pending=0;t->state=BLOCKED;t->wait_dev=WAIT_SELECT;
@@ -93,4 +122,4 @@ with tempfile.TemporaryDirectory() as d:
  c=Path(d)/'test.c'; exe=Path(d)/'test';c.write_text(header+code+checks)
  subprocess.run(['cc','-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-function',str(c),'-o',str(exe)],check=True)
  subprocess.run([str(exe)],check=True)
-print('PASS: kernel select readiness and wake on TCP, UDP, TTY, pipe, timeout, poll lock')
+print('PASS: kernel select readiness and wake on TCP, UDP, TTY, PTY, pipe, timeout, poll lock')

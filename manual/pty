@@ -1,36 +1,43 @@
-PSEUDOTERMINAL (PTY) / VIRTUAL 80x24 SCREEN
+PSEUDOTERMINAL / VIRTUAL SCREEN - 80x24
 
-/dev/ptmx          Master, exclusive O_RDWR
-/dev/pts/0         Slave, after opening master
-/dev/pts/0.screen  80x24 ANSI text; inverse and underlined cursor markers
-/dev/pts/0.key     Named-key write (UP, DOWN, LEFT, RIGHT, ENTER,
-                   ESC or ESCAPE, TAB, SPACE or SP, BACKSPACE or BS,
-                   DELETE, CTRL_A ... CTRL_Z)
+DEVICE INTERFACES
+  /dev/ptmx          master, exclusive O_RDWR
+  /dev/pts/0         slave (available while master is open)
+  /dev/pts/0.screen  80x24 ANSI-rendered screen
+  /dev/pts/0.key     named-key write for UP/DOWN/LEFT/RIGHT,
+                     ENTER, ESC, TAB, SPACE, BACKSPACE,
+                     DELETE, CTRL_A ... CTRL_Z
 
-A user application can attach standard FDs 0..2 to the slave, then
-spawn a child. Master read/write still transfers raw PTY bytes.
-The kernel additionally interprets common ANSI cursor/erase/reverse
-commands for .screen. CSI 6n returns current cursor position.
-This is not a complete terminal emulator. No scrollback or resizes.
+A program may redirect FDs 0..2 to the slave and spawn a child.
+Master read/write transfers raw PTY bytes. The kernel also renders
+common ANSI cursor/erase/reverse sequences on .screen; CSI 6n
+reports cursor position. This is NOT a full terminal emulator.
+No scrollback, resize, or atomic screen snapshot is provided.
 
-MCP: use terminal_open({command:'fd'}), terminal_read({}),
-terminal_send({key:'DOWN'}), terminal_read({}), terminal_close({}).
-terminal_send only reports accepted input bytes; it does not wait
-for rendering or return a screen. terminal_read always returns the
-current screen; it may be read while a program is still drawing.
-Ordinary commands should use execute_command to reduce traffic.
+MCP PERSISTENT PTY
+  mcpd opens one PTY and starts interactive sh at startup.
+  It uses screen-only mode; raw output ring is not accumulated.
+  terminal_read({}) reads current ANSI screen once. A screen read
+  during drawing may show an intermediate frame.
+  terminal_send({text:'ls'}) accepts literal characters only.
+  terminal_send({key:'ENTER'}) sends Enter; named keys are distinct
+  from text. Accepted input is not evidence of completed rendering.
+  Shell and foreground app share this PTY across all MCP clients.
+  See /man/terminal-operations for state-aware action sequence.
 
-The mcpd process and its launching shell are protected from kill
-by MCP descendants. This is not authentication or full isolation.
+SCREEN MARKERS
+  ESC[7m/ESC[0m marks inverse-video cells.
+  ESC[4m/ESC[24m underlines the visible cursor cell, including
+  blank cells. The cursor can be hidden with CSI ?25l and shown
+  again with CSI ?25h. When hidden, no cursor marker is emitted.
+  This cursor marks the terminal location, not a vi document
+  position or a Reversi legal move. ANSI sequences may be split
+  across reads in raw device access.
 
-The standard pty_test command can relay: pty_test fd, pty_test sh,
-pty_test vi /tmp/test.txt. Ctrl+C interrupts the foreground task.
-
-MCP terminal_read forwards .screen without separate cursor coordinates;
-cursor-only movement changes the SGR 4/24 marker in the screen
-when the cursor is visible. CSI ?25l hides it; CSI ?25h shows it.
-
-.screen emits ESC[7m/ESC[0m for inverse cells and ESC[4m/ESC[24m
-around the cursor cell, even if it is a blank. Underline means terminal
-cursor (not a vi file position). When hidden, no cursor marker is
-emitted. Reads may split an ANSI sequence.
+For a physical terminal, pty_test can relay commands such as:
+  pty_test fd
+  pty_test sh
+  pty_test vi /tmp/test.txt
+Ctrl+C interrupts the foreground task. mcpd and the launching shell
+have limited kill protection against MCP descendants only; this is
+not an authentication boundary.

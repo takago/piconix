@@ -90,4 +90,4 @@ Primary sources: `include/piconix.h`, `kernel/kernel.c`, `kernel/net_socket.h`, 
 
 ---
 
-**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/SPECIFICATION.md)
+**Related links:** [Reference index](README.md) | [日本語](../../ja/reference/SPECIFICATION.md)

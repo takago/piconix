@@ -27,7 +27,7 @@ C applications can use `ioctl()` with `OS_TTY_GET_CANON`, `OS_TTY_GET_ECHO`, `OS
 
 Use `fcntl(fd, F_GETFL, 0)` to read FD flags, and `fcntl(fd, F_SETFL, flags)` to change `O_NONBLOCK`. This is independent of canonical and echo modes. For immediate character input, select noncanonical mode and an appropriate blocking policy.
 
-In the current implementation, `F_SETFL` can change `O_NONBLOCK` on the USB CDC console, UART1, the Wi-Fi TTY (when enabled), and TCP/UDP socket descriptors. It is not supported for ordinary files, pipes, or other devices. At `open()` time, `O_NONBLOCK` is accepted only for `/dev/console` and `/dev/ttyS1`; for `/dev/ttyN0`, set it afterward with `fcntl()`.
+In the current implementation, `F_SETFL` supports `O_NONBLOCK` for the USB CDC console, UART1, the Wi-Fi TTY (when enabled), PTY master/slave, pipe endpoints, and TCP/UDP socket descriptors. **Ordinary files and other general devices are excluded.** At `open()` time, `O_NONBLOCK` is accepted for `/dev/console`, `/dev/ttyS1`, and PTY master/slave. For `/dev/ttyN0` or pipes, configure a descriptor after it has been obtained using `fcntl()`. A nonblocking pipe may return `OS_EAGAIN`, unlike the zero-byte nonblocking TTY read.
 
 When no input is available, a nonblocking TTY `read()` returns **0** in both canonical and noncanonical modes (not a negative `EAGAIN`-style error). In canonical mode, a line may not yet be complete; Ctrl+D can also produce a zero-length EOF result, so a return value of 0 alone does not distinguish them. Blocking reads wait for input; `VMIN` / `VTIME` timeouts are not available. Pipes and sockets have different I/O semantics; see [Pipes](PIPE.md) and [Socket APIs](../../development/apps/c/NETWORK-PROGRAMMING.md).
 

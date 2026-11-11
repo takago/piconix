@@ -42,4 +42,4 @@ BOUND RECEIVE OPERATIONS
 
 SECURITY
   mcpd & exposes remote shell/file operations on TCP 8080
-  without authentication or TLS. Use only an isolated trusted lab LAN.
+  without authentication or TLS. Use only an isolated trusted LAN.

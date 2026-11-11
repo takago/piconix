@@ -24,14 +24,13 @@ cat /proc/net/wifi
 `MODE`，`STATUS`，`SSID`，`ATTEMPTS`，`CONNECT_ERROR`，`WIFI_LINK`，`TCPIP_LINK`，`DHCP_BOUND`，`IP`，`NETMASK`，`GATEWAY`などを表示します．表示項目はモードや接続状態によって異なります．Wi-Fi非対応のPicoビルドでは`MODE: N/A`を返します．
 
 
-
 STAモードでは，Wi-Fiの参加状態だけでなく，TCP/IPリンク状態とDHCPのアドレス取得状況を使って接続完了を判定します．
 
 ## STA通信の診断
 
 STAモードでは，STAインターフェースの有効化後に`CYW43_NONE_PM`を設定して，
 Wi-Fiの省電力機能を無効化します．APモードの設定は変更しません．
-また，CYW43/lwIPを実行するアイドルタスクのスタックを4 KiBに拡張しました．
+CYW43/lwIPを実行するアイドルタスクのスタックは4 KiBです．
 
 STAモードの`/proc/net/wifi`には，次の診断項目も表示します．
 
@@ -42,13 +41,10 @@ STAモードの`/proc/net/wifi`には，次の診断項目も表示します．
 
 スタック使用量は未使用領域のマーカーを調べた概算値であり，
 オーバーフローがなかったことを保証するものではありません．
-また，起動処理用スタックの使用量は含みません．
+起動処理用スタックの使用量は含みません．
 
 `STATUS: UP`やDHCPによるIPアドレス取得は，ARP，ICMP，Telnetの通信成功を保証しません．LinuxなどのホストPCから`ping`で疎通を調べるほか，Pico W版のPicoNIXでも`ping -c 2 PCのIPv4アドレス`を実行できます（[ping](PING.md)を参照）．通常のPico版ではこのICMP機能は利用できません．
-以前のファームウェアとの比較，電源の入れ直しを伴う複数回の接続試験，
-Linux側でのARP/ICMPの観測を行ってください．
-4 KiBへの増量後も，リンク時のカーネルRAM 56 KiB制限の検証が必要です．
-実機での通信安定性が確認されるまでは，今回の変更を原因確定とは扱いません．
+電源の入れ直しを伴う複数回の接続試験とLinux側でのARP/ICMP観測を行ってください．ビルド時にはカーネルRAMの56 KiB制限を確認してください．実機での通信安定性は引き続き検証が必要です．
 
 
 ## MACアドレスと受信強度インジケータ
@@ -94,13 +90,13 @@ telnet piconix.local
 
 ## STAモードのGratuitous ARP（暫定機能）
 
-STAモードではDHCP取得後，60秒間隔でGratuitous ARP（GARP）を送信する実験的な処理を維持しています．`GARP_INTERVAL_S`は間隔，`GARP_OK`はlwIP送信APIの成功回数，`GARP_ERROR`は失敗回数を示します．送信APIの成功は，無線送信の完了や相手側への到達を保証しません．APモードではこの定期送信を行いません．
+STAモードではDHCP取得後，60秒間隔でGratuitous ARP（GARP）を送信する実験的な処理を行います．`GARP_INTERVAL_S`は間隔，`GARP_OK`はlwIP送信APIの成功回数，`GARP_ERROR`は失敗回数を示します．送信APIの成功は，無線送信の完了や相手側への到達を保証しません．APモードではこの定期送信を行いません．
 
-Linuxの無線LANでGARPの遅延・集中到着を観測した際，同じアクセスポイントへの有線LAN接続では5秒間隔の実験送信が規則的に届き，別のアクセスポイントへの無線接続でも同様に規則的でした．したがって，PicoNIXのタイマー不良とは断定せず，アクセスポイントと無線クライアントの組み合わせを含めて切り分けます．定期GARPはARP不具合の恒久的な修正ではありません．
+GARPの到着間隔はアクセスポイントやクライアントの構成に左右されます．送信時刻と受信時刻を区別して確認してください．定期GARPはARP接続障害の根本的な解決を保証しません．
 
 
 AP・STAどちらでも`cat /proc/net/memory`で追加のメモリ診断を確認できます．
 
 ---
 
-**関連リンク：** [リファレンス目次](../README.md) ｜ [学習ロードマップ](../../ROADMAP.md) ｜ [English](../../../en/reference/network/WIFI-MODES.md)
+**関連リンク：** [リファレンス目次](../README.md) ｜ [English](../../../en/reference/network/WIFI-MODES.md)

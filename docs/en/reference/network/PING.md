@@ -26,7 +26,7 @@ reply from 192.168.4.2: seq=2 time=5 ms
 
 **Illustrative output only.** `seq` identifies a probe; `time` is round-trip time in milliseconds. `timeout: seq=N` means no reply was observed for that probe. It does not identify the sole cause: a firewall or ICMP filtering on the PC can be responsible.
 
-## Step-by-step experiment
+## Diagnostic procedure
 
 1. Run `ip addr` and `net` on PicoNIX to check Wi-Fi status.
 2. Find the PC address via Linux `ip addr`.

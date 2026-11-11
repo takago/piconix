@@ -26,6 +26,6 @@ assert 'trace_depth(e->pid)' in t
 for lang in ('ja','en'):
     d=(p/f'docs/{lang}/reference/commands/TRACE.md').read_text()
     assert 'trace on -a' in d and 'trace run -a' in d
-    assert 'trace kernel' in d # only to explain the deprecated command
-    assert 'trace kernel -d' not in d
+    # Reference documentation describes only the currently available command syntax.
+    assert 'trace kernel' not in d
 print('PASS: unified trace source and bilingual guide contract')

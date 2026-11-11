@@ -30,6 +30,19 @@ assert [(name, line, scope) for name, line, scope, _ in entries] == [
 assert entries[0][3] == "日本語の説明．", entries[0]
 assert entries[1][3] == "もう一つの関数．", entries[1]
 
+# Function attributes between the return type and name are not functions.
+annotated = '''/* 計測しない関数の説明． */
+static void __attribute__((no_instrument_function)) recorded(int n) { (void)n; }
+/* 別の関数の説明． */
+void __attribute__((no_instrument_function))
+__cyg_profile_func_enter(void *f, void *caller) { (void)f; (void)caller; }
+'''
+annotated_entries = generator.c_functions(annotated)
+assert [(name, summary) for name, _, _, summary in annotated_entries] == [
+    ("recorded", "計測しない関数の説明．"),
+    ("__cyg_profile_func_enter", "別の関数の説明．"),
+], annotated_entries
+
 py = '''# このコメントを使う．
 def top():
     return 1
@@ -88,4 +101,6 @@ for path in generator.sources():
 
 # 機械生成結果が常に一致することをチェックする．
 assert generator.OUTPUT.read_text(encoding="utf-8") == generator.render(), "関数一覧を再生成してください"
+assert generator.OUTPUT_EN.read_text(encoding="utf-8") == generator.render("en"), "Regenerate English function index"
+assert "[Host utilities](#host-utilities)" in generator.render("en")
 print("PASS: function index parsing and generated documentation")

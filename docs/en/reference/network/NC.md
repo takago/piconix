@@ -39,4 +39,4 @@ For file and memory transfer examples, see the [dd guide](../commands/DD.md).
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [Usage guides](../commands/README.md) | [日本語](../../../ja/reference/network/NC.md) | [Pipes](../commands/PIPE.md)
+**Related links:** [Reference index](../README.md) | [Usage guides](../commands/README.md) | [日本語](../../../ja/reference/network/NC.md) | [Pipes](../commands/PIPE.md)

@@ -20,7 +20,7 @@ This guide is a source-reading and modification map for **kernel-side** Wi-Fi, l
 
 `kernel/net_services.h` declares internal service entry points. Use `rg -n 'net_init\(|net_poll\(|net_socket_|net_service_' kernel/` to locate functions; source line numbers can change.
 
-## 2. Reading order and two different paths
+## 2. Data paths and responsible source files
 
 **First follow the shared flow:** `main()` → `net_init()` → `idle_task()` → `net_poll()`. On Pico W, the idle task provides execution opportunities for `cyw43_arch_poll()` and network services. `net_poll()` is not a timer interrupt, and a minimum poll interval does not guarantee a fixed schedule. See the [Network Reference](../../reference/network/NETWORK.md) for current diagnostics and settings.
 
@@ -50,11 +50,11 @@ Then trace these **separately**:
 - **FD and process lifetime:** Confirm that exiting tasks, `close()`, and terminated listeners release associated kernel socket slots.
 - **RAM pressure:** TCP slots, pbuf pools, lwIP heap, and idle stack use RAM. Compare `/proc/net/memory` and the build's memory report before and after changes.
 - **Board portability:** Preserve the `PICONIX_WIFI`-guarded stub implementations for ordinary Pico builds; verify both Pico W and Pico.
-- **Security:** Telnet and UDP 2000 control do not provide authentication or encryption. Test only on an isolated trusted lab network.
+- **Security:** Telnet and UDP 2000 control do not provide authentication or encryption. Test only on an isolated trusted isolated network.
 
 ## 5. Verification workflow
 
-Record baseline behavior before modifying code. Use [Network connection](../../reference/network/NETWORK.md) for an introductory hardware exercise.
+Record baseline behavior before modifying code. Use [Network connection](../../reference/network/NETWORK.md) for an connection instructions.
 
 ```sh
 # From the repository root on a development PC: source-level regression tests
@@ -85,7 +85,7 @@ Test AP, STA if used, Telnet connect/disconnect, user sockets (`httpd`, `nc`), `
 - **User-visible behavior, connection methods and limits:** [Technical network reference](../../reference/network/README.md)
 - **User C application API and compatibility rules:** [Network programming in C](../apps/c/NETWORK-PROGRAMMING.md)
 - **Kernel implementation and modification guidance:** This guide
-- **Sequential learning and exercises:** [Network development](NETWORK-DEVELOPMENT.md)
+- **Implementation reference:** [Network development](NETWORK-DEVELOPMENT.md)
 
 If implementation and documentation diverge, inspect current source and update **both Japanese and English** pages.
 

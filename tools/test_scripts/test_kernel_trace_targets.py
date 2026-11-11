@@ -65,8 +65,10 @@ for file in sorted(instrumented):
     assert '#define NO_TRACE __attribute__((no_instrument_function))' in source, file
     for name, line, *_ in c_functions(source):
         definition = lines[line - 1]
-        if name == '__attribute__':
-            assert 'no_instrument_function' in definition, (file, line)
+        if '__attribute__((no_instrument_function))' in definition:
+            # The function-index generator now resolves the actual name,
+            # rather than treating __attribute__ as a function.
+            assert name not in names, (file, line, name)
             excluded_definitions += 1
         elif name in names:
             assert 'NO_TRACE' not in definition, (file, line, name)

@@ -126,11 +126,11 @@ This table groups the ABI by purpose. **The full table contains 40 numbered entr
 The `device_id` field returned by `getdents()` identifies the directory entry: device ID for `/dev` and `/proc`, program ID for `/bin`, and zero-based RAM-file slot for `/tmp` and `/etc`. Directories or entries without an ID use `0xffff`. `ls -l` prints a `TYPE ID SIZE NAME` header, where `p` means program, `f` RAM file, `c` device, and `d` directory. RAM-file slot IDs are not persistent across deletion and recreation.
 
 
-The `spawn_foreground()` and `spawn_tmp_foreground()` C wrappers are not extra syscall numbers: they request an atomic foreground TTY handoff as part of `SYS_SPAWN` (argument count flag `0x100`) or `SYS_SPAWN_TMP` (second argument 1). Ordinary `spawn()` remains suitable for background tasks. This avoids the scheduling race between `spawn()` and a separate `set_foreground()` call.
+The `spawn_foreground()` and `spawn_tmp_foreground()` C wrappers are not extra syscall numbers: they request an atomic foreground TTY handoff as part of `SYS_SPAWN` (argument count flag `0x100`) or `SYS_SPAWN_TMP` (second argument 1). Ordinary `spawn()` remains suitable for background tasks. Foreground TTY ownership is transferred atomically during process creation.
 
 ---
 
-**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/SYSCALLS.md)
+**Related links:** [Reference index](README.md) | [日本語](../../ja/reference/SYSCALLS.md)
 
 ## I/O multiplexing with `select()`
 

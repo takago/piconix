@@ -13,7 +13,7 @@ piconix# help reset
 piconix# help cat
 ```
 
-The list covers registered RAM commands and shell built-ins (`cd`, `getty`, `exit`, `logout`), including `grep` and its `help grep` entry. Update the list whenever the set of commands changes. Consult the topic-specific guides for full usage and limitations. `help` is no longer a shell built-in.
+The list covers registered RAM commands and shell built-ins (`cd`, `getty`, `exit`, `logout`), including `grep` and its `help grep` entry. Update the list whenever the set of commands changes. Consult the topic-specific guides for full usage and limitations. `help` is an external registered command, not a shell built-in.
 
 ## Checking pin assignments and LED output
 
@@ -30,7 +30,7 @@ PicoNIX provides `python`, not `python3`. Run a script with `python /tmp/test.py
 
 ## Reading files and checking line numbers
 
-`cat FILE` shows the file as it is; `cat -n FILE` shows every line with a number, starting at 1. Blank lines are numbered too. With no FILE, `cat` reads standard input, so `echo hello | cat -n` also works. Use `help cat` to see the command format and [Pipe guide](PIPE.md) for a short exercise.
+`cat FILE` shows the file as it is; `cat -n FILE` shows every line with a number, starting at 1. Blank lines are numbered too. With no FILE, `cat` reads standard input, so `echo hello | cat -n` also works. Use `help cat` to see the command format and [Pipe guide](PIPE.md) for usage examples.
 
 Some other important usage details: `ls -a` shows `.` and `..`; `ls -l` shows type, ID and size. `edit` accepts RAM files directly under `/tmp` or `/etc`. `dd` accepts `if=` and `of=` (or defaults to stdin/stdout), with `bs=1..256`; `grep` matches literal substrings and skips input lines longer than 128 bytes.
 

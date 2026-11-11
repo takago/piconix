@@ -14,7 +14,7 @@ Pico Wでネットワークを有効にした後，次を実行します．
 mcpd &
 ```
 
-`mcpd`は常に8つのツール（`get_temperature`，`get_manual`，`write_file`，`execute_command`，`terminal_open`，`terminal_send`，`terminal_read`，`terminal_close`）を公開します．`--shell`オプションは廃止しました．**認証やTLSはないため，隔離した実験用ネットワークでのみ使用してください．**
+`mcpd`は常に6つのツール（`get_temperature`，`get_manual`，`write_file`，`execute_command`，`terminal_send`，`terminal_read`）を公開します．**認証やTLSはないため，隔離した実験用ネットワークでのみ使用してください．**
 
 `get_manual({})`または`get_manual({"topic":"index"})`は`/man/README`の目次を返します．目次で確認したトピック名を`topic`に指定すると個別ページを返します．`execute_command`は短い**非対話**コマンド専用です．`write_file`は`/tmp/NAME`のASCIIテキストを上書きします（最大2,048バイト，要求本文の制限にも依存）．書込み・コマンド実行は常時有効です．
 
@@ -59,9 +59,8 @@ curl -i -X POST "http://$PICO_IP:8080/mcp" \
 - MCP `2026-07-28`の一部に対応し，`server/discover`，`tools/list`，`tools/call`を実装しています．すべてのMCPクライアントとの互換性を保証するものではありません．
 - HTTP要求バッファは2,800バイト，JSON本文は最大2,400バイトで，接続は1件ずつ処理します．
 - `execute_command`のコマンド文字列はASCIIで最大119バイト，出力は最大4 KiBです．応答はHTTP/1.1のchunked転送を使用します．
-- SSE，旧形式の`initialize`，通知，複数クライアントの同時処理には対応していません．
-- `vi`，`edit`，`fd`，`mem`，`watch`，`pong`などの対話型・全画面プログラムを`execute_command`から起動しないでください．
-
+- SSE，`initialize`，通知，複数クライアントの同時処理には対応していません．
+- `vi`，`edit`，`fd`，`mem`，`watch`，`pong`，`reversi`などの対話型・全画面プログラムを`execute_command`から起動しないでください．
 
 
 ## 5．ローカルLLMとエージェントの利用
@@ -86,7 +85,7 @@ LLMがFunction Callingでツールを選び，ホストクライアントがMCP�
 mcpd &
 ```
 
-`mcpd`では`get_temperature`，`get_manual`，`execute_command`，`write_file`および4つの`terminal_*`ツールが常時公開されます．**認証・TLSがなく，LLM経由のコマンドがPico W上で実行されます．** ホストクライアントはツール実行前の確認を自動では求めません．重要な操作はLLMに任せず，必要に応じてクライアント側へ承認機構を実装してください．一般LANやインターネットには公開しないでください．
+`mcpd`では`get_temperature`，`get_manual`，`execute_command`，`write_file`，`terminal_send`，`terminal_read`の6ツールが公開されます．**認証・TLSがなく，LLM経由のコマンドがPico W上で実行されます．** ホストクライアントはツール実行前の確認を自動では求めません．重要な操作はLLMに任せず，必要に応じてクライアント側へ承認機構を実装してください．一般LANやインターネットには公開しないでください．
 
 ### Linux側で接続
 
@@ -129,9 +128,9 @@ python host/mcp_llm_client.py
 | 「実行中のプロセスを一覧にして」 | `execute_command`で`ps` |
 | 「LEDにハートを表示して」 | `get_manual`で表示方法を参照後，`execute_command`で`echo heart > /dev/fbchar` |
 
-`get_manual()`は`/man/README`の目次を返します．例えば`get_manual({"topic":"languages/c"})`で対象ページを取得します．廃止された`get_wifi_info`や`display_message`は公開されません．
+`get_manual()`は`/man/README`の目次を返します．例えば`get_manual({"topic":"languages/c"})`で対象ページを取得します．
 
-`execute_command`は短い非対話コマンドに限ります．`vi`，`edit`，`fd`，`mem`，`watch`，`pong`などの全画面プログラムを実行しないでください．`write_file`は`/tmp/NAME`のASCIIテキストを上書きするため，既存ファイルへの影響に注意してください．
+`execute_command`は短い非対話コマンドに限ります．`vi`，`edit`，`fd`，`mem`，`watch`，`pong`，`reversi`などの全画面プログラムを実行しないでください．`write_file`は`/tmp/NAME`のASCIIテキストを上書きするため，既存ファイルへの影響に注意してください．
 
 ### うまく動かない場合
 
@@ -168,7 +167,7 @@ KnowledgeなどへOSの説明を登録する場合も，内容が毎回自動的
 
 ## 6．実装の読解と拡張
 
-`mcpd`のTCP・HTTP・JSON-RPC処理や開発演習は，[MCPサーバ開発実習](../../development/apps/c/MCP-DEVELOPMENT.md)に分離しました．利用方法は本ガイド，内部実装は開発ガイドを参照してください．
+`mcpd`のTCP・HTTP・JSON-RPC処理や実装例は，[MCPサーバ開発資料](../../development/apps/c/MCP-DEVELOPMENT.md)に分離しました．利用方法は本ガイド，内部実装は開発ガイドを参照してください．
 
 ### Open WebUIにPicoNIX固有の説明を登録する
 
@@ -176,20 +175,26 @@ Open WebUIのKnowledge機能を使用する場合は，この`docs/ja/reference/
 
 ## PTYによる対話型アプリの操作
 
-`mcpd &`で起動した場合，4つのPTYツールが利用できます．`terminal_open`は対話型プログラムを起動し，`terminal_send`は`text`または`key`を入力キューへ送信して受理バイト数を返します．**画面は返しません**．LLMが必要に応じて`terminal_read`を呼び，80×24の現在画面を確認します．`terminal_send`は200 msの固定待機を行いません．`mcpd`は汎用PTYの画面専用モードを利用し，出力リングを使わず仮想画面を直接更新します．`ESCAPE`は`ESC`，`BS`は`BACKSPACE`，`SP`は`SPACE`の別名です．`terminal_close`はセッションを終了します．
+LLMは`get_manual({"topic":"terminal-operations"})`で，入力前の画面確認，`text`と`key`の使い分け，シェルの復旧，通信障害時の再送防止を確認できます．
+
+`mcpd`は起動時にPTYを1つ確保して対話シェル`sh`を起動します．`terminal_open`と`terminal_close`はありません．LLMは`terminal_read`で80×24画面を確認し，`terminal_send`の`text`でシェルコマンドを入力して`ENTER`で実行します．対話型アプリケーションはこのシェルから起動します．`terminal_send`は受理バイト数のみを返し，描画完了を待ちません．画面は`terminal_read`で別途取得します．画面専用PTYモードのため，通常のPTY出力リングは使用しません．
 
 ```text
-terminal_open({"command":"fd"})
+terminal_read({})
+terminal_send({"text":"fd /tmp"})
+terminal_send({"key":"ENTER"})
 terminal_read({})
 terminal_send({"key":"DOWN"})
 terminal_read({})
-terminal_send({"key":"ENTER"})
-terminal_close({})
+terminal_send({"text":"q"})
+terminal_read({})
 ```
+
+`fd`などの終了後は同じPTYのシェルへ戻ります．`exit`などでシェルそのものが終了した場合，次の端末要求でシェルを再生成します．再生成を検出した`terminal_send`は入力を送らずエラーを返すので，`terminal_read`で状態を確認してから操作してください．PTYとシェルは`mcpd`の終了時に解放します．起動時にシェル用のタスクスロットを1つ消費し，確保・起動できなければ`mcpd`も起動しません．
 
 文字入力は`terminal_send({"text":"hello"})`で送れます．空白は`terminal_send({"text":" "})`または`terminal_send({"key":"SPACE"})`（短縮名`SP`）で送れます．キー名は`UP`，`DOWN`，`LEFT`，`RIGHT`，`ENTER`，`ESC`，`ESCAPE`，`TAB`，`SPACE`，`SP`，`BACKSPACE`，`BS`，`DELETE`，`CTRL_A`〜`CTRL_Z`です．入力はPTYの行規律を通り，`CTRL_C`は既存の前景タスク強制終了動作を使用します．スクロールバックはありません．
 
-通常コマンドには引き続き`execute_command`を優先してください．PTYは1セッションだけで，6タスク上限を共有します．コマンド起動は1つのプログラム名と任意の引数1つに限定しています．管理対象の`mcpd`をPTYから起動することは禁止しています．MCP経由で実行した子孫から`mcpd`またはその起動元のシェルを`kill()`する操作はカーネル側で拒否します．これは誤操作対策であり，完全なサンドボックスではありません．認証やTLSも未実装です．
+通常コマンドには引き続き`execute_command`を優先してください．PTYは1セッションだけで，6タスク上限を共有します．TTY内のコマンド起動は通常のPicoNIXシェル構文に従います．管理対象の`mcpd`をTTYから再起動しないでください．MCP経由で実行した子孫から`mcpd`またはその起動元のシェルを`kill()`する操作はカーネル側で拒否します．これは誤操作対策であり，完全なサンドボックスではありません．認証やTLSも未実装です．
 
 MCPツールの`terminal_read`の説明には，SGR 4/24がカーソル位置，SGR 7/0が反転表示を表すことを明記しています．
 
@@ -197,14 +202,16 @@ MCPツールの`terminal_read`の説明には，SGR 4/24がカーソル位置，
 
 ### PTY画面の実機確認
 
+このサンプルは共有端末のシェルが入力待ちのときに実行してください．実行中の別アプリの画面に文字を送る可能性があります．
+
 ```sh
-python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP
+python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP,q
 ```
 
 `terminal_read`は毎回80×24の現在画面を返します．ハッシュによる`unchanged`判定は行いません．画面は1回だけ読み出しますが，描画と並行した場合に原子的なスナップショットになる保証はありません．
 
 
-### MCP通信の連続試験（2026-11-09）
+### MCP通信の連続試験
 
 `mcpd`はHTTP接続を1件ずつ処理する実験的なサーバであり，接続の同時受理を保証しません．
 `Connection: close`のため，連続リクエストはTCP接続の確立・終了を繰り返します．

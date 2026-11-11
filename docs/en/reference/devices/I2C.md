@@ -79,4 +79,4 @@ close(i2c)
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/devices/I2C.md) | [Devices](README.md)
+**Related links:** [Reference index](../README.md) | [日本語](../../../ja/reference/devices/I2C.md) | [Devices](README.md)

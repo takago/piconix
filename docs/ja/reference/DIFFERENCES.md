@@ -83,4 +83,4 @@ TelnetとUDPデバイス制御サービスには**認証や暗号化がありま
 
 ---
 
-**関連リンク：** [リファレンス目次](README.md) ｜ [学習ロードマップ](../ROADMAP.md) ｜ [English](../../en/reference/DIFFERENCES.md) ｜ [文書案内](../README.md)
+**関連リンク：** [リファレンス目次](README.md) ｜ [English](../../en/reference/DIFFERENCES.md) ｜ [文書案内](../README.md)

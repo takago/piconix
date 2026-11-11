@@ -4,6 +4,7 @@
 #include "unistd.h"
 #include "stdio.h"
 extern int main(int argc, char *argv[]);
+/* アプリ起動時にmainを呼び出し，終了コードをカーネルへ返す入口． */
 __attribute__((used, noreturn, section(".text.app_entry")))
 void app_entry(int argc, char *argv[]) {
     int status=main(argc, argv);

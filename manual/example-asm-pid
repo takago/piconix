@@ -1,0 +1,18 @@
+ASSEMBLY EXAMPLE - GETPID AND PRINT-INT SOURCE STUDY
+
+A complete tested-as-source reference example lives in the repository:
+  userland/examples/asm/04-print-int.s
+
+It calls getpid (SVC number 1), converts PID 0..255 to decimal by
+repeated subtraction, then writes bytes with SVC number 9.
+The assembly uses bl, push/pop, cmp, bcc, strb, adr, and labels.
+Because the source is longer, do not type a shortened pseudocode
+version as if it were executable. Retrieve that exact file on the
+host, copy its contents with MCP write_file, then run:
+  as /tmp/pid.s
+  /tmp/a.out
+Expected: decimal PID, with no guaranteed particular value.
+
+If you cannot access the repository source, instead run the shorter
+/man/example-asm-hello example. The assembler accepts <=2048 B of
+source, <=32 labels, and branch ranges are limited.

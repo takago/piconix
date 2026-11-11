@@ -4,7 +4,7 @@
 
 Pico W runs a **kernel-side UDP service** on port **2000** for a small allowlist of device operations. It is different from the user-space TCP/UDP socket API. The service has **no authentication, encryption, request identifiers, or retransmission**. Use it only on an isolated, trusted experimental network; do not expose this port to the Internet. Requests can change GPIO outputs, PWM settings, and the LED matrix. Never rely on the network connection alone to stop hazardous actuators.
 
-## Connect and try it
+## Connection and command examples
 
 In default AP mode, join the PicoNIX access point and use `192.168.4.1`. In STA mode, replace it with the Pico W's assigned address. From a host PC with Python 3:
 
@@ -58,4 +58,4 @@ For robust parsing of replies (especially binary data), prefer `host/piconixctl.
 
 ---
 
-**Related links:** [Reference index](../README.md) | [Learning roadmap](../../ROADMAP.md) | [日本語](../../../ja/reference/network/REMOTE-DEVICE.md) | [Networking](NETWORK.md)
+**Related links:** [Reference index](../README.md) | [日本語](../../../ja/reference/network/REMOTE-DEVICE.md) | [Networking](NETWORK.md)

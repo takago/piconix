@@ -1,0 +1,21 @@
+PYTHON EXAMPLE - BOUNDED FILE / PROC READ
+
+Create /tmp/proc.py:
+
+  fd = open("/proc/net/wifi", 0)
+  if fd < 0:
+      print("open failed")
+  else:
+      data = read(fd, 32)
+      print(data)
+      close(fd)
+
+Run: python /tmp/proc.py
+Expected: a byte-list representation of the first <=32 bytes,
+or 'open failed' when that proc node is unavailable.
+
+The Python-like read() yields byte data assigned to a variable, not
+normal CPython file objects. Avoid print of huge /proc or /dev nodes.
+Use one finite call and close the fd. For raw bytes, read may include
+values that are not printable ASCII. Do not call unbounded cat on
+streaming GPIO/ADC nodes. See /man/python-examples.

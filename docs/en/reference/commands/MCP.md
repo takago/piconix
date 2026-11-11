@@ -14,7 +14,7 @@ After connecting Pico W to the network, start the server:
 mcpd &
 ```
 
-`mcpd` always exposes eight tools: `get_temperature`, `get_manual`, `write_file`, `execute_command`, `terminal_open`, `terminal_send`, `terminal_read`, and `terminal_close`. The `--shell` option has been removed. **There is no authentication or TLS: use only an isolated trusted test network.**
+`mcpd` always exposes six tools: `get_temperature`, `get_manual`, `write_file`, `execute_command`, `terminal_send`, and `terminal_read`.  **There is no authentication or TLS: use only an isolated trusted test network.**
 
 `get_manual({})` or `get_manual({"topic":"index"})` returns the `/man/README` topic index; use an exact topic listed there to retrieve a page. `execute_command` is for short **noninteractive** commands. `write_file` overwrites ASCII text at `/tmp/NAME` (up to 2,048 bytes, also subject to the HTTP request limit). Command execution and writes are always available.
 
@@ -52,16 +52,15 @@ curl -i -X POST "http://$PICO_IP:8080/mcp" \
   --data '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientInfo":{"name":"curl-test","version":"1.0"},"io.modelcontextprotocol/clientCapabilities":{}}}}'
 ```
 
-`Mcp-Method` must match the JSON `method`. For `tools/call`, `Mcp-Name` must also match `params.name`. See the implementation and extension lab below.
+`Mcp-Method` must match the JSON `method`. For `tools/call`, `Mcp-Name` must also match `params.name`. See the implementation and extension reference below.
 
 ## 4. Current limitations
 
 - Implements part of MCP `2026-07-28`: `server/discover`, `tools/list` and `tools/call`. Interoperability with all MCP clients is not guaranteed.
 - HTTP request buffer: 2,800 bytes; maximum JSON body: 2,400 bytes; one client processed at a time.
 - `execute_command` accepts up to 119 ASCII bytes of command text and up to 4 KiB of output, sent using HTTP/1.1 chunked transfer.
-- No SSE, legacy `initialize`, notifications, or concurrent client processing.
-- Do not run interactive or full-screen applications such as `vi`, `edit`, `fd`, `mem`, `watch`, or `pong` with `execute_command`.
-
+- No SSE, `initialize`, notifications, or concurrent client processing.
+- Do not run interactive or full-screen applications such as `vi`, `edit`, `fd`, `mem`, `watch`, `pong`, or `reversi` with `execute_command`.
 
 
 ## 5. Local LLM and agent integration
@@ -86,7 +85,7 @@ On a trusted, isolated test network:
 mcpd &
 ```
 
-This mode exposes `get_temperature`, `get_manual`, `execute_command`, `write_file`, and four `terminal_*` tools. **There is no authentication or TLS. LLM-selected commands run on Pico W, and the host client does not ask for confirmation before executing tools.** Do not expose the server to shared networks or the Internet. Implement an approval gate in the host client before using it for consequential operations.
+This mode exposes six tools: `get_temperature`, `get_manual`, `execute_command`, `write_file`, `terminal_send`, and `terminal_read`. **There is no authentication or TLS. LLM-selected commands run on Pico W, and the host client does not ask for confirmation before executing tools.** Do not expose the server to shared networks or the Internet. Implement an approval gate in the host client before using it for consequential operations.
 
 ### Connect from Linux
 
@@ -129,9 +128,9 @@ These are illustrative user prompts; **the tool calls actually chosen by the mod
 | “List current processes” | `execute_command` running `ps` |
 | “Show a heart on the LED matrix” | Read instructions via `get_manual`, then run `echo heart > /dev/fbchar` through `execute_command` |
 
-`get_manual()` returns the `/man/README` index; `get_manual({"topic":"languages/c"})` retrieves one selected page. The old `get_wifi_info` and `display_message` tools are no longer exposed.
+`get_manual()` returns the `/man/README` index; `get_manual({"topic":"languages/c"})` retrieves one selected page.
 
-Use `execute_command` only for short noninteractive commands. Do not run full-screen tools such as `vi`, `edit`, `fd`, `mem`, `watch`, or `pong`. `write_file` overwrites ASCII text at `/tmp/NAME`; take care not to overwrite files unexpectedly.
+Use `execute_command` only for short noninteractive commands. Do not run full-screen tools such as `vi`, `edit`, `fd`, `mem`, `watch`, `pong`, or `reversi`. `write_file` overwrites ASCII text at `/tmp/NAME`; take care not to overwrite files unexpectedly.
 
 ### Troubleshooting
 
@@ -149,7 +148,7 @@ PicoNIX is not Linux. Do not assume that `bash`, `sudo`, `apt`, `gcc`, `ssh`, or
 
 - Prefer short observational commands such as `ps`, `ip`, `cat /proc/net/wifi`, or `cat /dev/adc/temp`. Avoid programs that require interactive input or full-screen terminals.
 - Each `execute_command` invocation starts a fresh noninteractive shell. State such as `cd` is not preserved. Commands are limited to 119 printable ASCII bytes, output to 4,096 bytes, and a nominal 3-second timeout. `sh -c` returns the last command's exit code (or the final pipeline stage); a nonzero value yields MCP `isError:true` and an exit-code message. HTTP completion alone does not imply command success.
-- `write_file` creates or overwrites a `/tmp/NAME` ASCII file, with a 2,048-byte content limit and a 3,200-byte JSON request-body limit. Append/resume is not supported.
+- `write_file` creates or overwrites a `/tmp/NAME` ASCII file, with a 2,048-byte content limit and a 2,400-byte JSON request-body limit. Append/resume is not supported.
 - `execute_command` is **not a sandbox**. Obtain user approval before overwriting files, terminating processes, or changing GPIO/network state. The stock `host/mcp_llm_client.py` **does not implement a pre-execution approval gate**. A system prompt is not a substitute for enforcing approval on the host side.
 - Log commands, outputs, errors, and truncation on the host. Do not automatically retry potentially consequential actions after a connection failure or timeout.
 
@@ -166,11 +165,11 @@ Check the model's tool permissions, start with read-only `get_temperature`, and 
 
 ## 6. Read and extend the implementation
 
-The TCP, HTTP, JSON-RPC and development lab now live in the [MCP server development tutorial](../../development/apps/c/MCP-DEVELOPMENT.md). This guide describes operation; the development tutorial traces the source.
+The TCP, HTTP, JSON-RPC and implementation reference now live in the [MCP server development reference](../../development/apps/c/MCP-DEVELOPMENT.md). This guide describes operation; the development reference traces the source.
 
-## Hardware verification update (2026-11-06)
+## Confirmed interoperability
 
-The Pico W `mcpd` server successfully handled `tools/list` and `tools/call` from the official MCP Python SDK v2; an OpenAI-compatible local LLM selected and invoked both tools. Any earlier "not tested on hardware" statements in this prototype tutorial describe its initial stage and are superseded by this result for basic interoperability only. Complete MCP conformance and long-running reliability are not verified. Continue with 「LLMとの連携」章 and `host/mcp_llm_client.py`; LLM connection settings are placeholders.
+The Pico W `mcpd` server successfully handled `tools/list` and `tools/call` from the official MCP Python SDK v2; an OpenAI-compatible local LLM selected and invoked both tools. Any earlier "not tested on hardware" statements in this implementation reference describe its initial stage and are superseded by this result for basic interoperability only. Complete MCP conformance and long-running reliability are not verified. Continue with 「LLMとの連携」章 and `host/mcp_llm_client.py`; LLM connection settings are placeholders.
 
 
 ### Register PicoNIX documentation in Open WebUI
@@ -179,20 +178,26 @@ If using Open WebUI Knowledge, upload `docs/en/reference/commands/MCP.md` and se
 
 ## Interactive applications through PTY
 
-Four terminal tools are available. `terminal_open` starts an interactive program with at most one optional argument. `terminal_send` accepts `text` or `key` and returns the number of bytes accepted, **without returning a screen or waiting 200 ms**. The LLM calls `terminal_read` when it needs to inspect the current **80x24 screen with ANSI inverse and underlined-cursor markers**. The MCP session uses screen-only PTY mode: slave output directly updates the virtual display, without accumulating in the raw output ring. `ESCAPE` aliases `ESC`, `BS` aliases `BACKSPACE`, and `SP` aliases `SPACE`. `terminal_close` ends the session.
+LLM agents should first read `get_manual({"topic":"terminal-operations"})` for screen-state checks, text versus named keys, shell restarts and non-blind retries.
+
+`mcpd` allocates one PTY and launches an interactive `sh` at startup. Only two terminal tools are exposed: `terminal_send` and `terminal_read`; `terminal_open` and `terminal_close` are not needed. Read the 80x24 ANSI screen, type a command at the shell prompt, and send `ENTER`. `terminal_send` reports accepted bytes but does not wait for drawing or include the screen. Screen-only PTY mode bypasses the normal raw output ring.
 
 ```text
-terminal_open({"command":"fd"})
+terminal_read({})
+terminal_send({"text":"fd /tmp"})
+terminal_send({"key":"ENTER"})
 terminal_read({})
 terminal_send({"key":"DOWN"})
 terminal_read({})
-terminal_send({"key":"ENTER"})
-terminal_close({})
+terminal_send({"text":"q"})
+terminal_read({})
 ```
+
+Exiting an interactive program returns to the same shell. If the shell itself exits, the next terminal request recreates it. A `terminal_send` which detects a restart returns an error without sending the input; read the screen before retrying. The PTY and shell are released when `mcpd` terminates. Startup requires one additional user task slot for the shell; `mcpd` exits if it cannot start the shell.
 
 Send ordinary text with `terminal_send({"text":"hello"})`. Send a space with `terminal_send({"text":" "})` or `terminal_send({"key":"SPACE"})` (alias `SP`). Supported names include `UP`, `DOWN`, `LEFT`, `RIGHT`, `ENTER`, `ESC`, `ESCAPE`, `TAB`, `SPACE`, `SP`, `BACKSPACE`, `BS`, `DELETE`, and `CTRL_A` through `CTRL_Z`. `CTRL_C` uses PicoNIX's existing foreground-task termination, not POSIX signals. There is no scrollback.
 
-Prefer `execute_command` for ordinary noninteractive commands. Only one PTY session is available and it shares the six task slots. Starting `mcpd` as a PTY application is forbidden. Kernel-side kill protection prevents MCP descendants from killing `mcpd` or the shell that launched it; it does not provide sandboxing or replace authentication/TLS (both absent).
+Prefer `execute_command` for ordinary noninteractive commands. Only one PTY session is available and it shares the six task slots. Avoid starting another `mcpd` from the PTY shell. Kernel-side kill protection prevents MCP descendants from killing `mcpd` or the shell that launched it; it does not provide sandboxing or replace authentication/TLS (both absent).
 
 The `terminal_read` tool description explains that SGR 4/24 marks the cursor and SGR 7/0 marks reverse video.
 
@@ -200,8 +205,10 @@ The `.screen` interface is a PicoNIX extension with intentionally limited ANSI s
 
 ### On-device PTY verification
 
+Run this example only when the shared PTY shell is waiting for a command. Otherwise, its text may be delivered to the active interactive application.
+
 ```sh
-python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP
+python3 host/mcp_pty_test.py http://192.168.4.1:8080/mcp --command fd --keys DOWN,UP,q
 ```
 
 The first read returns the 80x24 ANSI-marked screen; `ESC[4m`/`ESC[24m` surround the visible terminal cursor cell (none while hidden by CSI ?25l, restored by CSI ?25h). Every `terminal_read` returns the current screen, even if visually unchanged. The screen is read once, without a hash comparison. It is not an atomic snapshot during concurrent updates.

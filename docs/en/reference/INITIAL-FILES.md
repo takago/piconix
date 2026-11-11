@@ -56,4 +56,4 @@ See also [Filesystem](FILESYSTEM.md), [HTTP server](network/HTTPD.md), and [Netw
 
 ---
 
-**Related links:** [Reference index](README.md) | [Learning roadmap](../ROADMAP.md) | [日本語](../../ja/reference/INITIAL-FILES.md)
+**Related links:** [Reference index](README.md) | [日本語](../../ja/reference/INITIAL-FILES.md)

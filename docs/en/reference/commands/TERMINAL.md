@@ -92,7 +92,7 @@ reset
 
 `reset` enables canonical input and echo and attempts to leave alternate screens, reset text attributes and scrolling regions, show the cursor, and clear the display. It does not modify `O_NONBLOCK`. It cannot help if the user cannot enter commands at all.
 
-If terminal rendering is corrupted, use the `reset` procedure above and verify that the terminal supports character-at-a-time input and ANSI escape sequences. Earlier debugging investigations remain available in Git history.
+If terminal rendering is corrupted, use the `reset` procedure above and verify that the terminal supports character-at-a-time input and ANSI escape sequences.
 
 ## 7. Incremental screen updates with `watch`
 
@@ -103,7 +103,7 @@ watch 1 ps
 watch 1 cat /proc/net/memory
 ```
 
-Output is limited to a fixed display region for terminals with at least 27 rows: 24 content rows, up to 80 bytes per row. Row 1 is the title, rows 3–26 show the command output, and row 27 shows `Ctrl+C: stop`. Additional output is always drained and marked with `[watch: output truncated]` on the footer row. Comparison is line-oriented. SGR 4 (underline) and SGR 7 (reverse video) are preserved as attributes and redrawn; other terminal control sequences and running interactive/full-screen programs remain unsupported. `watch 1 cat /dev/pts/0.screen` can show the full 80×24 virtual screen with underline and reverse video. Enlarge the terminal window to at least 27 rows. Commands that do not terminate prevent the next refresh, as before.
+Output is limited to a fixed display region for terminals with at least 27 rows: 24 content rows, up to 80 bytes per row. Row 1 is the title, rows 3–26 show the command output, and row 27 shows `Ctrl+C: stop`. Additional output is always drained and marked with `[watch: output truncated]` on the footer row. Comparison is line-oriented. SGR 4 (underline) and SGR 7 (reverse video) are preserved as attributes and redrawn; other terminal control sequences and running interactive/full-screen programs remain unsupported. `watch 1 cat /dev/pts/0.screen` can show the full 80×24 virtual screen with underline and reverse video. Enlarge the terminal window to at least 27 rows. Commands that do not terminate prevent the next refresh, .
 
 To avoid deadlocking on the kernel's 256-byte pipe, `watch` drains the pipe to EOF **before** calling `waitpid()`. Both screen snapshots live in the user process; the kernel does not store display history.
 
@@ -113,12 +113,12 @@ To avoid deadlocking on the kernel's 256-byte pipe, `watch` drains the pipe to E
 
 `edit`, `vi`, `mem`, and `mb` use a small header for alternate-screen entry/exit and cursor movement. `edit`, `vi`, and `mb` optionally query the terminal size using a cursor position report (DSR, `ESC[6n`). The query must happen **after disabling canonical input**. When a terminal does not respond, the caller retains the 80-column, 24-row default. The kernel does not provide terminal window dimensions.
 
-To bound resource use, `edit` and `vi` cap their layouts at 160 columns and 60 rows. `mb` centers its existing 52-by-10 playing field (unchanged physics) on larger terminals. `mem` displays 16 bytes per row, adapting to the terminal height (up to 36 data rows; see [MEM](MEM.md)). `pong` measures the launching terminal and centers its 48-column by 16-row game display; in two-terminal mode the same coordinates are used on both screens. `watch` uses fixed capture buffers. Live terminal resizing is not supported.
+To bound resource use, `edit` and `vi` cap their layouts at 160 columns and 60 rows. `mb` centers its 52-by-10 playing field on larger terminals. `mem` displays 16 bytes per row, adapting to the terminal height (up to 36 data rows; see [MEM](MEM.md)). `pong` measures the launching terminal and centers its 48-column by 16-row game display; in two-terminal mode the same coordinates are used on both screens. `watch` uses fixed capture buffers. Live terminal resizing is not supported.
 
 
 ### Foreground launch and terminal control
 
-`sh` transfers foreground TTY ownership as part of foreground `spawn`, avoiding a scheduling race in which an interactive child starts before a separate `set_foreground()` call. This matters for full-screen tools including `fd`, `pong`, and editors. Background tasks continue to use ordinary `spawn()` and must not take foreground TTY control. The kernel still restores the previous TTY mode when the foreground task finishes.
+`sh` transfers foreground TTY ownership as part of foreground `spawn`. This matters for full-screen tools including `fd`, `pong`, and editors. Background tasks continue to use ordinary `spawn()` and must not take foreground TTY control. The kernel restores the saved TTY mode when the foreground task finishes.
 
 ## Shell arguments and file paths
 
@@ -131,7 +131,7 @@ cat -n note.txt
 cat note.txt | grep hello
 ```
 
-An invalid option or argument count is reported by the command itself. The small shell does not implement full POSIX quoting, and `/tmp` executable images currently do not accept arguments. Without an argument, `omikuji` counts down for 10 seconds, so `omikuji &` works too. `omikuji -i` repeatedly reads integers from standard input as an input exercise. `echo "3 4" | omikuji -i` runs a 3-second and then a 4-second fortune, stopping at EOF. Whitespace separates values; invalid tokens and numbers outside 1..30 are ignored. Avoid running interactive `-i` in the background because it may compete for terminal input.
+An invalid option or argument count is reported by the command itself. The small shell does not implement full POSIX quoting, and `/tmp` executable images currently do not accept arguments. Without an argument, `omikuji` counts down for 10 seconds, so `omikuji &` works too. `omikuji -i` repeatedly reads integers from standard input as a repeated-input mode. `echo "3 4" | omikuji -i` runs a 3-second and then a 4-second fortune, stopping at EOF. Whitespace separates values; invalid tokens and numbers outside 1..30 are ignored. Avoid running interactive `-i` in the background because it may compete for terminal input.
 
 ---
 

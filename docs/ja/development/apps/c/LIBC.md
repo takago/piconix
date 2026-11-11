@@ -118,7 +118,7 @@ if (sscanf("3 4", "%d %d", &first, &second) == 2)
 
 `fgets()`と`sscanf()`を組み合わせ，1行ずつ検査する方式は初学者にも理解しやすく，入力を扱いやすい方法です．
 
-## `omikuji -i`で学ぶ標準入力
+## `omikuji -i`の標準入力処理
 
 `omikuji`は引数がなければ10秒，`omikuji 3`なら3秒で一度だけ実行します．一方，`omikuji -i`では`scanf("%d", &seconds)`で標準入力を繰り返し読み取ります．`echo "3 4" | omikuji -i`は2回処理し，EOFで終了します．空行は`scanf()`が読み飛ばし，不正な入力は`getchar()`で次の区切りまで読み捨てます．**変換失敗時の入力を消費しないと，同じ入力で無限ループすることがあります**．
 
@@ -165,4 +165,4 @@ int main(int argc, char *argv[]) {
 
 ---
 
-**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [学習ロードマップ](../../../ROADMAP.md) ｜ [English](../../../../en/development/apps/c/LIBC.md)
+**関連リンク：** [開発ガイド一覧](../../README.md) ｜ [English](../../../../en/development/apps/c/LIBC.md)

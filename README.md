@@ -14,7 +14,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 
 - **Kernel and processes:** XIP kernel on RP2040, six fixed 24 KiB application slots (including 4 KiB reserved stack per slot), PIC user programs copied from Flash to SRAM, multitasking and an SVC-based system call interface.
 - **UNIX-like environment:** shell, pipes and redirection, virtual filesystem, RAM files, `/dev` and `/proc`, file descriptors, devices, process and terminal control.
-- **Programs and learning tools:** file utilities, `edit`, `vi`, `fd`, `as`, a small educational `cc`, a Python-like interpreter, `mem`, `trace`, `lsof`, and hardware experiments.
+- **Programs and diagnostics:** file utilities, `edit`, `vi`, `fd`, `as`, a compact `cc`, a Python-like interpreter, `mem`, `trace`, `lsof`, and hardware experiments.
 - **Hardware:** USB CDC and UART1 terminals, GPIO, PWM, ADC, I²C1, an 8×8 LED matrix and framebuffer interfaces. Pin availability differs between Pico and Pico W.
 - **Pico W networking:** Wi-Fi AP/STA, lwIP IPv4 TCP/UDP sockets, loopback, Telnet and UDP remote device control in the kernel; `httpd`, `nc`, `mcpd`, echo servers and other network programs in user space.
 - **MCP-controlled interactive terminal (Pico W):** The user-space `mcpd` server exposes an 80×24 virtual terminal to LLM clients. Through screen reads and keystrokes, an LLM can operate existing interactive programs such as `fd` and `vi`, including editing and saving files, without modifying those programs for AI. See the [MCP reference](docs/en/reference/commands/MCP.md) ([日本語](docs/ja/reference/commands/MCP.md)).
@@ -62,14 +62,14 @@ The following links go **directly** to the current technical specifications and 
 
 The [English reference index](docs/en/reference/README.md) and [日本語リファレンス索引](docs/ja/reference/README.md) contain additional specialized pages, including I²C, UART, network services and hardware wiring.
 
-## Development and source-code study
+## Development and implementation references
 
 These resources assume basic UNIX/Linux knowledge and focus on **reading, building and modifying the implementation**.
 
 | Topic | English | 日本語 |
 |---|---|---|
 | **Development overview** | [Development guides](docs/en/development/README.md) | [開発ガイド](docs/ja/development/README.md) |
-| **Kernel reading order** | [Kernel reading guide](docs/en/development/kernel/KERNEL-READING-GUIDE.md) | [カーネル読解ガイド](docs/ja/development/kernel/KERNEL-READING-GUIDE.md) |
+| **Kernel source map** | [Kernel call-path reference](docs/en/development/kernel/KERNEL-READING-GUIDE.md) | [カーネルソース索引](docs/ja/development/kernel/KERNEL-READING-GUIDE.md) |
 | **Kernel modifications** | [Kernel development](docs/en/development/kernel/KERNEL-DEVELOPMENT.md) | [カーネル開発](docs/ja/development/kernel/KERNEL-DEVELOPMENT.md) |
 | **Application programming** | [C application development](docs/en/development/apps/c/PROGRAMMING.md) | [Cアプリ開発](docs/ja/development/apps/c/PROGRAMMING.md) |
 | **System call extensions** | [System call development](docs/en/development/syscalls/SYSCALL-DEVELOPMENT.md) | [システムコールの追加](docs/ja/development/syscalls/SYSCALL-DEVELOPMENT.md) |

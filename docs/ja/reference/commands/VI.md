@@ -26,7 +26,7 @@
 
 編集領域は行番号を表示せず，画面の左端から使用します．矢印キーはANSIエスケープシーケンスを送る端末で使用できます．
 
-## はじめての編集
+## 編集操作例
 
 1. `vi /tmp/hello.txt`で起動します．
 2. `i`を押して文字を入力します．
@@ -38,7 +38,7 @@
 
 ## MCPからの操作と置換
 
-まず `get_manual({"topic":"vi"})` でPicoNIX固有の操作を確認します．`terminal_open({"command":"vi /tmp/test.txt"})` で起動し，`terminal_read({})` で画面を取得します．`execute_command` で対話型エディタを直接起動しないでください．
+まず `get_manual({"topic":"vi"})` でPicoNIX固有の操作を確認します．`terminal_send({"text":"vi /tmp/test.txt"})`と`terminal_send({"key":"ENTER"})` で起動し，`terminal_read({})` で画面を取得します．`execute_command` で対話型エディタを直接起動しないでください．
 
 `1000` を `100` に一括置換するには，通常モードで次の順に送ります．
 

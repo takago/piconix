@@ -4,7 +4,7 @@
 
 [Pythonの基本](PYTHON.md) | [デバイス操作](DEVICE-PROGRAMMING.md) | [ネットワーク仕様](../../../reference/network/NETWORK.md) | [English](../../../../en/development/apps/python/SOCKET-PROGRAMMING.md)
 
-PicoNIXのPythonはCPythonの`socket`モジュールを使いません．**整数のファイルディスクリプタ（FD）**を操作する独自のAPIです．通常のPicoにはWi-Fiソケットがないため，実習にはPico Wを使用します．通信は暗号化されないので，信頼できる実験用ネットワークで実施してください．
+PicoNIXのPythonはCPythonの`socket`モジュールを使いません．**整数のファイルディスクリプタ（FD）**を操作する独自のAPIです．通常のPicoにはWi-Fiソケットがないため，ソケット通信にはPico Wを使用します．通信は暗号化されないので，信頼できる実験用ネットワークで実施してください．
 
 ## 準備と確認
 
@@ -114,7 +114,7 @@ printf 'hello' | nc -u -w 2 PICO_IP 9000
 ## 4．教育用実装の制約
 
 - Pythonの`while`は1ループ最大10,000回で終了します．常駐サーバとしては設計されていません．
-- TCPには管理スロット数の上限，UDPにはシステム全体で1つのユーザソケットという制限があります．詳しくは[ネットワーク仕様](../../../reference/network/NETWORK.md)を参照してください．
+- TCPには管理スロット数の上限，UDPユーザソケットはシステム全体で最大3個，各ソケットの保留受信データグラムは最大1件という制限があります．詳しくは[ネットワーク仕様](../../../reference/network/NETWORK.md)を参照してください．
 - `recv()`と`recvfrom()`は非ブロッキングで未到着の場合や通信失敗時に`-1`，0バイトの結果を`[]`として返します．`-1`だけでは未到着と致命的な通信エラーを区別できないため，必要に応じて`status(fd)`を確認してください．
 - 長いメッセージの分割，TCP部分送信の再試行，切断検知，タイムアウト管理はアプリ側の責任です．
 - `socket()`や`connect()`などの呼出しは標準Pythonの構文と互換ではありません．`import socket`も使えません．
@@ -122,7 +122,6 @@ printf 'hello' | nc -u -w 2 PICO_IP 9000
 **関連資料：** [Pythonの基本](PYTHON.md) ／ [C言語のネットワークAPI](../c/NETWORK-PROGRAMMING.md)
 
 **初期化エラー：** 同梱のTCP/UDPサンプルは`socket()`や`listen()`／`bind()`が失敗したらメッセージを表示し，必要なFDを閉じて`exit()`します．接続や個別のセンサー読み取り失敗はサーバ全体を終了させず，次の要求を待ちます．`exit()`の終了コードは0です．
-
 
 
 **TCP/UDP温度サーバ：** `accept()`と`recvfrom()`はデフォルトでブロッキング動作するため，サンプルでは待機用の`msleep()`を使用しません．受信待機中はタスクがブロックされます．

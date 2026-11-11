@@ -1,83 +1,12 @@
-## 2026-11-07: Basic pointers (new)
+# Educational C-subset compiler (`cc`)
 
-`cc` now supports single-level `int *` and `char *` locals/parameters, `&x`, `&a[i]`, `*p`, `*p = value`, `p[i]`, `p + n`, and `p - n`. Arrays decay to addresses when passed to functions. Arithmetic scales by 4 bytes for `int *`, and by 1 byte for `char *`. Buffer expressions for `read()` and `write()` may be pointers.
+*Development and language reference (current implementation: `userland/apps/cc.c`)*
 
-```c
-void swap(int *a, int *b)
-{
-    int temp;
-    temp = *a;
-    *a = *b;
-    *b = temp;
-}
+`cc` is a small C-subset compiler that runs on PicoNIX. It translates a `.c` file into PicoNIX-specific Thumb-1 assembly (`.s`), which the built-in `as` converts into an executable. **It is not ISO C or GCC compatible.** This page describes the supported language and its limitations.
 
-int main(void)
-{
-    int x;
-    int y;
-    x = 10;
-    y = 20;
-    swap(&x, &y);
-    if (x == 20) {
-        if (y == 10) { write(1, "PASS\n", 5); }
-    }
-    return 0;
-}
-```
+## Compile and run
 
-Build with `cc test.c`, `as test.s`, then `/tmp/a.out`.
-
-**Limitations:** no multiple indirection (`int **`), arrays of pointers, structs, pointer-pointer subtraction, pointer return types, `++`/`--`, `malloc()`, or function pointers. There are no bounds checks, so invalid pointers are unsafe. Each function reserves a 256-byte frame; source input is limited to 1024 bytes and assembler source to 2048 bytes. Host-side code-generation and assembly tests pass; hardware execution is unverified.
-
-## 2026-11-07: Local address-of and larger integer constants
-
-The compiler now supports `&c` for a scalar local (`char c;`, `int n;`). `read` and `write` accept a named local array or the address of a scalar local as their buffer argument. One-element arrays, such as `char c[1];`, remain arrays.
-
-```c
-int main(void)
-{
-    char c;
-    int n;
-    n = read(0, &c, 1);
-    if (n == 1) {
-        write(1, &c, 1);
-    }
-    return 0;
-}
-```
-
-Positive decimal literals through 2147483647 are accepted. When an integer does not fit Thumb-1 `movs`, the compiler builds its bit pattern using a sequence of `adds` instructions. Unary `-` handles negative expressions. The following sample now compiles:
-
-```c
-void print_number(int n)
-{
-    char digit[1];
-    if (n >= 10) {
-        print_number(n / 10);
-    }
-    digit[0] = '0' + n % 10;
-    write(1, digit, 1);
-}
-
-int main(void)
-{
-    print_number(12345);
-    write(1, "\n", 1);
-    return 0;
-}
-```
-
-`cc` replaces the source `.c` extension with `.s` in the same directory; `as` writes `/tmp/a.out`. General pointer variables, pointer arithmetic, and array function parameters remain unsupported. Array indexing is unchecked. Large constants produce more instructions, so beware the 4096-byte compiler output limit and the 2048-byte assembler source limit. RP2040 execution has not been verified for this change.
-
-> **Current implementation and tests (2026-11-07):** The compiler uses a fixed 256-byte local frame and supports a subset of `int`, `char`, arrays, `sizeof`, and dynamic `read(fd,buf,n)`/`write(fd,buf,n)`. Some older sections below describe previous 64-byte limitations; use this note and source as the current reference. Run `python3 tools/test_scripts/test_cc_regressions.py` and the existing `test_cc_*.py` tests. These validate C-to-Thumb encoding, not execution on RP2040.
-
-# PicoNIX Educational C Compiler (`cc`)
-
-`cc` is a deliberately tiny C-subset compiler running on PicoNIX. It emits Thumb-1 assembly for the built-in `as`, not general C or GNU assembly.
-
-## First exercise
-
-Create `/tmp/hello.c` using `cat > /tmp/hello.c`, then Ctrl+D:
+Create `/tmp/hello.c` with `edit` or use `cat > /tmp/hello.c` followed by Ctrl+D:
 
 ```c
 int main(void) {
@@ -86,143 +15,110 @@ int main(void) {
 }
 ```
 
-The example uses the standard **three-argument** `write(fd, buffer, count)` calling convention. This compiler only supports a string literal for `buffer` and an integer constant for `count`. The count must not exceed the literal byte length.
-
 ```sh
 cc /tmp/hello.c
 cat /tmp/hello.s
 as /tmp/hello.s
-./a.out
+/tmp/a.out
 ```
 
-`cc` writes assembly beside the input source (`cc test.c` → `test.s`; `cc /tmp/hello.c` → `/tmp/hello.s`). `as` still writes `/tmp/a.out`.
+The compiler replaces the final `.c` with `.s` **in the same directory**. `as` writes its binary to `/tmp/a.out`. **Never execute an old `/tmp/a.out` after a failed compile or assembly.** Inspect the `.s` file to study branches and `svc #0`.
 
-## Supported subset
+## Supported syntax
 
-One `int main(void)` or `int main()` function; statements `write(fd, "literal", count);` (fd 0–2; count 0 through literal byte length), `getpid();`, and `return N;` (0–255); comments and multiple statements. The `getpid()` result is discarded.
+| Feature | Current subset |
+|---|---|
+| Functions | Required `int main()` or `int main(void)`; definitions and calls of `int`/`void` functions; recursive code generation and forward calls; up to 16 definitions and 32 call sites |
+| Parameters and returns | Up to four parameters of types `int`, `int *`, or `char *`; `return expression;` in `int` functions and `return;` in `void` functions; no pointer return types |
+| Locals | 32-bit `int`, one-byte `char`, one-dimensional arrays, and single-level pointers; up to 16 local names and 256 bytes of frame space per function |
+| Arrays | Indexed loads/stores `a[i]`, `sizeof(a)`, and `char s[6] = "HELLO";`; lengths 1–64 elements, no bounds checking |
+| Expressions | Variables, integer/character literals, parentheses, unary `+`/`-`, binary `+`/`-`/`*`/`/`/`%`, `sizeof(local)` |
+| Conditions | **Signed 32-bit** `==`, `!=`, `<`, `<=`, `>`, `>=` comparisons in `if`/`else`/`while`; braces required around controlled statements |
+| Pointers | `&x`, `&a[i]`, `*p`, `*p = value`, `p[i]`, `p + n`, `p - n`; arrays passed as pointer arguments; `int *` arithmetic scales by four bytes, `char *` by one |
+| Increment/decrement | Prefix and postfix `++`/`--` on **scalar local `int` variables** only (statements and expressions) |
+| Built-ins | `getpid();`, `read(fd, buffer, count)`, `write(fd, buffer, count)`; integer expressions for FD/count, and compatible local arrays, local addresses or pointers for buffer |
+| Comments | `//` and `/* ... */` |
 
-Not supported: general arithmetic expressions, `else`, `>`/`<=`, arrays, pointers, other functions, `#include`, or pointer-based `write`.
+Positive decimal literals range from `0` through `2147483647`. Negative expressions use unary `-`. C-style overflow behavior is not guaranteed. Character literals support a small set of escapes.
 
-## How it works
+### Pointers and functions
 
-The compiler recognizes a restricted grammar and emits `movs`, `adr`, `svc #0`, branches, and aligned `.ascii` data. The syscall number is in `r0` (`write=9`, `exit=3`); the syscall arguments occupy `r1`–`r3`. `adr` makes string references position independent. The assembler creates a PNX1 image for the shell to run.
+```c
+void swap(int *a, int *b) {
+    int t;
+    t = *a;
+    *a = *b;
+    *b = t;
+}
+int main(void) {
+    int x = 10;
+    int y = 20;
+    swap(&x, &y);
+    if (x == 20) { write(1, "OK\n", 3); }
+    return 0;
+}
+```
 
-## Limits and safety
+Save as `/tmp/swap.c`, then run `cc /tmp/swap.c`, `as /tmp/swap.s`, and `/tmp/a.out` in order. Use `&a[i]` for an array-element address; `read(0, &c, 1)` also accepts the address of a scalar `char` local.
 
-Source: 1024 bytes. Assembly: 2048 bytes. `as` image payload: 2040 bytes and at most 32 labels. Literal strings support ordinary printable ASCII and `\n`, `\r`, `\t`, `\\`; escaped double quotes are not supported. The compiler does not provide complete C diagnostics. PicoNIX has no memory protection; run trusted experiments only.
+### Arrays and dynamic write lengths
 
-Inspect `sample.s` to see how variables, comparisons and loops map to Thumb-1 instructions.
+```c
+int main(void) {
+    char buf[16];
+    int n = read(0, buf, sizeof(buf));
+    if (n > 0) { write(1, buf, n); }
+    return 0;
+}
+```
 
-See [Assembler](../asm/ASM.md) and [Syscalls](../../../reference/SYSCALLS.md).
+Use the return value of `read` rather than writing uninitialized bytes. The compiler does not check runtime buffer lengths.
 
-## Loop exercise
+### Conditional branches and `++`/`--`
 
 ```c
 int main(void) {
     int i = 0;
     while (i < 3) {
-        write(1, "HI\n", 3);
-        i = i + 1;
-    }
-    if (i == 3) { write(1, "OK\n", 3); }
-    return 0;
-}
-```
-
-Compile with `cc /tmp/loop.c`, inspect `/tmp/loop.s`, assemble with `as /tmp/loop.s`, and run `./a.out`. The subset does not support `else`, general expressions, signed arithmetic, pointers, or function calls. Constants and comparisons are restricted to 0–255; arithmetic overflow and general C ABI guarantees are not provided.
-
-## Additional control flow
-
-`if (condition) { ... } else { ... }` is now supported, as are `>` and `<=` comparisons. Conditions are still **unsigned**, not general signed C `int` comparisons. The compiler implements the additional operators using existing Thumb-1 conditional and unconditional branches. Blocks remain mandatory.
-
-
-## Stack-based locals (2026-11-07)
-
-`cc` reserves a fixed 64-byte stack frame with `sub sp, #64`, allowing 16 32-bit local integers at offsets 0, 4, ... 60. Loads and stores use `ldr` and `str` with SP-relative addressing. The assembler now supports `sub/add sp, #N` (multiples of four up to 508) and `ldr/str rN, [sp, #offset]` (multiples of four up to 1020). Existing register-relative addressing remains supported.
-
-This is a restricted teaching compiler: general expressions, lexical scopes, function calls, signed comparisons and dynamic stack frames are not implemented. `return` invokes the PicoNIX exit syscall rather than returning from an ordinary C function.
-
-## Recursive-descent expressions (2026-11-07)
-
-The top-down grammar is `expression → additive → multiply → unary → primary`. Parenthesized expressions, integer literals, local variables, unary `+`/`-`, binary `+`/`-`/`*`/`/`/`%`, and expressions on both sides of comparisons are supported. The parser preserves intermediate results using `push {r0}` and `pop {r1}`. Thumb `muls` performs multiplication; repeated subtraction implements a deliberately simple division/remainder algorithm.
-
-```c
-int main(void) {
-    int a=10; int b=3; int c;
-    c=(a+b*2)/4;
-    if(c==4) { write(1,"OK\n",3); }
-    return 0;
-}
-```
-
-Run `cc /tmp/example.c`, `as /tmp/example.s`, then `./a.out`. **Limitations:** division and remainder currently support nonnegative operands only; division by zero returns zero rather than implementing standard C semantics. Comparisons are unsigned. Output size, branch range, integer overflow, and expression nesting remain constrained. Hardware execution has not been verified. Host check: `python3 tools/test_scripts/test_cc_expressions.py`.
-
-## `char` and arrays (experimental)
-
-`int` is 32-bit and `char` occupies one byte. Fixed-size local arrays reside in a 256-byte stack frame. Up to 16 local declarations are accepted. Indexed loads/stores, `sizeof(local)`, character constants, and `char msg[6] = "HELLO";` initialization are supported.
-
-```c
-int main(void) {
-    char buf[8];
-    int n = read(0, buf, 8);
-    if (n > 0) write(1, buf, 8);
-    return 0;
-}
-```
-
-**Limitations:** Array-based `read`/`write` accept expressions for their third argument, including `write(1, buf, n)`. Array indexing is unchecked. Pointers, general function calls, block scoping, and standard-conforming `char` signedness are not supported. The generated code uses `addsp` (new assembler instruction), `ldrb`/`strb` and `ldr`/`str`. Run `python3 tools/test_scripts/test_cc_char_arrays.py` for the host parser/assembler tests. Hardware execution is unverified.
-
-## Dynamic syscall arguments (2026-11-07)
-
-```c
-int main(void)
-{
-    char buf[32];
-    int n = read(0, buf, sizeof(buf));
-    if (n > 0) {
-        write(1, buf, n);
+        if (i <= 1) { write(1, "A\n", 2); }
+        else { write(1, "B\n", 2); }
+        i++;
     }
     return 0;
 }
 ```
 
-For `read(fd, array, count)` and `write(fd, array, count)`, the file descriptor and count may be integer expressions. The buffer must be a named local array, not a general pointer. Arguments are evaluated left to right and temporarily saved on the stack before being restored to `r1` (fd), `r2` (buffer), and `r3` (count). `r0` selects the syscall for `svc #0`; a `read` return value remains in `r0`.
+Prefix increments/decrements yield the updated value, while postfix forms yield the previous value. `++`/`--` on `char`, pointer variables, array elements, or `*p` is **not** supported.
 
-There is no runtime bounds check for the requested count. Test with `python3 tools/test_scripts/test_cc_syscall_args.py`. RP2040 execution remains unverified.
+## String literals and system calls
 
-### Signed comparisons (2026-11-07)
+`write(1, "HELLO", 3);` uses a special literal form requiring a numeric FD in the range 0–2 and a nonnegative numeric count no larger than the string's actual byte length. It writes `HEL`, not the entire literal. Escapes `\n`, `\r`, `\t`, and `\\` are supported; escaped quotes (`\"`) are not.
 
-The compiler now emits signed conditional branches (`blt`, `ble`, `bgt`, `bge`) after `cmp`; the assembler encodes the corresponding Thumb-1 conditions. Run `python3 tools/test_scripts/test_cc_signed_comparisons.py` to verify assembly generation and binary encodings. This is not a CPU execution test. Signed division/remainder and on-device execution remain unverified.
+In `write(fd, buf, n)` and `read(fd, buf, n)` the FD and count may be integer expressions, and the buffer may be a local array, `&` of a scalar local, or a compatible pointer expression. A `read` result can be assigned to a variable. There is no general runtime bounds checking.
 
+## Unsupported features and limits
 
-## User-defined functions (experimental)
+- **Not supported:** preprocessor or `#include`, arbitrary library functions, globals, `struct`/`union`/`enum`, `typedef`, `const`/`static`, `for`, `switch`, `do`, `&&`/`||`, ternary operators, casts, compound assignment, prototypes without definitions, and general lexical block shadowing.
+- **Pointer restrictions:** no multiple indirection (`int **`), arrays of pointers, pointer returns, pointer-pointer subtraction, function pointers, or `malloc()`. Pointer and array indexes are unchecked.
+- **Division and remainder:** repeated-subtraction implementation intended for **nonnegative** operands only. Division by zero returns zero in this implementation; do not rely on it as C behavior.
+- **Size limits:** input C source ≤1024 bytes; internal generated-assembly buffer ≤4096 bytes, but **the `.s` RAM file is limited to 2048 bytes**. The assembler's machine-code payload is limited to 2040 bytes and 32 labels. Constants and calls can exhaust these limits quickly.
+- **Safety:** PIC applications lack memory protection. Invalid addresses can corrupt memory; compile errors are not always descriptive, and complete ABI compatibility is not guaranteed.
 
-Functions returning `int` or `void`, up to four `int` parameters, per-call local variables, nested calls, and recursive code generation are supported. Arguments use `r0`–`r3`, results use `r0`, and the prologue saves `lr` and reserves a 256-byte local frame. Forward calls to functions defined later are supported; standalone function prototypes are not.
+## How the compiler and assembler work
 
-```c
-int add(int a, int b) {
-    return a + b;
-}
-int main(void) {
-    return add(10, 20);
-}
+Expressions are parsed by recursive descent (`primary` → `unary` → `multiply` → `additive`); intermediate values are saved with `push`/`pop`, with expression results in `r0`. Up to four call arguments use `r0`–`r3`, and function return values use `r0`. Each function saves `{r4, lr}`, reserves a fixed 256-byte local frame, and uses `r4` as its frame pointer. The entry stub passes `main`'s return value to the `exit` syscall; **return does not always mean process exit**, since user functions can return to their callers.
+
+The syscall numbers for `read`, `write`, and `exit` are 8, 9, and 3. The number is passed in `r0`, arguments in `r1`–`r3`, and `svc #0` performs the call. The zero immediate in `svc` is *not* the syscall number. Generated instructions use two spaces of indentation; labels and directives start at column zero.
+
+## Tests and related references
+
+```sh
+python3 tools/test_scripts/test_cc_regressions.py
+python3 tools/test_scripts/test_cc_functions.py
+python3 tools/test_scripts/test_cc_pointers.py
+python3 tools/test_scripts/test_cc_increment.py
 ```
 
-Run `cc sample.c`, `as sample.s`, and `./a.out`. Limits: 16 functions, 32 call sites, and `int` parameters only; pointer/array parameters are not implemented. Stack alignment across nested calls is not fully AAPCS-compliant. Recursive code assembles, but runtime behavior is unverified. `tools/test_scripts/test_cc_functions.py` checks code generation and assembly, not CPU execution.
+These are **host-side C-to-Thumb generation/assembly tests**, not proof of execution on RP2040. On hardware, confirm each of compilation, assembly and actual output separately.
 
-## Generated assembly indentation
-
-The generated `.s` file uses two leading spaces for instructions. Labels and assembler directives such as `.align` and `.ascii` stay at column zero. The assembler ignores leading whitespace, so the machine code is unchanged. The extra whitespace does count toward the assembler source-size limit.
-
-```asm
-f_add:
-  push {r4, lr}
-  sub sp, #256
-  ldr r0, [sp, #0]
-  add sp, #256
-  pop {r4, pc}
-```
-
-### Stable local-variable addressing across function calls (2026-11-07)
-
-The compiler uses the callee-saved `r4` register as a frame pointer for parameters and locals. Temporary pushes during argument evaluation no longer shift local-variable addresses. This fixes nested calls such as `square(sum)` after `sum=add(a,b)`. Hardware execution remains unverified.
+[Assembler](../asm/ASM.md) | [Syscalls](../../../reference/SYSCALLS.md) | [日本語](../../../../ja/development/apps/c/CC.md)
