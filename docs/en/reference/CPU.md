@@ -30,3 +30,7 @@ The left `CPU Usage (%)` group shows percentages to one decimal place; the right
 Reading does not erase history. The ordering is fixed when opened, and split `read()` calls are supported. Readers stalled for 30 seconds or more may lose rows overwritten in the ring. On a non-W Pico, `Net` reflects the overhead of the empty `net_poll()` call, not Wi-Fi work.
 
 On Pico W a 250 µs repeating timer and idle-task `WFI` reduce busy spinning. Networking remains on Core 0 in the idle task, not in the timer callback. Only Core 0 is included in the table.
+
+## Per-task CPU time
+
+`/proc/tasks` reports cumulative per-task `CPU_TICKS` (1 tick = 1 ms), including `[idle]` as PID 0. `top` computes approximate `CPU%` from deltas over elapsed time. This is sampling-based accounting, not an exact split of interrupt and kernel time; totals need not exactly match the Console/Net breakdown in `/proc/cpu`.

@@ -6,9 +6,9 @@ import tempfile
 
 root=Path(__file__).resolve().parents[2]
 src=(root/'kernel/kernel.c').read_text()
-start=src.index('static int proc_cpu_read(')
+start=src.index('NO_TRACE static int proc_cpu_read(')
 stop=src.index('/* /procの読み取りを担当する．', start)
-fn=src[start:stop]
+fn=src[start:stop].replace('NO_TRACE static int proc_cpu_read(', 'static int proc_cpu_read(', 1)
 shim=r'''#include <stdint.h>
 #include <stddef.h>
 #include <stdio.h>

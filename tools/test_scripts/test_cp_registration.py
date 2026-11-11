@@ -8,7 +8,7 @@ helptext=(r/'userland/apps/help.c').read_text()
 cp=(r/'userland/apps/cp.c').read_text()
 assert 'register_image(48,"cp",' in main
 assert 'piconix_cp_image_start' in main
-assert 'ps cat cp grep' in cmake
+assert 'cp' in cmake.split('foreach(APP IN ITEMS', 1)[1].split(')', 1)[0].split()
 assert 'usage: cp SRC DST' in helptext and '  cp         Copy' in helptext
 assert 'O_CREAT|O_TRUNC' in cp and '!strcmp(src,dst)' in cp
 assert 'close(in)' in cp and 'close(out)' in cp

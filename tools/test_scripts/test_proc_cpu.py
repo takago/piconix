@@ -16,7 +16,9 @@ for name in ('CPU Usage (%)', 'CPU Time (ms)', 'CPU_HISTORY 30',
              'cpu_history_serial', 'proc_cpu_read', 'pct'):
     assert name in kernel
 assert 'if(ticks%1000u==0u)' in kernel
-assert 'current>=0 && current!=IDLE_SLOT' in kernel
+assert 'if(current>=0) {' in kernel
+assert 'if(current!=IDLE_SLOT) cpu_busy_ticks++;' in kernel
+assert 'tasks[current].cpu_ticks++;' in kernel
 assert 'cpu_net_total_us-cpu_last_net_us' in kernel
 assert 'cpu_console_total_us-cpu_last_console_us' in kernel
 assert 'cpu_history_serial=0' in kernel

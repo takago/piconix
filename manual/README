@@ -22,19 +22,16 @@ LANGUAGE EXAMPLES
   c-examples, asm-examples, python-examples  Program examples
 
 PROGRAM EXAMPLES (source, commands, expected output)
-  example-c-hello          Minimal C stdout + cc/as pipeline
-  example-c-loops          C while/if/else and exact output
-  example-c-functions      C pointer parameter and local update
-  example-c-arrays         Char array indexing and output
-  example-asm-hello        Thumb-1 SVC write and PC-relative data
-  example-asm-stack        Thumb-1 push/pop and exit
-  example-asm-pid          PID decimal printing
-  example-python-basics    Python subset arithmetic/loops/conditions
-  example-python-arrays    Fixed lists and bytes
-  example-python-files     Bounded read of /proc
-  example-python-temperature  Read /dev/adc/temp
-  example-python-udp       Authenticated-intent loopback UDP demo
-  example-agent-verify     LLM build, run and verify
+  example-c-hello, example-c-loops, example-c-functions, example-c-arrays
+  example-asm-hello, example-asm-stack, example-asm-pid
+  example-python-basics, example-python-arrays, example-python-files
+  example-python-temperature, example-python-udp, example-agent-verify
+
+PRACTICE LABS (guided exercises)
+  lab-c-hello, lab-c-loops, lab-c-functions, lab-c-arrays
+  lab-asm-hello, lab-asm-stack, lab-asm-pid
+  lab-python-basics, lab-python-arrays, lab-python-files
+  lab-python-temperature, lab-python-udp, lab-agent-verify
 
 OPERATING AND DEBUGGING
   memory          Safe bounded inspection, symbols, slots

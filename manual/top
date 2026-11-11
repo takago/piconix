@@ -1,9 +1,14 @@
-TOP — LIVE CPU AND TASK VIEWER
+TOP — LIVE CPU, TASK AND INTERRUPT VIEWER
 
 Usage: top [seconds]    (default 1, range 1..60)
 Keys: q quit (restores terminal).
-Sources: /proc/cpu (newest completed sample), /proc/tasks,
-         /proc/uptime, /proc/context_switches.
-CPU usage is a system-wide approximation; per-task CPU % unavailable.
-Uses one of six task slots. Needs an ANSI terminal >= 80 columns.
-MCP: use persistent PTY terminal_send/terminal_read, not execute_command.
+Sources: /proc/tasks, /proc/uptime, /proc/ticks,
+         /proc/context_switches, /proc/interrupts.
+CPU: Idle, Busy (Console, Task, Net), per-task CPU%.
+IRQ: cumulative SysTick, PendSV, SVC and UART1 counts.
+IRQ/s: events per second over the last refresh interval;
+       first update shows waiting (no previous sample).
+DISPATCH: per-task scheduler selections, including idle.
+CPU percentages use approximate 1ms tick sampling.
+Uses one of six task slots. Needs ANSI terminal >= 80 columns.
+MCP: use persistent PTY terminal_send/terminal_read.

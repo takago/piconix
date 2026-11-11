@@ -1,5 +1,38 @@
 # PicoNIX Development Diary
 
+### 2026-11-12 — Remove IRQ/s from `top`
+
+Simplified `top` by removing the per-second `IRQ/s` row while preserving cumulative SysTick, PendSV, SVC and UART1 counters in `IRQ`. Removed unused interval and rate calculations, shortened the screen by one row, and updated tests and bilingual documentation. The PIC-safe sequential parser remains unchanged; there is no kernel or ABI change.
+
+
+### 2026-11-12 — Fix absolute-address relocation in `top` PIC image
+
+The local array of string pointers in `top`'s IRQ parser emitted `R_ARM_ABS32`, causing the two-address PIC image comparison to fail. Replaced the pointer table with sequential parsing of four counters and added an ARM object relocation regression test. The UI, kernel, and ABI are unchanged. Full firmware linking and hardware tests remain pending.
+
+### 2026-11-12 — Show cumulative interrupts and event rates in `top`
+
+Read SysTick, PendSV, SVC and UART1 cumulative counts from `/proc/interrupts`, and show them in an `IRQ` row. Compute `IRQ/s` using the elapsed ticks since the preceding refresh; the first refresh shows a waiting indicator. This makes interrupts, exceptions and context switches comparable. No kernel or ABI changes.
+
+
+### 2026-11-12 — Align `top` CPU usage intervals
+
+Corrected inconsistent CPU percentages between the summary and `[idle]`. `/proc/tasks` now exposes cumulative console/network microseconds on PID 0; `top` computes all CPU usage categories and task rows from one refresh interval, subtracting kernel polling time from idle-context samples. Console and Net are not separate tasks. Existing `/proc/cpu` history, context switches, and dispatch counts are unchanged. Measurements are approximate; firmware and hardware verification remain pending.
+
+### 2026-11-12 — Idle and per-task CPU accounting
+
+- Display `[idle]` (PID 0) in `/proc/tasks`, `ps`, and `top`, including its dispatch count.
+- Accumulate per-task `CPU_TICKS` at SysTick (1 ms), and show interval-based `CPU%` in `top`; preserve existing `/proc/cpu` accounting.
+
+
+## 2026-11-12: Count per-task scheduler dispatches
+
+Added a 32-bit `dispatch_count` in `task_t`, incremented whenever `os_schedule()` selects a user task for execution, including its first dispatch and re-selection of the same task. Idle was originally excluded, but the later change on this date includes it; a mere interrupt return without scheduler selection is not counted. The counter resets on slot reuse. `/proc/tasks`, `ps`, and `top` expose the `DISPATCH` column; `top` omits `SP` to fit 79 characters. The existing system-wide `/proc/context_switches` retains its meaning of transitions between distinct tasks. No new syscall, PIC ABI change, or additional task slot. Updated host-side display/parser and counter-condition tests. Firmware build and on-device validation remain pending.
+
+
+## 2026-11-12: Align ROM manual index, trace annotation, and regression checks
+
+Using only the latest ZIP supplied for this change, fixed discrepancies identified by static auditing. Marked `proc_cpu_read()` as `NO_TRACE` to avoid unnecessary kernel function instrumentation during CPU-history reads. Compacted the ROM manual `README` and explicitly indexed all thirteen `lab-*` pages while keeping the page under its existing 4,096-byte limit. Made the `cp` registration test independent of application ordering and adapted the `/proc/cpu` host test to the annotated definition. No kernel API, application ID, RAM layout, or PIC mechanism changed. Targeted tests and documentation/ROM consistency checks passed. The Pico SDK and ARM toolchain were unavailable in this environment, so full Pico/Pico W firmware builds and hardware tests were not performed.
+
 ## 2026-11-12: Enlarge SameGame board to 20×12
 
 Expanded the SameGame board from 10×8 (80 cells) to 20×12 (240 cells), fitting the full display into an 80×24-character terminal. Adjusted row and column labels; direct MCP moves now require a two-digit row (`:a01` through `:t12`). Seed reproduction, gravity, column packing, scoring, and process-local high scores remain unchanged. No kernel, syscall, or program ID changes.

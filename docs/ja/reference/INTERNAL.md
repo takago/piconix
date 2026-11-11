@@ -54,7 +54,7 @@ LinuxのELF実行ファイルをロードする仕組み，MMUによるプロセ
 
 タスクの状態は `UNUSED`，`READY`，`SLEEPING`，`BLOCKED`，`DEAD` です．`spawn()` は登録済みプログラムを新しいスロットで実行し，`waitpid()` は子の終了を待ちます．`WNOHANG` ならブロックしません．終了通知は簡素化されており，終了コード（0〜255）をタスクスロットとは別の終了通知に保持し，`waitpid()`で親へ渡します．
 
-`ps`および`/proc/tasks`は末尾の`PPID`列に親PIDを表示します．
+`ps`および`/proc/tasks`は`PPID`列に親PID，末尾の`DISPATCH`列にタスク別ディスパッチ累計を表示します． PID 0の`[idle]`行と累積`CPU_TICKS`列も表示します．
 
 ## 4．システムコールの境界
 

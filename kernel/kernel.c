@@ -286,7 +286,7 @@ static int pipe_transfer(pipe_t *p, void *buffer, size_t size, int writing) {
     }
     return (int)count;
 }
-typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[OS_FD_MAX]; uint32_t fd_pos[OS_FD_MAX]; int fd_task_pid[OS_FD_MAX]; uint8_t fd_flags[OS_FD_MAX]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; char cwd[128]; uint16_t adc_values[8]; } task_t;
+typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[OS_FD_MAX]; uint32_t fd_pos[OS_FD_MAX]; int fd_task_pid[OS_FD_MAX]; uint8_t fd_flags[OS_FD_MAX]; int pid; int parent_pid; int startup_seconds; char script_path[32]; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; uint32_t dispatch_count; volatile uint32_t cpu_ticks; char cwd[128]; uint16_t adc_values[8]; } task_t;
 // 24 KiBのRAMスロット6個を物理アドレスで予約する．.bssには含めない．
 // リンカはカーネルの配置先を0x20000000〜0x2000DFFFに限定する必要がある．
 _Static_assert(OS_MAX_TASKS == 6 && OS_TASK_BYTES == 24576u,
@@ -1542,7 +1542,7 @@ NO_TRACE static int spawn_in_slot(int slot, int program_id, os_entry_t entry, co
     for(int k=0;k<8;k++)
         *(--s)=0; // r4〜r11はPendSVが保存・復元する．
     t->sp=s; t->entry=entry; t->name=name?name:"task"; t->program_id=(uint8_t)program_id;
-    t->pid=pid; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0; t->wait_pid=0; t->wait_status=NULL;
+    t->pid=pid; t->dispatch_count=0; t->cpu_ticks=0; t->startup_seconds=0; t->script_path[0]=0; t->parent_pid=(started && current>=0)?tasks[current].pid:0; t->wake=0; t->wait_dev=-1; t->wait_frame_ready=0; t->wait_pid=0; t->wait_status=NULL;
     t->wait_buf=NULL; t->wait_size=0; strcpy(t->cwd,(started && current>=0)?tasks[current].cwd:"/"); t->tty=(started && current>=0)?tasks[current].tty:0;
     for(int j=0;j<OS_FD_MAX;j++)
         fd_set(t,j,-1,0,0,0);
@@ -1624,7 +1624,10 @@ NO_TRACE int os_spawn(os_entry_t entry) { return os_spawn_named(entry, "task"); 
 NO_TRACE void isr_systick(void) {
     fb_tick();
     ticks += 1u;
-    if(current>=0 && current!=IDLE_SLOT) cpu_busy_ticks++;
+    if(current>=0) {
+        tasks[current].cpu_ticks++;
+        if(current!=IDLE_SLOT) cpu_busy_ticks++;
+    }
     if(ticks%1000u==0u) {
         uint32_t serial=cpu_history_serial;
         volatile cpu_record_t *rec=&cpu_history[serial%CPU_HISTORY];
@@ -1703,6 +1706,8 @@ NO_TRACE uint32_t *os_schedule(uint32_t *oldsp) {
     if(next<0) {
         next=IDLE_SLOT;
     }
+    /* Every scheduler selection counts, even when the task is unchanged. */
+    tasks[next].dispatch_count++;
     if(previous>=0 && previous!=next) {
         context_switch_count++;
         trace_record(TRACE_SWITCH, (uint8_t)(previous == IDLE_SLOT ? 0 : tasks[previous].pid),
@@ -2238,10 +2243,22 @@ NO_TRACE static int proc_emit(int fd, void *dst, size_t limit, size_t *offset,
 
 /* 生存タスクの概要を/proc/tasks形式へ逐次生成する．スナップショット用の大きな配列を確保しない． */
 NO_TRACE static int proc_tasks_read(int fd, void *p, size_t n) {
-    static const char header[] = "PID  NAME              STATE    TTY      SLOT  MEMORY             SP        PPID\n";
+    static const char header[] = "PID  NAME              STATE    TTY      SLOT  MEMORY             SP        PPID  DISPATCH  CPU_TICKS   NET_US   CON_US\n";
     size_t offset=0, done=0;
     if(proc_emit(fd,p,n,&offset,&done,header,sizeof(header)-1))
         return (int)done;
+    /* Idle has its own stack, not a user RAM slot. Keep it visible as PID 0. */
+    {
+        char line[160];
+        int len=snprintf(line,sizeof line,
+            "%3d  %-18.18s%-9s%-9s%-6s%-19s %-9s %3d  %10lu  %10lu %lu %lu\n",
+            0,"[idle]",current==IDLE_SLOT?"RUNNING":"READY","-","-","-","-",0,
+            (unsigned long)tasks[IDLE_SLOT].dispatch_count,
+            (unsigned long)tasks[IDLE_SLOT].cpu_ticks,
+            (unsigned long)cpu_net_total_us, (unsigned long)cpu_console_total_us);
+        if(len<0 || (size_t)len>=sizeof line) return OS_EINVAL;
+        if(proc_emit(fd,p,n,&offset,&done,line,(size_t)len)) return (int)done;
+    }
     for(int row=0;row<OS_MAX_TASKS;row++) {
         task_t *t=&tasks[row];
         if(t->state==UNUSED || t->state==DEAD)
@@ -2249,11 +2266,12 @@ NO_TRACE static int proc_tasks_read(int fd, void *p, size_t n) {
         const char *state=t->state==READY?"READY":
             t->state==SLEEPING?"SLEEP":t->state==BLOCKED?"BLOCKED":"?";
         uintptr_t base=(uintptr_t)task_ram[row];
-        char line[128];
-        int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX  %3d\n",
+        char line[160];
+        int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX  %3d  %10lu  %10lu 0 0\n",
             t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":t->tty==2?"wifi":t->tty==PTY_TTY?"pts/0":"-",row+1,
             (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
-            (unsigned long)(uintptr_t)t->sp,t->parent_pid);
+            (unsigned long)(uintptr_t)t->sp,t->parent_pid,(unsigned long)t->dispatch_count,
+            (unsigned long)t->cpu_ticks);
         if(len<0 || (size_t)len>=sizeof line)
             return OS_EINVAL;
         if(proc_emit(fd,p,n,&offset,&done,line,(size_t)len))
@@ -2411,7 +2429,7 @@ NO_TRACE static int proc_ramfiles_read(int fd, void *p, size_t n) {
 
 /* CPU履歴の最新30秒を表形式で返す．open時のserialを保持する．
  * 読み取りが30秒以上に及ぶと，上書きされた古い記録は省略する． */
-static int proc_cpu_read(int fd, void *out, size_t n) {
+NO_TRACE static int proc_cpu_read(int fd, void *out, size_t n) {
     static const char heading[] =
         "       |                CPU Usage (%)                 |                  CPU Time (ms)                  \n"
         "Time   |    Idle    Busy  ( Console    Task    Net )  |      Idle     Busy  ( Console     Task     Net )\n"

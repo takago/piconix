@@ -1,14 +1,22 @@
 # `top` — CPU負荷とプロセスの監視
 
-`top [seconds]`は，`/proc/cpu`，`/proc/tasks`，`/proc/uptime`，`/proc/context_switches`を参照して，約1秒ごとにCPU負荷とプロセス情報を更新する端末アプリです．`seconds`で更新間隔（1〜60秒）を変更できます．`q`で終了します．
+`top [seconds]`は，`/proc/tasks`，`/proc/uptime`，`/proc/ticks`，`/proc/context_switches`，`/proc/interrupts`を参照して，約1秒ごとにCPU負荷とプロセス情報を更新する端末アプリです．`seconds`で更新間隔（1〜60秒）を変更できます．`q`で終了します．
 
 ```sh
 top
 top 2
 ```
 
-表示項目は，起動時間，システム全体のCPU負荷（Idle，Busy，Console，Task，Net），タスク数，コンテキストスイッチ累計と，`/proc/tasks`のPID，NAME，STATE，TTY，SLOT，MEMORY，SP，PPIDです．画面は幅79列まで使用し，変更された行だけ更新します．80列以上のANSI対応端末を想定しています．
+表示項目は，起動時間，システム全体のCPU負荷（Idle，Busy，Console，Task，Net），タスク数，コンテキストスイッチ累計，割り込み・例外の累積回数（IRQ），および`/proc/tasks`のPID，NAME，STATE，TTY，CPU%，DISPATCH，PPIDです．画面は幅79列まで使用し，変更された行だけ更新します．80列以上のANSI対応端末を想定しています．
 
-**制限：** CPU使用率は`/proc/cpu`の直近の完了済み1秒サンプルから取得した**概算値**です．プロセスごとのCPU使用率は取得できません．開始直後の計測前はCPU値を表示できません．`top`自身もタスク枠を1つ使用します．最大6タスクのうち空き枠がない場合は起動できません．端末設定は終了時に復元します．
+**制限：** `top`は`/proc/tasks`の累積CPU tickとIdle中のConsole・Net実行時間の差分を，同じ画面更新区間で集計します．各タスクのCPU%は1ms標本化による概算です．最初の更新時には比較対象がなく，CPU使用率は未表示です．`top`自身も6つのタスク枠の1つを使用します．端末設定は終了時に復元します．
 
 MCP経由で利用する場合は，常駐PTYの対話操作を使い，長時間動作する`top`を単発の`execute_command`で実行しないでください．
+
+`DISPATCH`はスケジューラがタスクを選択して実行権を渡した累積回数です．初回実行と同一タスクの再選択も含みます．タスク終了・スロット再使用時に0から数え直します．CPU使用時間ではありません．`ps`の`/proc/tasks`出力には`SP`も残りますが，`top`では80桁幅を守るため省略します．
+
+`DISPATCH`は単なる割り込みやSVCの発生回数ではありません．スケジューラを経由せず元のタスクに戻る場合は増えません．システム全体の`/proc/context_switches`は異なるタスクへの切替だけを数え，従来の意味を維持します．
+
+`[idle]`はPID 0の特別なタスクで，`ps`・`top`・`/proc/tasks`に表示されます．ユーザRAMスロットは使用しません．Idleの`DISPATCH`もスケジューラの選択回数を表します．`[idle]`のCPU%はIdleとして標本化された時間からConsole・Netの実行時間を差し引いた値です．ConsoleとNetは独立したタスクではなく，上段のCPU内訳だけに含めます．`/proc/tasks`の`NET_US`と`CON_US`は内部計測値で，PID 0にのみ累積値が入ります．`/proc/cpu`は既存の直近1秒集計を維持するため，`top`とは表示期間が異なることがあります．
+
+`IRQ`はSysTick，PendSV，SVC，UART1の起動以来の累積回数です．`SVC`はソフトウェア例外で，`PendSV`の発生回数はコンテクストスイッチ回数と必ずしも一致しません．既存の`/proc/interrupts`を読み取るだけで，カーネルにはカウンタを追加しません．
