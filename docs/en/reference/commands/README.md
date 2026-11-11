@@ -1,6 +1,6 @@
 # Command reference
 
-This index covers **all 54 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
+This index covers **all 57 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
 
 Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” links for advanced tools. Some networking commands require Pico W.
 
@@ -32,6 +32,7 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 
 | Command | Purpose | Syntax / key options | Details |
 |---|---|---|---|
+| [`top`](../../../../userland/apps/top.c) | Live CPU and task viewer | `top [seconds]` | [Details](TOP.md) |
 | [`ps`](../../../../userland/apps/ps.c) | List processes | `ps` | — |
 | [`kill`](../../../../userland/apps/kill.c) | Stop process | `kill PID` | — |
 | [`pty_test`](../../../../userland/apps/pty_test.c) | Run an interactive program through a PTY | `pty_test [command [args...]]` | [PTY](../devices/PTY.md) |
@@ -81,6 +82,8 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 | [`hello`](../../../../userland/apps/hello.c) | Print greeting | `hello [name]` | — |
 | [`mb`](../../../../userland/apps/mb.c) | Moon Buggy game | `mb` | — |
 | [`pong`](../../../../userland/apps/pong.c) | Pong game | `pong [-2]` | [Details](PONG.md) |
+| [`tictactoe`](../../../../userland/apps/tictactoe.c) | Tic-tac-toe against COM | `tictactoe` | [Details](TICTACTOE.md) |
+| [`maze`](../../../../userland/apps/maze.c) | Generated maze navigation | `maze [-s seed]` | [Details](MAZE.md) |
 | [`reversi`](../../../../userland/apps/reversi.c) | Reversi against the computer | `reversi` | [Details](REVERSI.md) |
 | [`omikuji`](../../../../userland/apps/omikuji.c) | Fortune and input demo | `omikuji [-i \| seconds]` | — |
 | [`kitesys`](../../../../userland/apps/kitesys.c) | Embedded-system demo | `kitesys` | — |

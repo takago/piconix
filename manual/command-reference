@@ -33,10 +33,10 @@ SIDE EFFECTS / POTENTIAL BLOCKING
   trace on/off           changes trace capture mode
 
 INTERACTIVE / LONG-RUNNING
-  fd, edit, vi, mem, gpio, fbed, watch, pong, reversi, mb,
+  fd, edit, vi, mem, gpio, fbed, watch, top, pong, reversi, tictactoe, maze, mb,
   trace follow, bare python, indefinite tcpdump and listeners.
 Do not launch these via MCP execute_command.
-For Reversi keys, turns and PTY usage, read /man/reversi.
+For interactive game controls use /man/reversi, /man/tictactoe, /man/maze.
 
 SHELL LIMITS
   Supports simple pipelines and redirections, not full bash.

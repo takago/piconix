@@ -14,7 +14,7 @@ TOOL SELECTION
   terminal_send({text:'vi /tmp/x'}) type ordinary characters
   terminal_send({key:'ENTER'})   send named key
 Read actual tools/list argument schema; avoid invented fields.
-Never use execute_command for vi, fd, reversi or full-screen apps.
+Never use execute_command for vi, fd, reversi, tictactoe, maze or full-screen apps.
 See /man/terminal-operations before sending interactive input.
 
 LIMITS AND PROCESS COST

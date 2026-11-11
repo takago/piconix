@@ -19,20 +19,29 @@ int main(void){
  if(move(b,3,2,BLACK,0)!=1 || b[2*8+3])return 1;
  if(move(b,3,2,BLACK,1)!=1 || b[3*8+3]!=BLACK || b[2*8+3]!=BLACK)return 2;
  if(move(b,3,2,BLACK,1)!=0 || !can_move(b,WHITE))return 3;
- int x,y,invalid_com=0;computer_move(b,&x,&y,&invalid_com);
+ int x,y,invalid_com=0;computer_move(b,WHITE,&x,&y,&invalid_com);
  if(invalid_com)return 6;
  if(!inside(x,y)||b[y*8+x]!=WHITE)return 4;
  unsigned char empty[64]={0};
  if(can_move(empty,BLACK)||can_move(empty,WHITE))return 5;
  int invalid_player=0;
- if(player_move(b,3,2,&invalid_player)!=0 || invalid_player!=1)return 7;
- if(player_move(b,0,0,&invalid_player)!=0 || invalid_player!=2)return 8;
+ if(player_move(b,3,2,BLACK,&invalid_player)!=0 || invalid_player!=1)return 7;
+ if(player_move(b,0,0,BLACK,&invalid_player)!=0 || invalid_player!=2)return 8;
  unsigned char fresh[64]={0};
  fresh[3*8+3]=WHITE;fresh[3*8+4]=BLACK;
  fresh[4*8+3]=BLACK;fresh[4*8+4]=WHITE;
- if(player_move(fresh,3,2,&invalid_player)!=1 || invalid_player!=2)return 9;
+ if(player_move(fresh,3,2,BLACK,&invalid_player)!=1 || invalid_player!=2)return 9;
  if(fresh[3*8+3]!=BLACK)return 10;
- puts("PASS: reversi rules and COM reply");return 0;
+ /* White-player mode: black COM opens and white must have a reply. */
+ unsigned char opening[64]={0};
+ opening[3*8+3]=WHITE;opening[3*8+4]=BLACK;
+ opening[4*8+3]=BLACK;opening[4*8+4]=WHITE;
+ int ox,oy;computer_move(opening,BLACK,&ox,&oy,&invalid_com);
+ if(ox<0||opening[oy*8+ox]!=BLACK||!can_move(opening,WHITE))return 11;
+ int wx=-1,wy=-1;
+ for(int yy=0;yy<8;yy++)for(int xx=0;xx<8;xx++)if(move(opening,xx,yy,WHITE,0)>0){wx=xx;wy=yy;break;}
+ if(wx<0||!player_move(opening,wx,wy,WHITE,&invalid_player))return 12;
+ puts("PASS: reversi rules, both colors, COM opening and reply");return 0;
 }
 '''
 with tempfile.TemporaryDirectory() as tmp:
@@ -50,7 +59,11 @@ assert 'if(selected)printf("\\033[7m");' in source
 assert 'msleep(1000);' in source
 assert 'lastx=mx;lasty=my;' in source
 assert 'lastx=x;lasty=y;' in source
-assert 'render(board,x,y,turn,0,moves,lastx,lasty,invalid_black,invalid_white,"COM is thinking...");' in source
+assert 'render(board,x,y,turn,0,moves,lastx,lasty,invalid_player,invalid_com,player,"COM is thinking...");' in source
 assert 'Invalid moves: PLAYER %d  COM %d' in source
-assert 'if(!player_move(board,x,y,&invalid_black))' in source
-assert 'computer_move(board,&mx,&my,&invalid_white)' in source
+assert 'if(!player_move(board,x,y,player,&invalid_player))' in source
+assert 'computer_move(board,com,&mx,&my,&invalid_com)' in source
+
+assert 'strcmp(argv[1],"-c")' in source
+assert 'if(com==BLACK)' in source
+assert "else if(key=='r'||key=='R')goto restart;" in source

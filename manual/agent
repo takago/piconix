@@ -19,7 +19,7 @@ ROUTE EACH REQUEST
   2. Retrieve its manual topic; use help CMD if syntax is unclear.
   3. For observation, prefer bounded read-only execute_command.
      Never cat a streaming /dev node without bounds.
-  4. For vi/fd/reversi/other interactive apps, terminal_read FIRST;
+  4. For vi/fd/reversi/tictactoe/maze/other interactive apps, terminal_read FIRST;
      check whether the PTY is at shell prompt or inside an app.
   5. Before any irreversible or hardware-affecting change, obtain
      user approval and inspect file/device/pin ownership.
@@ -27,7 +27,7 @@ ROUTE EACH REQUEST
      verify observed effects. Report uncertainty explicitly.
 
 DO NOT USE execute_command FOR
-  vi, edit, fd, mem interactive view, fbed, watch, reversi, pong,
+  vi, edit, fd, mem interactive view, fbed, watch, reversi, tictactoe, maze, pong,
   bare python REPL, trace follow, or indefinite listeners.
   Short commands may include ps, ip, help, cat of finite files,
   hexdump with count, trace show, pwmctl status, mem -s.

@@ -15,12 +15,12 @@
 - 範囲欄の `static` はCの内部結合，`外部` は外部結合，`モジュール` と `内部名` はPythonの名前付け，`大域` はアセンブリラベルを表します．外部結合は公開APIを意味しません．
 - C言語の解析は簡易的な構文走査で，プリプロセッサの条件分岐を評価しません．環境依存の定義は両方載る場合があります．
 
-**掲載関数：851件（概要コメントあり：851件）**
+**掲載関数：875件（概要コメントあり：867件）**
 
 ## 分類別目次
 
 - [カーネル](#カーネル)：14ファイル
-- [アプリケーション](#アプリケーション)：56ファイル
+- [アプリケーション](#アプリケーション)：59ファイル
 - [ライブラリ](#ライブラリ)：5ファイル
 - [ホスト用ユーティリティ](#ホスト用ユーティリティ)：6ファイル
 
@@ -233,8 +233,8 @@
 |---|---:|---|---|
 | [`idle_network_wakeup()`](../../../kernel/main.c#L20) | 20 | static | IRQではネットワークに触れず，待機中のCore 0を起こすだけにする． |
 | [`idle_task()`](../../../kernel/main.c#L27) | 27 | static | ユーザタスクが動かない間のネットワーク・端末処理． |
-| [`register_image()`](../../../kernel/main.c#L101) | 101 | static | Flash内のバイナリ範囲をプログラムIDに紐づける． |
-| [`main()`](../../../kernel/main.c#L110) | 110 | 外部 | OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． |
+| [`register_image()`](../../../kernel/main.c#L104) | 104 | static | Flash内のバイナリ範囲をプログラムIDに紐づける． |
+| [`main()`](../../../kernel/main.c#L113) | 113 | 外部 | OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． |
 
 ### `kernel/net.c`（27件）
 
@@ -721,6 +721,19 @@
 | [`show_task()`](../../../userland/apps/lsof.c#L14) | 14 | static | /proc/task/PIDを解析して対象プロセスのFD一覧を表示する． |
 | [`main()`](../../../userland/apps/lsof.c#L55) | 55 | 外部 | 指定PIDまたは全プロセスについて，開いているFDの内容を表示する． |
 
+### `userland/apps/maze.c`（8件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`tick_seed()`](../../../userland/apps/maze.c#L15) | 15 | static | Read the 1 ms SysTick counter exposed by the kernel. |
+| [`random32()`](../../../userland/apps/maze.c#L27) | 27 | static | Xorshift32 needs a nonzero internal state. |
+| [`generate()`](../../../userland/apps/maze.c#L36) | 36 | static | Keep the writable map on the task stack: no absolute pointers in the PIC image. |
+| [`traversable()`](../../../userland/apps/maze.c#L67) | 67 | static | — |
+| [`shortest()`](../../../userland/apps/maze.c#L72) | 72 | static | A shortest route always exists because generation visits every odd cell. |
+| [`step()`](../../../userland/apps/maze.c#L94) | 94 | static | Only successful movements count toward Moves; walls count as Hits. |
+| [`render()`](../../../userland/apps/maze.c#L101) | 101 | static | — |
+| [`main()`](../../../userland/apps/maze.c#L124) | 124 | 外部 | — |
+
 ### `userland/apps/mb.c`（2件）
 
 | 関数 | 行 | 範囲 | 概要 |
@@ -937,7 +950,7 @@
 | [`can_move()`](../../../userland/apps/reversi.c#L47) | 47 | static | Find whether this side has at least one legal placement. |
 | [`computer_move()`](../../../userland/apps/reversi.c#L53) | 53 | static | Prefer corners; avoid squares adjacent to empty corners. |
 | [`render()`](../../../userland/apps/reversi.c#L72) | 72 | static | Draw the 8x8 board and status on a physical TTY or PTY. |
-| [`main()`](../../../userland/apps/reversi.c#L105) | 105 | 外部 | Set up a full-screen TTY session, play against COM, and restore modes. |
+| [`main()`](../../../userland/apps/reversi.c#L107) | 107 | 外部 | Set up a full-screen TTY session, play against COM, and restore modes. |
 
 ### `userland/apps/rm.c`（1件）
 
@@ -1012,6 +1025,29 @@
 | [`protocol()`](../../../userland/apps/tcpdump.c#L14) | 14 | static | IPv4プロトコル番号をTCP／UDP／ICMP等の表示名に対応付ける． |
 | [`show()`](../../../userland/apps/tcpdump.c#L19) | 19 | static | 保存されたパケット要約を読める形式で出力する． |
 | [`main()`](../../../userland/apps/tcpdump.c#L51) | 51 | 外部 | /dev/net/packetから受信・送信パケットの要約を読み，指定件数まで表示する． |
+
+### `userland/apps/tictactoe.c`（5件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`outcome()`](../../../userland/apps/tictactoe.c#L17) | 17 | static | Determine win, draw or unfinished board state. |
+| [`score()`](../../../userland/apps/tictactoe.c#L28) | 28 | static | Compute a minimax evaluation for the next side. |
+| [`computer_move()`](../../../userland/apps/tictactoe.c#L44) | 44 | static | Pick an optimal move for either side with a stable tie-break order. |
+| [`render()`](../../../userland/apps/tictactoe.c#L60) | 60 | static | Draw the board and status in the current terminal. |
+| [`main()`](../../../userland/apps/tictactoe.c#L90) | 90 | 外部 | Run an interactive TTY/PTY Tic-Tac-Toe session. |
+
+### `userland/apps/top.c`（8件）
+
+| 関数 | 行 | 範囲 | 概要 |
+|---|---:|---|---|
+| [`read_proc()`](../../../userland/apps/top.c#L15) | 15 | static | /proc files are finite, but read() may return partial data. |
+| [`tenths()`](../../../userland/apps/top.c#L29) | 29 | static | Convert one decimal value into tenths without floating-point code. |
+| [`cpu_latest()`](../../../userland/apps/top.c#L49) | 49 | static | Ignore the historical rows: only parse the newest finished one-second sample. |
+| [`show_line()`](../../../userland/apps/top.c#L69) | 69 | static | — |
+| [`task_lines()`](../../../userland/apps/top.c#L81) | 81 | static | Parse the kernel's task table, then format compact rows for 80-column TTYs. |
+| [`fmt_percent()`](../../../userland/apps/top.c#L110) | 110 | static | — |
+| [`refresh()`](../../../userland/apps/top.c#L115) | 115 | static | Refresh only changed terminal lines, without allocating a screen-sized buffer. |
+| [`main()`](../../../userland/apps/top.c#L157) | 157 | 外部 | — |
 
 ### `userland/apps/trace.c`（29件）
 
@@ -1257,16 +1293,19 @@
 | [`run()`](../../../host/mcp_client.py#L32) | 32 | モジュール | MCP接続を確立して要求を送る． |
 | [`main()`](../../../host/mcp_client.py#L73) | 73 | モジュール | 非同期クライアント処理を起動する． |
 
-### `host/mcp_llm_client.py`（6件）
+### `host/mcp_llm_client.py`（9件）
 
 | 関数 | 行 | 範囲 | 概要 |
 |---|---:|---|---|
-| [`styled()`](../../../host/mcp_llm_client.py#L47) | 47 | モジュール | Colorize labels only; never modify message content sent to the LLM. |
-| [`show()`](../../../host/mcp_llm_client.py#L54) | 54 | モジュール | Show a labeled message, coloring tool and status lines when supported. |
-| [`safe_user_text()`](../../../host/mcp_llm_client.py#L62) | 62 | モジュール | Escape lone Unicode surrogates before forwarding text to a UTF-8 API. |
-| [`reasoning_from_delta()`](../../../host/mcp_llm_client.py#L67) | 67 | モジュール | Ollama can expose thinking as reasoning_content or reasoning. |
-| [`stream_reply()`](../../../host/mcp_llm_client.py#L78) | 78 | モジュール | Print streamed reasoning/content and reassemble fragmented tool calls. |
-| [`main()`](../../../host/mcp_llm_client.py#L164) | 164 | モジュール | MCPクライアントとLLMの対話を実行する． |
+| [`styled()`](../../../host/mcp_llm_client.py#L50) | 50 | モジュール | Colorize labels only; never modify message content sent to the LLM. |
+| [`show()`](../../../host/mcp_llm_client.py#L57) | 57 | モジュール | Show a labeled message, coloring tool and status lines when supported. |
+| [`safe_user_text()`](../../../host/mcp_llm_client.py#L65) | 65 | モジュール | Escape lone Unicode surrogates before forwarding text to a UTF-8 API. |
+| [`usage_fields()`](../../../host/mcp_llm_client.py#L88) | 88 | モジュール | Read server-reported usage, not a tokenizer estimate. |
+| [`show_usage()`](../../../host/mcp_llm_client.py#L133) | 133 | モジュール | — |
+| [`default_log_path()`](../../../host/mcp_llm_client.py#L144) | 144 | モジュール | — |
+| [`reasoning_from_delta()`](../../../host/mcp_llm_client.py#L149) | 149 | モジュール | Ollama can expose thinking as reasoning_content or reasoning. |
+| [`stream_reply()`](../../../host/mcp_llm_client.py#L160) | 160 | モジュール | Print streamed reasoning/content and reassemble fragmented tool calls. |
+| [`main()`](../../../host/mcp_llm_client.py#L256) | 256 | モジュール | MCPクライアントとLLMの対話を実行する． |
 
 ### `host/mcp_pty_test.py`（1件）
 

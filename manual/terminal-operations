@@ -1,6 +1,6 @@
 MCP PERSISTENT TERMINAL - STATE-AWARE OPERATION
 
-USE FOR: vi, edit, fd, reversi, watch, interactive python and
+USE FOR: vi, edit, fd, reversi, tictactoe, maze, watch, interactive python and
 other full-screen or keyboard-driven programs. Do not use
 execute_command for these programs.
 
@@ -56,6 +56,8 @@ APPLICATION TOPICS
   /man/vi       vi mode, save, quit, literal replacement
   /man/fd       viewer vs list, keys, q behavior
   /man/reversi  player turn, COM delay, legal/illegal moves
+  /man/tictactoe  3x3 strategy and keys
+  /man/maze     navigation and score counters
   /man/pty      PTY device details, cursor markers
 
 EXAMPLE: READ FIRST, THEN START REVERSI

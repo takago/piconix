@@ -60,7 +60,7 @@ curl -i -X POST "http://$PICO_IP:8080/mcp" \
 - HTTP request buffer: 2,800 bytes; maximum JSON body: 2,400 bytes; one client processed at a time.
 - `execute_command` accepts up to 119 ASCII bytes of command text and up to 4 KiB of output, sent using HTTP/1.1 chunked transfer.
 - No SSE, `initialize`, notifications, or concurrent client processing.
-- Do not run interactive or full-screen applications such as `vi`, `edit`, `fd`, `mem`, `watch`, `pong`, or `reversi` with `execute_command`.
+- Do not run interactive or full-screen applications such as `vi`, `edit`, `fd`, `mem`, `watch`, `pong`, or `reversi`, `tictactoe`, `maze` with `execute_command`.
 
 
 ## 5. Local LLM and agent integration
@@ -117,6 +117,17 @@ python host/mcp_llm_client.py
 
 Type `exit` or `quit` to leave. Responses are streamed. With `SHOW_THINKING=False`, the client can still display a brief progress indicator if reasoning data is received. LLM output streaming is separate from chunked MCP HTTP responses.
 
+#### JSONL operation log and token usage
+
+Each run creates `logs/mcp_llm_YYYYMMDD-HHMMSS-ffffff.jsonl`. To specify a location, run `python host/mcp_llm_client.py --log /path/to/session.jsonl`. Existing files are never overwritten, and `logs/` is Git-ignored.
+
+The JSONL log (one event per line) records timestamps, user messages, assistant replies, MCP tool names/raw arguments/results/errors, per-API `usage`, per-turn summaries, and the full session summary. `[USAGE]` reports one API request; `[TURN]` aggregates all requests for one user prompt, including tool round trips; `[SESSION]` aggregates every turn in the running client. Prompt tokens include prior conversation text resent to the API, so cumulative numbers are not a unique conversation-token count.
+
+Usage is taken from the OpenAI-compatible streaming response's final `usage` chunk (`prompt_tokens` and `completion_tokens`). If unavailable, the client displays `N/A`, records how many API calls lacked usage and marks aggregate totals as partial rather than guessing. Separate reasoning fields are not copied to subsequent request history or written to JSONL. If the server includes reasoning tokens in completion usage, they remain included in the reported completion total.
+
+**Privacy:** Logs contain raw user inputs, commands, file contents, and terminal outputs. New logs use owner-only permissions (0600), but must not be publicly shared. Saving JSONL does not by itself preserve an agent's plan across model calls; this change leaves the conversation-history strategy unchanged.
+
+
 ### Example requests
 
 These are illustrative user prompts; **the tool calls actually chosen by the model are not guaranteed**.
@@ -130,7 +141,7 @@ These are illustrative user prompts; **the tool calls actually chosen by the mod
 
 `get_manual()` returns the `/man/README` index; `get_manual({"topic":"languages/c"})` retrieves one selected page.
 
-Use `execute_command` only for short noninteractive commands. Do not run full-screen tools such as `vi`, `edit`, `fd`, `mem`, `watch`, `pong`, or `reversi`. `write_file` overwrites ASCII text at `/tmp/NAME`; take care not to overwrite files unexpectedly.
+Use `execute_command` only for short noninteractive commands. Do not run full-screen tools such as `vi`, `edit`, `fd`, `mem`, `watch`, `pong`, or `reversi`, `tictactoe`, `maze`. `write_file` overwrites ASCII text at `/tmp/NAME`; take care not to overwrite files unexpectedly.
 
 ### Troubleshooting
 

@@ -1,0 +1,13 @@
+MAZE (INTERACTIVE)
+Use persistent PTY, NOT execute_command.
+At shell: text:'maze', key:'ENTER', terminal_read({}).
+Default maze uses the /proc/ticks (SysTick 1ms) seed. Every start changes the map.
+Use 'maze -s 1234' for a reproducible maze. Screen shows Seed: number;
+repeat with 'maze -s <number>' to analyze the same route.
+Map 21x9: # walls, @ player, G goal. Start (1,1), goal (17,7).
+All generated maps are connected; Shortest varies with the seed.
+Use key:'UP'/'DOWN'/'LEFT'/'RIGHT' for one-cell movement.
+Player: (x,y) uses origin (0,0) at the top left.
+Moves counts successful steps; Wall hits counts blocked attempts.
+r generates another maze by default; with -s it restarts the same maze.
+q returns to the shell. Read screen after each move.

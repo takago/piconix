@@ -1,5 +1,25 @@
 # PicoNIX Development Diary
 
+## 2026-11-11: JSONL logging and token accounting for the MCP-LLM client
+
+Added append-only JSONL events for conversations, MCP calls/results, and errors in `host/mcp_llm_client.py`. Server-reported streaming token usage is summarized per API request, per user turn and per session; missing usage is never estimated and missing-call counts are reported. Separate reasoning fields are still excluded from request history. Logs are created with owner-only permissions (0600) and Git-ignored. Offline streamed-response and aggregation tests were added; hardware and live LLM-server behavior remain unverified.
+
+## 2026-11-11: Lightweight `/proc`-based `top`
+
+Added `top [seconds]`, a user-space CPU and process viewer using `/proc/cpu`, `/proc/tasks`, `/proc/uptime`, and `/proc/context_switches`. Only changed terminal lines are redrawn; nonblocking input and `msleep()` avoid busy polling. The `q` key exits and restores TTY settings. No per-process CPU accounting or kernel API was added. Hardware testing remains pending.
+
+## 2026-11-11: Generate mazes using the SysTick seed
+
+Replaced the fixed `maze` map with a randomized, connected 21×9 maze seeded from `/proc/ticks` at launch. By default, `r` generates a new map. With `maze -s <seed>`, the map can be reproduced, including after `r`. The seed is displayed and BFS computes each map's shortest route. The mutable map is stored on the user-task stack to avoid absolute addresses in the PIC image. Added reproducibility and path tests across 300 seeds. Physical-device verification remains outstanding.
+
+## 2026-11-11: Starting-side selection
+Added `-c` (COM first) to Reversi and Tic-Tac-Toe, preserving the original PLAYER-first default and starting side across `r` restarts. Reversi now handles either color, automatic passes and winner attribution, while Tic-Tac-Toe uses exhaustive minimax for COM as X or O. Updated ROM manuals, bilingual references and host tests for both starting sides; hardware validation remains pending.
+
+## 2026-11-11: Add Tic-Tac-Toe and fixed Maze
+
+Added interactive `tictactoe` and `maze` to distinguish agent terminal controls and screen recognition from game strategy. Tic-Tac-Toe COM uses exhaustive search and reports invalid player placements. The deterministic maze tracks successful moves, wall hits, BFS shortest distance and completion efficiency. Both accept arrows or `h/j/k/l`, `r` to restart, and `q` to quit, on both TTY and persistent MCP PTY. Registered program IDs 59/60; no new kernel APIs.
+
+
 ## 2026-11-11 — Show 30 seconds of CPU load in a fixed-width table
 
 Extended `/proc/cpu` history from ten to thirty records and replaced CSV output with a fixed-width table: `Time | Idle Busy (Console Task Net) | Idle Busy (Console Task Net)`, grouping percentages and milliseconds separately. Samples remain at one-second intervals with newest-first ordering. Documentation explains that `Console` and `Net` measure elapsed time in `os_console_poll()` and `net_poll()`, not complete I/O wait time or isolated interrupt load. The user's idle measurements were approximately 6%, down from 95% before the WFI change, but these are estimates rather than precise CPU or power measurements.

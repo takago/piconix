@@ -1,10 +1,12 @@
-REVERSI - INTERACTIVE 8x8 BLACK vs COM (WHITE)
+REVERSI - INTERACTIVE 8x8 PLAYER vs COM
 
+Launch reversi (PLAYER Black first) or reversi -c (COM Black first).
+PLAYER is White when -c is used; r restarts with same sides.
 Use a physical terminal or MCP PTY. Never execute_command reversi.
 For MCP: terminal_send({text:"reversi"}), terminal_send({key:"ENTER"}), terminal_read({}),
 terminal_send({key:"SPACE"}), terminal_read({}); press q to exit.
-Keys: arrows or h/j/k/l move; SPACE places Black; q quits.
-B = player, W = COM, . = empty. Latest move: [B] or [W].
+Keys: arrows or h/j/k/l move; SPACE places PLAYER stone; r restarts; q quits.
+B = Black, W = White, . = empty; who owns them depends on -c. Latest move: [B] or [W].
 The cursor is inverse video. Turn: PLAYER means input is expected.
 After a legal move, Turn: COM / COM is thinking... appears and
 COM responds about one second later. Sending keys does not wait.

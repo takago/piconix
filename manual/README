@@ -46,9 +46,11 @@ OPERATING AND DEBUGGING
   vi             vi keys and literal substitution
   fd             fd navigation and viewer keys
   reversi        Reversi controls, PTY operation, turns and passes
+  tictactoe      3x3 game vs COM
+  maze           Maze and wall hits
+  top            Live CPU and process monitor
   led-patterns   /dev/fbchar glyphs
   pty            Pseudoterminal interfaces
-
 
 EXTENDED TASK-ORIENTED REFERENCES
   quickstart          First read-only probes + tool sequence

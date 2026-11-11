@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """Stream a local LLM's replies, reasoning, and MCP tool calls."""
 
+import argparse
 import asyncio
+from datetime import datetime, timezone
 import json
 import os
+from pathlib import Path
 import sys
 
 from mcp import Client
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, BadRequestError
 
 # Display undecodable Unicode as escape sequences instead of terminating.
 # The original MCP/LLM messages are never changed by this setting.
@@ -18,7 +21,7 @@ if hasattr(sys.stdin, "reconfigure"):
     sys.stdin.reconfigure(errors="backslashreplace")
 
 # Replace these placeholders with your own OpenAI-compatible server settings.
-LLM_URL = "http://#############:11434/v1"
+LLM_URL = "http://####################:11434/v1"
 LLM_MODEL = "huihui_ai/Qwen3.8-abliterated:latest"
 LLM_API_KEY = "fake"
 LLM_REASONING_EFFORT = "low"  # Ollama: none / low / medium / high
@@ -64,6 +67,86 @@ def safe_user_text(value):
     return value.encode("utf-8", errors="backslashreplace").decode("utf-8")
 
 
+class SessionLog:
+    """Append complete events as JSONL; keep the file private to this user."""
+
+    def __init__(self, path):
+        destination = Path(path)
+        self.path = destination
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        self.file = os.fdopen(fd, "w", encoding="utf-8", buffering=1)
+
+    def write(self, event, **fields):
+        item = {"time": datetime.now(timezone.utc).isoformat(), "event": event, **fields}
+        self.file.write(json.dumps(item, ensure_ascii=True) + "\n")
+        self.file.flush()
+
+    def close(self):
+        self.file.close()
+
+
+def usage_fields(usage):
+    """Read server-reported usage, not a tokenizer estimate."""
+    if usage is None:
+        return None
+    def get(field):
+        value = getattr(usage, field, None)
+        if value is None and isinstance(usage, dict):
+            value = usage.get(field)
+        return value if isinstance(value, int) and not isinstance(value, bool) and value >= 0 else None
+    prompt = get("prompt_tokens")
+    completion = get("completion_tokens")
+    total = get("total_tokens")
+    if total is None and prompt is not None and completion is not None:
+        total = prompt + completion
+    if prompt is None or completion is None or total is None:
+        return None
+    return {"prompt_tokens": prompt, "completion_tokens": completion,
+            "total_tokens": total}
+
+
+class UsageCounter:
+    """Sum measured API calls separately from calls with unavailable usage."""
+
+    def __init__(self):
+        self.calls = 0
+        self.measured = 0
+        self.prompt_tokens = 0
+        self.completion_tokens = 0
+        self.total_tokens = 0
+
+    def add(self, usage):
+        self.calls += 1
+        if usage is not None:
+            self.measured += 1
+            for key in ("prompt_tokens", "completion_tokens", "total_tokens"):
+                setattr(self, key, getattr(self, key) + usage[key])
+
+    def summary(self):
+        return {"api_calls": self.calls, "measured_calls": self.measured,
+                "missing_calls": self.calls - self.measured,
+                "prompt_tokens": self.prompt_tokens,
+                "completion_tokens": self.completion_tokens,
+                "total_tokens": self.total_tokens}
+
+
+def show_usage(label, value, missing=0):
+    if value is None:
+        show(label, "Prompt: N/A  Completion: N/A  Total: N/A (API usage unavailable)", "info")
+        return
+    text = (f"Prompt: {value['prompt_tokens']:,}  "
+            f"Completion: {value['completion_tokens']:,}  Total: {value['total_tokens']:,}")
+    if missing:
+        text += f"  (partial; {missing} API call(s) without usage)"
+    show(label, text, "info")
+
+
+def default_log_path():
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    return Path("logs") / f"mcp_llm_{stamp}.jsonl"
+
+
 def reasoning_from_delta(delta):
     """Ollama can expose thinking as reasoning_content or reasoning."""
     for key in ("reasoning_content", "reasoning"):
@@ -77,19 +160,26 @@ def reasoning_from_delta(delta):
 
 async def stream_reply(messages, tools):
     """Print streamed reasoning/content and reassemble fragmented tool calls."""
-    stream = await llm.chat.completions.create(
-        model=LLM_MODEL,
-        messages=messages,
-        tools=tools or None,
-        tool_choice="auto" if tools else "none",
-        reasoning_effort=LLM_REASONING_EFFORT,
-        stream=True,
-    )
+    params = dict(model=LLM_MODEL, messages=messages, tools=tools or None,
+                  tool_choice="auto" if tools else "none",
+                  reasoning_effort=LLM_REASONING_EFFORT, stream=True)
+    try:
+        stream = await llm.chat.completions.create(
+            **params, stream_options={"include_usage": True})
+    except BadRequestError as exc:
+        # Some OpenAI-compatible servers do not implement stream_options.
+        # Retry only when the request is explicitly rejected for that option;
+        # no streamed content or MCP action has been processed yet.
+        if "stream_options" not in str(exc).lower():
+            raise
+        show("[INFO]", "Server does not support stream_options; usage may be N/A", "info")
+        stream = await llm.chat.completions.create(**params)
     content = []
     tool_parts = {}
     active = None
     thinking_chars = 0
     progress_width = 0
+    usage = None
 
     def clear_progress():
         """Remove the in-place indicator before printing answer text."""
@@ -99,6 +189,9 @@ async def stream_reply(messages, tools):
         progress_width = 0
 
     async for chunk in stream:
+        reported = usage_fields(getattr(chunk, "usage", None))
+        if reported is not None:
+            usage = reported
         if not chunk.choices:
             continue  # e.g. final usage-only chunk
         delta = chunk.choices[0].delta
@@ -158,13 +251,18 @@ async def stream_reply(messages, tools):
     message = {"role": "assistant", "content": "".join(content)}
     if calls:
         message["tool_calls"] = calls
-    return message, calls
+    return message, calls, usage
 
 
-async def main():
+async def main(log_path=None):
     """MCPクライアントとLLMの対話を実行する．"""
     connected = False
+    session = UsageCounter()
+    log = None
     try:
+        log = SessionLog(log_path or default_log_path())
+        show("[LOG]", str(log.path), "info")
+        log.write("session_start", model=LLM_MODEL, reasoning_effort=LLM_REASONING_EFFORT)
         async with Client(MCP_URL, mode="auto") as mcp:
             show("[MCP] protocol:", mcp.protocol_version, "info")
             available = (await mcp.list_tools()).tools
@@ -180,6 +278,7 @@ async def main():
             connected = True
     
             messages = []  # No system prompt; use MCP tools and manuals as needed.
+            turn_index = 0
     
             while True:
                 try:
@@ -195,17 +294,30 @@ async def main():
                 if not question:
                     continue
     
+                turn_index += 1
+                turn = UsageCounter()
+                log.write("user", turn=turn_index, content=question)
                 messages.append({"role": "user", "content": question})
                 # Keep calling the LLM until it produces a final answer.
                 while True:
                     try:
-                        message, calls = await stream_reply(messages, tools)
+                        message, calls, usage = await stream_reply(messages, tools)
                     except Exception as exc:
                         # An incomplete streamed reply must not be added to history
                         # or retried automatically (a tool call may have side effects).
                         print()
                         show("[ERROR]", f"LLM応答を取得できませんでした: {exc}", "error")
+                        log.write("error", turn=turn_index, stage="llm", message=str(exc))
+                        # Usage is unknown for a failed or interrupted API call.
+                        turn.add(None)
+                        session.add(None)
                         break
+                    turn.add(usage)
+                    session.add(usage)
+                    log.write("assistant", turn=turn_index, content=message["content"],
+                              tool_calls=calls)
+                    log.write("usage", turn=turn_index, api_call=turn.calls, usage=usage)
+                    show_usage("[USAGE]", usage)
                     messages.append(message)
     
                     if not calls:
@@ -216,6 +328,9 @@ async def main():
                     for call in calls:
                         name = call["function"]["name"]
                         failed = False
+                        log.write("tool_call", turn=turn_index,
+                                  tool_call_id=call["id"], name=name,
+                                  arguments_raw=call["function"]["arguments"])
                         try:
                             args = json.loads(call["function"]["arguments"] or "{}")
                             if not isinstance(args, dict):
@@ -233,6 +348,9 @@ async def main():
                         except Exception as exc:
                             failed = True
                             output = f"Tool error: {exc}"
+                        log.write("tool_result", turn=turn_index,
+                                  tool_call_id=call["id"], name=name,
+                                  content=output, is_error=failed)
                         show("[ERROR]" if failed else "[RESULT]", output,
                              "error" if failed else "result")
                         messages.append({
@@ -240,6 +358,10 @@ async def main():
                             "tool_call_id": call["id"],
                             "content": output,
                         })
+                summary = turn.summary()
+                log.write("turn_summary", turn=turn_index, **summary)
+                show_usage("[TURN]", summary if turn.measured else None,
+                           missing=turn.calls - turn.measured)
     except Exception as exc:
         if not connected:
             show("[ERROR]", "MCPサーバに接続できません．PicoNIXでmcpdは起動していますか？", "error")
@@ -247,8 +369,18 @@ async def main():
         else:
             show("[ERROR]", f"MCP通信でエラーが発生しました: {exc}", "error")
         return False
+    finally:
+        if log is not None:
+            summary = session.summary()
+            log.write("session_summary", **summary)
+            show_usage("[SESSION]", summary if session.measured else None,
+                       missing=session.calls - session.measured)
+            log.close()
     return True
 
 
 if __name__ == "__main__":
-    raise SystemExit(0 if asyncio.run(main()) else 1)
+    parser = argparse.ArgumentParser(description="PicoNIX MCP-to-LLM client with JSONL logging")
+    parser.add_argument("--log", type=Path, help="New JSONL log file (default: logs/mcp_llm_<time>.jsonl)")
+    options = parser.parse_args()
+    raise SystemExit(0 if asyncio.run(main(options.log)) else 1)

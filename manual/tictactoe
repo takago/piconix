@@ -1,0 +1,11 @@
+TIC-TAC-TOE (INTERACTIVE)
+Use terminal_send and terminal_read on persistent PTY, NOT execute_command.
+At shell: text:'tictactoe' (PLAYER first) or 'tictactoe -c' (COM first),
+key:'ENTER', terminal_read({}).
+Default PLAYER=X first, COM=O second; -c reverses their marks. Select a 3x3 cell with arrows (or h j k l).
+Use key:'SPACE' to place your mark. Columns a-c, rows 1-3.
+After valid move COM responds after about 400 ms; read again,
+check Turn: PLAYER before next placement. [X]/[O] is last move;
+reverse video is cursor selection, not necessarily last move.
+Occupied cell increments Invalid moves: PLAYER. COM uses full
+search and cannot lose. r resets, preserving -c; q exits to the shared shell.

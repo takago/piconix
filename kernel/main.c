@@ -95,6 +95,9 @@ extern const unsigned char piconix_mcpd_image_start[], piconix_mcpd_image_end[];
 extern const unsigned char piconix_scroll_image_start[], piconix_scroll_image_end[];
 extern const unsigned char piconix_pty_test_image_start[], piconix_pty_test_image_end[];
 extern const unsigned char piconix_reversi_image_start[], piconix_reversi_image_end[];
+extern const unsigned char piconix_tictactoe_image_start[], piconix_tictactoe_image_end[];
+extern const unsigned char piconix_maze_image_start[], piconix_maze_image_end[];
+extern const unsigned char piconix_top_image_start[], piconix_top_image_end[];
 #define RAM_APP_ORIGIN 0x2000E000u
 
 /* Flash内のバイナリ範囲をプログラムIDに紐づける．entryは全アプリ共通のスロット先頭アドレスを使い，spawn時に実体をコピーする． */
@@ -163,6 +166,9 @@ int main(void) {
     register_image(51,"scroll",piconix_scroll_image_start,piconix_scroll_image_end);
     register_image(56,"pty_test",piconix_pty_test_image_start,piconix_pty_test_image_end);
     register_image(57,"reversi",piconix_reversi_image_start,piconix_reversi_image_end);
+    register_image(59,"tictactoe",piconix_tictactoe_image_start,piconix_tictactoe_image_end);
+    register_image(60,"maze",piconix_maze_image_start,piconix_maze_image_end);
+    register_image(61,"top",piconix_top_image_start,piconix_top_image_end);
     net_init();
 #if PICONIX_WIFI
     /* 250 usの期限で割込み起床．失敗時はネットワークのbusy pollを維持する． */

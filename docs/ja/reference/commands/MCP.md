@@ -60,7 +60,7 @@ curl -i -X POST "http://$PICO_IP:8080/mcp" \
 - HTTP要求バッファは2,800バイト，JSON本文は最大2,400バイトで，接続は1件ずつ処理します．
 - `execute_command`のコマンド文字列はASCIIで最大119バイト，出力は最大4 KiBです．応答はHTTP/1.1のchunked転送を使用します．
 - SSE，`initialize`，通知，複数クライアントの同時処理には対応していません．
-- `vi`，`edit`，`fd`，`mem`，`watch`，`pong`，`reversi`などの対話型・全画面プログラムを`execute_command`から起動しないでください．
+- `vi`，`edit`，`fd`，`mem`，`watch`，`pong`，`reversi`，`tictactoe`，`maze`などの対話型・全画面プログラムを`execute_command`から起動しないでください．
 
 
 ## 5．ローカルLLMとエージェントの利用
@@ -117,6 +117,17 @@ python host/mcp_llm_client.py
 
 `exit`か`quit`で終了します．LLMの回答はストリーミング表示されます．`SHOW_THINKING=False`でも，サーバから思考データが届く場合に簡単な進行表示が出ます．MCP応答のchunked転送とは別の仕組みです．
 
+#### JSONL操作ログとトークン使用量
+
+実行時に`logs/mcp_llm_YYYYMMDD-HHMMSS-ffffff.jsonl`を新規作成し，会話とMCP操作を逐次記録します．保存先を変える場合は`python host/mcp_llm_client.py --log /path/to/session.jsonl`とします．既存ファイルは上書きしません．終了後もログは残り，`logs/`はGit管理対象から除外されます．
+
+ログには時刻，ユーザ入力，LLM回答，MCPのツール名・生引数・結果・エラー，API単位の`usage`，ターン集計，セッション集計をJSONL形式（1行1イベント）で保存します．`[USAGE]`はAPI呼び出しごと，`[TURN]`はユーザ入力1件に伴う全LLM呼び出しの合計，`[SESSION]`は起動中の全ターンの合計です．Promptには再送信された過去の会話も含まれるため，累積数値は会話本文の長さではありません．
+
+使用量はOpenAI互換APIのストリーミング最終チャンクにある`usage.prompt_tokens`／`completion_tokens`を取得します．サーバが未対応なら`N/A`と表示し，計測されなかったAPI呼び出し件数を記録します．欠損がある合計値は部分集計であり，推測で補いません．モデルが思考本文を別フィールドで返しても，従来どおり次のAPI要求の会話履歴には加えず，JSONLにも思考本文は保存しません．ただしサーバが`completion_tokens`に思考トークンを含める場合はその数も合計に含まれます．
+
+**注意：** JSONLには利用者の入力，実行コマンド，ファイル内容，端末出力などがそのまま保存されます．ログは所有者のみ読み書き可能な権限（0600）で新規作成しますが，共有・公開しないでください．JSONLへの保存だけで計画がLLMに引き継がれるわけではなく，現行の会話履歴管理は変更していません．
+
+
 ### 操作例
 
 次は入力例です．**モデルが実際に選ぶツールや引数は保証されません．**
@@ -130,7 +141,7 @@ python host/mcp_llm_client.py
 
 `get_manual()`は`/man/README`の目次を返します．例えば`get_manual({"topic":"languages/c"})`で対象ページを取得します．
 
-`execute_command`は短い非対話コマンドに限ります．`vi`，`edit`，`fd`，`mem`，`watch`，`pong`，`reversi`などの全画面プログラムを実行しないでください．`write_file`は`/tmp/NAME`のASCIIテキストを上書きするため，既存ファイルへの影響に注意してください．
+`execute_command`は短い非対話コマンドに限ります．`vi`，`edit`，`fd`，`mem`，`watch`，`pong`，`reversi`，`tictactoe`，`maze`などの全画面プログラムを実行しないでください．`write_file`は`/tmp/NAME`のASCIIテキストを上書きするため，既存ファイルへの影響に注意してください．
 
 ### うまく動かない場合
 

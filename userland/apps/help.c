@@ -32,6 +32,7 @@ int main(int argc, char **argv) {
         puts("\nSystem and diagnostics:");
         puts("  help       Command list and usage");
         puts("  ps         Show processes");
+        puts("  top        Live CPU and process viewer");
         puts("  kill       Stop a process");
         puts("  tty        Show controlling terminal");
         puts("  pty_test   Run a command through a PTY");
@@ -70,6 +71,8 @@ int main(int argc, char **argv) {
         puts("  mb         Moon Buggy game");
         puts("  pong       Pong game");
         puts("  reversi    Reversi vs computer");
+        puts("  tictactoe  Tic-tac-toe vs computer");
+        puts("  maze       Maze navigation game");
         puts("  omikuji    Countdown fortune");
         puts("  kitesys    Kanazawa Institute of Tech. Embedded System Test Program");
         puts("\nManual: ls /man ; cat /man/README ; cat /man/agent");
@@ -88,6 +91,7 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"hexdump")) puts("hexdump: Hex and ASCII dump\nusage: hexdump [file [offset [count]]]");
     else if(!strcmp(argv[1],"trace")) puts("trace: Trace system calls and kernel events\nusage: trace on [-s|-a]|off|show [PID]|follow [PID]|run [-s|-a] CMD [args...]\n-s: syscalls only; -a: include all contexts\nTrace buffer overwrites old records when full");
     else if(!strcmp(argv[1],"ps")) puts("ps: Show processes\nusage: ps");
+    else if(!strcmp(argv[1],"top")) puts("top: Live CPU and process viewer\nusage: top [seconds] (1..60)\nq: quit; CPU values are approximate system-wide totals");
     else if(!strcmp(argv[1],"cut")) puts("cut: Select text fields (not a quoted CSV parser)\nusage: cut [-d CHAR] -f LIST [FILE]\nLIST: 1-based fields 1..64, e.g. 1,4 or 2-5\nNo delimiter: pass line unchanged\nexample: cut -d, -f1,4 /tmp/data.csv");
     else if(!strcmp(argv[1],"grep")) puts("grep: Filter matching lines from a file or standard input\nusage: grep PATTERN [file]\nLiteral substring; lines over 128 bytes are skipped");
     else if(!strcmp(argv[1],"ping")) puts("ping: ICMP Echo tests (Pico W)\nusage: ping [-c COUNT] IPv4\nDefault: 4 probes; numerical IPv4 only\nexample: ping -c 2 192.168.4.2");
@@ -126,6 +130,8 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"mb")) puts("mb: Moon Buggy game\nusage: mb\nSPACE/j: jump, q: quit (no -2 option)");
     else if(!strcmp(argv[1],"reset")) puts("reset: Reset terminal display/settings\nusage: reset");
     else if(!strcmp(argv[1],"lsof")) puts("lsof: Show open files\nusage: lsof [PID]");
+    else if(!strcmp(argv[1],"tictactoe")) puts("tictactoe: Tic-tac-toe against COM\nusage: tictactoe\nArrows: select square; SPACE: place; r: restart; q: quit");
+    else if(!strcmp(argv[1],"maze")) puts("maze: Generate a random maze\nusage: maze [-s seed]\nArrows: move; r: new maze (same with -s); q: quit");
     else if(!strcmp(argv[1],"reversi")) puts("reversi: Reversi against COM\nusage: reversi\nArrow keys: move; SPACE: place; q: quit");
     else if(!strcmp(argv[1],"pong")) puts("pong: Pong game\nusage: pong [-2]\n-2: two-player mode on both terminals");
     else if(!strcmp(argv[1],"gpio")) puts("gpio: Interactive GPIO editor\nusage: gpio\nArrows: select; i/o: input/output; h/l/SPACE: output level\nu/d/n: pull up/down/none for input; q: quit");

@@ -11,12 +11,12 @@ function names, paths, line numbers and links are language-neutral.
 - **Coverage:** only definitions; comments are extracted by a lightweight parser,
   which does not evaluate preprocessor conditionals.
 
-**Indexed functions: 851 (with summaries: 851)**
+**Indexed functions: 875 (with summaries: 867)**
 
 ## By component
 
 - [Kernel](#kernel) — 14 source files
-- [Applications](#applications) — 56 source files
+- [Applications](#applications) — 59 source files
 - [Library](#library) — 5 source files
 - [Host utilities](#host-utilities) — 6 source files
 
@@ -229,8 +229,8 @@ function names, paths, line numbers and links are language-neutral.
 |---|---:|---|---|
 | [`idle_network_wakeup()`](../../../kernel/main.c#L20) | 20 | static | IRQではネットワークに触れず，待機中のCore 0を起こすだけにする． |
 | [`idle_task()`](../../../kernel/main.c#L27) | 27 | static | ユーザタスクが動かない間のネットワーク・端末処理． |
-| [`register_image()`](../../../kernel/main.c#L101) | 101 | static | Flash内のバイナリ範囲をプログラムIDに紐づける． |
-| [`main()`](../../../kernel/main.c#L110) | 110 | external | OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． |
+| [`register_image()`](../../../kernel/main.c#L104) | 104 | static | Flash内のバイナリ範囲をプログラムIDに紐づける． |
+| [`main()`](../../../kernel/main.c#L113) | 113 | external | OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． |
 
 ### `kernel/net.c` (27 functions)
 
@@ -717,6 +717,19 @@ function names, paths, line numbers and links are language-neutral.
 | [`show_task()`](../../../userland/apps/lsof.c#L14) | 14 | static | /proc/task/PIDを解析して対象プロセスのFD一覧を表示する． |
 | [`main()`](../../../userland/apps/lsof.c#L55) | 55 | external | 指定PIDまたは全プロセスについて，開いているFDの内容を表示する． |
 
+### `userland/apps/maze.c` (8 functions)
+
+| Function | Line | Linkage | Source comment |
+|---|---:|---|---|
+| [`tick_seed()`](../../../userland/apps/maze.c#L15) | 15 | static | Read the 1 ms SysTick counter exposed by the kernel. |
+| [`random32()`](../../../userland/apps/maze.c#L27) | 27 | static | Xorshift32 needs a nonzero internal state. |
+| [`generate()`](../../../userland/apps/maze.c#L36) | 36 | static | Keep the writable map on the task stack: no absolute pointers in the PIC image. |
+| [`traversable()`](../../../userland/apps/maze.c#L67) | 67 | static | — |
+| [`shortest()`](../../../userland/apps/maze.c#L72) | 72 | static | A shortest route always exists because generation visits every odd cell. |
+| [`step()`](../../../userland/apps/maze.c#L94) | 94 | static | Only successful movements count toward Moves; walls count as Hits. |
+| [`render()`](../../../userland/apps/maze.c#L101) | 101 | static | — |
+| [`main()`](../../../userland/apps/maze.c#L124) | 124 | external | — |
+
 ### `userland/apps/mb.c` (2 functions)
 
 | Function | Line | Linkage | Source comment |
@@ -933,7 +946,7 @@ function names, paths, line numbers and links are language-neutral.
 | [`can_move()`](../../../userland/apps/reversi.c#L47) | 47 | static | Find whether this side has at least one legal placement. |
 | [`computer_move()`](../../../userland/apps/reversi.c#L53) | 53 | static | Prefer corners; avoid squares adjacent to empty corners. |
 | [`render()`](../../../userland/apps/reversi.c#L72) | 72 | static | Draw the 8x8 board and status on a physical TTY or PTY. |
-| [`main()`](../../../userland/apps/reversi.c#L105) | 105 | external | Set up a full-screen TTY session, play against COM, and restore modes. |
+| [`main()`](../../../userland/apps/reversi.c#L107) | 107 | external | Set up a full-screen TTY session, play against COM, and restore modes. |
 
 ### `userland/apps/rm.c` (1 functions)
 
@@ -1008,6 +1021,29 @@ function names, paths, line numbers and links are language-neutral.
 | [`protocol()`](../../../userland/apps/tcpdump.c#L14) | 14 | static | IPv4プロトコル番号をTCP／UDP／ICMP等の表示名に対応付ける． |
 | [`show()`](../../../userland/apps/tcpdump.c#L19) | 19 | static | 保存されたパケット要約を読める形式で出力する． |
 | [`main()`](../../../userland/apps/tcpdump.c#L51) | 51 | external | /dev/net/packetから受信・送信パケットの要約を読み，指定件数まで表示する． |
+
+### `userland/apps/tictactoe.c` (5 functions)
+
+| Function | Line | Linkage | Source comment |
+|---|---:|---|---|
+| [`outcome()`](../../../userland/apps/tictactoe.c#L17) | 17 | static | Determine win, draw or unfinished board state. |
+| [`score()`](../../../userland/apps/tictactoe.c#L28) | 28 | static | Compute a minimax evaluation for the next side. |
+| [`computer_move()`](../../../userland/apps/tictactoe.c#L44) | 44 | static | Pick an optimal move for either side with a stable tie-break order. |
+| [`render()`](../../../userland/apps/tictactoe.c#L60) | 60 | static | Draw the board and status in the current terminal. |
+| [`main()`](../../../userland/apps/tictactoe.c#L90) | 90 | external | Run an interactive TTY/PTY Tic-Tac-Toe session. |
+
+### `userland/apps/top.c` (8 functions)
+
+| Function | Line | Linkage | Source comment |
+|---|---:|---|---|
+| [`read_proc()`](../../../userland/apps/top.c#L15) | 15 | static | /proc files are finite, but read() may return partial data. |
+| [`tenths()`](../../../userland/apps/top.c#L29) | 29 | static | Convert one decimal value into tenths without floating-point code. |
+| [`cpu_latest()`](../../../userland/apps/top.c#L49) | 49 | static | Ignore the historical rows: only parse the newest finished one-second sample. |
+| [`show_line()`](../../../userland/apps/top.c#L69) | 69 | static | — |
+| [`task_lines()`](../../../userland/apps/top.c#L81) | 81 | static | Parse the kernel's task table, then format compact rows for 80-column TTYs. |
+| [`fmt_percent()`](../../../userland/apps/top.c#L110) | 110 | static | — |
+| [`refresh()`](../../../userland/apps/top.c#L115) | 115 | static | Refresh only changed terminal lines, without allocating a screen-sized buffer. |
+| [`main()`](../../../userland/apps/top.c#L157) | 157 | external | — |
 
 ### `userland/apps/trace.c` (29 functions)
 
@@ -1253,16 +1289,19 @@ function names, paths, line numbers and links are language-neutral.
 | [`run()`](../../../host/mcp_client.py#L32) | 32 | module | MCP接続を確立して要求を送る． |
 | [`main()`](../../../host/mcp_client.py#L73) | 73 | module | 非同期クライアント処理を起動する． |
 
-### `host/mcp_llm_client.py` (6 functions)
+### `host/mcp_llm_client.py` (9 functions)
 
 | Function | Line | Linkage | Source comment |
 |---|---:|---|---|
-| [`styled()`](../../../host/mcp_llm_client.py#L47) | 47 | module | Colorize labels only; never modify message content sent to the LLM. |
-| [`show()`](../../../host/mcp_llm_client.py#L54) | 54 | module | Show a labeled message, coloring tool and status lines when supported. |
-| [`safe_user_text()`](../../../host/mcp_llm_client.py#L62) | 62 | module | Escape lone Unicode surrogates before forwarding text to a UTF-8 API. |
-| [`reasoning_from_delta()`](../../../host/mcp_llm_client.py#L67) | 67 | module | Ollama can expose thinking as reasoning_content or reasoning. |
-| [`stream_reply()`](../../../host/mcp_llm_client.py#L78) | 78 | module | Print streamed reasoning/content and reassemble fragmented tool calls. |
-| [`main()`](../../../host/mcp_llm_client.py#L164) | 164 | module | MCPクライアントとLLMの対話を実行する． |
+| [`styled()`](../../../host/mcp_llm_client.py#L50) | 50 | module | Colorize labels only; never modify message content sent to the LLM. |
+| [`show()`](../../../host/mcp_llm_client.py#L57) | 57 | module | Show a labeled message, coloring tool and status lines when supported. |
+| [`safe_user_text()`](../../../host/mcp_llm_client.py#L65) | 65 | module | Escape lone Unicode surrogates before forwarding text to a UTF-8 API. |
+| [`usage_fields()`](../../../host/mcp_llm_client.py#L88) | 88 | module | Read server-reported usage, not a tokenizer estimate. |
+| [`show_usage()`](../../../host/mcp_llm_client.py#L133) | 133 | module | — |
+| [`default_log_path()`](../../../host/mcp_llm_client.py#L144) | 144 | module | — |
+| [`reasoning_from_delta()`](../../../host/mcp_llm_client.py#L149) | 149 | module | Ollama can expose thinking as reasoning_content or reasoning. |
+| [`stream_reply()`](../../../host/mcp_llm_client.py#L160) | 160 | module | Print streamed reasoning/content and reassemble fragmented tool calls. |
+| [`main()`](../../../host/mcp_llm_client.py#L256) | 256 | module | MCPクライアントとLLMの対話を実行する． |
 
 ### `host/mcp_pty_test.py` (1 functions)
 
