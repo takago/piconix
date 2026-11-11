@@ -1,6 +1,6 @@
 # コマンドリファレンス
 
-この一覧は，`CMakeLists.txt`で標準組込み対象として登録されている**全57個のアプリケーション**と，シェル組込みコマンドを対象とします．一般的なUNIXのコマンドと同名でも，PicoNIXの引数や機能は限定されています．
+この一覧は，`CMakeLists.txt`で標準組込み対象として登録されている**全59個のアプリケーション**と，シェル組込みコマンドを対象とします．一般的なUNIXのコマンドと同名でも，PicoNIXの引数や機能は限定されています．
 
 構文は要約です．`help NAME`でファームウェア内の簡易ヘルプを確認できます．詳しい操作を必要とするコマンドは「詳細」から専用文書を参照してください．ネットワーク機能の一部はPico W専用です．
 
@@ -83,6 +83,8 @@
 | [`mb`](../../../../userland/apps/mb.c) | Moon Buggyゲーム | `mb` | — |
 | [`pong`](../../../../userland/apps/pong.c) | Pongゲーム | `pong [-2]` | [解説](PONG.md) |
 | [`tictactoe`](../../../../userland/apps/tictactoe.c) | 三目並べ（COM対戦） | `tictactoe` | [解説](TICTACTOE.md) |
+| [`sudoku`](../../../../userland/apps/sudoku.c) | 4×4・9×9数独 | `sudoku [-4] [-s seed]` | [解説](SUDOKU.md) |
+| [`samegame`](../../../../userland/apps/samegame.c) | A・B・Cのブロック消去 | `samegame [-s seed]` | [解説](SAMEGAME.md) |
 | [`maze`](../../../../userland/apps/maze.c) | 自動生成迷路の移動ゲーム | `maze [-s seed]` | [解説](MAZE.md) |
 | [`reversi`](../../../../userland/apps/reversi.c) | コンピュータ対戦のリバーシ | `reversi` | [解説](REVERSI.md) |
 | [`omikuji`](../../../../userland/apps/omikuji.c) | おみくじ・入力デモ | `omikuji [-i \| seconds]` | — |

@@ -1,5 +1,21 @@
 # PicoNIX Development Diary
 
+## 2026-11-12: Enlarge SameGame board to 20×12
+
+Expanded the SameGame board from 10×8 (80 cells) to 20×12 (240 cells), fitting the full display into an 80×24-character terminal. Adjusted row and column labels; direct MCP moves now require a two-digit row (`:a01` through `:t12`). Seed reproduction, gravity, column packing, scoring, and process-local high scores remain unchanged. No kernel, syscall, or program ID changes.
+
+## 2026-11-12: Improve Sudoku editability and SameGame high scores
+
+Changed Sudoku's text display to show given digits without brackets, editable blanks as `[ ]`, and user entries as `[3]`, so MCP text-only screens distinguish editable cells. In-range entries are retained even when they duplicate another digit; `Conflicts` reports affected cells while `Rejected` counts blocked edits to givens and out-of-range inputs. Completion still requires a full, conflict-free grid. SameGame now tracks `Best` and `Best seed` for the lifetime of the process, retaining both across `r` restarts. No persistence to files or kernel changes.
+
+## 2026-11-12: Reassign `sudoku` and `samegame` program IDs
+
+Moved `sudoku` from program ID 62 to 52 and `samegame` from 63 to 53, reusing available IDs without changing registry capacity. Updated the opt-in `greet` and `udp_once` application examples to use the newly available IDs 62 and 63 and revised ID regression tests. Game behavior and kernel APIs are unchanged.
+
+## 2026-11-12: `sudoku` and `samegame` puzzle applications
+
+Added 4×4/9×9 Sudoku and 10×8 SameGame with ASCII A/B/C blocks. Both games use reproducible SysTick seeds (`-s`), cursor keys and direct coordinate commands for MCP/LLM experiments. Sudoku permutes two unique-solution templates; SameGame supports group removal, gravity, left packing and scoring. Registered as program IDs 62/63, with no kernel or syscall changes. Added Japanese/English command references, embedded ROM manuals and regression tests. Physical-device verification remains pending.
+
 ## 2026-11-11: JSONL logging and token accounting for the MCP-LLM client
 
 Added append-only JSONL events for conversations, MCP calls/results, and errors in `host/mcp_llm_client.py`. Server-reported streaming token usage is summarized per API request, per user turn and per session; missing usage is never estimated and missing-call counts are reported. Separate reasoning fields are still excluded from request history. Logs are created with owner-only permissions (0600) and Git-ignored. Offline streamed-response and aggregation tests were added; hardware and live LLM-server behavior remain unverified.

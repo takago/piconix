@@ -66,6 +66,7 @@ static int cpu_latest(const char *input,unsigned values[5]){
     return 0;
 }
 
+/* Update a screen row only if its content changed. */
 static void show_line(char previous[TOP_ROWS][TOP_COLS+1],int row,const char *text){
     char clipped[TOP_COLS+1];
     unsigned len=(unsigned)strlen(text);
@@ -107,6 +108,7 @@ static int task_lines(char previous[TOP_ROWS][TOP_COLS+1],const char *data){
     return count;
 }
 
+/* Format a CPU percentage in fixed-width output. */
 static void fmt_percent(char *out,unsigned n){
     snprintf(out,12,"%u.%u%%",n/10u,n%10u);
 }
@@ -154,6 +156,7 @@ static void refresh(char previous[TOP_ROWS][TOP_COLS+1],unsigned interval){
     fflush(stdout);
 }
 
+/* Present live process and CPU summaries until quit. */
 int main(int argc,char **argv){
     unsigned interval=1;
     if(argc>2){puts("usage: top [seconds] (1..60)");return 1;}

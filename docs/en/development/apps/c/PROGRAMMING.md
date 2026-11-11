@@ -68,10 +68,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 Add a call alongside the other `register_image(...)` calls in `main()`:
 
 ```c
-register_image(52, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(62, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**52 is available in the current `kernel/main.c`.** Choose an unused program ID when adding an application. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
+**62 is available in the current `kernel/main.c`.** Choose an unused program ID when adding an application. PicoNIX currently supports registry IDs **1–64** (0 is reserved). The `greet` name is what will appear in `/bin` and be resolved by the shell. You do not need to modify the shell to recognize the command. Files in `/tmp` are not dynamically loaded as native C executables.
 
 ## 4. Build and run
 

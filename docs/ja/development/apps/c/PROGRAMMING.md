@@ -68,10 +68,10 @@ extern const unsigned char piconix_greet_image_start[], piconix_greet_image_end[
 さらに`main()`内の既存の`register_image(...)`と並べて登録します．
 
 ```c
-register_image(52, "greet", piconix_greet_image_start, piconix_greet_image_end);
+register_image(62, "greet", piconix_greet_image_start, piconix_greet_image_end);
 ```
 
-**現在の`kernel/main.c`では52番は未使用です．** アプリを追加するときは未使用の登録IDを選びます．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
+**現在の`kernel/main.c`では62番は未使用です．** アプリを追加するときは未使用の登録IDを選びます．現在，プログラム登録IDは**1〜64**で，0は予約されています．`greet`という登録名が`/bin`に現れ，シェルから起動できます．シェル本体にコマンド専用の処理を追加する必要はありません．なお，`/tmp`に置いたC実行ファイルを動的にロードする方式ではありません．
 
 ## 4．ビルド・書き込み・実行
 

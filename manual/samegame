@@ -1,0 +1,15 @@
+SAMEGAME (INTERACTIVE)
+Use persistent MCP PTY and terminal_send/terminal_read, NOT execute_command.
+'samegame' makes a new seeded 20x12 board with block letters A, B and C.
+'samegame -s 1234' repeats the same initial board. Seed appears on screen.
+Adjacent same-letter groups of at least 2 (up/down/left/right) may be removed.
+Removed blocks disappear; blocks fall, empty columns shift left.
+Arrows or h/j/k/l select a block. SPACE removes a connected group.
+LLM shortcut: send text ':a01' for a, row 1; ':t12' for t, row 12.
+Rows always use two digits (01 through 12); no Enter needed. Re-read the screen after EVERY removal: positions shift.
+Score for n blocks is (n-2)^2; clearing the entire board adds 1000.
+Group shows the selected component size. Invalid counts failed removals.
+Best is the highest score reached in this process, retained across r restarts.
+Best seed remembers the board producing that score. Quitting loses the record.
+r creates a new board by default; with -s, r repeats the original board.
+q quits. The round ends when no group of at least two remains.

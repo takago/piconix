@@ -56,10 +56,10 @@ extern const unsigned char piconix_udp_once_image_start[], piconix_udp_once_imag
 extern const unsigned char piconix_tcp_get_image_start[], piconix_tcp_get_image_end[];
 ```
 
-同じ`main()`内で，既存の`register_image()`に続けて登録します．未改造の現行ソースでは登録ID53・54が未使用です（49は`mcpd`，50は`cc`，51は`scroll`が使用中）．**別のアプリを登録している場合は`kernel/main.c`で空きを再確認**してください．
+同じ`main()`内で，既存の`register_image()`に続けて登録します．現行ソースでは登録ID63・54が未使用です（52は`sudoku`，53は`samegame`が使用中）．**別のアプリを登録している場合は`kernel/main.c`で空きを再確認**してください．
 
 ```c
-register_image(53, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
+register_image(63, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
 register_image(54, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image_end);
 ```
 

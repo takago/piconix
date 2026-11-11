@@ -11,12 +11,12 @@ function names, paths, line numbers and links are language-neutral.
 - **Coverage:** only definitions; comments are extracted by a lightweight parser,
   which does not evaluate preprocessor conditionals.
 
-**Indexed functions: 875 (with summaries: 867)**
+**Indexed functions: 897 (with summaries: 897)**
 
 ## By component
 
 - [Kernel](#kernel) — 14 source files
-- [Applications](#applications) — 59 source files
+- [Applications](#applications) — 61 source files
 - [Library](#library) — 5 source files
 - [Host utilities](#host-utilities) — 6 source files
 
@@ -229,8 +229,8 @@ function names, paths, line numbers and links are language-neutral.
 |---|---:|---|---|
 | [`idle_network_wakeup()`](../../../kernel/main.c#L20) | 20 | static | IRQではネットワークに触れず，待機中のCore 0を起こすだけにする． |
 | [`idle_task()`](../../../kernel/main.c#L27) | 27 | static | ユーザタスクが動かない間のネットワーク・端末処理． |
-| [`register_image()`](../../../kernel/main.c#L104) | 104 | static | Flash内のバイナリ範囲をプログラムIDに紐づける． |
-| [`main()`](../../../kernel/main.c#L113) | 113 | external | OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． |
+| [`register_image()`](../../../kernel/main.c#L106) | 106 | static | Flash内のバイナリ範囲をプログラムIDに紐づける． |
+| [`main()`](../../../kernel/main.c#L115) | 115 | external | OSと各ユーザプログラムを登録し，初期タスクを配置してスケジューラへ制御を渡す． |
 
 ### `kernel/net.c` (27 functions)
 
@@ -724,11 +724,11 @@ function names, paths, line numbers and links are language-neutral.
 | [`tick_seed()`](../../../userland/apps/maze.c#L15) | 15 | static | Read the 1 ms SysTick counter exposed by the kernel. |
 | [`random32()`](../../../userland/apps/maze.c#L27) | 27 | static | Xorshift32 needs a nonzero internal state. |
 | [`generate()`](../../../userland/apps/maze.c#L36) | 36 | static | Keep the writable map on the task stack: no absolute pointers in the PIC image. |
-| [`traversable()`](../../../userland/apps/maze.c#L67) | 67 | static | — |
-| [`shortest()`](../../../userland/apps/maze.c#L72) | 72 | static | A shortest route always exists because generation visits every odd cell. |
-| [`step()`](../../../userland/apps/maze.c#L94) | 94 | static | Only successful movements count toward Moves; walls count as Hits. |
-| [`render()`](../../../userland/apps/maze.c#L101) | 101 | static | — |
-| [`main()`](../../../userland/apps/maze.c#L124) | 124 | external | — |
+| [`traversable()`](../../../userland/apps/maze.c#L68) | 68 | static | Check whether a maze coordinate is inside a passage. |
+| [`shortest()`](../../../userland/apps/maze.c#L73) | 73 | static | A shortest route always exists because generation visits every odd cell. |
+| [`step()`](../../../userland/apps/maze.c#L95) | 95 | static | Only successful movements count toward Moves; walls count as Hits. |
+| [`render()`](../../../userland/apps/maze.c#L103) | 103 | static | Draw the maze and recent status in the active terminal. |
+| [`main()`](../../../userland/apps/maze.c#L127) | 127 | external | Run the seeded maze in an interactive terminal or MCP PTY. |
 
 ### `userland/apps/mb.c` (2 functions)
 
@@ -954,6 +954,22 @@ function names, paths, line numbers and links are language-neutral.
 |---|---:|---|---|
 | [`main()`](../../../userland/apps/rm.c#L7) | 7 | external | 指定したRAMファイルをVFSのunlinkで削除する． |
 
+### `userland/apps/samegame.c` (11 functions)
+
+| Function | Line | Linkage | Source comment |
+|---|---:|---|---|
+| [`tick_seed()`](../../../userland/apps/samegame.c#L15) | 15 | static | Obtain a reproducible default seed from the kernel's millisecond counter. |
+| [`random32()`](../../../userland/apps/samegame.c#L27) | 27 | static | Small PRNG; this is a game seed, not cryptographic randomness. |
+| [`generate()`](../../../userland/apps/samegame.c#L35) | 35 | static | Fill the board with A/B/C blocks; the initial board has a legal pair. |
+| [`group()`](../../../userland/apps/samegame.c#L42) | 42 | static | Return the orthogonally connected component, using a bounded BFS queue. |
+| [`compact()`](../../../userland/apps/samegame.c#L66) | 66 | static | Blocks fall down after removal, then nonempty columns slide to the left. |
+| [`has_moves()`](../../../userland/apps/samegame.c#L89) | 89 | static | Determine whether any same-letter adjacent pair remains. |
+| [`remove_group()`](../../../userland/apps/samegame.c#L100) | 100 | static | Return removed count (0 for invalid selection); score is standard (n-2)^2. |
+| [`update_best()`](../../../userland/apps/samegame.c#L113) | 113 | static | Track the largest score reached during this process, even across r. |
+| [`direct_position()`](../../../userland/apps/samegame.c#L118) | 118 | static | Decode :a01 through :t12 without waiting for Enter. |
+| [`render()`](../../../userland/apps/samegame.c#L125) | 125 | static | Draw an 80-column-safe text board and its current selection. |
+| [`main()`](../../../userland/apps/samegame.c#L155) | 155 | external | Start a seeded SameGame and process terminal / MCP PTY actions. |
+
 ### `userland/apps/scroll.c` (9 functions)
 
 | Function | Line | Linkage | Source comment |
@@ -1006,6 +1022,22 @@ function names, paths, line numbers and links are language-neutral.
 | [`set()`](../../../userland/apps/stty.c#L8) | 8 | static | TTYのカノニカル・エコー等の設定をioctlで変更する． |
 | [`main()`](../../../userland/apps/stty.c#L11) | 11 | external | TTY設定を照会・切替する． |
 
+### `userland/apps/sudoku.c` (11 functions)
+
+| Function | Line | Linkage | Source comment |
+|---|---:|---|---|
+| [`tick_seed()`](../../../userland/apps/sudoku.c#L21) | 21 | static | Read the 1ms uptime counter; no network or kernel changes are needed. |
+| [`random32()`](../../../userland/apps/sudoku.c#L33) | 33 | static | Pseudorandom generator used for reproducible puzzle transformations. |
+| [`order_indices()`](../../../userland/apps/sudoku.c#L41) | 41 | static | Shuffle rows/columns within groups and the groups themselves. |
+| [`generate()`](../../../userland/apps/sudoku.c#L58) | 58 | static | A given seed generates the same puzzle; writable grids live on the task stack. |
+| [`allowed()`](../../../userland/apps/sudoku.c#L79) | 79 | static | Check for duplicates without consulting the hidden solution. |
+| [`count_conflicts()`](../../../userland/apps/sudoku.c#L93) | 93 | static | Count cells involved in a conflict, including both copies of a duplicate. |
+| [`completed()`](../../../userland/apps/sudoku.c#L101) | 101 | static | A full board without conflicts is a solved Sudoku. |
+| [`place()`](../../../userland/apps/sudoku.c#L107) | 107 | static | Allow arbitrary valid digits, including duplicates. |
+| [`draw_border()`](../../../userland/apps/sudoku.c#L120) | 120 | static | Keep the header, 4-character cells and box boundaries aligned. |
+| [`render()`](../../../userland/apps/sudoku.c#L130) | 130 | static | ASCII brackets identify editable cells even in MCP's plain-text screen. |
+| [`main()`](../../../userland/apps/sudoku.c#L167) | 167 | external | Parse -4 and -s <seed> independently of their order. |
+
 ### `userland/apps/tcp_echod.c` (2 functions)
 
 | Function | Line | Linkage | Source comment |
@@ -1039,11 +1071,11 @@ function names, paths, line numbers and links are language-neutral.
 | [`read_proc()`](../../../userland/apps/top.c#L15) | 15 | static | /proc files are finite, but read() may return partial data. |
 | [`tenths()`](../../../userland/apps/top.c#L29) | 29 | static | Convert one decimal value into tenths without floating-point code. |
 | [`cpu_latest()`](../../../userland/apps/top.c#L49) | 49 | static | Ignore the historical rows: only parse the newest finished one-second sample. |
-| [`show_line()`](../../../userland/apps/top.c#L69) | 69 | static | — |
-| [`task_lines()`](../../../userland/apps/top.c#L81) | 81 | static | Parse the kernel's task table, then format compact rows for 80-column TTYs. |
-| [`fmt_percent()`](../../../userland/apps/top.c#L110) | 110 | static | — |
-| [`refresh()`](../../../userland/apps/top.c#L115) | 115 | static | Refresh only changed terminal lines, without allocating a screen-sized buffer. |
-| [`main()`](../../../userland/apps/top.c#L157) | 157 | external | — |
+| [`show_line()`](../../../userland/apps/top.c#L70) | 70 | static | Update a screen row only if its content changed. |
+| [`task_lines()`](../../../userland/apps/top.c#L82) | 82 | static | Parse the kernel's task table, then format compact rows for 80-column TTYs. |
+| [`fmt_percent()`](../../../userland/apps/top.c#L112) | 112 | static | Format a CPU percentage in fixed-width output. |
+| [`refresh()`](../../../userland/apps/top.c#L117) | 117 | static | Refresh only changed terminal lines, without allocating a screen-sized buffer. |
+| [`main()`](../../../userland/apps/top.c#L160) | 160 | external | Present live process and CPU summaries until quit. |
 
 ### `userland/apps/trace.c` (29 functions)
 
@@ -1296,12 +1328,12 @@ function names, paths, line numbers and links are language-neutral.
 | [`styled()`](../../../host/mcp_llm_client.py#L50) | 50 | module | Colorize labels only; never modify message content sent to the LLM. |
 | [`show()`](../../../host/mcp_llm_client.py#L57) | 57 | module | Show a labeled message, coloring tool and status lines when supported. |
 | [`safe_user_text()`](../../../host/mcp_llm_client.py#L65) | 65 | module | Escape lone Unicode surrogates before forwarding text to a UTF-8 API. |
-| [`usage_fields()`](../../../host/mcp_llm_client.py#L88) | 88 | module | Read server-reported usage, not a tokenizer estimate. |
-| [`show_usage()`](../../../host/mcp_llm_client.py#L133) | 133 | module | — |
-| [`default_log_path()`](../../../host/mcp_llm_client.py#L144) | 144 | module | — |
-| [`reasoning_from_delta()`](../../../host/mcp_llm_client.py#L149) | 149 | module | Ollama can expose thinking as reasoning_content or reasoning. |
-| [`stream_reply()`](../../../host/mcp_llm_client.py#L160) | 160 | module | Print streamed reasoning/content and reassemble fragmented tool calls. |
-| [`main()`](../../../host/mcp_llm_client.py#L256) | 256 | module | MCPクライアントとLLMの対話を実行する． |
+| [`usage_fields()`](../../../host/mcp_llm_client.py#L89) | 89 | module | Read server-reported usage, not a tokenizer estimate. |
+| [`show_usage()`](../../../host/mcp_llm_client.py#L135) | 135 | module | Format a token-usage summary without guessing unreported counts. |
+| [`default_log_path()`](../../../host/mcp_llm_client.py#L147) | 147 | module | Choose a timestamped local JSONL log path. |
+| [`reasoning_from_delta()`](../../../host/mcp_llm_client.py#L152) | 152 | module | Ollama can expose thinking as reasoning_content or reasoning. |
+| [`stream_reply()`](../../../host/mcp_llm_client.py#L163) | 163 | module | Print streamed reasoning/content and reassemble fragmented tool calls. |
+| [`main()`](../../../host/mcp_llm_client.py#L259) | 259 | module | MCPクライアントとLLMの対話を実行する． |
 
 ### `host/mcp_pty_test.py` (1 functions)
 

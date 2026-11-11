@@ -1,0 +1,14 @@
+SUDOKU (INTERACTIVE)
+Use persistent MCP PTY and terminal_send/terminal_read, NOT execute_command.
+'sudoku' is 9x9; 'sudoku -4' is 4x4. Numbers are 1..9 or 1..4.
+'sudoku -4 -s 1234' reproduces a puzzle. Seed appears on screen.
+Each row, column and 3x3 (or 2x2) box uses each number exactly once.
+Given numbers show without brackets. Editable empty cells show [ ]; entered digits show [3].
+Any in-range digit is accepted in an editable cell, including duplicates.
+Conflicts counts cells sharing a digit in a row/column/box; Rejected counts fixed-cell edits
+and out-of-range input. The hidden solution is NOT checked after every move.
+Arrows or h/j/k/l select a cell. Number keys enter; 0 or SPACE erases.
+For an LLM, send text ':a1=2' directly: put 2 at column a, row 1.
+No Enter is needed. ':a1=0' erases. Verify each update by reading the PTY.
+Default r generates another seed; with -s it repeats the same puzzle.
+q quits. Completion requires a full grid with no conflicts.

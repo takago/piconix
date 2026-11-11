@@ -56,11 +56,11 @@ extern const unsigned char piconix_tcp_get_image_start[], piconix_tcp_get_image_
 Add registrations in `main()`:
 
 ```c
-register_image(53, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
+register_image(63, "udp_once", piconix_udp_once_image_start, piconix_udp_once_image_end);
 register_image(54, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image_end);
 ```
 
-53 and 54 are unused in the unmodified source tree (49 = `mcpd`, 50 = `cc`, 51 = `scroll`). **Recheck all registrations in `kernel/main.c` before using them, especially if other applications were registered.** See the [C application development reference](PROGRAMMING.md) for the PIC/RAM-slot model and flashing instructions.
+63 and 54 are unused in the current source tree (52 = `sudoku`, 53 = `samegame`). **Recheck all registrations in `kernel/main.c` before using them, especially if other applications were registered.** See the [C application development reference](PROGRAMMING.md) for the PIC/RAM-slot model and flashing instructions.
 
 ```sh
 PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \

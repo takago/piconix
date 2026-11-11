@@ -14,8 +14,8 @@ embedded = {({"sh": "shell", "as": "asm"}.get(name, name)) for _, name in pairs}
 assert embedded == cmake_names, f"Registration mismatch: {sorted(embedded ^ cmake_names)}"
 assert len(pairs) == len(cmake_names), "Duplicate embedded name or registration"
 examples = {
-    "greet": 52,
-    "udp_once": 53,
+    "greet": 62,
+    "udp_once": 63,
     "tcp_get": 54,
     "labuptime": 55,
 }

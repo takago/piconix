@@ -131,6 +131,7 @@ class UsageCounter:
                 "total_tokens": self.total_tokens}
 
 
+# Format a token-usage summary without guessing unreported counts.
 def show_usage(label, value, missing=0):
     if value is None:
         show(label, "Prompt: N/A  Completion: N/A  Total: N/A (API usage unavailable)", "info")
@@ -142,6 +143,7 @@ def show_usage(label, value, missing=0):
     show(label, text, "info")
 
 
+# Choose a timestamped local JSONL log path.
 def default_log_path():
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     return Path("logs") / f"mcp_llm_{stamp}.jsonl"

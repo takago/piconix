@@ -48,6 +48,8 @@ OPERATING AND DEBUGGING
   reversi        Reversi controls, PTY operation, turns and passes
   tictactoe      3x3 game vs COM
   maze           Maze and wall hits
+  sudoku         4x4 / 9x9 number puzzle and direct input
+  samegame       A/B/C block puzzle and direct removal
   top            Live CPU and process monitor
   led-patterns   /dev/fbchar glyphs
   pty            Pseudoterminal interfaces

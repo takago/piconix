@@ -64,6 +64,7 @@ static void generate(char map[H][W+1],unsigned seed){
     map[GOAL_Y][GOAL_X]='G';
 }
 
+/* Check whether a maze coordinate is inside a passage. */
 static int traversable(const char map[H][W+1],int x,int y){
     return (unsigned)x<W && (unsigned)y<H && map[y][x]!='#';
 }
@@ -98,6 +99,7 @@ static int step(const char map[H][W+1],int *x,int *y,int dx,int dy,int *moves,in
     return map[yy][xx]=='G'?2:1;
 }
 
+/* Draw the maze and recent status in the active terminal. */
 static void render(const char map[H][W+1],int x,int y,int moves,int hits,
                    int optimum,int finished,unsigned seed,const char *notice){
     printf("\033[H\033[2JPicoNIX Maze  Seed: %u\r\n\r\n",seed);
@@ -121,6 +123,7 @@ static void render(const char map[H][W+1],int x,int y,int moves,int hits,
     fflush(stdout);
 }
 
+/* Run the seeded maze in an interactive terminal or MCP PTY. */
 int main(int argc,char **argv){
     int fixed=(argc==3 && argv[1][0]=='-' && argv[1][1]=='s' && !argv[1][2]);
     unsigned seed=0;

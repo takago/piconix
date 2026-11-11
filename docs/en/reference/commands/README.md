@@ -1,6 +1,6 @@
 # Command reference
 
-This index covers **all 57 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
+This index covers **all 59 applications** embedded by `CMakeLists.txt`, plus shell built-ins. Commands sharing names with UNIX utilities may have fewer options.
 
 Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” links for advanced tools. Some networking commands require Pico W.
 
@@ -83,6 +83,8 @@ Syntax is abbreviated. Run `help NAME` for firmware help. Follow “Details” l
 | [`mb`](../../../../userland/apps/mb.c) | Moon Buggy game | `mb` | — |
 | [`pong`](../../../../userland/apps/pong.c) | Pong game | `pong [-2]` | [Details](PONG.md) |
 | [`tictactoe`](../../../../userland/apps/tictactoe.c) | Tic-tac-toe against COM | `tictactoe` | [Details](TICTACTOE.md) |
+| [`sudoku`](../../../../userland/apps/sudoku.c) | 4×4 / 9×9 Sudoku | `sudoku [-4] [-s seed]` | [Details](SUDOKU.md) |
+| [`samegame`](../../../../userland/apps/samegame.c) | A/B/C matching-block puzzle | `samegame [-s seed]` | [Details](SAMEGAME.md) |
 | [`maze`](../../../../userland/apps/maze.c) | Generated maze navigation | `maze [-s seed]` | [Details](MAZE.md) |
 | [`reversi`](../../../../userland/apps/reversi.c) | Reversi against the computer | `reversi` | [Details](REVERSI.md) |
 | [`omikuji`](../../../../userland/apps/omikuji.c) | Fortune and input demo | `omikuji [-i \| seconds]` | — |

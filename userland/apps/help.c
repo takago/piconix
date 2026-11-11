@@ -73,6 +73,8 @@ int main(int argc, char **argv) {
         puts("  reversi    Reversi vs computer");
         puts("  tictactoe  Tic-tac-toe vs computer");
         puts("  maze       Maze navigation game");
+        puts("  sudoku     Sudoku (9x9 or 4x4)");
+        puts("  samegame   A/B/C matching-block puzzle");
         puts("  omikuji    Countdown fortune");
         puts("  kitesys    Kanazawa Institute of Tech. Embedded System Test Program");
         puts("\nManual: ls /man ; cat /man/README ; cat /man/agent");
@@ -131,6 +133,8 @@ int main(int argc, char **argv) {
     else if(!strcmp(argv[1],"reset")) puts("reset: Reset terminal display/settings\nusage: reset");
     else if(!strcmp(argv[1],"lsof")) puts("lsof: Show open files\nusage: lsof [PID]");
     else if(!strcmp(argv[1],"tictactoe")) puts("tictactoe: Tic-tac-toe against COM\nusage: tictactoe\nArrows: select square; SPACE: place; r: restart; q: quit");
+    else if(!strcmp(argv[1],"sudoku")) puts("sudoku: 9x9/4x4 number puzzle\nusage: sudoku [-4] [-s seed]\nFixed digits are plain; editable cells are [ ] or [3]. Duplicates show as Conflicts.\nArrows/hjkl: select; digits: enter; 0: clear; :a1=2: direct entry; r: restart; q: quit");
+    else if(!strcmp(argv[1],"samegame")) puts("samegame: Match A/B/C blocks\nusage: samegame [-s seed]\nBest score and seed survive r while the game is running.\nArrows/hjkl: select; SPACE: remove; :a01..:t12: direct removal (two-digit row); r: restart; q: quit");
     else if(!strcmp(argv[1],"maze")) puts("maze: Generate a random maze\nusage: maze [-s seed]\nArrows: move; r: new maze (same with -s); q: quit");
     else if(!strcmp(argv[1],"reversi")) puts("reversi: Reversi against COM\nusage: reversi\nArrow keys: move; SPACE: place; q: quit");
     else if(!strcmp(argv[1],"pong")) puts("pong: Pong game\nusage: pong [-2]\n-2: two-player mode on both terminals");
