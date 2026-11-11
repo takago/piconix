@@ -121,6 +121,7 @@ int main(int argc,char **argv){
     int turn=BLACK;
     const char *notice="Your move.";
     screen_enter();
+    setvbuf(stdout,0,_IOFBF,0); /* render() flushes before input or pauses. */
 restart:
     for(int k=0;k<64;k++)board[k]=0;
     board[3*N+3]=WHITE;board[3*N+4]=BLACK;

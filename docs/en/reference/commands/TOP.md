@@ -20,3 +20,5 @@ For MCP, run interactively in the persistent PTY, not via the noninteractive `ex
 `[idle]` appears as the special PID 0 task in `ps`, `top`, and `/proc/tasks`. It consumes no user RAM slot. Its `DISPATCH` counts scheduler selections too. The `[idle]` CPU% subtracts console/network polling time from idle-context samples. Console and Net are not separate tasks, and appear only in the CPU summary. `/proc/tasks` includes internal cumulative `NET_US` and `CON_US` fields; only PID 0 carries those totals. The existing `/proc/cpu` retains its independent one-second history, which can represent a different interval.
 
 `IRQ` shows cumulative SysTick, PendSV, SVC, and UART1 counts since boot. `SVC` is a software exception; PendSV counts do not necessarily match context-switch counts. The display reads existing `/proc/interrupts` counters without adding kernel counters.
+
+**Buffered screen output:** After entering the alternate screen, `top` enables the 64-byte fully buffered `stdout` and calls `fflush(stdout)` after each refresh. Changed-row rendering is unchanged. This reduces small writes but does not remove `/proc` reads or key-input syscalls.

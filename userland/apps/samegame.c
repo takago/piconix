@@ -176,6 +176,7 @@ int main(int argc,char **argv){
     generate(board,seed);
     const char *notice="Remove adjacent groups of 2 or more matching letters.";
     screen_enter();
+    setvbuf(stdout,0,_IOFBF,0); /* render() flushes before input or pauses. */
     render(board,seed,cursor,score,best,best_seed,remaining,moves,invalid,notice);
     for(;;){
         char ch;

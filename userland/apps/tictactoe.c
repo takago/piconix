@@ -103,6 +103,7 @@ int main(int argc,char **argv){
     const char *notice="Your move.";
     if(com==1){last=computer_move(board,com);moves++;notice="COM opened. Your move.";}
     screen_enter();
+    setvbuf(stdout,0,_IOFBF,0); /* render() flushes before input or pauses. */
     render(board,cursor,last,moves,invalid,finished,player,notice);
     for(;;){
         char ch;

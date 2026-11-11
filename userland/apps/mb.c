@@ -61,6 +61,7 @@ static void draw(int obstacle, int crater_width, int jump, int score, int frame,
     }
     screen_move(top,left+34);
     printf("SCORE: %-6d",score);
+    fflush(stdout); /* Deliver this frame before the next 110 ms sleep. */
 }
 
 /* 端末を非カノニカル・非ブロック入力に変更して月面バギーゲームを動かす．終了時はTTY設定を復元する． */
@@ -83,6 +84,7 @@ int main(int argc, char **argv) {
     int obstacle=45, crater_width=4, jump=0, score=0, running=1, again=1, frame=0;
     screen_enter();
     screen_measure(&terminal);
+    setvbuf(stdout,0,_IOFBF,0);
     int top=terminal.rows>HEIGHT?(terminal.rows-HEIGHT)/2+1:1;
     int left=terminal.cols>WIDTH?(terminal.cols-WIDTH)/2+1:1;
     while(again) {
@@ -116,6 +118,7 @@ int main(int argc, char **argv) {
       if(running==2) {
           screen_move(top+8,left);
           printf("\033[2K  GAME OVER!  SCORE: %d   Restart? (y/n)",score);
+          fflush(stdout); /* Prompt must be visible while waiting for a key. */
           /* ビジーループせず，ユーザの明示的な応答を待つ． */
           for(;;){
               char key;

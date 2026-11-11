@@ -151,6 +151,7 @@ int main(int argc,char **argv){
     int optimum=shortest(map);
     const char *notice="Find the goal G.";
     screen_enter();
+    setvbuf(stdout,0,_IOFBF,0); /* render() flushes before input or pauses. */
     render(map,x,y,moves,hits,optimum,finished,seed,notice);
     for(;;){
         char ch;

@@ -1,4 +1,8 @@
 # PicoNIX Development Diary
+### 2026-11-12 — Buffer complete frames in selected full-screen applications
+
+Enabled the 64-byte fully buffered `stdout` after screen entry in `top`, `fd`, `mem`, `mb`, `reversi`, `sudoku`, `samegame`, `maze`, and `tictactoe`. Kept or added explicit `fflush(stdout)` at frame boundaries and before input waits or sleeps. Retained the shared `screen_enter()` default; left `vi` and `edit` unbuffered for immediate per-key updates, `pong` on direct multi-terminal FD writes, and `watch` with its existing render flush. No kernel, ABI, or RAM layout changes. ARM syntax and targeted host tests were run; on-device responsiveness and SVC savings remain unmeasured.
+
 
 ### 2026-11-12 — Remove IRQ/s from `top`
 

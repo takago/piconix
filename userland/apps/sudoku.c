@@ -190,6 +190,7 @@ int main(int argc,char **argv){
     generate(n,seed,board,given);
     const char *notice="Fill every row, column and box without duplicates.";
     screen_enter();
+    setvbuf(stdout,0,_IOFBF,0); /* render() flushes before input or pauses. */
     render(board,given,n,seed,cursor,rejected,finished,notice);
     for(;;){
         char ch;

@@ -213,6 +213,7 @@ static void draw_dir(void) {
     if(searching)printf(" Find: %s_  (Enter: apply  Esc: cancel)\033[K",filter);
     else if(filter[0])printf(" Find: %s  (/: edit  c: clear)\033[K",filter);
     else printf(" %s\033[K",notice);
+    fflush(stdout);
 }
 
 /* 既知のテキスト系ファイルだけを閲覧する．/devのreadは消費的・待機的・バイナリの場合があるため実行しない． */
@@ -337,6 +338,7 @@ static void paint_view(int len,int error){
                                 found_line>=0?"match":"not found");
     else if(!strncmp(path,"/man/",5))printf(" ROM manual (read-only)\033[K");
     else printf(" Live refresh: 1 s   Read-only; /dev not previewed\033[K");
+    fflush(stdout);
 }
 
 /* 画面本文のFNV-1a指紋．再描画判定のためであり，内容保持用ではない． */
@@ -388,6 +390,7 @@ static int edit_selected(void){
     ioctl(0,OS_TTY_SET_ECHO,0);
     fcntl(0,F_SETFL,original_flags|O_NONBLOCK);
     screen_enter();
+    setvbuf(stdout,0,_IOFBF,0);
     old_len=-1;
     if(mode_view)refresh_view();
     else {refresh_dir();if(pid<0)notice="Cannot start editor";draw_dir();}
@@ -442,6 +445,7 @@ int main(int argc,char **argv){
     if(rows<MIN_ROWS)rows=MIN_ROWS;
     if(cols<40)cols=40;
     screen_enter();
+    setvbuf(stdout,0,_IOFBF,0);
     refresh_dir();draw_dir();
     int state=0, idle=0, active=1;
     while(active){

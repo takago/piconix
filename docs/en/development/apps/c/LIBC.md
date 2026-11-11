@@ -80,7 +80,7 @@ Each `FILE` contains an FD and **one 64-byte buffer**, used for either reading o
 
 `fopen()` supports `r`, `w`, `a` and their `b` variants; update modes containing `+` are not supported. `fclose()` flushes output and closes the FD, while `fflush(NULL)` flushes all output streams. Returning normally from `main()` flushes pending output; `_exit()` or forced termination does not guarantee this.
 
-`setvbuf()` allows `_IOFBF`, `_IOLBF`, and `_IONBF` using the internal buffer only (pass NULL as its second argument). Common full-screen helpers switch to unbuffered output to prevent delayed display. Call `fflush(stdout)` before a direct `read()` when a prompt has no newline.
+`setvbuf()` supports only `_IOFBF`, `_IOLBF`, and `_IONBF` using the internal buffer (pass NULL as the second argument). The shared `screen_enter()` helper retains unbuffered output for interactive applications needing immediate feedback. `top`, `fd`, `mem`, `mb`, and several games opt into `_IOFBF` after entering the screen, and explicitly call `fflush(stdout)` **after complete frames, before input waits or sleeps, and after prompts** to reduce small `write()` calls. `vi` and `edit` retain immediate per-key feedback; `pong` uses direct writes to terminal FDs. `screen_leave()` flushes pending output when restoring line buffering. Flush explicitly before direct `read()` after a prompt.
 
 ```c
 #include "stdio.h"

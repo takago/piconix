@@ -351,6 +351,7 @@ static void draw(unsigned addr,int pause,int have,int changed){
  printf("Slots:");
  for(int i=0;i<6;i++)printf(" %d:%s",i+1,slot_names[i][0]?slot_names[i]:"free");
  printf("\033[K\033[?7h");
+ fflush(stdout); /* Complete frame before input or sleep. */
 }
 
 /* 対話操作で入力されたアドレスや数値を解析する． */
@@ -404,6 +405,7 @@ int main(int argc,char **argv){
   ioctl(0,OS_TTY_SET_ECHO,echo);ioctl(0,OS_TTY_SET_CANON,canon);close(fd);return 1;
  }
  screen_enter();
+ setvbuf(stdout,0,_IOFBF,0);
  screen_size_t size={24,80};
  screen_measure(&size);
  mem_layout(size.rows);
@@ -462,6 +464,7 @@ int main(int argc,char **argv){
    }else if(dirty){printf("\033[Hmem: invalid/unreadable address\033[K");}
    dirty=0;ticks=0;
   }
+  fflush(stdout); /* Flush short prompts even when no full redraw occurred. */
   msleep(40);
   if(ticks<25)ticks++;
  }

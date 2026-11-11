@@ -248,6 +248,7 @@ int main(int argc,char **argv){
     }
     static char previous[TOP_ROWS][TOP_COLS+1];
     screen_enter();
+    setvbuf(stdout,0,_IOFBF,0); /* refresh() flushes each completed frame. */
     int running=1;
     while(running){
         refresh(previous,interval);
