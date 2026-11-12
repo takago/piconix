@@ -13,6 +13,7 @@ int main(int argc, char **argv) {
     if(tty==1) { puts("/dev/ttyS1"); return 0; }
     if(tty==2) { puts("/dev/ttyN0"); return 0; }
     if(tty==3) { puts("/dev/pts/0"); return 0; }
+    if(tty==5) { puts("/dev/pts/1"); return 0; }
     if(tty==4) { puts("/dev/ttyV1"); return 0; }
     puts("not a tty");
     return 0;

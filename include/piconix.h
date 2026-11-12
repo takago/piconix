@@ -26,6 +26,8 @@
 #define OS_TTY_SET_INTR 0x20a
 /* MasterでSlave起動前に設定．出力リングを使わず仮想画面へ描画する． */
 #define OS_PTY_SCREEN_ONLY 0x20b
+/* Return the slave index (0 or 1) for an allocated PTY master. */
+#define OS_PTY_GET_INDEX 0x20c
 #define OS_O_CREAT 8
 #define OS_O_TRUNC 16
 #define OS_O_APPEND 32

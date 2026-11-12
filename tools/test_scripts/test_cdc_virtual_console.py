@@ -8,7 +8,7 @@ root = Path(__file__).resolve().parents[2]
 s = (root / 'kernel/kernel.c').read_text()
 dev = (root / 'include/device_names.h').read_text()
 assert '#define CDC_VCONSOLE_TTY 4' in s
-assert '#define OS_TTY_COUNT 5' in s
+assert '#define OS_TTY_COUNT 6' in s
 assert 'X("/dev/ttyV0", DEV_CONSOLE)' in dev
 assert 'X("/dev/ttyV1", DEV_CDC_VCONSOLE)' in dev
 assert 'X("/dev/console", DEV_CDC_ACTIVE)' in dev
@@ -42,6 +42,7 @@ harness = r'''
 #include <string.h>
 #define NO_TRACE
 #define PTY_TTY 3
+#define PTY_TTY1 5
 #define CDC_VCONSOLE_TTY 4
 #define VT_COLS 80u
 #define VT_ROWS 24u
@@ -55,7 +56,8 @@ typedef struct {
     uint16_t arg[3];
     uint32_t revision;
 } vt_screen_t;
-static vt_screen_t pty_screen;
+static vt_screen_t pty_screen[2];
+static int pty_tty(int slot) { return slot ? 5 : PTY_TTY; }
 static vt_screen_t cdc_screen[2];
 static uint8_t cdc_active;
 static uint8_t cdc_dual_mode;
@@ -89,7 +91,7 @@ static void finish_redraw(void) {
 }
 int main(void) {
     assert(sizeof(vt_screen_t)<2300u);
-    vt_clear(&pty_screen);
+    vt_clear(&pty_screen[0]);
     vt_clear(&cdc_screen[0]);
     vt_clear(&cdc_screen[1]);
     cdc_put(0,'A');
@@ -99,7 +101,7 @@ int main(void) {
     assert(console_tx_head==console_tx_tail);  /* hidden writes cannot leak */
     assert(cdc_screen[0].cells[0][0]=='A');
     assert(cdc_screen[1].cells[0][0]=='B');
-    assert(pty_screen.cells[0][0]==' ');
+    assert(pty_screen[0].cells[0][0]==' ');
     cdc_active=1;
     cdc_vconsole_begin_repaint();
     cdc_vconsole_draw();

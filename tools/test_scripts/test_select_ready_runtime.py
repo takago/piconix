@@ -26,6 +26,10 @@ header=r'''
 #define DEV_WIFI_TTY 102
 #define DEV_PTY_MASTER 103
 #define DEV_PTY_SLAVE 104
+#define DEV_PTY_MASTER1 105
+#define DEV_PTY_SLAVE1 106
+#define PTY_TTY1 5
+#define PTY_COUNT 2
 #define PTY_TTY 3
 #define PTY_OUT_BYTES 512
 #define TTY_LINES 8
@@ -50,9 +54,14 @@ static task_t tasks[OS_MAX_TASKS];
 static int tcp_owner_pid[TCP_USER_SLOTS],udp_owner_pid[3],accept_pending,rx_bytes,udp_pending,tty_pending,poll_busy,can_write;
 static uint32_t ticks;
 static pipe_t pipe_storage;
-static struct {int master_refs,slave_refs,ever_slave,screen_only;unsigned used;} pty;
-static struct {unsigned used;} tty_buf[5];
-static int tty_echo[5];
+typedef struct {int master_refs,slave_refs,ever_slave,screen_only;unsigned used;} pty_t;
+static pty_t pty[2];
+static int pty_slot(int dev) { return dev==DEV_PTY_MASTER1 || dev==DEV_PTY_SLAVE1 ? 1 : dev==DEV_PTY_MASTER || dev==DEV_PTY_SLAVE ? 0 : -1; }
+static int pty_slave_dev(int dev) { return dev==DEV_PTY_SLAVE || dev==DEV_PTY_SLAVE1; }
+static int pty_master_dev(int dev) { return dev==DEV_PTY_MASTER || dev==DEV_PTY_MASTER1; }
+static int pty_tty(int slot) {return slot ? PTY_TTY1 : PTY_TTY;}
+static struct {unsigned used;} tty_buf[6];
+static int tty_echo[6];
 static int pipe_end(int d) {return d==PIPE_DEV_BASE || d==PIPE_DEV_BASE+1;}
 static pipe_t *pipe_for_dev(int d) {(void)d;return &pipe_storage;}
 static int pipe_is_writer(int d) {return d==PIPE_DEV_BASE+1;}
@@ -100,11 +109,11 @@ int main(void) {
  assert(select_ready(t,10,&req)==1); /* second virtual CDC TTY receives independently */
  /* PTY master/slave readiness and EOF/writable backpressure. */
  t->fd[7]=DEV_PTY_MASTER;t->fd[8]=DEV_PTY_SLAVE;
- pty.master_refs=1;pty.slave_refs=1;pty.ever_slave=1;
+ pty[0].master_refs=1;pty[0].slave_refs=1;pty[0].ever_slave=1;
  req.read_mask=(1u<<7)|(1u<<8);req.write_mask=(1u<<7)|(1u<<8);
  assert(select_ready(t,9,&req)==2); /* both descriptors writable */
  assert(req.ready_write==((1u<<7)|(1u<<8)));
- pty.used=PTY_OUT_BYTES;tty_echo[PTY_TTY]=1;tty_pending=0;
+ pty[0].used=PTY_OUT_BYTES;tty_echo[PTY_TTY]=1;tty_pending=0;
  assert(select_ready(t,9,&req)==1); /* master has buffered read data */
  tty_echo[PTY_TTY]=0;
  assert(select_ready(t,9,&req)==1); /* master now also writable */
@@ -112,10 +121,10 @@ int main(void) {
  tty_buf[PTY_TTY].used=TTY_LINES;
  assert(select_ready(t,9,&req)==1); /* master readable, not writable */
  assert(req.ready_write==0);
- pty.used=1;tty_buf[PTY_TTY].used=0;tty_echo[PTY_TTY]=0;
+ pty[0].used=1;tty_buf[PTY_TTY].used=0;tty_echo[PTY_TTY]=0;
  assert(select_ready(t,9,&req)==2);
  assert(req.ready_read==(1u<<7));
- pty.used=0;pty.slave_refs=0;pty.master_refs=0;
+ pty[0].used=0;pty[0].slave_refs=0;pty[0].master_refs=0;
  assert(select_ready(t,9,&req)==2); /* EOF on both sides */
  assert(req.ready_read==((1u<<7)|(1u<<8)));
  req.write_mask=0;

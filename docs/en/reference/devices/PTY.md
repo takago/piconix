@@ -1,10 +1,10 @@
 # Pseudoterminal (PTY)
 
-PicoNIX provides **one general-purpose master/slave PTY pair**, independent of MCP. MCP clients can also use the PTY through its virtual screen and named-key devices.
+PicoNIX provides **up to two general-purpose master/slave PTY pairs**, independent of MCP. MCP clients can also use the PTY through its virtual screen and named-key devices.
 
 ## Generic PTY screen-only mode
 
-`mcpd` starts an interactive shell on its PTY at startup. After opening the master but before opening the slave, it enables `ioctl(master, OS_PTY_SCREEN_ONLY, 1)`. Slave output updates the `/dev/pts/0.screen` display directly without accumulating bytes in the 1024-byte output ring. No output drain or fixed 200 ms wait is required. Raw `read()` from the master is not available in this mode. Normal PTY use (e.g. `pty_test`) retains the output ring and master reads. The mode resets when both endpoints close.
+`mcpd` starts an interactive shell on its PTY at startup. After opening the master but before opening the slave, it enables `ioctl(master, OS_PTY_SCREEN_ONLY, 1)`. Slave output updates the assigned `/dev/pts/N.screen` display directly without accumulating bytes in the 1024-byte output ring. No output drain or fixed 200 ms wait is required. Raw `read()` from the master is not available in this mode. Normal PTY use (e.g. `pty_test`) retains the output ring and master reads. The mode resets when both endpoints close.
 
 `terminal_send` returns only the accepted byte count; the LLM explicitly calls `terminal_read` to inspect the screen. Screen reads are not atomic snapshots.
 
@@ -12,22 +12,38 @@ PicoNIX provides **one general-purpose master/slave PTY pair**, independent of M
 
 | Path | Open mode | Purpose |
 |---|---|---|
-| `/dev/ptmx` | `open(..., O_RDWR)` | Exclusive master; a second open returns `OS_EBUSY` |
+| `/dev/ptmx` | `open(..., O_RDWR)` | Allocates the first free pair (0 or 1); a third open returns `OS_EBUSY` |
 | `/dev/pts/0` | `open(..., O_RDWR)` or other appropriate mode | Slave; available while the master is open |
 | `/dev/pts/0.screen` | `O_RDONLY` | 80x24 screen with ANSI inverse/cursor markers (variable-length stream) |
 | `/dev/pts/0.key` | `O_WRONLY` | Named-key input (e.g. `DOWN`, `CTRL_C`) |
+| `/dev/pts/1`, `/dev/pts/1.screen`, `/dev/pts/1.key` | As above | Second slave, screen, and named-key input |
 
 - Writing to the master supplies terminal input to the slave, including canonical input, echo, and Ctrl+C handling. Reading the master receives slave output.
-- The slave is TTY number 3 and supports the standard PicoNIX TTY `ioctl()` commands and `fcntl(O_NONBLOCK)`. `tty` reports `/dev/pts/0`.
+- The slaves use TTY numbers 3 (PTY 0) and 5 (PTY 1) and support the standard PicoNIX TTY `ioctl()` commands and `fcntl(O_NONBLOCK)`. `tty` reports the corresponding `/dev/pts/N`.
 - `spawn()` inherits FDs 0–2. If the parent's FD 0 points to the slave, the **child** receives PTY as its controlling TTY. Use `spawn_foreground()` to establish foreground ownership; the parent's controlling TTY remains unchanged.
-- No additional process or network socket is required. The slave-to-master output ring is 1024 bytes; The kernel provides an intentionally limited ANSI-interpreted text screen; raw PTY output is unchanged.
+- No additional process or network socket is required. The slave-to-master output ring is 1024 bytes per pair; The kernel provides an intentionally limited ANSI-interpreted text screen; raw PTY output is unchanged.
 - A blocking slave write waits when the output ring is full; with `O_NONBLOCK` it returns `OS_EAGAIN`. Partial writes are possible. A full master-to-slave input queue causes the master's write to return `OS_EAGAIN`; the caller must retry.
 - Once all slave FDs close, the master drains remaining output and then returns EOF (0). When all master FDs close, the slave drains pending input, then reads EOF and writes return `OS_EIO`. The state resets after both ends close.
-- A new pair cannot be allocated until the previous session has closed both ends. FDs can be duplicated with `dup()` and `dup2()`.
+- A pair can be reused after both its master and slave references are closed. Only allocated pairs appear in `ls /dev/pts`; the slave nodes are not listed before allocation. FDs can be duplicated with `dup()` and `dup2()`.
+
+
+### Discovering the allocated slave
+
+Every `open("/dev/ptmx", ...)` allocates the lowest available slot, 0 or 1. Use the new master-only ioctl before opening the slave; do not hardcode `/dev/pts/0`:
+
+```c
+int master = open("/dev/ptmx", O_RDWR | O_NONBLOCK);
+int n = ioctl(master, OS_PTY_GET_INDEX, 0); /* 0 or 1 */
+char path[32];
+snprintf(path, sizeof path, "/dev/pts/%d", n);
+int slave = open(path, O_RDWR);
+```
+
+`OS_PTY_GET_INDEX` (`0x20c`) is available on master FDs only. Both `mcpd` and `pty_test` use it. A master close hides that slot's nodes; lingering slave FDs delay reuse until they are closed.
 
 ## Typical sequence
 
-1. Open the master with `O_RDWR`, then open the slave.
+1. Open `/dev/ptmx` with `O_RDWR`, obtain the slot with `ioctl(master, OS_PTY_GET_INDEX, 0)`, then open `/dev/pts/N` for that slot.
 2. Save the parent's FDs 0–2 using `dup()`; redirect them to the slave using `dup2()`, and start the child via `spawn_foreground()`.
 3. Restore the parent's standard FDs, and close its slave FD.
 4. Write keys to the master and read ANSI output from it, using `select()` if needed.
@@ -42,7 +58,7 @@ Full-screen applications such as `vi` emit ANSI escapes. The master still receiv
 
 ```text
 piconix# pty_test
-/dev/pts/0
+/dev/pts/0  (or /dev/pts/1 if slot 0 is in use)
 ```
 
 With no arguments, `pty_test` runs `tty` on the slave. With a command, it connects the command's standard I/O to the slave and relays input and output between the current console and the master.
@@ -51,7 +67,7 @@ With no arguments, `pty_test` runs `tty` on the slave. With a command, it connec
 piconix# pty_test fd
 piconix# pty_test vi /tmp/test.txt
 piconix# pty_test tty
-/dev/pts/0
+/dev/pts/0  (or /dev/pts/1 if slot 0 is in use)
 ```
 
 During the relay, the physical terminal is switched to noncanonical input with echo disabled. `select()` monitors the console and PTY master; terminal settings and descriptors are restored on exit. Output is drained until the slave closes.

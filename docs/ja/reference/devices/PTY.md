@@ -1,33 +1,49 @@
 # 擬似端末（PTY）
 
-PicoNIXは，MCPだけに依存しない**汎用PTYを1組**提供します．物理TTYと同じように，子プロセスの標準入出力を端末として扱うための仮想デバイスです．MCPサーバからも利用でき，80列×24行の仮想画面とキー名入力を提供します．
+PicoNIXは，MCPだけに依存しない**汎用PTYを最大2組**提供します．物理TTYと同じように，子プロセスの標準入出力を端末として扱うための仮想デバイスです．MCPサーバからも利用でき，80列×24行の仮想画面とキー名入力を提供します．
 
 ## デバイスと制約
 
 | ノード | 開き方 | 内容 |
 |---|---|---|
-| `/dev/ptmx` | `open(..., O_RDWR)` | Master．1組だけ確保でき，重複openは`OS_EBUSY` |
+| `/dev/ptmx` | `open(..., O_RDWR)` | Master．空き番号0・1を順に確保し，3組目は`OS_EBUSY` |
 | `/dev/pts/0` | `open(..., O_RDWR)`など | Slave．Masterのopen後に利用可能 |
 | `/dev/pts/0.screen` | `O_RDONLY` | 80×24の文字とANSI反転・カーソル属性（可変長ストリーム） |
 | `/dev/pts/0.key` | `O_WRONLY` | `UP`，`ENTER`，`CTRL_C`などのキー名を入力 |
+| `/dev/pts/1`，`/dev/pts/1.screen`，`/dev/pts/1.key` | 同上 | 2組目のSlave・画面・キー入力 |
 
 - Masterの`write()`がSlaveへの入力になり，TTYのcanonical入力・echo・Ctrl+Cなどの行規律を通ります．Masterの`read()`はSlaveからの出力を受け取ります．
-- SlaveはTTY番号3で，`ioctl(fd, OS_TTY_*, ...)`と`fcntl()`に対応します．`tty`コマンドは`/dev/pts/0`を表示します．
+- SlaveはそれぞれTTY番号3（PTY 0）と5（PTY 1）で，`ioctl(fd, OS_TTY_*, ...)`と`fcntl()`に対応します．`tty`コマンドは対応する`/dev/pts/N`を表示します．
 - `spawn()`は標準FD 0〜2を継承します．親がFD 0をSlaveに変更して起動すると，**子だけ**制御TTYがPTYになります．前景起動には`spawn_foreground()`を利用します．親のFDと制御TTYは自動では変更されません．
-- MasterとSlaveの間にはソケットや管理専用プロセスを使いません．出力リングは1024バイトです．カーネルは最小限のANSI解析を行って現在画面を保持します．
+- MasterとSlaveの間にはソケットや管理専用プロセスを使いません．出力リングは1組あたり1024バイトです．カーネルは最小限のANSI解析を行って現在画面を保持します．
 - Slaveの出力がリング満杯ならブロッキング`write()`は空きを待ち，`O_NONBLOCK`なら`OS_EAGAIN`を返します．部分書込みもあります．Masterへの入力書込みはバッファ満杯時に`OS_EAGAIN`となり，呼出側が後で再試行します．
 - Slaveをすべて閉じて出力を読み切ったMasterの`read()`は0（EOF）です．Masterがすべて閉じられたSlaveの`read()`は，残りの入力を消費した後に0を返し，`write()`は`OS_EIO`です．両端を閉じた後は初期状態へ戻ります．
-- 新規セッションは，前セッションのMasterとSlaveをすべて閉じるまで作れません．FDの複製は`dup()`と`dup2()`が利用可能です．
+- 各組は，そのMasterとSlaveをすべて閉じた後に再利用できます．FDの複製は`dup()`と`dup2()`が利用可能です．
 
 ### 汎用PTYの画面専用モード
 
-`mcpd`は起動時にMasterと`sh`を起動します．Masterを開いた後，Slaveを開く前に`ioctl(master, OS_PTY_SCREEN_ONLY, 1)`を設定します．このモードではSlaveの出力を1024バイトの出力リングに蓄積せず，`/dev/pts/0.screen`の仮想画面だけを直接更新します．出力リングのdrainや固定200 ms待機は不要です．Masterの生出力`read()`は使えません．通常のPTY（`pty_test`など）は変更されず，出力リングとMasterの`read()`を利用できます．両端が閉じられた時点でモードも解除されます．
+`mcpd`は起動時にMasterと`sh`を起動します．Masterを開いた後，Slaveを開く前に`ioctl(master, OS_PTY_SCREEN_ONLY, 1)`を設定します．このモードではSlaveの出力を1024バイトの出力リングに蓄積せず，割り当てられた`/dev/pts/N.screen`の仮想画面だけを直接更新します．出力リングのdrainや固定200 ms待機は不要です．Masterの生出力`read()`は使えません．通常のPTY（`pty_test`など）は変更されず，出力リングとMasterの`read()`を利用できます．両端が閉じられた時点でモードも解除されます．
 
 `terminal_send`は入力を受け付けたバイト数のみ返し，描画完了を待ちません．画面確認はLLMが必要に応じて`terminal_read`を呼び出します．画面の読取りは原子的なスナップショットではありません．
 
+
+### スレーブ番号の取得
+
+`/dev/ptmx`の各openは空いている最小番号を割り当てます．`/dev/pts/N`を固定の番号で開かず，以下のように番号を取得してください．
+
+```c
+int master = open("/dev/ptmx", O_RDWR | O_NONBLOCK);
+int n = ioctl(master, OS_PTY_GET_INDEX, 0); /* 0または1 */
+char path[32];
+snprintf(path, sizeof path, "/dev/pts/%d", n);
+int slave = open(path, O_RDWR);
+```
+
+`OS_PTY_GET_INDEX`（0x20c）はマスターFDでのみ有効です．既存の`mcpd`と`pty_test`もこの方式を使用します．
+
 ## 利用の流れ
 
-1. Masterを`O_RDWR`で開き，続いてSlaveを開きます．
+1. Masterを`O_RDWR`で開き，`ioctl(master, OS_PTY_GET_INDEX, 0)`で0または1を取得し，対応する`/dev/pts/N`を開きます．
 2. 親のFD 0〜2を`dup()`で退避します．Slaveを`dup2(slave, 0/1/2)`で接続し，`spawn_foreground()`で子を起動します．
 3. 親の標準FDを復元し，親側のSlave FDを閉じます．
 4. Masterにキー入力を`write()`し，MasterからANSI出力を`read()`します．必要なら`select()`で入出力を多重化します．
@@ -42,7 +58,7 @@ PicoNIXは，MCPだけに依存しない**汎用PTYを1組**提供します．�
 
 ```text
 piconix# pty_test
-/dev/pts/0
+/dev/pts/0  (空き番号によっては /dev/pts/1)
 ```
 
 引数なしでは`tty`をPTY上で起動し，制御端末のパスを確認できます．引数を指定すると，そのコマンドの標準入出力をPTYに接続し，現在の端末と双方向中継します．
@@ -51,7 +67,7 @@ piconix# pty_test
 piconix# pty_test fd
 piconix# pty_test vi /tmp/test.txt
 piconix# pty_test tty
-/dev/pts/0
+/dev/pts/0  (空き番号によっては /dev/pts/1)
 ```
 
 中継中は元の端末を非カノニカル入力・エコーOFFにし，`select()`で実コンソールとPTY Masterを監視します．終了後は端末設定とFDの状態を復元します．子プロセスの終了に伴うPTYのEOFまで出力を取得します．
@@ -72,7 +88,7 @@ echo DOWN > /dev/pts/0.key
 echo CTRL_C > /dev/pts/0.key
 ```
 
-これらのノードはMasterが開かれている間だけ利用可能です．画面は80列×24行に固定され，履歴やスクロールバックはありません．`.screen`の各行は空白を含む80文字と改行で構成され，`read()`のFD位置に応じて分割取得できます．読み出し中に画面が更新された場合の原子的なスナップショットは保証しません．
+`/dev/pts/0`と`/dev/pts/1`および各`.screen`・`.key`は，それぞれのMasterが開かれている間だけ`ls /dev/pts`に現れます．Masterを閉じてもSlaveの参照が残る場合は，最後のSlaveを閉じるまでその番号を再利用しません．画面は80列×24行に固定され，履歴やスクロールバックはありません．`.screen`の各行は空白を含む80文字と改行で構成され，`read()`のFD位置に応じて分割取得できます．読み出し中に画面が更新された場合の原子的なスナップショットは保証しません．
 
 `.key`は1回の`write()`につき1個のキー名を受け取り，`UP`・`DOWN`・`LEFT`・`RIGHT`・`ENTER`・`ESC`・`ESCAPE`・`TAB`・`SPACE`・`SP`・`BACKSPACE`・`BS`・`DELETE`・`CTRL_A`〜`CTRL_Z`をサポートします．通常のテキスト入力にはPTY Masterへの`write()`を使います．
 
@@ -82,4 +98,4 @@ MCPでの利用方法は[こちら](../commands/MCP.md)を参照してくださ�
 
 ## カーソル位置の取得
 
-カーソル位置は`/dev/pts/0.screen`内のANSI SGR 4/24で囲まれたセルとして表現されます．MCPの`terminal_read`もこの画面情報を転送し，別途行・列を表示しません．カーソルが表示されていれば，移動だけでも画面データが変わるため変更として検出できます．
+カーソル位置は`/dev/pts/N.screen`内のANSI SGR 4/24で囲まれたセルとして表現されます．MCPの`terminal_read`もこの画面情報を転送し，別途行・列を表示しません．カーソルが表示されていれば，移動だけでも画面データが変わるため変更として検出できます．

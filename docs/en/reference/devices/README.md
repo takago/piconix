@@ -19,10 +19,13 @@ This table lists **device types and path patterns in the standard configuration*
 | `/dev/ttyV0` | Yes | Yes | USB CDC text terminal | [TTY](../commands/TTY.md) |
 | `/dev/ttyV1` | Yes | Yes | Second CDC virtual console (Ctrl+T) | [CDC virtual console](CDC-VCONSOLE.md) |
 | `/dev/ttyS1` | Yes | Yes | UART1 text terminal | [UART](UART.md) |
-| `/dev/ptmx` | Yes | Yes | PTY master (one exclusive pair) | [PTY](PTY.md) |
+| `/dev/ptmx` | Yes | Yes | PTY master (up to two allocated pairs) | [PTY](PTY.md) |
 | `/dev/pts/0` | Yes | Yes | PTY slave (available while master is open) | [PTY](PTY.md) |
 | `/dev/pts/0.screen` | Yes | — | Read-only PTY 80x24 text screen | [PTY](PTY.md) |
 | `/dev/pts/0.key` | — | Yes | Write named PTY keys | [PTY](PTY.md) |
+| `/dev/pts/1` | Yes | Yes | Second PTY slave (allocated only) | [PTY](PTY.md) |
+| `/dev/pts/1.screen` | Yes | — | Second PTY screen | [PTY](PTY.md) |
+| `/dev/pts/1.key` | — | Yes | Second PTY named-key input | [PTY](PTY.md) |
 | `/dev/ttyN0` | Yes | Yes | Network terminal (Pico W) | [Networking](../network/NETWORK.md) |
 | `/dev/net/wifi` | — | Control | STA reconnect request (Pico W, STA mode) | [Wi-Fi](../network/WIFI-MODES.md) |
 | `/dev/net/packet` | Yes | — | IPv4 packet information (Pico W) | [tcpdump](../network/TCPDUMP.md) |

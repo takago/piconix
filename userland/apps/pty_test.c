@@ -40,7 +40,9 @@ int main(int argc, char **argv) {
 
     master=open("/dev/ptmx",O_RDWR|O_NONBLOCK);
     if(master<0) { printf("pty_test: cannot open /dev/ptmx (%d)\n",master); return 1; }
-    slave=open("/dev/pts/0",O_RDWR);
+    int slot=ioctl(master,OS_PTY_GET_INDEX,0);
+    char path[24];
+    if(slot>=0) { snprintf(path,sizeof path,"/dev/pts/%d",slot); slave=open(path,O_RDWR); }
     if(slave<0) { printf("pty_test: cannot open slave (%d)\n",slave); rc=1; goto cleanup; }
     for(int i=0;i<3;i++) saved[i]=dup(i);
     if(saved[0]<0 || saved[1]<0 || saved[2]<0) {

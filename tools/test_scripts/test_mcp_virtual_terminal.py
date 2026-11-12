@@ -45,14 +45,14 @@ for item in tools:
 
 assert 'VT_COLS 80u' in k and 'VT_ROWS 24u' in k
 assert 'PTY_OUT_BYTES 1024u' in k
-assert 'pty_screen_byte(c);' in k
+assert 'pty_screen_byte(slot,c);' in k
 assert 'pty_screen_read(fd,p,n)' in k
-assert 'pty_key_write(p,n)' in k
+assert 'pty_key_write(pty_slot(dev),p,n)' in k
 assert 'terminal_screen_stream(fd,id)' in m
 assert 'term_last_hash' not in m
-assert m.count('open("/dev/pts/0.screen",O_RDONLY)') == 1
+assert m.count('int screen=open(path,O_RDONLY)') == 1
 assert 'protected_target' in k and 'mcp_origin' in k
-for path in ('/dev/pts/0.screen', '/dev/pts/0.key'):
+for path in ('/dev/pts/0.screen', '/dev/pts/0.key', '/dev/pts/1.screen', '/dev/pts/1.key'):
     assert path in dev
 for locale in ('ja', 'en'):
     for name in ('PTY.md',):

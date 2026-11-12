@@ -19,6 +19,7 @@ static char request[REQUEST_SIZE];
 static char response[RESPONSE_SIZE];
 /* 応答用の比較的大きいバッファは4 KiBスタックを圧迫しないよう静的確保． */
 /* mcpdの起動時に生成し，HTTP要求とは独立して保持するシェルPTY． */
+static int term_index=-1;
 static int term_master=-1,term_pid=-1;
 /* 通信失敗をHTTP応答とは別のコンソールで観測する．1要求中の最初の失敗を保持する． */
 static int send_fail_reason, send_fail_value;
@@ -526,7 +527,10 @@ static int terminal_start_shell(void) {
     int master=open("/dev/ptmx",O_RDWR|O_NONBLOCK);
     if(master<0) return -1;
     if(ioctl(master,OS_PTY_SCREEN_ONLY,1)<0) {close(master);return -1;}
-    int slave=open("/dev/pts/0",O_RDWR);
+    int slot=ioctl(master,OS_PTY_GET_INDEX,0);
+    if(slot<0) {close(master);return -1;}
+    char path[24];snprintf(path,sizeof path,"/dev/pts/%d",slot);
+    int slave=open(path,O_RDWR);
     int saved[3]={-1,-1,-1},pid=-1,ok=slave>=0;
     if(ok) for(int k=0;k<3;k++) if((saved[k]=dup(k))<0) ok=0;
     if(ok) for(int k=0;k<3;k++) if(dup2(slave,k)<0) ok=0;
@@ -537,7 +541,7 @@ static int terminal_start_shell(void) {
     for(int k=0;k<3;k++) if(saved[k]>=0) {(void)dup2(saved[k],k);close(saved[k]);}
     if(slave>=0)close(slave);
     if(pid<=0) {close(master);return -1;}
-    term_master=master;term_pid=pid;
+    term_master=master;term_pid=pid;term_index=slot;
     return 0;
 }
 /* 現在のPTYセッションを終了し，Masterと子プロセスを解放する． */
@@ -547,7 +551,7 @@ static void terminal_close_session(void) {
         if(waitpid(term_pid,&status,WNOHANG)==0) {kill(term_pid);(void)waitpid(term_pid,&status,0);}
     }
     if(term_master>=0)close(term_master);
-    term_master=term_pid=-1;
+    term_master=term_pid=term_index=-1;
 }
 /* シェルがexit等で終了したらPTYを新しく確保する．
  * 入力側では復旧直後のキー入力を破棄し，意図しないコマンド実行を防ぐ． */
@@ -563,7 +567,8 @@ static int terminal_ensure_shell(void) {
  * 描画と並行した場合に一貫したスナップショットになる保証はない． */
 static int terminal_screen_stream(int fd,const char *id) {
     if(terminal_ensure_shell()<0) {rpc_error(id,-32030,"PTY shell unavailable");return 200;}
-    int screen=open("/dev/pts/0.screen",O_RDONLY);
+    char path[32];snprintf(path,sizeof path,"/dev/pts/%d.screen",term_index);
+    int screen=open(path,O_RDONLY);
     if(screen<0) {rpc_error(id,-32030,"Screen unavailable");return 200;}
     const char *headers="HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n";
     char prefix[160];
@@ -714,7 +719,8 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
                 unsigned len=(unsigned)(v2_end-value-2);
                 if(*value=='"' && len>0 && len<sizeof key) {
                     memcpy(key,value+1,len);key[len]=0;
-                    int fdkey=open("/dev/pts/0.key",O_WRONLY);
+                    char path[32];snprintf(path,sizeof path,"/dev/pts/%d.key",term_index);
+                    int fdkey=open(path,O_WRONLY);
                     if(fdkey>=0) {written=write(fdkey,key,len);close(fdkey);}
                 }
             } else {

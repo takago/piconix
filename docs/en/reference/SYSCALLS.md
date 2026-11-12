@@ -108,7 +108,7 @@ This table groups the ABI by purpose. **The full table contains 40 numbered entr
 
 ## Pseudoterminals (PTY)
 
-`open("/dev/ptmx", O_RDWR)` allocates one master, and `/dev/pts/0` is its slave. Redirect the child's FDs 0–2 to the slave before `spawn_foreground()`; its controlling TTY becomes 3. The master reads the child's output and writes its terminal input. Existing `select()`, `fcntl(O_NONBLOCK)` and slave TTY `ioctl()` calls are used; there is no new syscall. See the [PTY reference](devices/PTY.md).
+`open("/dev/ptmx", O_RDWR)` allocates the first available master (maximum two pairs). `ioctl(master, OS_PTY_GET_INDEX, 0)` returns N (0 or 1), and `/dev/pts/N` is the matching slave. Redirect the child's FDs 0–2 to the slave before `spawn_foreground()`; its controlling TTY becomes 3 (PTY 0) or 5 (PTY 1). The master reads the child's output and writes its terminal input. Existing `select()`, `fcntl(O_NONBLOCK)` and slave TTY `ioctl()` calls are used; there is no new syscall. See the [PTY reference](devices/PTY.md).
 
 ## C APIs versus raw ABI
 

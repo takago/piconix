@@ -108,7 +108,7 @@
 
 ## PTY（擬似端末）
 
-`open("/dev/ptmx", O_RDWR)`で1組のMasterを確保し，`/dev/pts/0`をSlaveとして開きます．`dup2()`で子のFD 0〜2をSlaveへ付け替えてから`spawn_foreground()`すると，子の制御TTYはTTY 3になります．Masterの`read()`はSlaveの出力，`write()`はSlaveへの端末入力です．`select()`，`fcntl(O_NONBLOCK)`，SlaveのTTY用`ioctl()`に対応しています．詳細は[PTYリファレンス](devices/PTY.md)を参照してください．なお，PTY操作専用のシステムコールは追加していません．
+`open("/dev/ptmx", O_RDWR)`で空いているPTY（最大2組）のMasterを確保し，`ioctl(master, OS_PTY_GET_INDEX, 0)`で取得した番号Nに対応する`/dev/pts/N`をSlaveとして開きます．`dup2()`で子のFD 0〜2をSlaveへ付け替えてから`spawn_foreground()`すると，子の制御TTYはPTY 0ならTTY 3，PTY 1ならTTY 5になります．Masterの`read()`はSlaveの出力，`write()`はSlaveへの端末入力です．`select()`，`fcntl(O_NONBLOCK)`，SlaveのTTY用`ioctl()`に対応しています．詳細は[PTYリファレンス](devices/PTY.md)を参照してください．なお，PTY操作専用のシステムコールは追加していません．
 
 ## C APIと低水準ABIの違い
 

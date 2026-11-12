@@ -1,8 +1,13 @@
 # PicoNIX Development Diary
 
-### 2026-11-12 — Remove duplicate documentation and add editorial regression checks
+### 2026-11-13 — Simplify task state and RAM image registration
 
-Based solely on the supplied ZIP, removed a duplicated buffered-output paragraph from the Japanese `TOP.md` reference and an identical repeated entry in the Japanese development diary. Added a host-side test to check reverse chronological diary dates, bilingual documentation file parity, and absence of these duplicate paragraphs/entries. No application or kernel code, ABI, RAM layout, or PIC mechanism was changed. Firmware builds and hardware testing were not performed.
+Removed unused task startup-time and script-path fields; packed three RAM image registration sizes into 16-bit fields while preserving the 20 KiB validation limit. Expanded ADC sample storage to the FD limit and carry cached ADC samples across FD duplication/inheritance so partial reads remain consistent. No TTY/PTY or networking queue capacities, syscall ABI, or fixed SRAM regions were changed.
+
+### 2026-11-12 — Support two independently allocated PTY pairs
+
+Opening `/dev/ptmx` now allocates the first free PTY (0 or 1), discoverable with `OS_PTY_GET_INDEX`. Slave, screen and key nodes are listed only for allocated pairs. Each pair has its own TTY state, virtual screen, output ring, and FD reference counts. `mcpd` and `pty_test` no longer hardcode slot 0. CDC V0/V1 is unchanged. Host regression tests updated; full firmware build and memory layout remain unverified.
+
 
 ### 2026-11-12 — Cycle CDC console views with Ctrl+Left/Right
 

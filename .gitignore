@@ -4,6 +4,10 @@ __pycache__/
 
 # Build artifacts
 build/
+build-pico/
+build-pico_w/
 
 # Local MCP/LLM session logs (may include sensitive prompts and tool outputs)
 logs/
+
+

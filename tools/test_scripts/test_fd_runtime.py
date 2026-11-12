@@ -62,7 +62,7 @@ prefix = r'''
 #define UDP_USER_SLOTS 3
 #define NO_TRACE __attribute__((no_instrument_function))
 typedef struct {uint8_t data[PIPE_BYTES];uint16_t head,used;uint8_t readers,writers;} pipe_t;
-typedef struct {int fd[OS_FD_MAX];uint32_t fd_pos[OS_FD_MAX];int fd_task_pid[OS_FD_MAX];uint8_t fd_flags[OS_FD_MAX];int pid;} task_t;
+typedef struct {int fd[OS_FD_MAX];uint32_t fd_pos[OS_FD_MAX];int fd_task_pid[OS_FD_MAX];uint8_t fd_flags[OS_FD_MAX];uint16_t adc_values[OS_FD_MAX];int pid;} task_t;
 static pipe_t pipes[PIPE_COUNT];
 static task_t tasks[3];
 static int current;
@@ -95,7 +95,9 @@ int main(void) {
     assert(free_fd()==3);
     fd_set(&tasks[0],3,DEV_UART1,40,4,13);
     assert(free_fd()==4);
+    tasks[0].adc_values[3]=1234;
     fd_copy(&tasks[0],4,3);
+    assert(tasks[0].adc_values[4]==1234);
     assert(tasks[0].fd[4]==DEV_UART1 && tasks[0].fd_pos[4]==40);
     assert(tasks[0].fd_flags[4]==4 && tasks[0].fd_task_pid[4]==13);
     fd_release(&tasks[0],3);

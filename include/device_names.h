@@ -23,6 +23,10 @@ enum {
     DEV_PTY_SLAVE = 275,
     DEV_PTY_SCREEN = 276,
     DEV_PTY_KEY = 277,
+    DEV_PTY_MASTER1 = 281,
+    DEV_PTY_SLAVE1 = 282,
+    DEV_PTY_SCREEN1 = 283,
+    DEV_PTY_KEY1 = 284,
 };
 /* X(path, id)はビルド条件に依存しない固定エントリを展開する． */
 #define PICONIX_FIXED_DEVICES(X) \
@@ -37,6 +41,9 @@ enum {
     X("/dev/pts/0", DEV_PTY_SLAVE) \
     X("/dev/pts/0.screen", DEV_PTY_SCREEN) \
     X("/dev/pts/0.key", DEV_PTY_KEY) \
+    X("/dev/pts/1", DEV_PTY_SLAVE1) \
+    X("/dev/pts/1.screen", DEV_PTY_SCREEN1) \
+    X("/dev/pts/1.key", DEV_PTY_KEY1) \
     X("/dev/rand", DEV_RAND) \
     X("/dev/mem", DEV_MEM) \
     X("/dev/shm", DEV_SHM) \

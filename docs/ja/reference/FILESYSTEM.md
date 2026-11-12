@@ -66,7 +66,7 @@ PicoNIXは小さな仮想ファイルシステム（VFS）を提供します．*
 | ノード | 読み取り | 書き込み | 備考 |
 |---|:---:|:---:|---|
 | `/dev/tty`, `/dev/console`, `/dev/ttyV0`, `/dev/ttyV1`, `/dev/ttyS1`, `/dev/ttyN0` | ○ | ○ | 端末．`/dev/ttyN0`はWi-Fiビルドのみ |
-| `/dev/ptmx`, `/dev/pts/0` | ○ | ○ | 汎用PTY（1組）．[詳細](devices/PTY.md) |
+| `/dev/ptmx`, `/dev/pts/0`, `/dev/pts/1` | ○ | ○ | 汎用PTY（最大2組）．[詳細](devices/PTY.md) |
 | `/dev/rand` | ○ | × | 暗号用途には使えない疑似乱数．1回の読み取りは最大4バイト |
 | `/dev/mem` | ○ | 制限付き | XIP Flashと主SRAMの読み取り，ユーザスロット・SHM・RAMファイルデータの書き込み．`lseek()`でアドレス指定 |
 | `/dev/shm` | ○ | ○ | 全タスク共通の2 KiB RAM．先頭からの相対オフセットでアクセス |

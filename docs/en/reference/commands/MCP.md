@@ -208,7 +208,7 @@ Exiting an interactive program returns to the same shell. If the shell itself ex
 
 Send ordinary text with `terminal_send({"text":"hello"})`. Send a space with `terminal_send({"text":" "})` or `terminal_send({"key":"SPACE"})` (alias `SP`). Supported names include `UP`, `DOWN`, `LEFT`, `RIGHT`, `ENTER`, `ESC`, `ESCAPE`, `TAB`, `SPACE`, `SP`, `BACKSPACE`, `BS`, `DELETE`, and `CTRL_A` through `CTRL_Z`. `CTRL_C` uses PicoNIX's existing foreground-task termination, not POSIX signals. There is no scrollback.
 
-Prefer `execute_command` for ordinary noninteractive commands. Only one PTY session is available and it shares the six task slots. Avoid starting another `mcpd` from the PTY shell. Kernel-side kill protection prevents MCP descendants from killing `mcpd` or the shell that launched it; it does not provide sandboxing or replace authentication/TLS (both absent).
+Prefer `execute_command` for ordinary noninteractive commands. MCP maintains one PTY session; the kernel supports two PTY pairs in total, sharing the six task slots. Avoid starting another `mcpd` from the PTY shell. Kernel-side kill protection prevents MCP descendants from killing `mcpd` or the shell that launched it; it does not provide sandboxing or replace authentication/TLS (both absent).
 
 The `terminal_read` tool description explains that SGR 4/24 marks the cursor and SGR 7/0 marks reverse video.
 

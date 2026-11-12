@@ -205,7 +205,7 @@ terminal_read({})
 
 文字入力は`terminal_send({"text":"hello"})`で送れます．空白は`terminal_send({"text":" "})`または`terminal_send({"key":"SPACE"})`（短縮名`SP`）で送れます．キー名は`UP`，`DOWN`，`LEFT`，`RIGHT`，`ENTER`，`ESC`，`ESCAPE`，`TAB`，`SPACE`，`SP`，`BACKSPACE`，`BS`，`DELETE`，`CTRL_A`〜`CTRL_Z`です．入力はPTYの行規律を通り，`CTRL_C`は既存の前景タスク強制終了動作を使用します．スクロールバックはありません．
 
-通常コマンドには引き続き`execute_command`を優先してください．PTYは1セッションだけで，6タスク上限を共有します．TTY内のコマンド起動は通常のPicoNIXシェル構文に従います．管理対象の`mcpd`をTTYから再起動しないでください．MCP経由で実行した子孫から`mcpd`またはその起動元のシェルを`kill()`する操作はカーネル側で拒否します．これは誤操作対策であり，完全なサンドボックスではありません．認証やTLSも未実装です．
+通常コマンドには引き続き`execute_command`を優先してください．MCPのPTYセッションは1つですが，カーネルは全体で最大2組のPTYを利用でき，6タスク上限を共有します．TTY内のコマンド起動は通常のPicoNIXシェル構文に従います．管理対象の`mcpd`をTTYから再起動しないでください．MCP経由で実行した子孫から`mcpd`またはその起動元のシェルを`kill()`する操作はカーネル側で拒否します．これは誤操作対策であり，完全なサンドボックスではありません．認証やTLSも未実装です．
 
 MCPツールの`terminal_read`の説明には，SGR 4/24がカーソル位置，SGR 7/0が反転表示を表すことを明記しています．
 
