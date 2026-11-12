@@ -24,26 +24,15 @@ PicoNIX is an educational system rather than a POSIX-compliant or security-harde
 
 ## Two consoles, one USB connection
 
-PicoNIX offers **two independent CDC virtual consoles** on a single USB serial connection: `/dev/ttyV0` and `/dev/ttyV1`. Each has its own shell, terminal state, and 80×24 screen buffer. Programs keep running and their screen buffers keep updating even while the other console is selected.
-
-Use the **vertically stacked dual-console view** to monitor the operating system with `top` on one console while running the shell, Python interpreter, or a game on the other. Both screens are visible in the same host terminal window, with reverse-video headers identifying the active input console. The help bar and headers are display overlays, not part of either application's screen contents.
+PicoNIX provides **two independent CDC virtual consoles over a single USB connection**. You can switch between them or display both vertically in one terminal window—for example, to monitor the system with `top` while running commands on the other console. Both consoles keep running even when they are not selected.
 
 <p align="center">
   <img src="docs/images/cdc-virtual-consoles.jpeg"
-       alt="PicoNIX CDC virtual consoles"
+       alt="PicoNIX CDC virtual consoles in stacked dual-console mode"
        width="420">
 </p>
 
-| USB CDC shortcut | Action |
-|---|---|
-| **Ctrl+Right** | Cycle **V0 single → V1 single → Dual → V0 single** |
-| **Ctrl+Left** | Cycle through those three views in reverse |
-| **Ctrl+Up / Ctrl+Down** | Select V0 / V1 as the input console in Dual view |
-| **Ctrl+T / Ctrl+G** | Alternative shortcuts for console switching / Single–Dual switching |
-
-Dual view requires an ANSI-capable host terminal of **at least 80 columns × 51 rows**. The recorded screens remain 80×24; content beyond column 80 is not captured for later restoration. In single view, longer lines can still be sent to a wider host terminal. Some host applications may intercept Ctrl+arrow combinations, so Ctrl+T / Ctrl+G remain available.
-
-The CDC consoles are **separate from the MCP PTY** (`/dev/pts/0`): the latter provides an interactive terminal for an LLM agent without consuming either CDC console. For device naming, behavior, and limitations, see the [CDC Virtual Console reference](docs/en/reference/devices/CDC-VCONSOLE.md) ([日本語](docs/ja/reference/devices/CDC-VCONSOLE.md)).
+For keyboard shortcuts, terminal requirements, and screen behavior, see the [CDC Virtual Console reference](docs/en/reference/devices/CDC-VCONSOLE.md) ([日本語](docs/ja/reference/devices/CDC-VCONSOLE.md)).
 
 ## Getting started
 
