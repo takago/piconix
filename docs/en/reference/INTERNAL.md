@@ -93,7 +93,7 @@ On task exit, the kernel releases FDs and sockets and removes the completed PID 
 
 ## 6. TTY and I/O
 
-PicoNIX supports the USB CDC console and a UART1 terminal. For example, `getty /dev/ttyS1 sh &` starts another Shell. Each terminal tracks its owning Shell and foreground PID; `Ctrl+C` acts on that terminal's foreground task.
+PicoNIX provides two independent USB CDC virtual TTYs (`/dev/console` and `/dev/ttyV1`, switched with Ctrl+T) plus a separate UART1 terminal. For example, `getty /dev/ttyS1 sh &` starts another Shell. Each terminal tracks its owning Shell and foreground PID; `Ctrl+C` acts on that terminal's foreground task.
 
 Use `ioctl()` to set **terminal input modes** (canonical/noncanonical and echo) and `fcntl()` to set **per-FD nonblocking flags**. These settings are independent. See [Terminal settings and interactive input](commands/TTY.md) for examples. This is not a full POSIX `termios` implementation: `VMIN` and `VTIME` are not provided.
 

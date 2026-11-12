@@ -1,4 +1,12 @@
 # PicoNIX Development Diary
+### 2026-11-12 — Consolidate TTY routing and disable wrapping in 80-column captures
+
+Introduced shared TTY transport-to-line-discipline helpers used by I/O, ioctl and select paths; existing canonical/raw input, echo, foreground ownership and independent console operation remain unchanged. CDC virtual-console and PTY screen capture stay at 80×24, clipping printable characters past column 80 rather than wrapping internally. Physical USB output remains unrestricted so wider host terminals still show full trace lines; after switching back only the captured 80-column portion is recoverable. No PTY/Console 1 buffer sharing or 120×40 expansion. Added host screen tests; Pico SDK firmware build is pending.
+
+### 2026-11-12 — Prototype CDC virtual consoles
+
+Added two independent logical TTYs (0=`/dev/console`, 4=`/dev/ttyV1`) on one physical USB CDC port, toggled with Ctrl+T. The second shell starts lazily in an available user task slot. Input, modes and foreground ownership remain independent; both CDC consoles reuse the minimal PTY ANSI interpreter to retain 80×24 display state. Background output stays off the physical USB stream, while a return switch restores the screen in bounded USB queue chunks. UART1, Telnet, MCP PTY, syscall ABI and fixed user RAM mapping remain unchanged. Due to the two-bit trace TTY tag, both CDC consoles use the physical CDC tag. Full ANSI compatibility and prior alternate-screen history restoration are not implemented. Host tests were performed; device builds, RAM occupancy and interaction testing are pending.
+
 ### 2026-11-12 — Buffer complete frames in selected full-screen applications
 
 Enabled the 64-byte fully buffered `stdout` after screen entry in `top`, `fd`, `mem`, `mb`, `reversi`, `sudoku`, `samegame`, `maze`, and `tictactoe`. Kept or added explicit `fflush(stdout)` at frame boundaries and before input waits or sleeps. Retained the shared `screen_enter()` default; left `vi` and `edit` unbuffered for immediate per-key updates, `pong` on direct multi-terminal FD writes, and `watch` with its existing render flush. No kernel, ABI, or RAM layout changes. ARM syntax and targeted host tests were run; on-device responsiveness and SVC savings remain unmeasured.

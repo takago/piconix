@@ -24,6 +24,7 @@ c_code=r'''
 #include <string.h>
 #include "piconix_trace.h"
 #define OS_MAX_TASKS 6
+#define CDC_VCONSOLE_TTY 4
 #define TRACE_CAPACITY 512u
 #define UNUSED 0
 #define READY 1
@@ -52,6 +53,12 @@ int main(void) {
     assert(trace_ring[0].tick==42 && trace_ring[0].value==7);
     assert(TRACE_TTY(trace_ring[0].kind)==2 && trace_ring[0].pid==33);
     assert(memcmp(trace_ring[0].data,bytes,4)==0);
+    tasks[0].tty=CDC_VCONSOLE_TTY;
+    trace_record(TRACE_SVC_ENTER,33,1,0,9,-1,NULL,0);
+    assert(TRACE_TTY(trace_ring[1].kind)==0);
+    tasks[0].tty=2;
+    trace_head=1;trace_serial=1;trace_count=1;
+    save_count=restore_count=1;
     /* Already running inside an interrupt: retain original mask. */
     irq_mask=1;
     trace_record(TRACE_TICK1K,33,1,2,9,-1,NULL,0);

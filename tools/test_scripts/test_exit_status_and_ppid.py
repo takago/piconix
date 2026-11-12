@@ -9,8 +9,8 @@ assert 'int pid, parent_pid, status;' in k
 assert 'exited[pos].status=status & 255;' in k
 assert '*t->wait_status=status;' in k
 assert '*status=exit_status;' in k
-assert 'static const char header[] = "PID  NAME              STATE    TTY      SLOT  MEMORY             SP        PPID\\n";' in k
-assert 't->sp,t->parent_pid);' in k
+assert 'static const char header[] = "PID  NAME              STATE    TTY      SLOT  MEMORY             SP        PPID  DISPATCH  CPU_TICKS   NET_US   CON_US\\n";' in k
+assert '(unsigned long)(uintptr_t)t->sp,t->parent_pid' in k
 assert 'return command_status;' in s
 assert 'if(!error && done && status!=0) error=1;' in m
 for locale in ('ja','en'):

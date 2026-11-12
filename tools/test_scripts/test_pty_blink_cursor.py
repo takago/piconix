@@ -26,7 +26,7 @@ source = r'''
 static struct {
     char cells[VT_ROWS][VT_COLS];
     uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u];
-    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden;
+    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden,clipped;
     uint16_t arg[3];
     uint32_t revision;
 } pty_screen;

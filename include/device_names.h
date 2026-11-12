@@ -4,6 +4,7 @@
 #define PICONIX_DEVICE_NAMES_H
 enum {
     DEV_CONSOLE = 0,
+    DEV_CDC_VCONSOLE = 278,
     DEV_FB = 128,
     DEV_FBCHAR = 146,
     DEV_UART1 = 30,
@@ -24,6 +25,7 @@ enum {
 /* X(path, id)はビルド条件に依存しない固定エントリを展開する． */
 #define PICONIX_FIXED_DEVICES(X) \
     X("/dev/console", DEV_CONSOLE) \
+    X("/dev/ttyV1", DEV_CDC_VCONSOLE) \
     X("/dev/fb", DEV_FB) \
     X("/dev/fbchar", DEV_FBCHAR) \
     X("/dev/ttyS1", DEV_UART1) \

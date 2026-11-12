@@ -15,7 +15,7 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Kernel and processes:** XIP kernel on RP2040, six fixed 24 KiB application slots (including 4 KiB reserved stack per slot), PIC user programs copied from Flash to SRAM, multitasking and an SVC-based system call interface.
 - **UNIX-like environment:** shell, pipes and redirection, virtual filesystem, RAM files, `/dev` and `/proc`, file descriptors, devices, process and terminal control.
 - **Programs and diagnostics:** file utilities, `edit`, `vi`, `fd`, `as`, a compact `cc`, a Python-like interpreter, `mem`, `trace`, `lsof`, and hardware experiments.
-- **Hardware:** USB CDC and UART1 terminals, GPIO, PWM, ADC, I²C1, an 8×8 LED matrix and framebuffer interfaces. Pin availability differs between Pico and Pico W.
+- **Hardware:** two CDC virtual consoles on one USB port, plus UART1, GPIO, PWM, ADC, I²C1, an 8×8 LED matrix and framebuffer interfaces. Pin availability differs between Pico and Pico W.
 - **Pico W networking:** Wi-Fi AP/STA, lwIP IPv4 TCP/UDP sockets, loopback, Telnet and UDP remote device control in the kernel; `httpd`, `nc`, `mcpd`, echo servers and other network programs in user space.
 - **MCP-controlled interactive terminal (Pico W):** The user-space `mcpd` server exposes an 80×24 virtual terminal to LLM clients. Through screen reads and keystrokes, an LLM can operate existing interactive programs such as `fd` and `vi`, including editing and saving files, without modifying those programs for AI. See the [MCP reference](docs/en/reference/commands/MCP.md) ([日本語](docs/ja/reference/commands/MCP.md)).
 
@@ -54,6 +54,7 @@ The following links go **directly** to the current technical specifications and 
 | **Initial filesystem and boot** | [Initial files and rc](docs/en/reference/INITIAL-FILES.md) | [初期ファイルとrc](docs/ja/reference/INITIAL-FILES.md) |
 | **Commands and shell usage** | [Command reference](docs/en/reference/commands/README.md) | [コマンドリファレンス](docs/ja/reference/commands/README.md) |
 | **Terminals and TTY** | [TTY reference](docs/en/reference/commands/TTY.md) | [TTYリファレンス](docs/ja/reference/commands/TTY.md) |
+| **CDC virtual consoles** | [CDC virtual console](docs/en/reference/devices/CDC-VCONSOLE.md) | [CDC仮想コンソール](docs/ja/reference/devices/CDC-VCONSOLE.md) |
 | **Devices** | [Device reference](docs/en/reference/devices/README.md) | [デバイス仕様](docs/ja/reference/devices/README.md) |
 | **Board hardware and pin assignments** | [Hardware reference](docs/en/reference/hardware/README.md) | [ハードウェア仕様](docs/ja/reference/hardware/README.md) |
 | **Wi-Fi, sockets and networking** | [Network reference](docs/en/reference/network/README.md) | [ネットワーク仕様](docs/ja/reference/network/README.md) |

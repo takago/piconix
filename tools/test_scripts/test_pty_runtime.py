@@ -45,31 +45,35 @@ prefix = r'''
 #define OS_EIO (-5)
 #define OS_EAGAIN (-11)
 #define PTY_TTY 3
+#define CDC_VCONSOLE_TTY 4
 #define PTY_OUT_BYTES 1024u
 #define VT_COLS 80u
 #define VT_ROWS 24u
 #define OS_EINVAL (-22)
 #define OS_EBADF (-9)
 #define TTY_LINES 8u
-#define OS_TTY_COUNT 4
+#define OS_TTY_COUNT 5
 #define DEV_PTY_MASTER 274
 #define DEV_PTY_SLAVE 275
 #define CONSOLE_TX_CAP 512u
 static unsigned console_tx_head, console_tx_tail;
-static unsigned tty_canonical[4]={1,1,1,1}, tty_echo[4]={1,1,1,1}, tty_onlcr[4]={1,1,1,1}, tty_interrupt[4]={1,1,1,1};
-static unsigned tty_last_cr[4];
-static int tty_mode_owner[4], foreground_pid[4], tty_shell_pid[4], tty_claim_pid[4], tty_restore_pid[4];
-static int foreground_group[4][3];
+static unsigned tty_canonical[5]={1,1,1,1,1}, tty_echo[5]={1,1,1,1,1}, tty_onlcr[5]={1,1,1,1,1}, tty_interrupt[5]={1,1,1,1,1};
+static unsigned tty_last_cr[5];
+static int tty_mode_owner[5], foreground_pid[5], tty_shell_pid[5], tty_claim_pid[5], tty_restore_pid[5];
+static int foreground_group[5][3];
 typedef struct { uint8_t data[PTY_OUT_BYTES]; } unused_t;
 typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave, screen_only; } pty_t;
 static pty_t pty;
-static struct {
+typedef struct {
     char cells[VT_ROWS][VT_COLS];
     uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u];
-    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden;
+    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden,clipped;
     uint16_t arg[3];
     uint32_t revision;
-} pty_screen;
+} vt_screen_t;
+static vt_screen_t pty_screen;
+static uint8_t cdc_active;
+static struct {uint8_t phase;} cdc_repaint;
 static void pty_screen_byte(uint8_t c);
 static void tty_raw_enqueue(int dev,uint8_t c);
 static int pty_master_rw(void *p,size_t n,int writing);
@@ -78,11 +82,12 @@ typedef struct {
     struct { char text[128]; uint8_t len; } lines[TTY_LINES];
     unsigned head, tail, used, offset;
 } tty_buffer_t;
-static tty_buffer_t tty_buf[4];
+static tty_buffer_t tty_buf[5];
 typedef struct { int pid; uint32_t fd_pos[16]; } task_t;
 static task_t tasks[1];
 static int current=0;
-static void tty_put(uint8_t c) {(void)c;}
+static void cdc_put(int tty,uint8_t c) {(void)tty;(void)c;}
+static void wake_readers(int tty) {(void)tty;}
 static unsigned char tty1_ctrl_c_pending;
 static int interrupt_count;
 static void tty_foreground_interrupt(int dev) { assert(dev==PTY_TTY); interrupt_count++; }
@@ -95,6 +100,7 @@ functions = [extract(sig) for sig in (
     'NO_TRACE static void vt_lf(',
     'NO_TRACE static void vt_cursor_report(',
     'NO_TRACE static unsigned vt_arg(',
+    'NO_TRACE static void vt_screen_byte(',
     'NO_TRACE static void pty_screen_byte(',
     'NO_TRACE static int pty_screen_read(',
     'NO_TRACE static int pty_key_write(',
@@ -148,7 +154,7 @@ int main(void) {
     assert(pty_master_rw(tmp,sizeof(tmp),0)==25);
     assert(tmp[24]=='!');
     /* VT80x24: 画面復元，カーソル，ANSIの処理とキー入力を確認する． */
-    vt_clear();pty_screen.row=pty_screen.col=0;pty_screen.esc=0;
+    vt_clear(&pty_screen);pty_screen.row=pty_screen.col=0;pty_screen.esc=0;
     for(const char *p="\033[2J\033[HHello\033[3;1HWorld";*p;p++)pty_screen_byte((uint8_t)*p);
     assert(!memcmp(pty_screen.cells[0],"Hello",5));
     assert(!memcmp(pty_screen.cells[2],"World",5));

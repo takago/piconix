@@ -154,6 +154,7 @@ static int parse_irq_line(const char **input,const char *label,unsigned *count,i
     return 1;
 }
 
+/* 割り込み種別の累積値を固定順序で解析し，絶対アドレス再配置を避ける． */
 static int parse_irqs(const char *data,irq_sample_t *v){
     return parse_irq_line(&data,"SysTick ",&v->systick,0) &&
            parse_irq_line(&data,"PendSV ",&v->pendsv,0) &&

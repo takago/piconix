@@ -27,6 +27,8 @@ boilerplate = r'''
 #include "piconix.h"
 #include "gpio_status.h"
 #define DEV_CONSOLE 0
+#define DEV_CDC_VCONSOLE 278
+#define CDC_VCONSOLE_TTY 4
 #define DEV_UART1 30
 #define DEV_WIFI_TTY 97
 #define DEV_PTY_SLAVE 275
@@ -36,13 +38,13 @@ boilerplate = r'''
 #define UNUSED 0
 #define DEAD 3
 #define OS_FD_MAX 16
-#define OS_TTY_COUNT 4
+#define OS_TTY_COUNT 5
 typedef struct {int pid,state,fd[OS_FD_MAX];} task_t;
 static task_t tasks[3];
 static int current;
-static int tty_claim_pid[4], foreground_pid[4], tty_shell_pid[4];
-static uint8_t tty_canonical[4]={1,1,1,1},tty_echo[4]={1,1,1,1},tty_onlcr[4]={1,1,1,1},tty_interrupt[4]={1,1,1,1};
-static int tty_mode_owner[4],tty_restore_pid[4];
+static int tty_claim_pid[5], foreground_pid[5], tty_shell_pid[5];
+static uint8_t tty_canonical[5]={1,1,1,1,1},tty_echo[5]={1,1,1,1,1},tty_onlcr[5]={1,1,1,1,1},tty_interrupt[5]={1,1,1,1,1};
+static int tty_mode_owner[5],tty_restore_pid[5];
 static struct {int head,tail;} rx[2];
 static int resets;
 static int tty_owner_pid(int tty) {return tty_claim_pid[tty] ? tty_claim_pid[tty] :
@@ -98,6 +100,10 @@ int main(void) {
     assert(device_ioctl_tty(DEV_PTY_SLAVE,OS_TTY_GET_CANON,0)==1);
     assert(device_ioctl_tty(DEV_PTY_SLAVE,OS_TTY_SET_CANON,0)==0);
     assert(device_ioctl_tty(DEV_PTY_SLAVE,OS_TTY_GET_CANON,0)==0);
+    foreground_pid[CDC_VCONSOLE_TTY]=12;
+    assert(device_ioctl_tty(DEV_CDC_VCONSOLE,OS_TTY_GET_CANON,0)==1);
+    assert(device_ioctl_tty(DEV_CDC_VCONSOLE,OS_TTY_SET_CANON,0)==0);
+    assert(tty_canonical[CDC_VCONSOLE_TTY]==0);
     fn=GPIO_FUNC_SIO;
     assert(device_ioctl_gpio_status(4,OS_GPIO_STATUS_BASE+17)==
         (GPIO_STATUS_OUT | (1<<GPIO_STATUS_LEVEL_SHIFT) | (1<<GPIO_STATUS_PULL_SHIFT)));

@@ -17,7 +17,7 @@ In PicoNIX, **the kernel manages TTY input/output behavior**, while **applicatio
 
 ## 1. Terminals and I/O
 
-Shells can use the USB CDC `/dev/console`, UART1 `/dev/ttyS1`, or `/dev/ttyN0` in supported Pico W builds. See [UART and terminals](../devices/UART.md) and [Networking](../network/NETWORK.md) for connection details and `getty`.
+Shells can use the USB CDC `/dev/console` (Ctrl+T switches to `/dev/ttyV1`), UART1 `/dev/ttyS1`, or `/dev/ttyN0` in supported Pico W builds. See [UART and terminals](../devices/UART.md) and [Networking](../network/NETWORK.md) for connection details and `getty`.
 
 TTY processing includes canonical line input, local echo, and ONLCR output newline conversion. Pipes, ordinary files, and sockets are not TTYs and do not receive this processing.
 

@@ -12,6 +12,7 @@ header=r'''
 #include <stddef.h>
 #include <assert.h>
 #define NO_TRACE __attribute__((no_instrument_function))
+#define PICONIX_WIFI 1
 #define OS_MAX_TASKS 2
 #define OS_FD_MAX 16
 #define TCP_USER_SLOTS 4
@@ -19,6 +20,8 @@ header=r'''
 #define DEV_SOCKET_TCP 401
 #define DEV_SOCKET_TCP_ACCEPTED 402
 #define DEV_CONSOLE 100
+#define DEV_CDC_VCONSOLE 278
+#define CDC_VCONSOLE_TTY 4
 #define DEV_UART1 101
 #define DEV_WIFI_TTY 102
 #define DEV_PTY_MASTER 103
@@ -48,8 +51,8 @@ static int tcp_owner_pid[TCP_USER_SLOTS],udp_owner_pid[3],accept_pending,rx_byte
 static uint32_t ticks;
 static pipe_t pipe_storage;
 static struct {int master_refs,slave_refs,ever_slave,screen_only;unsigned used;} pty;
-static struct {unsigned used;} tty_buf[4];
-static int tty_echo[4];
+static struct {unsigned used;} tty_buf[5];
+static int tty_echo[5];
 static int pipe_end(int d) {return d==PIPE_DEV_BASE || d==PIPE_DEV_BASE+1;}
 static pipe_t *pipe_for_dev(int d) {(void)d;return &pipe_storage;}
 static int pipe_is_writer(int d) {return d==PIPE_DEV_BASE+1;}
@@ -60,6 +63,14 @@ static int net_socket_tcp_listening(int id) {(void)id;return 1;}
 static int net_socket_tcp_accept_peek(int id) {(void)id;return accept_pending;}
 static int net_socket_tcp_recv_ready(int id) {(void)id;return rx_bytes>0;}
 static int net_socket_tcp_write_ready(int id) {(void)id;return can_write;}
+static int tty_for_device(int dev) {
+ if(dev==DEV_CONSOLE) return 0;
+ if(dev==DEV_UART1) return 1;
+ if(dev==DEV_WIFI_TTY) return 2;
+ if(dev==DEV_PTY_SLAVE) return PTY_TTY;
+ if(dev==DEV_CDC_VCONSOLE) return CDC_VCONSOLE_TTY;
+ return -1;
+}
 static int tty_rx_ready(int tty) {(void)tty;return tty_pending;}
 static void trace_record(int kind,uint8_t pid,uint32_t op,uint32_t result,uint8_t program,int dev,void *data,int length) {
  (void)kind;(void)pid;(void)op;(void)result;(void)program;(void)dev;(void)data;(void)length;
@@ -75,6 +86,7 @@ int main(void) {
  t->fd[5]=DEV_SOCKET_UDP;udp_owner_pid[0]=7;
  t->fd[0]=DEV_CONSOLE;
  t->fd[6]=PIPE_DEV_BASE;pipe_storage.writers=1;
+ t->fd[9]=DEV_CDC_VCONSOLE;
  piconix_select_request_t req={.read_mask=(1u<<3)|(1u<<4),.timeout_ms=100};
  assert(select_ready(t,7,&req)==0);
  accept_pending=1;rx_bytes=5;
@@ -84,6 +96,8 @@ int main(void) {
  req.read_mask=(1u<<5)|(1u<<0)|(1u<<6);
  udp_pending=1;tty_pending=1;pipe_storage.used=1;
  assert(select_ready(t,7,&req)==3);
+ req.read_mask=(1u<<9);
+ assert(select_ready(t,10,&req)==1); /* second virtual CDC TTY receives independently */
  /* PTY master/slave readiness and EOF/writable backpressure. */
  t->fd[7]=DEV_PTY_MASTER;t->fd[8]=DEV_PTY_SLAVE;
  pty.master_refs=1;pty.slave_refs=1;pty.ever_slave=1;

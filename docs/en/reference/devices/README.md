@@ -2,7 +2,7 @@
 
 This is the **canonical inventory and detailed reference** for PicoNIX device nodes. The nodes under `/dev` are interfaces to kernel drivers, not ordinary RAM files.
 
-**Related topics:** [PTY](PTY.md) | [I²C1](I2C.md) | [UART1](UART.md) | [Hardware and wiring](../hardware/README.md) | [Filesystem](../FILESYSTEM.md) | [Networking](../network/README.md)
+**Related topics:** [CDC virtual console](CDC-VCONSOLE.md) | [PTY](PTY.md) | [I²C1](I2C.md) | [UART1](UART.md) | [Hardware and wiring](../hardware/README.md) | [Filesystem](../FILESYSTEM.md) | [Networking](../network/README.md)
 
 For the full directory and node inventory, access modes, and RAM file limits, see [Filesystem and device nodes](../FILESYSTEM.md).
 
@@ -15,6 +15,7 @@ This table lists **device types and path patterns in the standard configuration*
 | Node | Read | Write/control | Data and purpose | Details |
 |---|:---:|:---:|---|---|
 | `/dev/console` | Yes | Yes | USB CDC text terminal | [TTY](../commands/TTY.md) |
+| `/dev/ttyV1` | Yes | Yes | Second CDC virtual console (Ctrl+T) | [CDC virtual console](CDC-VCONSOLE.md) |
 | `/dev/ttyS1` | Yes | Yes | UART1 text terminal | [UART](UART.md) |
 | `/dev/ptmx` | Yes | Yes | PTY master (one exclusive pair) | [PTY](PTY.md) |
 | `/dev/pts/0` | Yes | Yes | PTY slave (available while master is open) | [PTY](PTY.md) |

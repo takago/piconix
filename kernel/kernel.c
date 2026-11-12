@@ -227,6 +227,7 @@ typedef struct { uint8_t data[PIPE_BYTES]; uint16_t head, used; uint8_t readers,
 static pipe_t pipes[PIPE_COUNT];
 /* 汎用PTY 1組．デバイスIDはパイプ端点と区別し，追加タスク・ソケットを使わない． */
 #define PTY_TTY 3
+#define CDC_VCONSOLE_TTY 4  /* Second virtual console on the same USB CDC. */
 #define PTY_OUT_BYTES 1024u
 #define WAIT_PTY_READ (-7)
 #define WAIT_PTY_SLAVE_WRITE (-8)
@@ -234,13 +235,26 @@ typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned maste
 /* 80x24の仮想画面．TTY/PTYのバイト転送とは独立した表示状態である． */
 #define VT_COLS 80u
 #define VT_ROWS 24u
-static struct {
+typedef struct {
     char cells[VT_ROWS][VT_COLS];
     uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u];
-    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden;
+    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden,clipped;
     uint16_t arg[3];
     uint32_t revision;
-} pty_screen;
+} vt_screen_t;
+static vt_screen_t pty_screen;
+/* CDC is one physical port with two independent virtual 80x24 displays. */
+static vt_screen_t cdc_screen[2];
+static uint8_t cdc_active;
+/* In-progress repaint suppresses interleaved foreground writes to the USB queue. */
+static struct {
+    uint8_t phase,row,col,reverse,pending,seq_at;
+    uint32_t revision;
+    char seq[32];
+} cdc_repaint;
+static void cdc_vconsole_draw(void);
+static void cdc_vconsole_switch(void);
+static void wake_readers(int dev);
 static void pty_screen_byte(uint8_t c);
 static int pty_screen_read(int fd, void *p, size_t n);
 static int pty_key_write(const void *p, size_t n);
@@ -320,14 +334,14 @@ static uint32_t rand32(void) {
 static volatile uint32_t svc_count, pendsv_count, context_switch_count;
 static int started;
 static int next_pid=1;
-/* PTYは物理TTYと同じ端末状態を持つ．Picoでは番号2を予約したまま3を使う． */
-#define OS_TTY_COUNT 4
+/* TTY 0=CDC0, 1=UART1, 2=Telnet, 3=PTY, 4=CDC1. */
+#define OS_TTY_COUNT 5
 static volatile int foreground_pid[OS_TTY_COUNT];
 /* TTYごとの前景グループ．最大3段のパイプを管理する． */
 static int foreground_group[OS_TTY_COUNT][3];
 static int tty_shell_pid[OS_TTY_COUNT];
 /* 端末モードは前景プログラムが一時的に使用し，終了時に復元する． */
-#define TTY_DEFAULTS {1,1,1,1}
+#define TTY_DEFAULTS {1,1,1,1,1}
 static uint8_t tty_canonical[OS_TTY_COUNT]=TTY_DEFAULTS, tty_echo[OS_TTY_COUNT]=TTY_DEFAULTS;
 static uint8_t tty_onlcr[OS_TTY_COUNT]=TTY_DEFAULTS, tty_interrupt[OS_TTY_COUNT]=TTY_DEFAULTS;
 static uint8_t tty_last_cr[OS_TTY_COUNT];
@@ -349,6 +363,25 @@ typedef struct {
     unsigned head,tail,used,offset;
 } tty_buffer_t;
 static tty_buffer_t tty_buf[OS_TTY_COUNT];
+/* Common TTY layer: translate a transport device into its line discipline.
+ * Screen state belongs to the display layer, not to this mapping. */
+NO_TRACE static int tty_for_device(int dev) {
+    if(dev==DEV_CONSOLE) return 0;
+    if(dev==DEV_UART1) return 1;
+    if(dev==DEV_WIFI_TTY) return PICONIX_WIFI ? 2 : -1;
+    if(dev==DEV_PTY_SLAVE) return PTY_TTY;
+    if(dev==DEV_CDC_VCONSOLE) return CDC_VCONSOLE_TTY;
+    return -1;
+}
+/* Reverse mapping for TTY ownership and device reference checks. */
+NO_TRACE static int tty_device(int tty) {
+    if(tty==0) return DEV_CONSOLE;
+    if(tty==1) return DEV_UART1;
+    if(tty==2) return DEV_WIFI_TTY;
+    if(tty==PTY_TTY) return DEV_PTY_SLAVE;
+    if(tty==CDC_VCONSOLE_TTY) return DEV_CDC_VCONSOLE;
+    return -1;
+}
 /* RAMファイルの後ろに16 KiBのトレースリングを固定配置する． */
 #define TRACE_CAPACITY 512u
 _Static_assert(sizeof(trace_event_t) == 32, "trace record must be 32 bytes");
@@ -393,7 +426,7 @@ static void __attribute__((no_instrument_function)) trace_record(uint8_t kind, u
         if((kind==TRACE_SWITCH ? value : pid) &&
            tasks[i].pid==(int)(kind==TRACE_SWITCH ? value : pid) &&
            tasks[i].state!=UNUSED) {
-            e->kind |= (uint8_t)((tasks[i].tty & 3u) << 6);
+            e->kind |= (uint8_t)(((tasks[i].tty==CDC_VCONSOLE_TTY ? 0u : tasks[i].tty) & 3u) << 6);
             break;
         }
     e->program_id = program_id;
@@ -741,8 +774,8 @@ NO_TRACE static int select_ready(task_t *t,int nfds,piconix_select_request_t *r)
             int listening=(dev==DEV_SOCKET_TCP && net_socket_tcp_listening(id));
             rd=listening ? net_socket_tcp_accept_peek(id) : net_socket_tcp_recv_ready(id);
             wr=listening ? 0 : net_socket_tcp_write_ready(id);
-        } else if(dev==DEV_CONSOLE || dev==DEV_UART1 || dev==DEV_WIFI_TTY || dev==DEV_PTY_SLAVE) {
-            int tty=dev==DEV_CONSOLE?0:dev==DEV_UART1?1:dev==DEV_PTY_SLAVE?PTY_TTY:2;
+        } else if(dev==DEV_CONSOLE || dev==DEV_CDC_VCONSOLE || dev==DEV_UART1 || dev==DEV_WIFI_TTY || dev==DEV_PTY_SLAVE) {
+            int tty=tty_for_device(dev);
             rd=tty_rx_ready(tty) || (dev==DEV_PTY_SLAVE && !pty.master_refs);
             wr=dev!=DEV_PTY_SLAVE || (pty.master_refs && (pty.screen_only || PTY_OUT_BYTES-pty.used>=2u));
         } else if(dev==DEV_PTY_MASTER) {
@@ -858,95 +891,109 @@ NO_TRACE static void pty_ref(int dev, int delta) {
 static void tty_raw_enqueue(int dev,uint8_t c);
 NO_TRACE static int pty_master_rw(void *p,size_t n,int writing);
 /* 仮想画面の最小ANSI解釈．通常のPTY出力は加工せず，画面だけを更新する． */
-NO_TRACE static void vt_clear(void) {
-    memset(pty_screen.cells,' ',sizeof pty_screen.cells);
-    memset(pty_screen.inverse,0,sizeof pty_screen.inverse);
+NO_TRACE static void vt_clear(vt_screen_t *screen) {
+    memset(screen->cells,' ',sizeof screen->cells);
+    memset(screen->inverse,0,sizeof screen->inverse);
 }
 /* 最下行を空けながら仮想画面を1行スクロールする． */
-NO_TRACE static void vt_scroll(void) {
-    memmove(pty_screen.cells[0],pty_screen.cells[1],(VT_ROWS-1u)*VT_COLS);
-    memmove(pty_screen.inverse[0],pty_screen.inverse[1],(VT_ROWS-1u)*sizeof pty_screen.inverse[0]);
-    memset(pty_screen.cells[VT_ROWS-1u],' ',VT_COLS);
-    memset(pty_screen.inverse[VT_ROWS-1u],0,sizeof pty_screen.inverse[0]);
+NO_TRACE static void vt_scroll(vt_screen_t *screen) {
+    memmove(screen->cells[0],screen->cells[1],(VT_ROWS-1u)*VT_COLS);
+    memmove(screen->inverse[0],screen->inverse[1],(VT_ROWS-1u)*sizeof screen->inverse[0]);
+    memset(screen->cells[VT_ROWS-1u],' ',VT_COLS);
+    memset(screen->inverse[VT_ROWS-1u],0,sizeof screen->inverse[0]);
 }
 /* 改行時に下端を超えた場合は1行スクロールする． */
-NO_TRACE static void vt_lf(void) {
-    if(++pty_screen.row>=VT_ROWS) { vt_scroll(); pty_screen.row=VT_ROWS-1u; }
+NO_TRACE static void vt_lf(vt_screen_t *screen) {
+    if(++screen->row>=VT_ROWS) { vt_scroll(screen); screen->row=VT_ROWS-1u; }
 }
 /* ESC[6nへの応答はPTYの入力キューに入れる．端末サイズのプローブにも対応する． */
-NO_TRACE static void vt_cursor_report(void) {
+NO_TRACE static void vt_cursor_report(vt_screen_t *screen, int tty) {
+    /* The selected physical CDC terminal answers CSI 6n itself; synthesize
+     * replies only for PTY or an off-screen/repainting CDC virtual console. */
+    if(tty!=PTY_TTY &&
+       (tty==CDC_VCONSOLE_TTY ? 1 : 0)==cdc_active && !cdc_repaint.phase) return;
     char reply[16];
-    int n=snprintf(reply,sizeof reply,"\033[%u;%uR",(unsigned)pty_screen.row+1u,(unsigned)pty_screen.col+1u);
-    if(n>0 && (unsigned)n<sizeof reply)
-        for(int i=0;i<n;i++) tty_raw_enqueue(PTY_TTY,(uint8_t)reply[i]);
+    int n=snprintf(reply,sizeof reply,"\033[%u;%uR",(unsigned)screen->row+1u,(unsigned)screen->col+1u);
+    if(n>0 && (unsigned)n<sizeof reply) {
+        for(int i=0;i<n;i++) tty_raw_enqueue(tty,(uint8_t)reply[i]);
+        if(tty==CDC_VCONSOLE_TTY || tty==0) wake_readers(tty);
+    }
 }
 /* ANSIのパラメータが省略された場合に既定値を返す． */
-NO_TRACE static unsigned vt_arg(unsigned i,unsigned fallback) {
-    return i<3u && pty_screen.arg[i] ? pty_screen.arg[i] : fallback;
+NO_TRACE static unsigned vt_arg(vt_screen_t *screen,unsigned i,unsigned fallback) {
+    return i<3u && screen->arg[i] ? screen->arg[i] : fallback;
 }
-/* PTYの出力を最小限のANSI状態機械で画面へ描画する． */
-NO_TRACE static void pty_screen_byte(uint8_t c) {
-    if(pty_screen.esc==1) {
-        pty_screen.esc=0;
+/* TTYとは独立した画面エミュレータ．幅を超えた文字は改行まで捨てる． */
+NO_TRACE static void vt_screen_byte(vt_screen_t *screen, int tty, uint8_t c) {
+    if(screen->esc==1) {
+        screen->esc=0;
         if(c=='[') {
-            pty_screen.esc=2; pty_screen.params=0; pty_screen.private_csi=0;
-            memset(pty_screen.arg,0,sizeof pty_screen.arg);
-        } else if(c=='c') { vt_clear(); pty_screen.row=pty_screen.col=0; pty_screen.cursor_hidden=0; }
+            screen->esc=2; screen->params=0; screen->private_csi=0;
+            memset(screen->arg,0,sizeof screen->arg);
+        } else if(c=='c') { vt_clear(screen); screen->row=screen->col=0; screen->clipped=0; screen->cursor_hidden=0; }
         return;
     }
-    if(pty_screen.esc==2) {
-        if(c=='?' && !pty_screen.params && !pty_screen.arg[0]) {pty_screen.private_csi=1;return;}
+    if(screen->esc==2) {
+        if(c=='?' && !screen->params && !screen->arg[0]) {screen->private_csi=1;return;}
         if(c>='0' && c<='9') {
-            unsigned i=pty_screen.params;
-            if(i<3 && pty_screen.arg[i]<1000u) pty_screen.arg[i]=(uint16_t)(pty_screen.arg[i]*10u+c-'0');
+            unsigned i=screen->params;
+            if(i<3 && screen->arg[i]<1000u) screen->arg[i]=(uint16_t)(screen->arg[i]*10u+c-'0');
             return;
         }
-        if(c==';') {if(pty_screen.params<2) pty_screen.params++;return;}
-        unsigned n=vt_arg(0,1);
+        if(c==';') {if(screen->params<2) screen->params++;return;}
+        unsigned n=vt_arg(screen,0,1);
         if(c=='H'||c=='f') {
-            unsigned r=n-1u,col=vt_arg(1,1)-1u;
-            pty_screen.row=(uint8_t)(r<VT_ROWS?r:VT_ROWS-1u);
-            pty_screen.col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);
-        } else if(c=='A') pty_screen.row=(uint8_t)(n>pty_screen.row?0:pty_screen.row-n);
-        else if(c=='B') pty_screen.row=(uint8_t)(pty_screen.row+n<VT_ROWS?pty_screen.row+n:VT_ROWS-1u);
-        else if(c=='C') pty_screen.col=(uint8_t)(pty_screen.col+n<VT_COLS?pty_screen.col+n:VT_COLS-1u);
-        else if(c=='D') pty_screen.col=(uint8_t)(n>pty_screen.col?0:pty_screen.col-n);
-        else if(c=='G') pty_screen.col=(uint8_t)(n-1u<VT_COLS?n-1u:VT_COLS-1u);
-        else if(c=='J' && (pty_screen.arg[0]==2 || pty_screen.arg[0]==3)) vt_clear();
+            unsigned r=n-1u,col=vt_arg(screen,1,1)-1u;
+            screen->row=(uint8_t)(r<VT_ROWS?r:VT_ROWS-1u);
+            screen->col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);
+            screen->clipped=0;
+        } else if(c=='A') { screen->clipped=0; screen->row=(uint8_t)(n>screen->row?0:screen->row-n); }
+        else if(c=='B') { screen->clipped=0; screen->row=(uint8_t)(screen->row+n<VT_ROWS?screen->row+n:VT_ROWS-1u); }
+        else if(c=='C') { screen->clipped=0; screen->col=(uint8_t)(screen->col+n<VT_COLS?screen->col+n:VT_COLS-1u); }
+        else if(c=='D') { screen->clipped=0; screen->col=(uint8_t)(n>screen->col?0:screen->col-n); }
+        else if(c=='G') { screen->clipped=0; screen->col=(uint8_t)(n-1u<VT_COLS?n-1u:VT_COLS-1u); }
+        else if(c=='J' && (screen->arg[0]==2 || screen->arg[0]==3)) vt_clear(screen);
         else if(c=='K') {
-            unsigned start=pty_screen.arg[0]==1 ? 0 : pty_screen.col;
-            unsigned end=pty_screen.arg[0]==1 ? (unsigned)pty_screen.col+1u : VT_COLS;
-            if(pty_screen.arg[0]==2) {start=0;end=VT_COLS;}
-            memset(pty_screen.cells[pty_screen.row]+start,' ',end-start);
-            for(unsigned j=start;j<end;j++) pty_screen.inverse[pty_screen.row][j>>3]&=(uint8_t)~(1u<<(j&7u));
+            unsigned start=screen->arg[0]==1 ? 0 : screen->col;
+            unsigned end=screen->arg[0]==1 ? (unsigned)screen->col+1u : VT_COLS;
+            if(screen->arg[0]==2) {start=0;end=VT_COLS;}
+            memset(screen->cells[screen->row]+start,' ',end-start);
+            for(unsigned j=start;j<end;j++) screen->inverse[screen->row][j>>3]&=(uint8_t)~(1u<<(j&7u));
         } else if(c=='m') {
-            for(unsigned i=0;i<=pty_screen.params;i++) {
-                if(pty_screen.arg[i]==0 || pty_screen.arg[i]==27) pty_screen.reverse=0;
-                if(pty_screen.arg[i]==7) pty_screen.reverse=1;
+            for(unsigned i=0;i<=screen->params;i++) {
+                if(screen->arg[i]==0 || screen->arg[i]==27) screen->reverse=0;
+                if(screen->arg[i]==7) screen->reverse=1;
             }
-        } else if(c=='n' && pty_screen.arg[0]==6) vt_cursor_report();
-        else if(pty_screen.private_csi && (c=='h'||c=='l') && pty_screen.arg[0]==25) {
-            pty_screen.cursor_hidden=(c=='l');
-        } else if(pty_screen.private_csi && (c=='h'||c=='l') && pty_screen.arg[0]==1049) {
-            if(c=='h') {vt_clear();pty_screen.row=pty_screen.col=0;}
+        } else if(c=='n' && screen->arg[0]==6) vt_cursor_report(screen,tty);
+        else if(screen->private_csi && (c=='h'||c=='l') && screen->arg[0]==25) {
+            screen->cursor_hidden=(c=='l');
+        } else if(screen->private_csi && (c=='h'||c=='l') && screen->arg[0]==1049) {
+            if(c=='h' || (c=='l' && tty!=PTY_TTY)) {
+                vt_clear(screen);screen->row=screen->col=screen->clipped=0;
+            }
         }
-        pty_screen.esc=0;
-        pty_screen.revision++;
+        screen->esc=0;
+        screen->revision++;
         return;
     }
-    if(c==27) {pty_screen.esc=1;return;}
-    if(c=='\r') pty_screen.col=0;
-    else if(c=='\n') vt_lf();
-    else if(c=='\b') {if(pty_screen.col) pty_screen.col--;}
-    else if(c=='\t') {unsigned col=((unsigned)pty_screen.col+8u)&~7u;pty_screen.col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);}
-    else if(c>=32 && c<127) {
-        pty_screen.cells[pty_screen.row][pty_screen.col]=(char)c;
-        uint8_t *attr=&pty_screen.inverse[pty_screen.row][pty_screen.col>>3];
-        uint8_t bit=(uint8_t)(1u<<(pty_screen.col&7u));
-        if(pty_screen.reverse) *attr|=bit; else *attr&=(uint8_t)~bit;
-        if(++pty_screen.col>=VT_COLS) {pty_screen.col=0;vt_lf();}
+    if(c==27) {screen->esc=1;return;}
+    if(c=='\r') screen->col=screen->clipped=0;
+    else if(c=='\n') {screen->clipped=0;vt_lf(screen);}
+    else if(c=='\b') {if(screen->clipped) screen->clipped=0;else if(screen->col) screen->col--;}
+    else if(c=='\t' && !screen->clipped) {unsigned col=((unsigned)screen->col+8u)&~7u;screen->col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);if(col>=VT_COLS) screen->clipped=1;}
+    else if(c>=32 && c<127 && !screen->clipped) {
+        screen->cells[screen->row][screen->col]=(char)c;
+        uint8_t *attr=&screen->inverse[screen->row][screen->col>>3];
+        uint8_t bit=(uint8_t)(1u<<(screen->col&7u));
+        if(screen->reverse) *attr|=bit; else *attr&=(uint8_t)~bit;
+        if(screen->col==VT_COLS-1u) screen->clipped=1;
+        else screen->col++;
     }
-    pty_screen.revision++;
+    screen->revision++;
+}
+/* 共有ANSI画面パーサをPTYから利用するための入口． */
+NO_TRACE static void pty_screen_byte(uint8_t c) {
+    vt_screen_byte(&pty_screen,PTY_TTY,c);
 }
 /* 80x24の反転表示を再生成し，可視カーソルだけをSGR 4/24で示す． */
 /* カーソル属性は画面セルへ保存せず，FD位置は可変長ストリーム上のバイト位置とする． */
@@ -1081,7 +1128,6 @@ static int tty_dequeue(int dev,void *p,size_t n) {
 static volatile uint32_t uart1_irq_count;
 static void uart1_irq_handler(void);
 static void pend(void);
-static void wake_readers(int dev);
 /* 指定TTYの受信リングから1バイト取り出す．空なら0を返す． */
 NO_TRACE static int uart_pop(int dev, uint8_t *ch) {
     if(rx[dev].tail==rx[dev].head)
@@ -1124,6 +1170,86 @@ NO_TRACE static size_t console_queue(const uint8_t *p, size_t n) {
     return done;
 }
 
+/* A switch first drops queued bytes from the previous console; repaint is
+ * incremental so the scheduler is never blocked by USB backpressure. */
+NO_TRACE static void cdc_vconsole_begin_repaint(void) {
+    cdc_repaint.phase=1;
+    cdc_repaint.row=cdc_repaint.col=cdc_repaint.reverse=0;
+    cdc_repaint.pending=cdc_repaint.seq_at=0;
+    cdc_repaint.revision=cdc_screen[cdc_active].revision;
+    console_tx_tail=console_tx_head;
+}
+
+/* Queue an ANSI control sequence; its cursor is retained across poll cycles. */
+NO_TRACE static void cdc_repaint_seq(const char *s) {
+    unsigned n=(unsigned)strlen(s);
+    if(n>=sizeof cdc_repaint.seq) n=sizeof cdc_repaint.seq-1u;
+    memcpy(cdc_repaint.seq,s,n);
+    cdc_repaint.pending=(uint8_t)n;
+    cdc_repaint.seq_at=0;
+}
+
+/* Generate at most 96 bytes per idle poll, without a 2-KiB scratch buffer. */
+NO_TRACE static void cdc_vconsole_draw(void) {
+    unsigned budget=96;
+    vt_screen_t *screen=&cdc_screen[cdc_active];
+    while(cdc_repaint.phase && budget) {
+        if(cdc_repaint.seq_at<cdc_repaint.pending) {
+            if(!console_queue((const uint8_t *)&cdc_repaint.seq[cdc_repaint.seq_at],1)) return;
+            cdc_repaint.seq_at++;
+            budget--;
+            continue;
+        }
+        cdc_repaint.pending=cdc_repaint.seq_at=0;
+        if(cdc_repaint.phase==1) {
+            /* Redraw without changing the host's alternate-screen mode. */
+            cdc_repaint_seq("\033[?25l\033[?7l\033[0m\033[2J\033[H");
+            cdc_repaint.phase=2;
+        } else if(cdc_repaint.phase==2) {
+            if(cdc_repaint.row>=VT_ROWS) {cdc_repaint.phase=4;continue;}
+            snprintf(cdc_repaint.seq,sizeof cdc_repaint.seq,
+                     "\033[%u;1H",(unsigned)cdc_repaint.row+1u);
+            cdc_repaint.pending=(uint8_t)strlen(cdc_repaint.seq);
+            cdc_repaint.phase=3;
+        } else if(cdc_repaint.phase==3) {
+            if(cdc_repaint.col>=VT_COLS) {
+                cdc_repaint.col=0;
+                cdc_repaint.row++;
+                cdc_repaint.phase=2;
+                continue;
+            }
+            unsigned row=cdc_repaint.row,col=cdc_repaint.col;
+            unsigned inv=(screen->inverse[row][col>>3]>>(col&7u))&1u;
+            if(inv!=cdc_repaint.reverse) {
+                cdc_repaint_seq(inv?"\033[7m":"\033[0m");
+                cdc_repaint.reverse=(uint8_t)inv;
+                continue;
+            }
+            if(!console_queue((const uint8_t *)&screen->cells[row][col],1)) return;
+            cdc_repaint.col++;
+            budget--;
+        } else if(cdc_repaint.phase==4) {
+            cdc_repaint_seq("\033[0m\033[?7h");
+            cdc_repaint.phase=5;
+        } else if(cdc_repaint.phase==5) {
+            snprintf(cdc_repaint.seq,sizeof cdc_repaint.seq,
+                     "\033[%u;%uH\033[?25%c%s",
+                     (unsigned)screen->row+1u,(unsigned)screen->col+1u,
+                     screen->cursor_hidden?'l':'h',
+                     screen->reverse?"\033[7m":"");
+            cdc_repaint.pending=(uint8_t)strlen(cdc_repaint.seq);
+            cdc_repaint.phase=6;
+        } else {
+            if(screen->revision!=cdc_repaint.revision) {
+                /* New output arrived during drawing: repaint the latest state. */
+                cdc_repaint.phase=1;
+                cdc_repaint.row=cdc_repaint.col=cdc_repaint.reverse=0;
+                cdc_repaint.revision=screen->revision;
+            } else cdc_repaint.phase=0;
+        }
+    }
+}
+
 /* アイドルタスク側でUSB送信リングを少量ずつ空にする．USB切断時は古い出力を溜め続けない． */
 NO_TRACE static void console_tx_poll(void) {
     if(!stdio_usb_connected()) {
@@ -1131,6 +1257,7 @@ NO_TRACE static void console_tx_poll(void) {
         console_tx_tail=console_tx_head;
         return;
     }
+    if(cdc_repaint.phase) cdc_vconsole_draw();
     /* TinyUSBのTX FIFOが満杯なら書かない．実際の送信はアイドル側だけで行い，USB割込みを動作可能に保つ． */
     unsigned budget=64;
     while(budget-- && console_tx_tail!=console_tx_head &&
@@ -1144,10 +1271,17 @@ NO_TRACE static void console_tx_poll(void) {
 NO_TRACE static void tty_put(uint8_t c) {
     (void)console_queue(&c,1);
 }
+/* Both CDC logical TTYs retain their own display; only the selected one emits bytes. */
+NO_TRACE static void cdc_put(int tty,uint8_t c) {
+    int index=tty==CDC_VCONSOLE_TTY ? 1 : 0;
+    vt_screen_byte(&cdc_screen[index],tty,c);
+    if(index==cdc_active && !cdc_repaint.phase)
+        tty_put(c);
+}
 
 /* TTY番号に応じてUSB CDC，UART1，Wi-Fi端末へ1文字出力する． */
 NO_TRACE static void tty_put_dev(int dev,uint8_t c) {
-    if(dev==0)tty_put(c);
+    if(dev==0 || dev==CDC_VCONSOLE_TTY)cdc_put(dev,c);
     else if(dev==1)uart_putc_raw(uart1,c);
     else if(dev==PTY_TTY)(void)pty_output_put(c);
 #if PICONIX_WIFI
@@ -1162,11 +1296,13 @@ NO_TRACE static int tty_tx_char(int dev, uint8_t c, int insert_cr) {
         if(insert_cr) (void)pty_output_put('\r');
         return pty_output_put(c);
     }
-    if(dev==0) {
-        unsigned used=(console_tx_head+CONSOLE_TX_CAP-console_tx_tail)%CONSOLE_TX_CAP;
-        if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) return 0;
-        if(insert_cr) tty_put('\r');
-        tty_put(c);
+    if(dev==0 || dev==CDC_VCONSOLE_TTY) {
+        if((dev==0 ? 0 : 1)==cdc_active && !cdc_repaint.phase) {
+            unsigned used=(console_tx_head+CONSOLE_TX_CAP-console_tx_tail)%CONSOLE_TX_CAP;
+            if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) return 0;
+        }
+        if(insert_cr) cdc_put(dev,'\r');
+        cdc_put(dev,c);
         return 1;
     }
 #if PICONIX_WIFI
@@ -1288,9 +1424,9 @@ NO_TRACE static int pty_master_rw(void *p, size_t n, int writing) {
 // SDKの標準入出力経由で読み出す．
 // シェルが入力待ちでも，アイドル側からこの処理を呼ぶ．
 /* ネットワーク端末の接続と終了はlwIPコールバックではなくアイドル側で管理し，各接続にTTY2専用シェルを割り当てる． */
-#if PICONIX_WIFI
 static int spawn_in_slot(int slot, int program_id, os_entry_t entry, const char *name,
                          int argc, const char *const *args, const uint8_t *raw, unsigned raw_size);
+#if PICONIX_WIFI
 static int wifi_session_active;
 static unsigned wifi_session_epoch;
 /* 切断されたTelnetセッションのタスクとTTY状態を破棄する．USB/UARTの独立したセッションは触らない． */
@@ -1347,6 +1483,29 @@ NO_TRACE static void wifi_session_poll(void) {
     restore_interrupts(irq_state);
 }
 #endif
+/* Ctrl+T toggles between independent CDC TTY0 and TTY4; the second shell
+ * consumes an existing user task slot only after its first activation. */
+NO_TRACE static void cdc_vconsole_switch(void) {
+    if(cdc_active==0 && !tty_shell_pid[CDC_VCONSOLE_TTY]) {
+        uint32_t irq_state=save_and_disable_interrupts();
+        int slot=free_program_slot();
+        int pid=slot<0 ? OS_EAGAIN :
+            spawn_in_slot(slot,2,programs[2].entry,programs[2].name,0,NULL,NULL,0);
+        if(pid>0) {
+            task_t *child=&tasks[slot];
+            if(tty_shell_pid[0]==pid) tty_shell_pid[0]=0;
+            child->tty=CDC_VCONSOLE_TTY;
+            child->parent_pid=0;
+            strcpy(child->cwd,"/");
+            for(int j=0;j<3;j++) fd_set(child,j,DEV_CDC_VCONSOLE,0,0,0);
+            tty_shell_pid[CDC_VCONSOLE_TTY]=pid;
+        }
+        restore_interrupts(irq_state);
+        if(pid<0) {tty_put('\a');return;} /* No free task slot. */
+    }
+    cdc_active^=1u;
+    cdc_vconsole_begin_repaint();
+}
 /* アイドル側からUSB／Telnet入力，送信キュー，保留中のUART Ctrl+Cを処理する．割込み処理を短く保つための入口． */
 NO_TRACE void os_console_poll(void) {
     console_tx_poll();
@@ -1356,12 +1515,19 @@ NO_TRACE void os_console_poll(void) {
     }
     int ch;
     int received = 0;
-    while (tty_buf[0].used < TTY_LINES && (ch = getchar_timeout_us(0)) >= 0) {
-        tty_input_char(0,(uint8_t)ch);
+    while (tty_buf[cdc_active ? CDC_VCONSOLE_TTY : 0].used < TTY_LINES &&
+           (ch = getchar_timeout_us(0)) >= 0) {
+        if(ch==0x14) { /* Ctrl+T is reserved for the CDC virtual console. */
+            cdc_vconsole_switch();
+            continue;
+        }
+        tty_input_char(cdc_active ? CDC_VCONSOLE_TTY : 0,(uint8_t)ch);
         received = 1;
     }
-    if (received)
+    if(received) {
         wake_readers(0);
+        wake_readers(CDC_VCONSOLE_TTY);
+    }
 #if PICONIX_WIFI
     /* net_pollの後，アイドル側でTCP受信バイトをTTY2へ渡す． */
     wifi_session_poll();
@@ -1451,6 +1617,10 @@ NO_TRACE void os_init(void) {
     svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(foreground_group,0,sizeof foreground_group); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_interrupt[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
     memset(rx, 0, sizeof(rx));
     memset(&pty,0,sizeof pty);
+    memset(cdc_screen,0,sizeof cdc_screen);
+    for(unsigned i=0;i<2;i++) vt_clear(&cdc_screen[i]);
+    cdc_active=0;
+    memset(&cdc_repaint,0,sizeof cdc_repaint);
     console_tx_head=console_tx_tail=0;
     if (!stdio_usb_init())
         panic("PicoNIX: USB CDC initialization failed");
@@ -1671,6 +1841,7 @@ NO_TRACE uint32_t *os_schedule(uint32_t *oldsp) {
     // readがブロックしてからPendSV保存までにRX割込みが到着する場合がある．
     // フレームが完成した後で保留中のreadを再検査する．
     wake_readers(0);
+    wake_readers(CDC_VCONSOLE_TTY);
     wake_readers(1);
     wake_readers(PTY_TTY);
     wake_waiters();
@@ -2178,12 +2349,12 @@ static int vfs_open(const char *p, int flags) {
     if(dev==DEV_PTY_MASTER) {
         if((flags & 3)!=OS_O_RDWR) return OS_EINVAL;
         if(pty.master_refs || pty.slave_refs) return OS_EBUSY;
-        memset(&pty_screen,0,sizeof pty_screen);vt_clear();
+        memset(&pty_screen,0,sizeof pty_screen);vt_clear(&pty_screen);
     }
     if((dev==DEV_PTY_SLAVE || dev==DEV_PTY_SCREEN || dev==DEV_PTY_KEY) && !pty.master_refs) return OS_ENOENT;
     if((dev==DEV_PTY_SCREEN) && (flags & 3)!=OS_O_RDONLY) return OS_EINVAL;
     if(dev==DEV_PTY_KEY && (flags & 3)!=OS_O_WRONLY) return OS_EINVAL;
-    if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE &&
+    if((flags & OS_O_NONBLOCK) && dev!=DEV_UART1 && dev!=DEV_CONSOLE && dev!=DEV_CDC_VCONSOLE &&
        dev!=DEV_PTY_MASTER && dev!=DEV_PTY_SLAVE)
         return OS_EINVAL;
     int fd=free_fd();
@@ -2268,7 +2439,7 @@ NO_TRACE static int proc_tasks_read(int fd, void *p, size_t n) {
         uintptr_t base=(uintptr_t)task_ram[row];
         char line[160];
         int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX  %3d  %10lu  %10lu 0 0\n",
-            t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":t->tty==2?"wifi":t->tty==PTY_TTY?"pts/0":"-",row+1,
+            t->pid,t->name?t->name:"",state,t->tty==0?"console":t->tty==1?"uart1":t->tty==2?"wifi":t->tty==PTY_TTY?"pts/0":t->tty==CDC_VCONSOLE_TTY?"ttyV1":"-",row+1,
             (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
             (unsigned long)(uintptr_t)t->sp,t->parent_pid,(unsigned long)t->dispatch_count,
             (unsigned long)t->cpu_ticks);
@@ -2559,14 +2730,14 @@ static int device_rw_proc(int fd, int dev, void *p, size_t n, int writing) {
 
 /* TTYに対するread/writeを実装する．空のブロッキングreadはタスクをBLOCKEDにし，入力後にSVC戻り値を書き換える． */
 static int device_rw_tty(int fd, int dev, void *p, size_t n, int writing) {
-    int uartdev=(dev==DEV_CONSOLE)?0:(dev==DEV_WIFI_TTY?2:(dev==DEV_PTY_SLAVE?PTY_TTY:1));
+    int uartdev=tty_for_device(dev);
     uint8_t *b=p;
     if(writing) {
         if(dev==DEV_PTY_SLAVE)
             return pty_slave_write(&tasks[current],b,n);
         if(tty_claim_pid[uartdev] && tty_claim_pid[uartdev]!=tasks[current].pid)
             return OS_EIO;
-        if(dev==DEV_CONSOLE && !stdio_usb_connected())
+        if((dev==DEV_CONSOLE || dev==DEV_CDC_VCONSOLE) && !stdio_usb_connected())
             return (int)n;
         size_t i=0;
         for(;i<n;i++) {
@@ -2913,8 +3084,7 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
         return device_rw_rand(p,n,writing);
     if(proc_device(dev))
         return device_rw_proc(fd,dev,p,n,writing);
-    if(dev==DEV_CONSOLE || dev==DEV_UART1 || dev==DEV_PTY_SLAVE ||
-       (PICONIX_WIFI && dev==DEV_WIFI_TTY))
+    if(tty_for_device(dev)>=0)
         return device_rw_tty(fd,dev,p,n,writing);
     if(dev>=DEV_GPIO_DIR_BASE && dev<=DEV_GPIO_DIR_END)
         return gpio_driver_rw(1,(unsigned)(dev-DEV_GPIO_DIR_BASE),p,n,writing);
@@ -2928,18 +3098,14 @@ static int vfs_rw(int fd, void *p, size_t n, int writing) {
 
 /* 端末の所有権と行入力・エコー・改行変換を管理する．前景／一時占有者以外からの設定変更を防ぐ． */
 static int device_ioctl_tty(int dev,int cmd,int arg) {
-    int tty=dev==DEV_CONSOLE ? 0 :
-            dev==DEV_UART1 ? 1 :
-            (PICONIX_WIFI && dev==DEV_WIFI_TTY) ? 2 :
-            dev==DEV_PTY_SLAVE ? PTY_TTY : -1;
+    int tty=tty_for_device(dev);
     if(tty<0)
         return OS_EINVAL;
     if(cmd==OS_TTY_CLAIM) {
         if(tty_owner_pid(tty))
             return OS_EBUSY;
         /* 別タスクがFDを開いている場合も端末は占有中と判断する． */
-        int id=tty==PTY_TTY ? DEV_PTY_SLAVE :
-               tty==2 ? DEV_WIFI_TTY : (tty ? DEV_UART1 : DEV_CONSOLE);
+        int id=tty_device(tty);
         for(int i=0;i<OS_MAX_TASKS;i++) {
             if(i==current || tasks[i].state==UNUSED || tasks[i].state==DEAD)
                 continue;
@@ -3537,6 +3703,7 @@ void os_svc_dispatch(uint32_t *f) {
                 else if(!fd_is_socket(tasks[current].fd[a]) &&
                         !pipe_end(tasks[current].fd[a]) &&
                         tasks[current].fd[a]!=DEV_CONSOLE &&
+                        tasks[current].fd[a]!=DEV_CDC_VCONSOLE &&
                         tasks[current].fd[a]!=DEV_UART1 &&
                         tasks[current].fd[a]!=DEV_PTY_MASTER &&
                         tasks[current].fd[a]!=DEV_PTY_SLAVE &&
