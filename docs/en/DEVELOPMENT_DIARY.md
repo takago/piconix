@@ -1,5 +1,9 @@
 # PicoNIX Development Diary
 
+### 2026-11-12 — Remove duplicate documentation and add editorial regression checks
+
+Based solely on the supplied ZIP, removed a duplicated buffered-output paragraph from the Japanese `TOP.md` reference and an identical repeated entry in the Japanese development diary. Added a host-side test to check reverse chronological diary dates, bilingual documentation file parity, and absence of these duplicate paragraphs/entries. No application or kernel code, ABI, RAM layout, or PIC mechanism was changed. Firmware builds and hardware testing were not performed.
+
 ### 2026-11-12 — Cycle CDC console views with Ctrl+Left/Right
 
 Ctrl+Right cycles `ttyV0 single → ttyV1 single → stacked dual`, with Ctrl+Left going in reverse. Ctrl+Up/Down choose the input console only in dual mode. Preserve Ctrl+T/G, update the dual-view help bar, bilingual references, and host tests. Screen buffers and TTY IDs remain unchanged.
