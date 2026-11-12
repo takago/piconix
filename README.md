@@ -25,17 +25,11 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 
 PicoNIX is an educational system rather than a POSIX-compliant or security-hardened OS. In particular, it does not provide normal UNIX user permissions or process isolation. Read the [specification](docs/en/reference/SPECIFICATION.md) ([日本語](docs/ja/reference/SPECIFICATION.md)) and [differences from Linux](docs/en/reference/DIFFERENCES.md) ([日本語](docs/ja/reference/DIFFERENCES.md)) before relying on Linux behavior.
 
-## Two consoles, one USB connection
-
-PicoNIX provides **two independent CDC virtual consoles over a single USB connection**. You can switch between them or display both vertically in one terminal window—for example, to monitor the system with `top` while running commands on the other console. Both consoles keep running even when they are not selected.
-
 <p align="center">
   <img src="docs/images/cdc-virtual-consoles.jpeg"
        alt="PicoNIX CDC virtual consoles in stacked dual-console mode"
        width="420">
 </p>
-
-For keyboard shortcuts, terminal requirements, and screen behavior, see the [CDC Virtual Console reference](docs/en/reference/devices/CDC-VCONSOLE.md) ([日本語](docs/ja/reference/devices/CDC-VCONSOLE.md)).
 
 ## Getting started
 
