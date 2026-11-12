@@ -12,6 +12,10 @@
 
 UDPの`bind()`と初回`sendto()`で重複していたPCB生成・ポート登録・受信コールバック設定を`udp_slot_open()`に統一した．失敗時のPCB解放，UDPスロットの所有状態，受信データ保持と通信バッファ容量は従来どおり維持する．`net_socket_local_port()`の同一スロット検索も一度に整理した．SRAM削減量と実機動作は未計測．
 
+### 2026-11-13 — プログラム名の検索処理を共通化
+
+`/bin`のディレクトリ表示ID，`/proc/sym/userland`のパス解決，`SYS_PROGRAM_ID`に重複していたプログラム名→ID変換を`registered_program_id()`へ統合した．疎なプログラムID，未登録プログラムの扱い，登録API，PIC，TTY/PTY，バッファ容量は変更しない．プログラム登録表のFlash化は起動前の登録APIとの整合性を再設計する必要があるため今回は見送り，SRAM削減量は未測定．
+
 ### 2026-11-13 — TTY前景モードの保存・復元処理を整理
 
 前景プログラムの切替時に分散していた端末モードの保存と復元を，`tty_mode_save()`・`tty_mode_restore()`にまとめた．canonical，echo，ONLCR，割り込み設定，所有PIDを対称的に扱い，復元時に未消費の入力キューは消さない．TTY・PTY・CDCの機能，バッファ容量，ABI，固定RAM配置は変更しない．SRAM削減量はリンク後未測定．
@@ -66,10 +70,6 @@ TTYデバイスから行規律の番号を求める共通関数を導入し，`r
 ### 2026-11-12 — CDC仮想コンソールを試作
 
 USB CDC物理ポート1本で独立した2つのTTY（0=`/dev/ttyV0`，4=`/dev/ttyV1`）をCtrl+Tで切り替える機能を追加．2番目のシェルは初回切替時に空きユーザタスクスロットへ生成する．入力・端末モード・前景PIDは独立し，既存PTYの最小ANSI画面処理を共用して80×24の状態を保持する．非表示画面の出力はホストへ流さず，復帰時にはUSB送信リングを分割使用して再描画する．UART1，Telnet，MCP用PTY，システムコールABI，ユーザRAMの固定配置は変更しない．TTYのトレースタグが2ビットのため2番目のCDCも物理CDCタグを用いる．ANSI全機能と代替画面履歴復元は未対応．ホスト側テストを実施し，実機ビルド・RAMサイズ・動作は確認待ち．
-
-### 2026-11-12 — 全画面アプリの標準出力フラッシュを整理
-
-`top`，`fd`，`mem`，`mb`，`reversi`，`sudoku`，`samegame`，`maze`，`tictactoe`で画面開始後の`stdout`を64バイト完全バッファに変更し，画面描画後・スリープや入力待ち前に必要な`fflush(stdout)`を維持または追加した．`screen_enter()`の既定動作は変更しない．文字単位の即時反映が必要な`vi`・`edit`，別々の端末FDへ直接書き込む`pong`，既存の描画末尾フラッシュが有効な`watch`は変更しない．カーネル，ABI，RAM配置の変更はない．ARM向け構文検査と関連するホストテストを実施．実機の操作性・SVC削減量は未測定．
 
 ### 2026-11-12 — 全画面アプリの標準出力フラッシュを整理
 
@@ -755,9 +755,7 @@ Pico WのlwIPにループバックインターフェース`lo0`を有効化し�
 
 ## 11月3日：PythonのTCP/UDP対応とADC・ファイル操作の改良
 
-小型PythonからPico Wのネットワーク機能を使えるよう，既存のソケットシステムコールを利用して`socket()`，`connect()`，`listen()`，`accept()`，`bind()`，`send()`，`recv()`，`sendto()`，`recvfrom()`などを追加した．文字列中の`\\n### 2026-11-13 — プログラム名の検索処理を共通化
-
-`/bin`のディレクトリ表示ID，`/proc/sym/userland`のパス解決，`SYS_PROGRAM_ID`に重複していたプログラム名→ID変換を`registered_program_id()`へ統合した．疎なプログラムID，未登録プログラムの扱い，登録API，PIC，TTY/PTY，バッファ容量は変更しない．プログラム登録表のFlash化は起動前の登録APIとの整合性を再設計する必要があるため今回は見送り，SRAM削減量は未測定．\nn`，`\r`，`\t`，`\xHH`などのエスケープ表記にも対応した．Python専用の温度取得関数は採用せず，従来の`open()`・`read()`で`/dev/adc/temp`を扱う方針とした．TCPとUDPの温度配信サンプルを`userland/examples/python/temp_tcp.py`と`temp_udp.py`に整理し，初期RAMファイル`/tmp/test.py`も温度を5回取得する例へ変更した．サンプルの実機通信動作は，この時点では未確認である．
+小型PythonからPico Wのネットワーク機能を使えるよう，既存のソケットシステムコールを利用して`socket()`，`connect()`，`listen()`，`accept()`，`bind()`，`send()`，`recv()`，`sendto()`，`recvfrom()`などを追加した．文字列中の`\n`，`\r`，`\t`，`\xHH`などのエスケープ表記にも対応した．Python専用の温度取得関数は採用せず，従来の`open()`・`read()`で`/dev/adc/temp`を扱う方針とした．TCPとUDPの温度配信サンプルを`userland/examples/python/temp_tcp.py`と`temp_udp.py`に整理し，初期RAMファイル`/tmp/test.py`も温度を5回取得する例へ変更した．サンプルの実機通信動作は，この時点では未確認である．
 
 温度を繰り返し取得するたびにデバイスを開き直す不便をなくすため，ADCデバイスは1回の測定値を読み切った後の次の`read()`で再測定する方式へ変更した．短い読み取りでは同一測定値の残りを返す．また，新規システムコールを設けるのではなく，既存の**21番`lseek()`**に`SEEK_CUR`・`SEEK_END`を追加した．通常の`/tmp`ファイルと`/dev/shm`では3つの基準位置を利用できるが，`/dev/mem`は従来どおり`SEEK_SET`のみとした．これらの変更についてはホスト側のコンパイル・静的テストが行われたが，実機での網羅的な動作確認を意味しない．現行APIは[Python](development/apps/python/PYTHON.md)，[システムコール](reference/SYSCALLS.md)，[Cライブラリ](development/apps/c/LIBC.md)を参照する．
 
