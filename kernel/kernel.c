@@ -270,10 +270,15 @@ NO_TRACE static int pty_slot(int dev) {
     if(dev==DEV_PTY_MASTER1 || dev==DEV_PTY_SLAVE1 || dev==DEV_PTY_SCREEN1 || dev==DEV_PTY_KEY1) return 1;
     return -1;
 }
+/* PTYのマスター端点かを判定する． */
 NO_TRACE static int pty_master_dev(int dev) { return dev==DEV_PTY_MASTER || dev==DEV_PTY_MASTER1; }
+/* PTYのスレーブ端点かを判定する． */
 NO_TRACE static int pty_slave_dev(int dev) { return dev==DEV_PTY_SLAVE || dev==DEV_PTY_SLAVE1; }
+/* PTYの画面取得端点かを判定する． */
 NO_TRACE static int pty_screen_dev(int dev) { return dev==DEV_PTY_SCREEN || dev==DEV_PTY_SCREEN1; }
+/* PTYのキー入力端点かを判定する． */
 NO_TRACE static int pty_key_dev(int dev) { return dev==DEV_PTY_KEY || dev==DEV_PTY_KEY1; }
+/* PTY番号に対応するTTY番号を返す． */
 NO_TRACE static int pty_tty(int slot) { return slot ? PTY_TTY1 : PTY_TTY; }
 static void pty_ref(int dev, int delta);
 /* デバイスIDがパイプの読取端・書込端に属するか判定する． */
@@ -903,6 +908,7 @@ NO_TRACE static void tty_mode_save(int dev) {
     tty_saved_interrupt[dev]=tty_interrupt[dev];
     tty_saved_owner[dev]=tty_mode_owner[dev];
 }
+/* 保存した前景端末モードを復元する．未消費の入力は保持する． */
 NO_TRACE static void tty_mode_restore(int dev) {
     tty_canonical[dev]=tty_saved_canon[dev];
     tty_echo[dev]=tty_saved_echo[dev];
@@ -2646,7 +2652,7 @@ NO_TRACE static int proc_tasks_read(int fd, void *p, size_t n) {
         uintptr_t base=(uintptr_t)task_ram[row];
         char line[160];
         int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX  %3d  %10lu  %10lu 0 0\n",
-            t->pid,t->name?t->name:"",state,t->tty==0?"ttyV0":t->tty==1?"uart1":t->tty==2?"ttyN0":t->tty==PTY_TTY?"pts/0":t->tty==PTY_TTY1?"pts/1":t->tty==CDC_VCONSOLE_TTY?"ttyV1":"-",row+1,
+            t->pid,t->name?t->name:"",state,t->tty==0?"ttyV0":t->tty==1?"ttyS1":t->tty==2?"ttyN0":t->tty==PTY_TTY?"pts/0":t->tty==PTY_TTY1?"pts/1":t->tty==CDC_VCONSOLE_TTY?"ttyV1":"-",row+1,
             (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
             (unsigned long)(uintptr_t)t->sp,t->parent_pid,(unsigned long)t->dispatch_count,
             (unsigned long)t->cpu_ticks);

@@ -1,5 +1,9 @@
 # PicoNIX Development Diary
 
+### 2026-11-13 — Align TTY names, PTY tests and source comments
+
+Use `ttyS1` instead of `uart1` for the UART1 terminal in `/proc/tasks`. Add missing function comments for PTY endpoint checks and TTY mode restoration. Correct the MCP screen comment to `/dev/pts/N.screen` and update the PTY cursor host test for both PTY slots. Terminal behavior, buffer sizes and the ABI are unchanged.
+
 ### 2026-11-13 — Unify the network TTY display name
 
 Display the Telnet controlling terminal as `ttyN0` rather than `wifi` in `/proc/tasks`, aligning the name consumed by `ps` and `top` with `/dev/ttyN0`. Internal TTY numbers, device IDs, networking behavior and output column widths are unchanged.

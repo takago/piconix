@@ -563,7 +563,7 @@ static int terminal_ensure_shell(void) {
     terminal_close_session();
     return terminal_start_shell()<0 ? -1 : 1;
 }
-/* /dev/pts/0.screenを1回読み，現在の画面をchunkedで返す．
+/* /dev/pts/N.screenを1回読み，現在の画面をchunkedで返す．
  * 描画と並行した場合に一貫したスナップショットになる保証はない． */
 static int terminal_screen_stream(int fd,const char *id) {
     if(terminal_ensure_shell()<0) {rpc_error(id,-32030,"PTY shell unavailable");return 200;}
