@@ -1,8 +1,8 @@
 # PicoNIX
 
-**A tiny UNIX-like operating system with user-space TCP/IP networking for Raspberry Pi Pico and Pico W.**
+**A tiny UNIX-like OS for Raspberry Pi Pico and Pico W — with multitasking, interactive virtual consoles, and user-space networking.**
 
-PicoNIX is an experimental UNIX-like OS for RP2040 microcontrollers. It combines a shell, multitasking, a virtual file system, device files, and a compact TCP/IP socket interface for ordinary user programs.
+PicoNIX is an educational and experimental UNIX-like OS for RP2040 microcontrollers. It combines a shell, multitasking, a virtual file system, device files, and a compact TCP/IP socket interface for ordinary user programs. Its terminals, tracing, and monitoring tools also make it an interactive execution and evaluation environment for human learners and LLM agents.
 
 Unlike firmware that exposes only a built-in network service, PicoNIX lets user applications create TCP and UDP clients and servers through familiar socket APIs.
 
@@ -15,11 +15,29 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 - **Kernel and processes:** XIP kernel on RP2040, six fixed 24 KiB application slots (including 4 KiB reserved stack per slot), PIC user programs copied from Flash to SRAM, multitasking and an SVC-based system call interface.
 - **UNIX-like environment:** shell, pipes and redirection, virtual filesystem, RAM files, `/dev` and `/proc`, file descriptors, devices, process and terminal control.
 - **Programs and diagnostics:** file utilities, `edit`, `vi`, `fd`, `as`, a compact `cc`, a Python-like interpreter, `mem`, `trace`, `lsof`, and hardware experiments.
-- **Hardware:** two CDC virtual consoles on one USB port, plus UART1, GPIO, PWM, ADC, I²C1, an 8×8 LED matrix and framebuffer interfaces. Pin availability differs between Pico and Pico W.
+- **USB CDC virtual consoles:** two independent shells over one USB CDC connection, with single-console and vertically stacked dual-console views, keyboard switching, and screen-state preservation.
+- **Hardware:** UART1, GPIO, PWM, ADC, I²C1, an 8×8 LED matrix and framebuffer interfaces. Pin availability differs between Pico and Pico W.
 - **Pico W networking:** Wi-Fi AP/STA, lwIP IPv4 TCP/UDP sockets, loopback, Telnet and UDP remote device control in the kernel; `httpd`, `nc`, `mcpd`, echo servers and other network programs in user space.
 - **MCP-controlled interactive terminal (Pico W):** The user-space `mcpd` server exposes an 80×24 virtual terminal to LLM clients. Through screen reads and keystrokes, an LLM can operate existing interactive programs such as `fd` and `vi`, including editing and saving files, without modifying those programs for AI. See the [MCP reference](docs/en/reference/commands/MCP.md) ([日本語](docs/ja/reference/commands/MCP.md)).
 
 PicoNIX is an educational system rather than a POSIX-compliant or security-hardened OS. In particular, it does not provide normal UNIX user permissions or process isolation. Read the [specification](docs/en/reference/SPECIFICATION.md) ([日本語](docs/ja/reference/SPECIFICATION.md)) and [differences from Linux](docs/en/reference/DIFFERENCES.md) ([日本語](docs/ja/reference/DIFFERENCES.md)) before relying on Linux behavior.
+
+## Two consoles, one USB connection
+
+PicoNIX offers **two independent CDC virtual consoles** on a single USB serial connection: `/dev/ttyV0` and `/dev/ttyV1`. Each has its own shell, terminal state, and 80×24 screen buffer. Programs keep running and their screen buffers keep updating even while the other console is selected.
+
+Use the **vertically stacked dual-console view** to monitor the operating system with `top` on one console while running the shell, Python interpreter, or a game on the other. Both screens are visible in the same host terminal window, with reverse-video headers identifying the active input console. The help bar and headers are display overlays, not part of either application's screen contents.
+
+| USB CDC shortcut | Action |
+|---|---|
+| **Ctrl+Right** | Cycle **V0 single → V1 single → Dual → V0 single** |
+| **Ctrl+Left** | Cycle through those three views in reverse |
+| **Ctrl+Up / Ctrl+Down** | Select V0 / V1 as the input console in Dual view |
+| **Ctrl+T / Ctrl+G** | Alternative shortcuts for console switching / Single–Dual switching |
+
+Dual view requires an ANSI-capable host terminal of **at least 80 columns × 51 rows**. The recorded screens remain 80×24; content beyond column 80 is not captured for later restoration. In single view, longer lines can still be sent to a wider host terminal. Some host applications may intercept Ctrl+arrow combinations, so Ctrl+T / Ctrl+G remain available.
+
+The CDC consoles are **separate from the MCP PTY** (`/dev/pts/0`): the latter provides an interactive terminal for an LLM agent without consuming either CDC console. For device naming, behavior, and limitations, see the [CDC Virtual Console reference](docs/en/reference/devices/CDC-VCONSOLE.md) ([日本語](docs/ja/reference/devices/CDC-VCONSOLE.md)).
 
 ## Getting started
 
