@@ -6,15 +6,17 @@ PicoNIX is an educational and experimental UNIX-like OS for RP2040 microcontroll
 
 Unlike firmware that exposes only a built-in network service, PicoNIX lets user applications create TCP and UDP clients and servers through familiar socket APIs.
 
-**Development and authorship.** The design principles and specifications of PicoNIX are determined by its creator based on their knowledge and experience. The source code and documentation are generated and refined using ChatGPT in accordance with these decisions. The creator reviews the results and carries out build and hardware verification as development proceeds. See the [development diary](docs/en/DEVELOPMENT_DIARY.md) ([日本語](docs/ja/DEVELOPMENT_DIARY.md)) for the development process.
-
-**開発体制について．** PicoNIXの設計方針と仕様は，作成者の知識と経験に基づいて決定しています．ソースコードとドキュメントは，これらの方針に従ってChatGPTを用いて生成・改良したものです．開発の経緯は[開発日誌](docs/ja/DEVELOPMENT_DIARY.md)をご覧ください．
-
 <p align="center">
   <img src="docs/images/cdc-virtual-consoles.jpeg"
        alt="PicoNIX CDC virtual consoles in stacked dual-console mode"
        width="420">
 </p>
+
+**Development and authorship.** The design principles and specifications of PicoNIX are determined by its creator based on their knowledge and experience. The source code and documentation are generated and refined using ChatGPT in accordance with these decisions. The creator reviews the results and carries out build and hardware verification as development proceeds. See the [development diary](docs/en/DEVELOPMENT_DIARY.md) ([日本語](docs/ja/DEVELOPMENT_DIARY.md)) for the development process.
+
+**開発体制について．** PicoNIXの設計方針と仕様は，作成者の知識と経験に基づいて決定しています．ソースコードとドキュメントは，これらの方針に従ってChatGPTを用いて生成・改良したものです．開発の経緯は[開発日誌](docs/ja/DEVELOPMENT_DIARY.md)をご覧ください．
+
+
 
 ## Features
 
