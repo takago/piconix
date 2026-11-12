@@ -28,7 +28,11 @@ PicoNIX offers **two independent CDC virtual consoles** on a single USB serial c
 
 Use the **vertically stacked dual-console view** to monitor the operating system with `top` on one console while running the shell, Python interpreter, or a game on the other. Both screens are visible in the same host terminal window, with reverse-video headers identifying the active input console. The help bar and headers are display overlays, not part of either application's screen contents.
 
-![PicoNIX CDC virtual consoles](docs/images/cdc-virtual-consoles.jpeg)
+<p align="center">
+  <img src="docs/images/cdc-virtual-consoles.jpeg"
+       alt="PicoNIX CDC virtual consoles"
+       width="420">
+</p>
 
 | USB CDC shortcut | Action |
 |---|---|
