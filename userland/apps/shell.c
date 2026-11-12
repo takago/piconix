@@ -337,7 +337,7 @@ static void command(char *s, char cwd[128], int requested_bg, int *bg_pid, const
         const char *arg=s+6;
         int tty=0;
         if(prefix(arg,"/dev/ttyS1 ")) {tty=2;arg+=11;}
-        else if(prefix(arg,"/dev/console ")) {tty=1;arg+=13;}
+        else if(prefix(arg,"/dev/ttyV0 ")) {tty=1;arg+=11;}
         if(!tty || !(eq(arg,"sh") || eq(arg,"python"))) {
             command_status=1;
             put("usage: getty /dev/ttyS1 sh|python [&]\r\n");return;

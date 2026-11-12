@@ -58,6 +58,6 @@ with tempfile.TemporaryDirectory(prefix='piconix-cat-') as tmp:
     assert run('-n', str(test_file), 'extra').returncode == 1
     assert b'usage: cat [-n] [PATH]' in run('-n', str(test_file), 'extra').stdout
     assert b'cannot open' in run(str(dest / 'missing')).stdout
-    assert b'console reserved for shell' in run('/dev/console').stdout
+    assert b'console reserved for shell' in run('/dev/ttyV0').stdout
 
 print('PASS: cat unnumbered/numbered stdin and files, blank/long/binary lines, errors')

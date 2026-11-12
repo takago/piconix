@@ -14,7 +14,9 @@ PicoNIXの`/dev`は仮想デバイスファイルです．RAM上にファイル�
 
 | ノード | 読取 | 書込・制御 | データ形式・主な用途 | 詳細 |
 |---|:---:|:---:|---|---|
-| `/dev/console` | ○ | ○ | USB CDC端末の文字入出力 | [TTY](../commands/TTY.md) |
+| `/dev/console` | ○ | ○ | 現在選択中のCDC仮想コンソール（open時に解決） | [CDC仮想コンソール](CDC-VCONSOLE.md) |
+| `/dev/tty` | ○ | ○ | 呼び出し元タスクの制御端末（open時に解決） | [TTY](../commands/TTY.md) |
+| `/dev/ttyV0` | ○ | ○ | USB CDC端末の文字入出力 | [TTY](../commands/TTY.md) |
 | `/dev/ttyV1` | ○ | ○ | CDC仮想コンソール1（切替Ctrl+T） | [CDC仮想コンソール](CDC-VCONSOLE.md) |
 | `/dev/ttyS1` | ○ | ○ | UART1端末の文字入出力 | [UART](UART.md) |
 | `/dev/ptmx` | ○ | ○ | PTY Master（排他的に1組確保） | [PTY](PTY.md) |

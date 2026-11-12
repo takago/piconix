@@ -105,7 +105,7 @@ int main(int argc,char **argv) {
     if(two && side==2) {puts("pong: -2 requires USB or UART1");return 1;}
     int other=-1;
     if(two) {
-        const char *remote=side ? "/dev/console" : "/dev/ttyS1";
+        const char *remote=side ? "/dev/ttyV0" : "/dev/ttyS1";
         other=open(remote,O_RDWR|O_NONBLOCK);
         if(other<0){puts("pong: cannot open other terminal");return 1;}
         if(ioctl(other,OS_TTY_CLAIM,0)<0) {

@@ -18,6 +18,7 @@ def extract(signature):
     raise AssertionError(signature)
 
 helpers = '\n'.join(extract(s) for s in (
+    'static int tty_for_device(', 'static int tty_device(',
     'static int device_ioctl_tty(', 'static int device_ioctl_gpio_status('
 ))
 boilerplate = r'''
@@ -26,6 +27,7 @@ boilerplate = r'''
 #include <stdio.h>
 #include "piconix.h"
 #include "gpio_status.h"
+#define NO_TRACE
 #define DEV_CONSOLE 0
 #define DEV_CDC_VCONSOLE 278
 #define CDC_VCONSOLE_TTY 4

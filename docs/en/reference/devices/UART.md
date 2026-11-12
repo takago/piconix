@@ -59,7 +59,7 @@ ps
 cat /proc/tasks
 ```
 
-`tty` prints `/dev/console` in the USB shell and `/dev/ttyS1` in the UART1 shell.
+`tty` prints `/dev/ttyV0` in the USB shell and `/dev/ttyS1` in the UART1 shell.
 
 ## 6. Limitations
 

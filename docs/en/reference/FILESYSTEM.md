@@ -65,7 +65,7 @@ PicoNIX provides a small virtual filesystem (VFS). **Directories and device node
 
 | Node | Read | Write | Notes |
 |---|:---:|:---:|---|
-| `/dev/console`, `/dev/ttyV1`, `/dev/ttyS1`, `/dev/ttyN0` | Yes | Yes | Terminals; `/dev/ttyN0` only in Wi-Fi builds |
+| `/dev/tty`, `/dev/console`, `/dev/ttyV0`, `/dev/ttyV1`, `/dev/ttyS1`, `/dev/ttyN0` | Yes | Yes | Terminals; `/dev/ttyN0` only in Wi-Fi builds |
 | `/dev/ptmx`, `/dev/pts/0` | Yes | Yes | One general-purpose PTY pair; [details](devices/PTY.md) |
 | `/dev/rand` | Yes | No | Non-cryptographic PRNG; at most 4 bytes per read |
 | `/dev/mem` | Yes | Restricted | Read permitted XIP flash/SRAM; writes are limited to task slots, SHM and RAM-file payloads; absolute `lseek()` address |

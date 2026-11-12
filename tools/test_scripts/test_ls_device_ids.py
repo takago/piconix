@@ -11,7 +11,7 @@ assert 'vfs_fixed_path_id(path)' in k
 assert 'DEV_GPIO_VALUE_BASE+(int)pin' in k
 assert 'e.device_id' in ls
 assert '65535u' in ls
-assert 'TYPE ID   SIZE NAME' in ls
+assert 'TYPE    ID   SIZE NAME' in ls
 assert 'dir==VDIR_BIN || dir==VDIR_USERLAND' in k
 assert 'dir==VDIR_TMP || dir==VDIR_ETC' in k
 assert 'return (uint16_t)i;' in k

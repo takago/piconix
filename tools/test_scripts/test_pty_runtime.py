@@ -73,6 +73,7 @@ typedef struct {
 } vt_screen_t;
 static vt_screen_t pty_screen;
 static uint8_t cdc_active;
+static uint8_t cdc_dual_mode;
 static struct {uint8_t phase;} cdc_repaint;
 static void pty_screen_byte(uint8_t c);
 static void tty_raw_enqueue(int dev,uint8_t c);

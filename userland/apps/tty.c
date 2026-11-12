@@ -9,7 +9,7 @@ int main(int argc, char **argv) {
     (void)argv;
     if(argc!=1) { puts("usage: tty"); return 1; }
     int tty=get_tty();
-    if(tty==0) { puts("/dev/console"); return 0; }
+    if(tty==0) { puts("/dev/ttyV0"); return 0; }
     if(tty==1) { puts("/dev/ttyS1"); return 0; }
     if(tty==2) { puts("/dev/ttyN0"); return 0; }
     if(tty==3) { puts("/dev/pts/0"); return 0; }

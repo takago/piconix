@@ -6,7 +6,7 @@ root = Path(__file__).resolve().parents[2]
 h = (root/'include/device_names.h').read_text()
 k = (root/'kernel/kernel.c').read_text()
 t = (root/'userland/apps/trace.c').read_text()
-for name, ident in [('console','DEV_CONSOLE'),('ttyS1','DEV_UART1'),('ttyN0','DEV_WIFI_TTY'),('net/wifi','DEV_WIFI_CTRL'),('trace','DEV_TRACE')]:
+for name, ident in [('console','DEV_CDC_ACTIVE'),('tty','DEV_CTTY'),('ttyV0','DEV_CONSOLE'),('ttyV1','DEV_CDC_VCONSOLE'),('ttyS1','DEV_UART1'),('ttyN0','DEV_WIFI_TTY'),('net/wifi','DEV_WIFI_CTRL'),('trace','DEV_TRACE')]:
     assert f'"/dev/{name}", {ident}' in h
 assert 'PICONIX_FIXED_DEVICES(DEVICE_ENTRY)' in k
 assert 'PICONIX_WIFI_DEVICES(DEVICE_ENTRY)' in k

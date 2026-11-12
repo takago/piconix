@@ -43,7 +43,7 @@ The familiar `open()`/`read()`/`write()`/`close()` model is present, along with 
 
 | Topic | PicoNIX behavior |
 |---|---|
-| USB CDC | `/dev/console`; available on Pico and Pico W |
+| USB CDC | `/dev/ttyV0`; available on Pico and Pico W |
 | UART1 | `/dev/ttyS1`, GP20 (TX) and GP21 (RX); available on Pico and Pico W |
 | Wi-Fi Telnet | `/dev/ttyN0` on Pico W builds; kernel Telnet service on TCP port 23 |
 | TTY modes | Simplified canonical/noncanonical input, echo, newline conversion, and nonblocking I/O; **not full POSIX termios** |

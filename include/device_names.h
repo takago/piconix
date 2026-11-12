@@ -5,6 +5,8 @@
 enum {
     DEV_CONSOLE = 0,
     DEV_CDC_VCONSOLE = 278,
+    DEV_CDC_ACTIVE = 279, /* /dev/console: resolve at open time. */
+    DEV_CTTY = 280, /* /dev/tty: task controlling terminal. */
     DEV_FB = 128,
     DEV_FBCHAR = 146,
     DEV_UART1 = 30,
@@ -24,7 +26,9 @@ enum {
 };
 /* X(path, id)はビルド条件に依存しない固定エントリを展開する． */
 #define PICONIX_FIXED_DEVICES(X) \
-    X("/dev/console", DEV_CONSOLE) \
+    X("/dev/console", DEV_CDC_ACTIVE) \
+    X("/dev/tty", DEV_CTTY) \
+    X("/dev/ttyV0", DEV_CONSOLE) \
     X("/dev/ttyV1", DEV_CDC_VCONSOLE) \
     X("/dev/fb", DEV_FB) \
     X("/dev/fbchar", DEV_FBCHAR) \

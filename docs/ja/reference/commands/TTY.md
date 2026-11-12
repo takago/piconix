@@ -23,13 +23,15 @@ Cアプリでは `ioctl()` の `OS_TTY_GET_CANON`，`OS_TTY_GET_ECHO`，`OS_TTY_
 
 ## CDC仮想コンソール
 
-USB CDCの単一の物理端末に，`/dev/console`（TTY 0）と`/dev/ttyV1`（TTY 4）の2画面があります．Ctrl+Tで切り替え，入力モード・前景タスクは別々です．詳しくは[CDC仮想コンソール](../devices/CDC-VCONSOLE.md)を参照してください．
+USB CDCの単一の物理端末に，`/dev/ttyV0`（TTY 0）と`/dev/ttyV1`（TTY 4）の2画面があります．Ctrl+Tで切り替え，入力モード・前景タスクは別々です．詳しくは[CDC仮想コンソール](../devices/CDC-VCONSOLE.md)を参照してください．
+
+`/dev/console`は現在選択されているCDC仮想コンソールを指し，`open()`時に固定TTYへ解決します．`/dev/tty`は呼び出し元タスクの制御端末です．`ls /dev`にも表示され，`open()`時にそのタスクのTTYへ解決されます．`tty`コマンドは`/dev/tty`という別名ではなく実際の端末名を表示します．
 
 ## FDごとのノンブロッキング：`fcntl()`
 
 `fcntl(fd, F_GETFL, 0)` でフラグを取得し，`fcntl(fd, F_SETFL, flags)` で `O_NONBLOCK` を設定します．端末のcanonical/echo設定とは独立しています．文字単位の入力が必要なら，`-icanon` と適切なブロッキング設定を組み合わせて使います．
 
-現行実装で`F_SETFL`による`O_NONBLOCK`の変更が可能なのは，CDC仮想コンソール2画面，UART1，Wi-Fi TTY（有効な場合），PTY Master／Slave，パイプ，TCP/UDPソケットのFDです．**通常ファイルとその他の一般デバイスは対象外**です．`open()`時に`O_NONBLOCK`を指定できるのは`/dev/console`，`/dev/ttyV1`，`/dev/ttyS1`，PTY Master／Slaveに限られます．`/dev/ttyN0`やパイプFDは，取得後に`fcntl()`で変更します．パイプの非ブロッキング時には`OS_EAGAIN`となり，TTYの`read()`の0とは異なります．
+現行実装で`F_SETFL`による`O_NONBLOCK`の変更が可能なのは，CDC仮想コンソール2画面，UART1，Wi-Fi TTY（有効な場合），PTY Master／Slave，パイプ，TCP/UDPソケットのFDです．**通常ファイルとその他の一般デバイスは対象外**です．`open()`時に`O_NONBLOCK`を指定できるのは`/dev/console`，`/dev/ttyV0`，`/dev/ttyV1`，`/dev/ttyS1`，PTY Master／Slaveに限られます．`/dev/ttyN0`やパイプFDは，取得後に`fcntl()`で変更します．パイプの非ブロッキング時には`OS_EAGAIN`となり，TTYの`read()`の0とは異なります．
 
 TTYで受信データがない場合，`O_NONBLOCK` が設定された `read()` はcanonical・非canonicalのどちらのモードでも **0** を返します（`EAGAIN` 相当の負値ではありません）．canonicalモードでは行が確定するまでデータがなく，Ctrl+DによるEOFでも0が返るため，0だけで両者を区別できません．ブロッキングFDではデータ到着まで待機し，`VMIN` / `VTIME` によるタイムアウト制御はありません．ソケットやパイプのI/O動作はTTYと異なるため，[パイプ](PIPE.md)と[ソケットAPI](../../development/apps/c/NETWORK-PROGRAMMING.md)も参照してください．
 

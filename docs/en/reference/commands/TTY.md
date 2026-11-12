@@ -25,13 +25,15 @@ C applications can use `ioctl()` with `OS_TTY_GET_CANON`, `OS_TTY_GET_ECHO`, `OS
 
 ## CDC virtual consoles
 
-One USB CDC port provides `/dev/console` (TTY 0) and `/dev/ttyV1` (TTY 4). Ctrl+T switches between independently managed TTYs. See [CDC virtual console](../devices/CDC-VCONSOLE.md).
+One USB CDC port provides `/dev/ttyV0` (TTY 0) and `/dev/ttyV1` (TTY 4). Ctrl+T switches between independently managed TTYs. See [CDC virtual console](../devices/CDC-VCONSOLE.md).
+
+`/dev/console` resolves to the selected CDC console at `open()` time, while `/dev/tty` refers to the caller’s own controlling terminal. It appears in `ls /dev` and resolves to that TTY on `open()`. The `tty` command prints the actual terminal path, not the `/dev/tty` alias.
 
 ## Nonblocking I/O: `fcntl()`
 
 Use `fcntl(fd, F_GETFL, 0)` to read FD flags, and `fcntl(fd, F_SETFL, flags)` to change `O_NONBLOCK`. This is independent of canonical and echo modes. For immediate character input, select noncanonical mode and an appropriate blocking policy.
 
-In the current implementation, `F_SETFL` supports `O_NONBLOCK` for both USB CDC virtual consoles, UART1, the Wi-Fi TTY (when enabled), PTY master/slave, pipe endpoints, and TCP/UDP socket descriptors. **Ordinary files and other general devices are excluded.** At `open()` time, `O_NONBLOCK` is accepted for `/dev/console`, `/dev/ttyV1`, `/dev/ttyS1`, and PTY master/slave. For `/dev/ttyN0` or pipes, configure a descriptor after it has been obtained using `fcntl()`. A nonblocking pipe may return `OS_EAGAIN`, unlike the zero-byte nonblocking TTY read.
+In the current implementation, `F_SETFL` supports `O_NONBLOCK` for both USB CDC virtual consoles, UART1, the Wi-Fi TTY (when enabled), PTY master/slave, pipe endpoints, and TCP/UDP socket descriptors. **Ordinary files and other general devices are excluded.** At `open()` time, `O_NONBLOCK` is accepted for `/dev/console`, `/dev/ttyV0`, `/dev/ttyV1`, `/dev/ttyS1`, and PTY master/slave. For `/dev/ttyN0` or pipes, configure a descriptor after it has been obtained using `fcntl()`. A nonblocking pipe may return `OS_EAGAIN`, unlike the zero-byte nonblocking TTY read.
 
 When no input is available, a nonblocking TTY `read()` returns **0** in both canonical and noncanonical modes (not a negative `EAGAIN`-style error). In canonical mode, a line may not yet be complete; Ctrl+D can also produce a zero-length EOF result, so a return value of 0 alone does not distinguish them. Blocking reads wait for input; `VMIN` / `VTIME` timeouts are not available. Pipes and sockets have different I/O semantics; see [Pipes](PIPE.md) and [Socket APIs](../../development/apps/c/NETWORK-PROGRAMMING.md).
 

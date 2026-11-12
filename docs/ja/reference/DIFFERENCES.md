@@ -43,7 +43,7 @@ PicoNIXにはディスクファイルシステム，書き込み可能な永続F
 
 | 項目 | PicoNIXの仕様 |
 |---|---|
-| USB CDC | `/dev/console`．Pico・Pico Wで利用可能 |
+| USB CDC | `/dev/ttyV0`．Pico・Pico Wで利用可能 |
 | UART1 | `/dev/ttyS1`．GP20（TX），GP21（RX）．Pico・Pico Wで利用可能 |
 | Wi-Fi Telnet | Pico Wビルドのみ`/dev/ttyN0`．カーネルのTCP 23番サービス |
 | TTY設定 | canonical／noncanonical入力，echo，改行変換，非ブロッキング入出力などの簡易実装．**完全なPOSIX termiosではない** |

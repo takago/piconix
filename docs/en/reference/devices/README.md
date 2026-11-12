@@ -14,7 +14,9 @@ This table lists **device types and path patterns in the standard configuration*
 
 | Node | Read | Write/control | Data and purpose | Details |
 |---|:---:|:---:|---|---|
-| `/dev/console` | Yes | Yes | USB CDC text terminal | [TTY](../commands/TTY.md) |
+| `/dev/console` | Yes | Yes | Currently selected CDC console (resolved on open) | [CDC virtual console](CDC-VCONSOLE.md) |
+| `/dev/tty` | Yes | Yes | Calling task’s controlling terminal (resolved on open) | [TTY](../commands/TTY.md) |
+| `/dev/ttyV0` | Yes | Yes | USB CDC text terminal | [TTY](../commands/TTY.md) |
 | `/dev/ttyV1` | Yes | Yes | Second CDC virtual console (Ctrl+T) | [CDC virtual console](CDC-VCONSOLE.md) |
 | `/dev/ttyS1` | Yes | Yes | UART1 text terminal | [UART](UART.md) |
 | `/dev/ptmx` | Yes | Yes | PTY master (one exclusive pair) | [PTY](PTY.md) |

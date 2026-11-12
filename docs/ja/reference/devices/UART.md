@@ -61,7 +61,7 @@ ps
 cat /proc/tasks
 ```
 
-USB側では`tty`は`/dev/console`，UART1側のShellでは`/dev/ttyS1`を表示します．
+USB側では`tty`は`/dev/ttyV0`，UART1側のShellでは`/dev/ttyS1`を表示します．
 
 ## 6．制限事項
 

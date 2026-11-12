@@ -13,8 +13,12 @@ static void write_all(int fd,const char *p,size_t n) {while(n) {int k=write(fd,p
 /* 表示文字列を標準出力へ出力する． */
 static void put(const char *s) {write_all(1,s,strlen(s));}
 
-/* 数値を表示用の文字列へ変換する． */
-static void number(int v) {char b[16];snprintf(b,sizeof b,"%d",v);put(b);}
+/* 数字や欠損値を幅に合わせて右寄せ表示する． */
+static void right_field(const char *value,unsigned width) {
+    unsigned len=(unsigned)strlen(value);
+    while(len<width) {put(" ");len++;}
+    put(value);
+}
 
 /* 相対パスを現在ディレクトリからのパスへ変換する． */
 static int resolve(const char *cwd, const char *input, char out[128]) {
@@ -60,9 +64,10 @@ static void entry(const char *directory,const char *name,int directory_entry,uns
         const char *type=directory_entry?"d":
             eq(directory,"/bin") || eq(directory,"/userland")?"p":
             eq(directory,"/tmp") || eq(directory,"/etc")?"f":"c";
-        put(type);put("    ");
-        if(id!=65535u)number((int)id);else put("-");
-        put("    ");
+        char id_text[16],size_text[16];
+        if(id!=65535u)snprintf(id_text,sizeof id_text,"%u",id);
+        else strcpy(id_text,"-");
+        strcpy(size_text,"-");
         if(!directory_entry && eq(directory,"/tmp")) {
             char path[128];
             snprintf(path,sizeof path,"/tmp/%s",name);
@@ -71,10 +76,12 @@ static void entry(const char *directory,const char *name,int directory_entry,uns
                 char buf[64];int n;unsigned size=0;
                 while((n=read(fd,buf,sizeof buf))>0)size+=(unsigned)n;
                 close(fd);
-                if(n>=0)number((int)size);else put("-");
-            } else put("-");
-        } else put("-");
-        put("    ");
+                if(n>=0)snprintf(size_text,sizeof size_text,"%u",size);
+            }
+        }
+        put(type);put("    ");
+        right_field(id_text,5);put(" ");
+        right_field(size_text,6);put(" ");
     }
     put(name);put("\r\n");
 }
@@ -109,7 +116,7 @@ static void ls(const char *path) {
     int is_file=0;
     if(!eq(path,"/")) {
         /* 詳細表示の見出しは一度だけ出す． */
-        if(detailed)put("TYPE ID   SIZE NAME\r\n");
+        if(detailed)put("TYPE    ID   SIZE NAME\r\n");
         is_file=file_entry(path);
         if(is_file==1)return;
     }
@@ -122,7 +129,7 @@ static void ls(const char *path) {
         if(is_file<0)put("ls: cannot stat file\r\n");
         return;
     }
-    if(detailed && eq(path,"/"))put("TYPE ID   SIZE NAME\r\n");
+    if(detailed && eq(path,"/"))put("TYPE    ID   SIZE NAME\r\n");
     do {
         if(n>0 && (show_all || e.name[0]!='.')) {
             char name[40];snprintf(name,sizeof name,"%s%s",e.name,e.is_dir?"/":"");

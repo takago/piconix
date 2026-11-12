@@ -1,11 +1,38 @@
 # PicoNIX Development Diary
+
+### 2026-11-12 — Cycle CDC console views with Ctrl+Left/Right
+
+Ctrl+Right cycles `ttyV0 single → ttyV1 single → stacked dual`, with Ctrl+Left going in reverse. Ctrl+Up/Down choose the input console only in dual mode. Preserve Ctrl+T/G, update the dual-view help bar, bilingual references, and host tests. Screen buffers and TTY IDs remain unchanged.
+
+### 2026-11-12 — Add Ctrl+arrow CDC console shortcuts
+
+Decode xterm Ctrl+arrow sequences on USB CDC: up/down select ttyV0/ttyV1 and left/right select single/stacked dual mode. Keep legacy Ctrl+T/G, forward ordinary arrows and Escape to the original TTY, and time out incomplete sequences. Update the help bar and bilingual references.
+
+
+### 2026-11-12 — Align `ls -l` columns
+
+Right-align device IDs and file sizes within fixed-width fields so NAME always starts at the same column, regardless of numeric width. Device ID and file-size retrieval remain unchanged; only formatting was updated.
+
+
+### 2026-11-12 — CDC terminal device naming
+Added `/dev/tty` to the fixed device inventory (`ls /dev`). At `open()` it resolves to the calling task’s controlling TTY, while the `tty` command continues to print the concrete device path. Internal TTY IDs and CDC switching remain unchanged.
+Renamed fixed CDC consoles to `/dev/ttyV0` and `/dev/ttyV1`; `/dev/console` now resolves to the currently selected CDC TTY at `open()` time. Existing descriptors and shell controlling terminals remain stable across screen switches. Updated dual-pane headers to `[/dev/ttyV0]` and `[/dev/ttyV1]`, VFS, `tty`, Pong, tests, and bilingual reference documentation.
+
+### 2026-11-12 — Reduce cursor flicker and add full-width bars in CDC dual mode
+
+Keep the host cursor hidden while both panels are redrawn, restoring the selected TTY cursor position and visibility only when the redraw is stable. Render Console 0/1 headers and the bottom shortcut guide as 80-column reverse-video bars, with bold `ACTIVE` on the selected header. These decorations remain outside the saved screen buffers. Retain the existing USB transmission queue, 80×24 screens, and independent TTY/PTY paths. Host repaint ordering tests passed; hardware appearance and SRAM use still need verification.
+
+### 2026-11-12 — Add a vertically stacked CDC dual-console view
+
+Added Ctrl+G to toggle between single and stacked dual display, while Ctrl+T continues to select the input console. Renders both independent 80×24 buffers with the selected header in reverse video and a bottom key guide outside the application screen buffers. Raw application ANSI output is suppressed in dual mode; the existing bounded USB queue carries positioned redraws without allocating a second full-screen composite buffer. Requires a host terminal of at least 80×51. Basic host rendering tests passed; firmware size and live-terminal performance remain to be verified.
+
 ### 2026-11-12 — Consolidate TTY routing and disable wrapping in 80-column captures
 
 Introduced shared TTY transport-to-line-discipline helpers used by I/O, ioctl and select paths; existing canonical/raw input, echo, foreground ownership and independent console operation remain unchanged. CDC virtual-console and PTY screen capture stay at 80×24, clipping printable characters past column 80 rather than wrapping internally. Physical USB output remains unrestricted so wider host terminals still show full trace lines; after switching back only the captured 80-column portion is recoverable. No PTY/Console 1 buffer sharing or 120×40 expansion. Added host screen tests; Pico SDK firmware build is pending.
 
 ### 2026-11-12 — Prototype CDC virtual consoles
 
-Added two independent logical TTYs (0=`/dev/console`, 4=`/dev/ttyV1`) on one physical USB CDC port, toggled with Ctrl+T. The second shell starts lazily in an available user task slot. Input, modes and foreground ownership remain independent; both CDC consoles reuse the minimal PTY ANSI interpreter to retain 80×24 display state. Background output stays off the physical USB stream, while a return switch restores the screen in bounded USB queue chunks. UART1, Telnet, MCP PTY, syscall ABI and fixed user RAM mapping remain unchanged. Due to the two-bit trace TTY tag, both CDC consoles use the physical CDC tag. Full ANSI compatibility and prior alternate-screen history restoration are not implemented. Host tests were performed; device builds, RAM occupancy and interaction testing are pending.
+Added two independent logical TTYs (0=`/dev/ttyV0`, 4=`/dev/ttyV1`) on one physical USB CDC port, toggled with Ctrl+T. The second shell starts lazily in an available user task slot. Input, modes and foreground ownership remain independent; both CDC consoles reuse the minimal PTY ANSI interpreter to retain 80×24 display state. Background output stays off the physical USB stream, while a return switch restores the screen in bounded USB queue chunks. UART1, Telnet, MCP PTY, syscall ABI and fixed user RAM mapping remain unchanged. Due to the two-bit trace TTY tag, both CDC consoles use the physical CDC tag. Full ANSI compatibility and prior alternate-screen history restoration are not implemented. Host tests were performed; device builds, RAM occupancy and interaction testing are pending.
 
 ### 2026-11-12 — Buffer complete frames in selected full-screen applications
 

@@ -93,7 +93,7 @@ piconix# ps
 
 ## 6．TTYと入出力
 
-USB CDCではCtrl+Tで切り替える2つの独立TTY（`/dev/console`と`/dev/ttyV1`）を扱い，UART1も独立しています．`getty /dev/ttyS1 sh &` により別のShellを起動できます．端末ごとに所有Shellと前景PIDを管理し，Ctrl+Cはその端末の前景タスクに作用します．
+USB CDCではCtrl+Tで切り替える2つの独立TTY（`/dev/ttyV0`と`/dev/ttyV1`）を扱い，UART1も独立しています．`getty /dev/ttyS1 sh &` により別のShellを起動できます．端末ごとに所有Shellと前景PIDを管理し，Ctrl+Cはその端末の前景タスクに作用します．
 
 端末の**入力モード**（canonical/非canonical，echo）は `ioctl()`，FDごとの**非ブロッキングフラグ**は `fcntl()` で設定します．この2種類は独立しています．詳しい操作例と `mb` は[端末設定と対話型入力](commands/TTY.md)を参照してください．端末モードはPOSIX `termios` の完全実装ではなく，`VMIN` と `VTIME` はありません．
 
@@ -103,7 +103,7 @@ USB CDCではCtrl+Tで切り替える2つの独立TTY（`/dev/console`と`/dev/t
 |---|---|
 | `/bin` | Flash埋め込みの登録プログラム一覧（読み取り専用） |
 | `/tmp` | 再起動で消える簡易RAMファイル |
-| `/dev/console`，`/dev/ttyS1` | 端末入出力 |
+| `/dev/ttyV0`，`/dev/ttyS1` | 端末入出力 |
 | `/dev/gpio/N`，`/dev/adc/*`，`/dev/pwm/*` | GPIO，ADC，PWM |
 | `/dev/mem` | 許可範囲内のメモリ読み書き |
 | `/dev/trace` | バイナリトレースの読み取り |

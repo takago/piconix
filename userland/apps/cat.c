@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     const char *path=argc>1+numbered ? argv[1+numbered] : 0;
-    if(path && !strcmp(path,"/dev/console")) {
+    if(path && (!strcmp(path,"/dev/console") || !strcmp(path,"/dev/ttyV0") || !strcmp(path,"/dev/ttyV1"))) {
         puts("cat: console reserved for shell");
         return 1;
     }

@@ -9,8 +9,14 @@ s = (root / 'kernel/kernel.c').read_text()
 dev = (root / 'include/device_names.h').read_text()
 assert '#define CDC_VCONSOLE_TTY 4' in s
 assert '#define OS_TTY_COUNT 5' in s
+assert 'X("/dev/ttyV0", DEV_CONSOLE)' in dev
 assert 'X("/dev/ttyV1", DEV_CDC_VCONSOLE)' in dev
+assert 'X("/dev/console", DEV_CDC_ACTIVE)' in dev
+assert 'if(dev==DEV_CDC_ACTIVE) dev=cdc_active ? DEV_CDC_VCONSOLE : DEV_CONSOLE;' in s
+assert s.index('if(dev==DEV_CDC_ACTIVE) dev=cdc_active ? DEV_CDC_VCONSOLE : DEV_CONSOLE;') < s.index('fd_set(&tasks[current],fd,dev,')
 assert 'if(ch==0x14)' in s and 'cdc_vconsole_switch();' in s
+assert 'if(ch==0x07)' in s and 'cdc_dual_mode^=1u;' in s
+assert 'cdc_shown_revision[0]!=cdc_screen[0].revision' in s
 assert 'wake_readers(CDC_VCONSOLE_TTY)' in s
 assert 'if(dev==DEV_CDC_VCONSOLE)' in s or 'dev==DEV_CDC_VCONSOLE' in s
 assert 'child->parent_pid=0;' in s
@@ -18,8 +24,8 @@ assert 'child->tty=CDC_VCONSOLE_TTY;' in s
 assert 'tty_shell_pid[CDC_VCONSOLE_TTY]=pid;' in s
 assert 'if(pid<0) {tty_put' in s
 assert 'cdc_repaint.revision=cdc_screen[cdc_active].revision;' in s
-assert 'if(screen->revision!=cdc_repaint.revision)' in s
-assert 'else cdc_repaint.phase=0;' in s
+assert 'if(screen->revision!=cdc_repaint.revision ||' in s
+assert 'cdc_repaint.phase=0;' in s
 assert 'tasks[i].tty==CDC_VCONSOLE_TTY ? 0u : tasks[i].tty' in s
 
 vt = s[s.index('/* 仮想画面の最小ANSI解釈．'):s.index('/* 80x24の反転表示を再生成')]
@@ -52,10 +58,12 @@ typedef struct {
 static vt_screen_t pty_screen;
 static vt_screen_t cdc_screen[2];
 static uint8_t cdc_active;
+static uint8_t cdc_dual_mode;
+static uint32_t cdc_shown_revision[2];
 static struct {
-    uint8_t phase,row,col,reverse,pending,seq_at;
-    uint32_t revision;
-    char seq[32];
+    uint8_t phase,row,col,reverse,pending,seq_at,panel;
+    uint32_t revision,revision_other;
+    char seq[80];
 } cdc_repaint;
 static unsigned cursor_reply_bytes;
 static void tty_raw_enqueue(int tty,uint8_t c) {(void)tty;(void)c;cursor_reply_bytes++;}
@@ -129,7 +137,43 @@ int main(void) {
     vt_screen_byte(&wide,PTY_TTY,'\n');
     vt_screen_byte(&wide,PTY_TTY,'Q');
     assert(wide.cells[1][1]=='Q'); /* LF preserves column, as on the existing parser. */
-    puts("PASS: independent CDC displays, background output, reverse video, incremental repaint, concurrent output");
+    /* Stacked mode must render both 80x24 views at separate coordinates. */
+    cdc_dual_mode=1;
+    cdc_vconsole_begin_repaint();
+    sent_count=0;
+    finish_redraw();
+    assert(strstr(sent,"[/dev/ttyV0]")!=NULL);
+    assert(strstr(sent,"[/dev/ttyV1]")!=NULL);
+    assert(strstr(sent,"C-Left/Right: V0/V1/Dual  C-Up/Down: Focus (Dual)  C-T/G: Legacy")!=NULL);
+    assert(strstr(sent,"\033[27;1H")!=NULL);
+    /* The cursor must remain hidden until both full-width title bars and
+     * the bottom help bar have been written. */
+    char *header0=strstr(sent,"\033[1;1H\033[7m\033[1m[/dev/ttyV0] ACTIVE");
+    char *header1=strstr(sent,"\033[26;1H\033[7m[/dev/ttyV1]");
+    char *footer=strstr(sent,"\033[51;1H\033[7mC-Left/Right: V0/V1/Dual  C-Up/Down: Focus (Dual)  C-T/G: Legacy");
+    char *cursor=strstr(sent,"\033[?25h");
+    assert(header0 && header1 && footer && cursor);
+    assert(header0<header1 && header1<footer && footer<cursor);
+    assert(strstr(sent,"\033[?25l")!=NULL);
+    /* Width of the bars is exactly 80 columns including their labels. */
+    for(int i=0;i<61;i++) assert(header0[sizeof("\033[1;1H\033[7m\033[1m[/dev/ttyV0] ACTIVE")-1+i]==' ');
+    for(int i=0;i<68;i++) assert(header1[sizeof("\033[26;1H\033[7m[/dev/ttyV1]")-1+i]==' ');
+    /* Switching focus highlights Console 1, without changing either buffer. */
+    cdc_active=1;
+    cdc_vconsole_begin_repaint();
+    sent_count=0;
+    finish_redraw();
+    assert(strstr(sent,"\033[26;1H\033[7m\033[1m[/dev/ttyV1] ACTIVE")!=NULL);
+    /* A hidden task's output triggers repaint without writing raw bytes. */
+    cdc_put(CDC_VCONSOLE_TTY,'Z');
+    assert(console_tx_head==console_tx_tail);
+    assert(cdc_shown_revision[1]!=cdc_screen[1].revision);
+    cdc_dual_mode=0;
+    cdc_vconsole_begin_repaint();
+    sent_count=0;
+    finish_redraw();
+    assert(strstr(sent,"\033[?7h")!=NULL);
+    puts("PASS: independent CDC displays, stacked dual display, background output, reverse video, incremental repaint");
     return 0;
 }
 '''
