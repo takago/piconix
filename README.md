@@ -14,8 +14,11 @@ Unlike firmware that exposes only a built-in network service, PicoNIX lets user 
 
 - **Kernel and processes:** XIP kernel on RP2040, six fixed 24 KiB application slots (including 4 KiB reserved stack per slot), PIC user programs copied from Flash to SRAM, multitasking and an SVC-based system call interface.
 - **UNIX-like environment:** shell, pipes and redirection, virtual filesystem, RAM files, `/dev` and `/proc`, file descriptors, devices, process and terminal control.
-- **Programs and diagnostics:** file utilities, `edit`, `vi`, `fd`, `as`, a compact `cc`, a Python-like interpreter, `mem`, `trace`, `lsof`, and hardware experiments.
+- **Programs:** file utilities, `edit`, `vi`, `fd`, `as`, a compact `cc`, a Python-like interpreter, and hardware experiments.
+- **Tracing and monitoring:** `trace`, `top`, `mem`, `watch`, and `lsof` expose system calls, scheduling, CPU activity, memory, and open files for hands-on OS observation.
+- **Games:** a growing collection including `reversi`, `sudoku`, `samegame`, `maze`, `pong`, `tictactoe`, and `mb`, playable directly in the terminal.
 - **USB CDC virtual consoles:** two independent shells over one USB CDC connection, with single-console and vertically stacked dual-console views, keyboard switching, and screen-state preservation.
+- **Multiple terminal connections:** access PicoNIX through USB CDC, UART1, or Telnet (Pico W), with a common TTY interface; a separate PTY supports interactive MCP agent sessions.
 - **Hardware:** UART1, GPIO, PWM, ADC, I²C1, an 8×8 LED matrix and framebuffer interfaces. Pin availability differs between Pico and Pico W.
 - **Pico W networking:** Wi-Fi AP/STA, lwIP IPv4 TCP/UDP sockets, loopback, Telnet and UDP remote device control in the kernel; `httpd`, `nc`, `mcpd`, echo servers and other network programs in user space.
 - **MCP-controlled interactive terminal (Pico W):** The user-space `mcpd` server exposes an 80×24 virtual terminal to LLM clients. Through screen reads and keystrokes, an LLM can operate existing interactive programs such as `fd` and `vi`, including editing and saving files, without modifying those programs for AI. See the [MCP reference](docs/en/reference/commands/MCP.md) ([日本語](docs/ja/reference/commands/MCP.md)).
