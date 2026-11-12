@@ -1,5 +1,9 @@
 # PicoNIX Development Diary
 
+### 2026-11-13 — Unify the network TTY display name
+
+Display the Telnet controlling terminal as `ttyN0` rather than `wifi` in `/proc/tasks`, aligning the name consumed by `ps` and `top` with `/dev/ttyN0`. Internal TTY numbers, device IDs, networking behavior and output column widths are unchanged.
+
 ### 2026-11-13 — Align ps output for 80-column terminals and correct PTY comment
 
 Format `ps` as a compact process table instead of copying the long `/proc/tasks` records directly. Full `MEMORY`, `SP`, `NET_US`, and `CON_US` fields remain accessible through `cat /proc/tasks`; the original `/proc/tasks` layout and `top` parser are unchanged. Correct the comment to state that either PTY 0 or 1 can be allocated through `/dev/ptmx`. Review other fixed-column command headings while preserving intentionally long diagnostic output. Split the lengthy `i2cctl` and `trace` usage messages into separate lines.

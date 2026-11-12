@@ -2646,7 +2646,7 @@ NO_TRACE static int proc_tasks_read(int fd, void *p, size_t n) {
         uintptr_t base=(uintptr_t)task_ram[row];
         char line[160];
         int len=snprintf(line,sizeof line,"%3d  %-18.18s%-9s%-9s%d     %08lX-%08lX  %08lX  %3d  %10lu  %10lu 0 0\n",
-            t->pid,t->name?t->name:"",state,t->tty==0?"ttyV0":t->tty==1?"uart1":t->tty==2?"wifi":t->tty==PTY_TTY?"pts/0":t->tty==PTY_TTY1?"pts/1":t->tty==CDC_VCONSOLE_TTY?"ttyV1":"-",row+1,
+            t->pid,t->name?t->name:"",state,t->tty==0?"ttyV0":t->tty==1?"uart1":t->tty==2?"ttyN0":t->tty==PTY_TTY?"pts/0":t->tty==PTY_TTY1?"pts/1":t->tty==CDC_VCONSOLE_TTY?"ttyV1":"-",row+1,
             (unsigned long)base,(unsigned long)(base+OS_TASK_BYTES-1u),
             (unsigned long)(uintptr_t)t->sp,t->parent_pid,(unsigned long)t->dispatch_count,
             (unsigned long)t->cpu_ticks);
