@@ -25,7 +25,8 @@ for token in ('wifi_session_poll();', 'if(wifi_session_active && epoch!=wifi_ses
     assert token in kern, token
 # Separate TX/RX rings each have 2047 usable bytes with the one-empty-slot convention.
 assert 'static unsigned char net_rx[NET_TTY_QUEUE_SIZE], net_tx[NET_TTY_QUEUE_SIZE];' in net
-assert net.count('(NET_TTY_QUEUE_SIZE - 1u)') >= 5
+assert 'static unsigned queue_next(unsigned index)' in net
+assert net.count('queue_next(') >= 5
 assert 'return NET_TTY_QUEUE_SIZE - 1u - queue_count(head, tail);' in net
 assert 'if (p->tot_len > queue_space(net_rx_head, net_rx_tail))' in net
 assert 'unsigned net_terminal_epoch(void);' in hdr

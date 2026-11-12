@@ -1,5 +1,29 @@
 # PicoNIX Development Diary
 
+### 2026-11-13 — Align ps output for 80-column terminals and correct PTY comment
+
+Format `ps` as a compact process table instead of copying the long `/proc/tasks` records directly. Full `MEMORY`, `SP`, `NET_US`, and `CON_US` fields remain accessible through `cat /proc/tasks`; the original `/proc/tasks` layout and `top` parser are unchanged. Correct the comment to state that either PTY 0 or 1 can be allocated through `/dev/ptmx`. Review other fixed-column command headings while preserving intentionally long diagnostic output. Split the lengthy `i2cctl` and `trace` usage messages into separate lines.
+
+### 2026-11-13 — Reuse VFS RAM-file and PID lookups
+
+Use the existing `tmp_lookup()` for `/tmp` and `/etc` directory-entry IDs, and `slot_from_pid()` for opening `/proc/task/PID`. Keep file contents, device IDs, FD ownership, buffer capacities, and the syscall ABI unchanged. Linked SRAM size and hardware operation have not been measured.
+
+### 2026-11-13 — Consolidate UDP PCB setup
+
+Unified duplicated UDP PCB creation, binding, and receive-callback setup in `bind()` and first `sendto()` through `udp_slot_open()`. Preserve cleanup on failure, slot ownership, received datagrams, and buffer capacity. Also avoid repeated slot lookup in `net_socket_local_port()`. Linked SRAM savings and device operation have not been measured.
+
+### 2026-11-13 — Consolidate foreground TTY mode save and restore
+
+Moved foreground TTY mode snapshot and restoration into paired `tty_mode_save()` and `tty_mode_restore()` helpers. Canonical, echo, ONLCR, interrupt and owner-PID state remain symmetric; restoring does not erase queued input. TTY/PTY/CDC behavior, buffer capacities, ABI and fixed SRAM layout remain unchanged. Linked SRAM savings have not been measured.
+
+### 2026-11-13 — Reuse common TTY initialization
+
+Replaced repeated TTY mode and input-buffer initialization loops in `os_init()` with `tty_mode_reset()`, already used for PTY teardown. Default modes, TTY isolation, PTY/CDC behavior, queue capacities, and the syscall ABI remain unchanged. Kept program-registry entry information for API compatibility.
+
+### 2026-11-13 — Share Telnet terminal queue index handling
+
+Unified repeated RX/TX ring index advancement through `queue_next()` and removed unused Telnet negotiation-command state. Queue capacities, TCP backpressure behavior, protocol negotiation, and syscall ABI remain unchanged. Retained program registry entry pointers to preserve the external registration API semantics.
+
 ### 2026-11-13 — Simplify task state and RAM image registration
 
 Removed unused task startup-time and script-path fields; packed three RAM image registration sizes into 16-bit fields while preserving the 20 KiB validation limit. Expanded ADC sample storage to the FD limit and carry cached ADC samples across FD duplication/inheritance so partial reads remain consistent. No TTY/PTY or networking queue capacities, syscall ABI, or fixed SRAM regions were changed.
@@ -741,7 +765,9 @@ The Pico W lwIP configuration gained the `lo0` loopback interface for local TCP/
 
 ## November 3: Python TCP/UDP support, repeated ADC reads, and file seeking
 
-The small Python interpreter gained `socket()`, `connect()`, `listen()`, `accept()`, `bind()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` using existing socket system calls on Pico W. String literals also gained escapes including `\n`, `\r`, `\t`, and `\xHH`. No temperature-specific Python built-ins were retained: `/dev/adc/temp` is accessed through the existing `open()` and `read()` APIs. The TCP and UDP temperature servers were organized as `userland/examples/python/temp_tcp.py` and `temp_udp.py`, while the initial `/tmp/test.py` example was changed to sample the temperature five times. Hardware verification of the network examples was still pending at this stage.
+The small Python interpreter gained `socket()`, `connect()`, `listen()`, `accept()`, `bind()`, `send()`, `recv()`, `sendto()`, and `recvfrom()` using existing socket system calls on Pico W. String literals also gained escapes including `\\n### 2026-11-13 — Share program-name lookup
+
+Consolidated name-to-ID searches used by directory entry IDs under `/bin`, path resolution under `/proc/sym/userland`, and `SYS_PROGRAM_ID` into `registered_program_id()`. Sparse program IDs, unregistered-program handling, registration APIs, PIC, TTY/PTY and buffer capacities are unchanged. Moving the registry into Flash was deferred because it would require redesigning the pre-start registration API. Linked SRAM savings have not been measured.\nn`, `\r`, `\t`, and `\xHH`. No temperature-specific Python built-ins were retained: `/dev/adc/temp` is accessed through the existing `open()` and `read()` APIs. The TCP and UDP temperature servers were organized as `userland/examples/python/temp_tcp.py` and `temp_udp.py`, while the initial `/tmp/test.py` example was changed to sample the temperature five times. Hardware verification of the network examples was still pending at this stage.
 
 To avoid reopening the ADC device for each sample, the ADC read logic was changed so that a new measurement is taken on the next `read()` after the previous textual result has been consumed; partial reads continue the same measurement. Rather than adding another system call, the existing **system call 21, `lseek()`**, gained `SEEK_CUR` and `SEEK_END`. Ordinary `/tmp` files and `/dev/shm` support all three origins, while `/dev/mem` retains only `SEEK_SET`. Host-side compilation and static tests were performed, but these do not establish comprehensive hardware behavior. For current APIs, see [Python](development/apps/python/PYTHON.md), [System calls](reference/SYSCALLS.md), and [C library](development/apps/c/LIBC.md).
 

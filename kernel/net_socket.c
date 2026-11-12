@@ -50,20 +50,26 @@ NO_TRACE int net_socket_udp_read_ready(int id) {
     return s && s->rx_ready;
 }
 
+/* UDP PCBの生成・bind・受信コールバック設定を一か所にまとめる．
+ * 失敗時はPCBを解放し，スロットの所有状態を変更しない． */
+NO_TRACE static int udp_slot_open(udp_slot_t *s, uint16_t port) {
+    struct udp_pcb *pcb = udp_new_ip_type(IPADDR_TYPE_V4);
+    if (!pcb) return -1;
+    if (udp_bind(pcb, IP_ANY_TYPE, port) != ERR_OK) {
+        udp_remove(pcb);
+        return -1;
+    }
+    s->pcb = pcb;
+    s->rx_ready = 0;
+    udp_recv(pcb, udp_received, s);
+    return 0;
+}
+
 /* 指定スロットのUDP待受ポートを登録する． */
 int net_socket_udp_bind(int id, uint16_t port) {
     udp_slot_t *s=udp_slot_at(id);
     if (!s || s->pcb || !port) return -1;
-    struct udp_pcb *pcb=udp_new_ip_type(IPADDR_TYPE_V4);
-    if (!pcb) return -1;
-    if (udp_bind(pcb,IP_ANY_TYPE,port)!=ERR_OK) {
-        udp_remove(pcb);
-        return -1;
-    }
-    s->pcb=pcb;
-    s->rx_ready=0;
-    udp_recv(pcb,udp_received,s);
-    return 0;
+    return udp_slot_open(s, port);
 }
 
 /* スロット固有の保留データグラムを取り出す． */
@@ -85,15 +91,7 @@ int net_socket_udp_send(int id,const void *buf,unsigned length,uint32_t peer_ip,
     udp_slot_t *s=udp_slot_at(id);
     if (!s || (!buf && length) || length>NET_SOCKET_UDP_MAX || !peer_port) return -1;
     if (!s->pcb) {
-        struct udp_pcb *pcb=udp_new_ip_type(IPADDR_TYPE_V4);
-        if (!pcb) return -1;
-        if (udp_bind(pcb,IP_ANY_TYPE,0)!=ERR_OK) {
-            udp_remove(pcb);
-            return -1;
-        }
-        s->pcb=pcb;
-        s->rx_ready=0;
-        udp_recv(pcb,udp_received,s);
+        if (udp_slot_open(s, 0) != 0) return -1;
     }
     struct pbuf *pkt=pbuf_alloc(PBUF_TRANSPORT,length,PBUF_RAM);
     if (!pkt) return -1;
@@ -415,8 +413,10 @@ NO_TRACE int net_socket_tcp_diagnostics(char *out, unsigned size) {
 
 /* UDPまたはTCPの指定ソケットに割り当てられたローカルポートを返す． */
 NO_TRACE uint16_t net_socket_local_port(int kind,int id) {
-    if(kind==0)
-        return udp_slot_at(id) && udp_slot_at(id)->pcb ? udp_slot_at(id)->pcb->local_port : 0;
+    if(kind==0) {
+        udp_slot_t *u = udp_slot_at(id);
+        return u && u->pcb ? u->pcb->local_port : 0;
+    }
     tcp_slot_t *s=slot_at(id);
     if(!s)
         return 0;

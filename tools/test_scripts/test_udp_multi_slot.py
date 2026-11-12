@@ -13,8 +13,8 @@ assert 'net_socket_udp_recv(udp_fd_slot(t,fd)' in k
 assert 'net_socket_udp_read_ready(id)' in k
 assert 'net_socket_udp_close(id); udp_owner_pid[id]=0;' in k
 assert 'static udp_slot_t udp_slots[NET_SOCKET_UDP_SLOTS];' in n
-assert 'udp_recv(pcb,udp_received,s)' in n
+assert 'udp_recv(pcb, udp_received, s)' in n
 assert 'udp_slot_t *s=(udp_slot_t *)arg;' in n
 assert '#define MEMP_NUM_UDP_PCB 8' in l
-assert 'udp_slot_at(id)->pcb->local_port' in n
+assert 'u && u->pcb ? u->pcb->local_port : 0' in n
 print('PASS: UDP slot ownership, receive isolation, cleanup and PCB capacity')

@@ -54,7 +54,7 @@ Applications are built as position-independent code (PIC) and embedded in Flash.
 
 Task states are `UNUSED`, `READY`, `SLEEPING`, `BLOCKED`, and `DEAD`. `spawn()` launches a registered program in a new slot. `waitpid()` waits for a child, or returns without blocking when `WNOHANG` is specified. Exit codes (0–255) are retained in completion notices separately from reusable task slots and returned through `waitpid()`.
 
-`ps` and `/proc/tasks` show the parent PID in `PPID` and per-task dispatch counts in the trailing `DISPATCH` column. The PID 0 `[idle]` row and cumulative `CPU_TICKS` column are also shown.
+`ps` aligns `PID`, `NAME`, `STATE`, `TTY`, `SLOT`, `PPID`, `DISPATCH`, and `CPU_TICKS` for 80-column terminals. `/proc/tasks` retains its detailed format (including `MEMORY`, `SP`, `NET_US`, and `CON_US`) for tools such as `top`. Both include the PID 0 `[idle]` row.
 
 ## 4. System-call boundary
 

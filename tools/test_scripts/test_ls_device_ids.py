@@ -14,5 +14,6 @@ assert '65535u' in ls
 assert 'TYPE    ID   SIZE NAME' in ls
 assert 'dir==VDIR_BIN || dir==VDIR_USERLAND' in k
 assert 'dir==VDIR_TMP || dir==VDIR_ETC' in k
-assert 'return (uint16_t)i;' in k
+assert 'tmp_lookup(path+1)' in k
+assert 'return index>=0 ? (uint16_t)index : 0xffff;' in k
 print('PASS: kernel-provided device IDs in ls -l')

@@ -264,7 +264,7 @@ static void pty_screen_byte(int slot,uint8_t c);
 static int pty_screen_read(int fd, void *p, size_t n);
 static int pty_key_write(int slot,const void *p, size_t n);
 static pty_t pty[PTY_COUNT];
-/* Both PTYs have dedicated device IDs.  Slot 1 is not exposed via ptmx. */
+/* Each PTY has its own device IDs; /dev/ptmx allocates either free slot. */
 NO_TRACE static int pty_slot(int dev) {
     if(dev==DEV_PTY_MASTER || dev==DEV_PTY_SLAVE || dev==DEV_PTY_SCREEN || dev==DEV_PTY_KEY) return 0;
     if(dev==DEV_PTY_MASTER1 || dev==DEV_PTY_SLAVE1 || dev==DEV_PTY_SCREEN1 || dev==DEV_PTY_KEY1) return 1;
@@ -371,6 +371,8 @@ static int tty_saved_owner[OS_TTY_COUNT];
 /* 使用されていない端末の一時的な排他利用． */
 static int tty_claim_pid[OS_TTY_COUNT];
 static void tty_mode_reset(int dev);
+static void tty_mode_save(int dev);
+static void tty_mode_restore(int dev);
 /* タスク終了処理から参照するため，TTYバッファを先に宣言する． */
 #define TTY_LINES 8u
 typedef struct {
@@ -467,11 +469,7 @@ NO_TRACE static int foreground_child(int pid) {
         tasks[i].parent_pid==tasks[current].pid && tasks[i].state!=DEAD) {
         int tty=tasks[i].tty;
         if(foreground_pid[tty]!=pid && !tty_restore_pid[tty]) {
-            tty_saved_canon[tty]=tty_canonical[tty];
-            tty_saved_echo[tty]=tty_echo[tty];
-            tty_saved_onlcr[tty]=tty_onlcr[tty];
-            tty_saved_interrupt[tty]=tty_interrupt[tty];
-            tty_saved_owner[tty]=tty_mode_owner[tty];
+            tty_mode_save(tty);
             tty_restore_pid[tty]=pid;
         }
         if(foreground_pid[tty]==tasks[current].pid)
@@ -661,12 +659,7 @@ NO_TRACE static void finish_task(int slot, int status) {
                 if(tty_mode_owner[dev]==t->pid)
                     tty_mode_owner[dev]=survivor;
             } else {
-                tty_canonical[dev]=tty_saved_canon[dev];
-                tty_echo[dev]=tty_saved_echo[dev];
-                tty_onlcr[dev]=tty_saved_onlcr[dev];
-                tty_interrupt[dev]=tty_saved_interrupt[dev];
-                tty_last_cr[dev]=0;
-                tty_mode_owner[dev]=tty_saved_owner[dev];
+                tty_mode_restore(dev);
                 tty_restore_pid[dev]=0;
                 /* 前景コマンドの終了時に未消費の入力キューを保持する． */
             }
@@ -859,6 +852,14 @@ NO_TRACE static void wake_waiters(void) {
 /* プログラムは位置独立であり，実行時に空きスロットのRAMアドレスを与える． */
 #define PROGRAM_CAPACITY 65  /* プログラムIDは1〜64を使用し，0を予約する． */
 static struct { os_entry_t entry; const char *name; } programs[PROGRAM_CAPACITY];
+/* 登録されたプログラム名をIDへ変換する．IDが疎でも登録番号を保持する． */
+NO_TRACE static int registered_program_id(const char *name) {
+    if (!name || !*name) return OS_ENOENT;
+    for (int id=1;id<PROGRAM_CAPACITY;id++)
+        if (programs[id].entry && programs[id].name &&
+            !strcmp(name,programs[id].name)) return id;
+    return OS_ENOENT;
+}
 /* 未使用または終了済みの24 KiBユーザスロットを探す．空きがなければ-1． */
 NO_TRACE static int free_program_slot(void) {
     for (int i=0;i<OS_MAX_TASKS;i++)
@@ -892,6 +893,23 @@ NO_TRACE static void tty_mode_reset(int dev) {
     tty_last_cr[dev]=0;
     tty_mode_owner[dev]=0;
     memset(&tty_buf[dev],0,sizeof tty_buf[dev]);
+}
+
+/* 前景プログラムが一時変更する端末モードを保存・復元する．入力キューは保持する． */
+NO_TRACE static void tty_mode_save(int dev) {
+    tty_saved_canon[dev]=tty_canonical[dev];
+    tty_saved_echo[dev]=tty_echo[dev];
+    tty_saved_onlcr[dev]=tty_onlcr[dev];
+    tty_saved_interrupt[dev]=tty_interrupt[dev];
+    tty_saved_owner[dev]=tty_mode_owner[dev];
+}
+NO_TRACE static void tty_mode_restore(int dev) {
+    tty_canonical[dev]=tty_saved_canon[dev];
+    tty_echo[dev]=tty_saved_echo[dev];
+    tty_onlcr[dev]=tty_saved_onlcr[dev];
+    tty_interrupt[dev]=tty_saved_interrupt[dev];
+    tty_last_cr[dev]=0;
+    tty_mode_owner[dev]=tty_saved_owner[dev];
 }
 
 /* Master/SlaveのFD参照数を追う．閉鎖済みセッションの状態は両端が消えてから初期化する． */
@@ -1781,7 +1799,20 @@ NO_TRACE void os_init(void) {
     adc_driver_init();
     i2c_driver_init();
     pwm_driver_init();
-    svc_count=0; pendsv_count=0; context_switch_count=0; started=0; next_pid=1; memset((void *)foreground_pid,0,sizeof foreground_pid); memset(foreground_group,0,sizeof foreground_group); memset(tty_shell_pid,0,sizeof tty_shell_pid); memset(exited,0,sizeof exited); memset(tty_buf,0,sizeof tty_buf); for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_canonical[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_echo[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_onlcr[ti]=1; for(int ti=0;ti<OS_TTY_COUNT;ti++) tty_interrupt[ti]=1; memset(tty_last_cr,0,sizeof tty_last_cr); memset(tty_mode_owner,0,sizeof tty_mode_owner); memset(tty_claim_pid,0,sizeof tty_claim_pid); memset(tty_restore_pid,0,sizeof tty_restore_pid); memset(tty_saved_owner,0,sizeof tty_saved_owner);
+    svc_count=0;
+    pendsv_count=0;
+    context_switch_count=0;
+    started=0;
+    next_pid=1;
+    memset((void *)foreground_pid,0,sizeof foreground_pid);
+    memset(foreground_group,0,sizeof foreground_group);
+    memset(tty_shell_pid,0,sizeof tty_shell_pid);
+    memset(exited,0,sizeof exited);
+    /* PTY解放時と同じ共通処理で，全TTYの入力と端末モードを初期化する． */
+    for(int tty=0;tty<OS_TTY_COUNT;tty++) tty_mode_reset(tty);
+    memset(tty_claim_pid,0,sizeof tty_claim_pid);
+    memset(tty_restore_pid,0,sizeof tty_restore_pid);
+    memset(tty_saved_owner,0,sizeof tty_saved_owner);
     memset(rx, 0, sizeof(rx));
     memset(pty,0,sizeof pty);
     memset(cdc_screen,0,sizeof cdc_screen);
@@ -2403,17 +2434,11 @@ NO_TRACE static int vdir_nth(int dir, unsigned nth, piconix_dirent_t *ent) {
 /* ディレクトリエントリの表示IDを，プログラム／デバイス／RAMファイルの識別子に対応させる． */
 NO_TRACE static uint16_t vdir_entry_device_id(int dir, const char *name, int is_dir) {
     if(!is_dir && (dir==VDIR_BIN || dir==VDIR_USERLAND)) {
-        for(int i=1;i<PROGRAM_CAPACITY;i++)
-            if(programs[i].entry && programs[i].name && !strcmp(programs[i].name,name))
-                return (uint16_t)i;
+        int id=registered_program_id(name);
+        if (id>0) return (uint16_t)id;
     }
-    if(!is_dir && (dir==VDIR_TMP || dir==VDIR_ETC)) {
-        const char *prefix=dir==VDIR_TMP?"tmp/":"etc/";
-        for(int i=0;i<TMP_FILES;i++)
-            if(tmp_files[i].used && !strncmp(tmp_files[i].name,prefix,4) &&
-               !strcmp(tmp_files[i].name+4,name)) return (uint16_t)i;
-    }
-    if(is_dir || (dir!=VDIR_DEV && dir!=VDIR_DEV_NET && dir!=VDIR_GPIO &&
+    if(is_dir || (dir!=VDIR_TMP && dir!=VDIR_ETC &&
+                  dir!=VDIR_DEV && dir!=VDIR_DEV_NET && dir!=VDIR_GPIO &&
                   dir!=VDIR_I2C && dir!=VDIR_ADC && dir!=VDIR_PWM1 &&
                   dir!=VDIR_PROC && dir!=VDIR_NET && dir!=VDIR_TASK &&
                   dir!=VDIR_SYM && dir!=VDIR_USERLAND &&
@@ -2424,6 +2449,10 @@ NO_TRACE static uint16_t vdir_entry_device_id(int dir, const char *name, int is_
     char path[96];
     if(snprintf(path,sizeof path,"%s/%s",parent,name)>=(int)sizeof path)
         return 0xffff;
+    if(!is_dir && (dir==VDIR_TMP || dir==VDIR_ETC)) {
+        int index=tmp_lookup(path+1); /* Remove the leading '/' used by VFS paths. */
+        return index>=0 ? (uint16_t)index : 0xffff;
+    }
     int id=vfs_fixed_path_id(path);
     if(id<0 && dir==VDIR_GPIO) id=vfs_gpio_id(name);
     if(id<0 && dir==VDIR_ADC && name[0]>='0' && name[0]<='2' && !name[1])
@@ -2480,21 +2509,19 @@ static int vfs_open(const char *p, int flags) {
         if(*q) {
             while(*q>='0' && *q<='9' && pid<1000000u)
                 pid=pid*10u+(unsigned)(*q++-'0');
-            if(!*q && pid<1000000u)
-                for(int i=0;i<OS_MAX_TASKS;i++)
-                    if(tasks[i].state!=UNUSED && tasks[i].state!=DEAD &&
-                       tasks[i].pid==(int)pid) {dev=DEV_PROC_TASK_BASE+i;break;}
+            if(!*q && pid<1000000u) {
+                int slot=slot_from_pid((int)pid);
+                if(slot>=0 && slot<OS_MAX_TASKS)
+                    dev=DEV_PROC_TASK_BASE+slot;
+            }
         }
     }
     if(dev<0 && !strncmp(p,"/proc/sym/userland/",19)) {
         const char *name=p+19;
-        if(*name && !strchr(name,'/'))
-            for(int id=1;id<PROGRAM_CAPACITY;id++)
-                if(programs[id].entry && programs[id].name &&
-                   !strcmp(name,programs[id].name)) {
-                    dev=DEV_SYMS_USER_BASE+id;
-                    break;
-                }
+        if(*name && !strchr(name,'/')) {
+            int id=registered_program_id(name);
+            if (id>0) dev=DEV_SYMS_USER_BASE+id;
+        }
     }
     if(dev<0 && !strncmp(p,"/dev/gpio/",10))
         dev=vfs_gpio_id(p+10);
@@ -3714,13 +3741,7 @@ void os_svc_dispatch(uint32_t *f) {
             const char *lookup=key;
             if(!strncmp(lookup,"/bin/",5))
                 lookup+=5;
-            result=OS_ENOENT;
-            if(!*lookup)
-                break;
-            for(int id=1;id<PROGRAM_CAPACITY;id++) {
-                if(programs[id].entry && programs[id].name &&
-                   !strcmp(lookup,programs[id].name)) { result=id; break; }
-            }
+            result=registered_program_id(lookup);
             break;
         }
         case SYS_SPAWN: {

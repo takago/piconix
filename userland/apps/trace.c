@@ -528,7 +528,8 @@ static int trace_run(int fd, int argc, char *argv[]) {
 /* トレース表示・起動操作をコマンド引数に基づいて選ぶ． */
 int main(int argc, char *argv[]) {
     if(argc<2) {
-        puts("usage: trace on [-s|-a]|off|show [PID]|follow [PID]|run [-s|-a] command [args...]");return 1;
+        puts("usage: trace on [-s|-a] | off | show [PID] | follow [PID]");
+        puts("       trace run [-s|-a] command [args...]");return 1;
     }
     if(!strcmp(argv[1],"run")) {
         int fd=open("/dev/trace",O_RDONLY);
@@ -545,7 +546,8 @@ int main(int argc, char *argv[]) {
     if((argc>3 || (argc==3 && !on_option && strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) ||
        (strcmp(argv[1],"on") && strcmp(argv[1],"off") &&
                    strcmp(argv[1],"show") && strcmp(argv[1],"follow"))) {
-        puts("usage: trace on [-s|-a]|off|show [PID]|follow [PID]|run [-s|-a] command [args...]");return 1;
+        puts("usage: trace on [-s|-a] | off | show [PID] | follow [PID]");
+        puts("       trace run [-s|-a] command [args...]");return 1;
     }
     int filter_pid=-1;
     if(argc==3 && !on_option) {

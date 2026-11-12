@@ -18,7 +18,8 @@ static int number(const char *s,int *v) {
 
 /* I2C制御コマンドの指定形式を表示する． */
 static void usage(void) {
-    puts("Usage: i2cctl scan | read ADDR COUNT | write ADDR BYTE... | xfer ADDR READ_COUNT [BYTE...]");
+    puts("Usage: i2cctl scan | read ADDR COUNT | write ADDR BYTE...");
+    puts("       i2cctl xfer ADDR READ_COUNT [BYTE...]");
     puts("Addresses and bytes accept decimal or 0x-prefixed hex; max 32 bytes.");
 }
 

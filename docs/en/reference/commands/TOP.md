@@ -13,7 +13,7 @@ The display includes uptime, system-wide CPU usage (Idle, Busy, Console, Task, N
 
 For MCP, run interactively in the persistent PTY, not via the noninteractive `execute_command` tool.
 
-`DISPATCH` counts scheduler selections that grant a task CPU execution, including its initial run and re-selection of the same task. The count resets when a task slot is reused. This is not CPU time. `ps` still displays `SP` from `/proc/tasks`, which `top` omits to fit 80-column terminals.
+`DISPATCH` counts scheduler selections that grant a task CPU execution, including its initial run and re-selection of the same task. The count resets when a task slot is reused. This is not CPU time. `/proc/tasks` retains `SP` in its detailed format; `ps` and `top` omit it to fit 80-column terminals.
 
 `DISPATCH` does not count interrupts or SVC entries by themselves. Returning to the interrupted task without scheduler selection does not increment it. The system-wide `/proc/context_switches` retains its original meaning: switches between different tasks.
 

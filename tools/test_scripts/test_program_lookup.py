@@ -9,8 +9,10 @@ w=(r/'userland/apps/watch.c').read_text()
 u=(r/'userland/lib/syscalls.c').read_text()
 assert '#include "../include/piconix_syscall.h"' in k
 assert 'case SYS_PROGRAM_ID:' in k
-assert 'for(int id=1;id<PROGRAM_CAPACITY;id++)' in k
-assert '!strcmp(lookup,programs[id].name)' in k
+assert 'for (int id=1;id<PROGRAM_CAPACITY;id++)' in k
+assert 'registered_program_id(lookup)' in k
+assert 'registered_program_id(name)' in k
+assert '!strcmp(name,programs[id].name)' in k
 assert 'in_task_range(name+n,1)' in k
 assert 'call(SYS_PROGRAM_ID,(uintptr_t)name,0,0)' in u
 assert 'static int program_id(' not in s+w+t

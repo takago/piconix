@@ -15,7 +15,7 @@
 #include <string.h>
 static struct tcp_pcb *telnet_listener; /* TelnetはTCP 23番ポートを使用する． */
 static unsigned char client_telnet;
-static unsigned char telnet_state, telnet_command, telnet_cr;
+static unsigned char telnet_state, telnet_cr;
 static unsigned char telnet_hello_pos;
 static const unsigned char telnet_hello[] = {255,251,1, 255,251,3, 255,253,3}; /* Telnet交渉でWILL ECHO・WILL SGA・DO SGAを通知する． */
 static struct tcp_pcb *client;
@@ -34,6 +34,11 @@ static unsigned queue_count(unsigned head, unsigned tail) {
 /* キュー末尾を1つ空けたうえで書き込めるバイト数を返す． */
 static unsigned queue_space(unsigned head, unsigned tail) {
     return NET_TTY_QUEUE_SIZE - 1u - queue_count(head, tail);
+}
+
+/* 2つのリングキューで共通の添字更新処理を使用する． */
+static unsigned queue_next(unsigned index) {
+    return (index + 1u) & (NET_TTY_QUEUE_SIZE - 1u);
 }
 
 /* Telnetの送受信キューを空にし，新規接続へ備える． */
@@ -55,7 +60,7 @@ int net_terminal_read(void *dst, unsigned size) {
     unsigned n = 0;
     while (n < size && net_rx_tail != net_rx_head) {
         out[n++] = net_rx[net_rx_tail];
-        net_rx_tail = (net_rx_tail + 1u) & (NET_TTY_QUEUE_SIZE - 1u);
+        net_rx_tail = queue_next(net_rx_tail);
     }
     return (int)n;
 }
@@ -78,10 +83,10 @@ int net_terminal_write(const void *src, unsigned size) {
     while (n < size && queue_space(net_tx_head, net_tx_tail)) {
         unsigned char c = in[n++];
         net_tx[net_tx_head] = c;
-        net_tx_head = (net_tx_head + 1u) & (NET_TTY_QUEUE_SIZE - 1u);
+        net_tx_head = queue_next(net_tx_head);
         if (client_telnet && c == 255) {
             net_tx[net_tx_head] = 255;
-            net_tx_head = (net_tx_head + 1u) & (NET_TTY_QUEUE_SIZE - 1u);
+            net_tx_head = queue_next(net_tx_head);
         }
     }
     return (int)n;
@@ -134,12 +139,11 @@ static void net_receive_byte(unsigned char c) {
         if (telnet_state == 1) {
             telnet_state = 0;
             if (c == 255) { /* IACがエスケープされたデータバイトである． */ }
-            else if (c >= 251 && c <= 254) { telnet_command = c; telnet_state = 2; return; }
+            else if (c >= 251 && c <= 254) { telnet_state = 2; return; }
             else if (c == 250) { telnet_state = 3; return; }
             else return;
         } else if (telnet_state == 2) {
             /* 接続時に提案済みのECHO/SGAに対する相手の応答は読み飛ばす． */
-            (void)telnet_command;
             telnet_state = 0;
             return;
         } else if (telnet_state == 3) {
@@ -159,7 +163,7 @@ static void net_receive_byte(unsigned char c) {
             telnet_cr = 1;
     }
     net_rx[net_rx_head] = c;
-    net_rx_head = (net_rx_head + 1u) & (NET_TTY_QUEUE_SIZE - 1u);
+    net_rx_head = queue_next(net_rx_head);
 }
 
 /* TCPコールバックで受信を固定キューへ入れる．全体を受け取れないときはlwIPの受信窓を進めず再試行させる． */
@@ -219,7 +223,7 @@ static err_t client_accept(void *arg, struct tcp_pcb *pcb, err_t err) {
     }
     client = pcb;
     client_telnet = (unsigned char)(uintptr_t)arg;
-    telnet_state = telnet_command = telnet_cr = telnet_hello_pos = 0;
+    telnet_state = telnet_cr = telnet_hello_pos = 0;
     ++terminal_epoch;
     net_queues_reset();
     tcp_arg(pcb, NULL);
