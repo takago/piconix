@@ -8,9 +8,9 @@
 #include <stdint.h>
 
 typedef struct {
-    char name[32];
-    uint32_t offset; /* Byte offset from __manual_start. */
-    uint32_t size;
+    char name[32];    /* マニュアルの項目名． */
+    uint32_t offset;  /* __manual_startを基点とするバイトオフセット． */
+    uint32_t size;    /* 本文のバイト数． */
 } man_entry_t;
 
 extern const unsigned char __manual_start[], __manual_end[];

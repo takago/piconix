@@ -37,7 +37,12 @@
 static volatile uint32_t cpu_net_total_us, cpu_console_total_us;
 #define CPU_HISTORY 30
 /* SysTickが1秒ごとに書き込む履歴．時間はマイクロ秒で保持する． */
-typedef struct { uint32_t time_ms, task_us, net_us, console_us; } cpu_record_t;
+typedef struct {
+    uint32_t time_ms;     /* 記録時刻（ms）． */
+    uint32_t task_us;     /* ユーザタスクのCPU時間（µs）． */
+    uint32_t net_us;      /* ネットワーク処理時間（µs）． */
+    uint32_t console_us;  /* コンソール処理時間（µs）． */
+} cpu_record_t;
 static volatile cpu_record_t cpu_history[CPU_HISTORY];
 static volatile uint32_t cpu_history_serial;
 static uint32_t cpu_last_net_us, cpu_last_console_us;
@@ -223,7 +228,13 @@ enum { UNUSED, READY, SLEEPING, DEAD, BLOCKED };
 #define PIPE_DEV_BASE 268 /* ユーザシンボルIDの範囲と重複させない． */
 #define PIPE_READ_DEV(i) (PIPE_DEV_BASE + (i)*2)
 #define PIPE_WRITE_DEV(i) (PIPE_DEV_BASE + (i)*2 + 1)
-typedef struct { uint8_t data[PIPE_BYTES]; uint16_t head, used; uint8_t readers, writers; } pipe_t;
+typedef struct {
+    uint8_t data[PIPE_BYTES];  /* パイプの固定長リングバッファ． */
+    uint16_t head;           /* 次に読み出す位置． */
+    uint16_t used;           /* バッファ内の有効バイト数． */
+    uint8_t readers;         /* 読取り端点の参照数． */
+    uint8_t writers;         /* 書込み端点の参照数． */
+} pipe_t;
 static pipe_t pipes[PIPE_COUNT];
 /* 汎用PTY 2組．デバイスIDはパイプ端点と区別し，追加タスク・ソケットを使わない． */
 #define PTY_TTY 3
@@ -233,16 +244,31 @@ static pipe_t pipes[PIPE_COUNT];
 #define PTY_OUT_BYTES 1024u
 #define WAIT_PTY_READ (-7)
 #define WAIT_PTY_SLAVE_WRITE (-8)
-typedef struct { uint8_t out[PTY_OUT_BYTES]; uint16_t head, used; unsigned master_refs, slave_refs; uint8_t ever_slave, screen_only; } pty_t;
+typedef struct {
+    uint8_t out[PTY_OUT_BYTES];  /* SlaveからMasterへの出力リング． */
+    uint16_t head;            /* 出力リングの読取り位置． */
+    uint16_t used;            /* 出力リング内の有効バイト数． */
+    unsigned master_refs;     /* Master側の参照数． */
+    unsigned slave_refs;      /* Slave側の参照数． */
+    uint8_t ever_slave;       /* Slaveが一度でも開かれたことを示すフラグ． */
+    uint8_t screen_only;      /* 画面取得を主とする利用状態のフラグ． */
+} pty_t;
 /* 80x24の仮想画面．TTY/PTYのバイト転送とは独立した表示状態である． */
 #define VT_COLS 80u
 #define VT_ROWS 24u
 typedef struct {
-    char cells[VT_ROWS][VT_COLS];
-    uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u];
-    uint8_t row,col,esc,params,private_csi,reverse,cursor_hidden,clipped;
-    uint16_t arg[3];
-    uint32_t revision;
+    char cells[VT_ROWS][VT_COLS];              /* 画面内の文字セル． */
+    uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u]; /* 反転表示セルのビット列． */
+    uint8_t row;            /* カーソル行． */
+    uint8_t col;            /* カーソル列． */
+    uint8_t esc;            /* エスケープシーケンスの解析状態． */
+    uint8_t params;         /* 解析中のパラメータ数・位置の管理． */
+    uint8_t private_csi;    /* 私用CSIシーケンスの解析状態． */
+    uint8_t reverse;        /* 現在の反転表示属性． */
+    uint8_t cursor_hidden;  /* カーソル非表示の状態． */
+    uint8_t clipped;        /* 画面外への描画を抑制する状態． */
+    uint16_t arg[3];        /* CSIシーケンスの数値引数． */
+    uint32_t revision;      /* 画面更新を追跡する世代番号． */
 } vt_screen_t;
 static vt_screen_t pty_screen[PTY_COUNT];
 /* CDC is one physical port with two independent virtual 80x24 displays. */
@@ -253,9 +279,16 @@ static uint8_t cdc_dual_mode;
 static uint32_t cdc_shown_revision[2];
 /* In-progress repaint suppresses interleaved foreground writes to the USB queue. */
 static struct {
-    uint8_t phase,row,col,reverse,pending,seq_at,panel;
-    uint32_t revision,revision_other;
-    char seq[80];
+    uint8_t phase;           /* 再描画の進行段階． */
+    uint8_t row;             /* 再描画中の行． */
+    uint8_t col;             /* 再描画中の列． */
+    uint8_t reverse;         /* 出力中の反転表示状態． */
+    uint8_t pending;         /* 未送信の制御列があることを示す状態． */
+    uint8_t seq_at;          /* 制御列の送信位置． */
+    uint8_t panel;           /* 再描画対象の画面． */
+    uint32_t revision;       /* 対象画面の更新世代． */
+    uint32_t revision_other; /* もう一方の画面の更新世代． */
+    char seq[80];            /* 送信途中の画面制御列． */
 } cdc_repaint;
 static void cdc_vconsole_draw(void);
 static void cdc_vconsole_switch(void);
@@ -321,7 +354,36 @@ static int pipe_transfer(pipe_t *p, void *buffer, size_t size, int writing) {
     }
     return (int)count;
 }
-typedef struct { uint32_t *sp; uint32_t wake; uint8_t state; os_entry_t entry; const char *name; int fd[OS_FD_MAX]; uint32_t fd_pos[OS_FD_MAX]; int fd_task_pid[OS_FD_MAX]; uint8_t fd_flags[OS_FD_MAX]; int pid; int parent_pid; int wait_dev; int wait_fd; void *wait_buf; size_t wait_size; uint8_t wait_frame_ready; int wait_pid; int *wait_status; uint8_t tty; uint8_t program_id; uint32_t dispatch_count; volatile uint32_t cpu_ticks; char cwd[128]; uint16_t adc_values[OS_FD_MAX]; } task_t;
+/* タスク管理表の1要素．実行状態・FD・待機情報を固定長で保持する． */
+typedef struct {
+    uint32_t *sp;                    /* 保存済みコンテキストのスタック位置． */
+    uint32_t wake;                   /* SLEEPINGからの起床予定tick． */
+    uint8_t state;                   /* UNUSED/READY/SLEEPING/DEAD/BLOCKED． */
+    os_entry_t entry;                /* タスクの開始アドレス． */
+    const char *name;                /* 表示用のプログラム名． */
+
+    int fd[OS_FD_MAX];              /* FDごとのデバイス・対象ID． */
+    uint32_t fd_pos[OS_FD_MAX];     /* FDごとのファイル位置． */
+    int fd_task_pid[OS_FD_MAX];     /* FDに関連付くタスクPID． */
+    uint8_t fd_flags[OS_FD_MAX];    /* FDごとのオープン・動作フラグ． */
+
+    int pid;                        /* このタスクのPID． */
+    int parent_pid;                 /* 親プロセスのPID． */
+    int wait_dev;                   /* ブロック中の待機対象デバイスID． */
+    int wait_fd;                    /* ブロック中の待機対象FD． */
+    void *wait_buf;                 /* 遅延完了するI/Oのバッファ． */
+    size_t wait_size;               /* 待機中のI/O要求サイズ． */
+    uint8_t wait_frame_ready;       /* 保存された例外フレームの準備状態． */
+    int wait_pid;                   /* waitpidの待機対象PID． */
+    int *wait_status;               /* 子プロセス終了状態の格納先． */
+
+    uint8_t tty;                    /* タスクに割り当てられたTTY番号． */
+    uint8_t program_id;             /* 登録済みプログラムのID． */
+    uint32_t dispatch_count;        /* スケジューラによる割当て回数． */
+    volatile uint32_t cpu_ticks;    /* 実行したSysTickの累積値． */
+    char cwd[128];                  /* カレントディレクトリ． */
+    uint16_t adc_values[OS_FD_MAX]; /* ADCのFD別取得値． */
+} task_t;
 // 24 KiBのRAMスロット6個を物理アドレスで予約する．.bssには含めない．
 // リンカはカーネルの配置先を0x20000000〜0x2000DFFFに限定する必要がある．
 _Static_assert(OS_MAX_TASKS == 6 && OS_TASK_BYTES == 24576u,
@@ -380,10 +442,18 @@ static void tty_mode_save(int dev);
 static void tty_mode_restore(int dev);
 /* タスク終了処理から参照するため，TTYバッファを先に宣言する． */
 #define TTY_LINES 8u
+/* TTY入力の行編集と確定済み行のキュー． */
 typedef struct {
-    char line[128]; unsigned len;
-    struct {char text[128];uint8_t len;} lines[TTY_LINES];
-    unsigned head,tail,used,offset;
+    char line[128];  /* 編集中の入力行． */
+    unsigned len;   /* 編集中の文字数． */
+    struct {
+        char text[128]; /* 確定した1行の内容． */
+        uint8_t len;   /* 確定した行のバイト数． */
+    } lines[TTY_LINES]; /* 確定済み行の固定長キュー． */
+    unsigned head;   /* キューの読取り位置． */
+    unsigned tail;   /* キューの書込み位置． */
+    unsigned used;   /* キューに保持した行数． */
+    unsigned offset; /* 先頭行の読み進め位置． */
 } tty_buffer_t;
 static tty_buffer_t tty_buf[OS_TTY_COUNT];
 /* Common TTY layer: translate a transport device into its line discipline.

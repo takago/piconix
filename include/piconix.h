@@ -50,11 +50,11 @@
 #define OS_EMFILE (-24)
 /* IPv4アドレスはlwIPと同じネットワークバイト順のuint32_t表現を用いる． */
 typedef struct {
-    const void *data;
-    uint32_t length;
-    uint32_t peer_ip;
-    uint16_t peer_port;
-    uint16_t reserved;
+    const void *data;  /* ユーザRAM上の送受信データ． */
+    uint32_t length;   /* データのバイト数． */
+    uint32_t peer_ip;  /* 通信相手のIPv4アドレス． */
+    uint16_t peer_port; /* 通信相手のUDPポート． */
+    uint16_t reserved; /* 予約フィールド． */
 } piconix_udp_packet_t;
 typedef void (*os_entry_t)(void);
 #define OS_TASK_UNUSED 0
@@ -74,7 +74,10 @@ int os_tcp_listen(int fd,uint16_t port);
 /* ノンブロッキングで，接続FDまたはOS_EAGAINを返す． */
 int os_tcp_accept(int fd);
 /* TCP接続先のIPv4表現はUDPのpeer_ipと共通である． */
-typedef struct { uint32_t peer_ip; uint16_t peer_port; } piconix_tcp_endpoint_t;
+typedef struct {
+    uint32_t peer_ip;   /* 接続先IPv4アドレス（ネットワークバイト順）． */
+    uint16_t peer_port; /* 接続先TCPポート． */
+} piconix_tcp_endpoint_t;
 int os_tcp_connect(int fd,const piconix_tcp_endpoint_t *endpoint);
 int os_tcp_status(int fd);
 void os_init(void);

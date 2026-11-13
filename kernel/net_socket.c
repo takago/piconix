@@ -16,12 +16,12 @@
 #include <string.h>
 /* 各ソケットが受信データグラムを1件保持する固定長領域． */
 typedef struct {
-    struct udp_pcb *pcb;
-    unsigned char rx_data[NET_SOCKET_UDP_MAX];
-    unsigned rx_length;
-    uint32_t rx_peer_ip;
-    uint16_t rx_peer_port;
-    unsigned rx_ready;
+    struct udp_pcb *pcb;                    /* lwIPのUDP制御ブロック． */
+    unsigned char rx_data[NET_SOCKET_UDP_MAX]; /* 保留中の受信データグラム． */
+    unsigned rx_length;                    /* 受信データのバイト数． */
+    uint32_t rx_peer_ip;                   /* 送信元IPv4アドレス． */
+    uint16_t rx_peer_port;                 /* 送信元UDPポート． */
+    unsigned rx_ready;                     /* 未読データの有無． */
 } udp_slot_t;
 static udp_slot_t udp_slots[NET_SOCKET_UDP_SLOTS];
 /* UDPソケットの番号を検証して対応する固定スロットを返す． */
@@ -115,18 +115,31 @@ NO_TRACE void net_socket_udp_close(int id) {
 #include <stdio.h>
 /* 異常経路だけを数える固定長診断．lwIPコールバック中にprintfしない． */
 static struct {
-    unsigned pcb_alloc_fail, accept_busy, accept_error, rx_backpressure;
-    unsigned write_backpressure, write_error, output_error;
-    unsigned close_deferred, close_retry, async_error;
+    unsigned pcb_alloc_fail;    /* PCBの確保失敗回数． */
+    unsigned accept_busy;       /* accept処理が混雑した回数． */
+    unsigned accept_error;      /* accept処理のエラー回数． */
+    unsigned rx_backpressure;   /* 受信側の容量不足回数． */
+    unsigned write_backpressure; /* 送信側の容量不足回数． */
+    unsigned write_error;       /* TCP書込みエラー回数． */
+    unsigned output_error;      /* TCP出力エラー回数． */
+    unsigned close_deferred;    /* closeを後回しにした回数． */
+    unsigned close_retry;       /* closeを再試行した回数． */
+    unsigned async_error;       /* 非同期エラー通知回数． */
 } tcp_diag;
 /* 拒否したpbuf一個で受信窓が満杯になる場合もある．アプリが読出した後に全体を受け取れるよう，適切な領域を確保する． */
 #define NET_SOCKET_TCP_RX_MAX TCP_WND
 typedef struct {
-    struct tcp_pcb *listener, *client;
-    unsigned char rx[NET_SOCKET_TCP_RX_MAX];
-    unsigned rx_len;
-    unsigned char peer_closed, fault, connecting, established, pending_accept, allocated;
-    unsigned char write_shutdown;
+    struct tcp_pcb *listener; /* 待受用のlwIP TCP制御ブロック． */
+    struct tcp_pcb *client;   /* 接続用のlwIP TCP制御ブロック． */
+    unsigned char rx[NET_SOCKET_TCP_RX_MAX]; /* 保留中の受信バイト列． */
+    unsigned rx_len;          /* 受信バッファ内の有効バイト数． */
+    unsigned char peer_closed;   /* 相手側が送信を終了した状態． */
+    unsigned char fault;         /* 通信エラーの状態． */
+    unsigned char connecting;    /* 非同期接続の処理中． */
+    unsigned char established;   /* 接続確立済み． */
+    unsigned char pending_accept; /* acceptで引き渡す接続がある状態． */
+    unsigned char allocated;     /* この管理スロットが使用中か． */
+    unsigned char write_shutdown; /* 送信側を終了した状態． */
 } tcp_slot_t;
 static tcp_slot_t slots[NET_SOCKET_TCP_SLOTS];
 /* IDが有効な範囲にある場合だけ固定TCPスロットのポインタを返す． */
