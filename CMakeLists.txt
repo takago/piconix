@@ -13,6 +13,15 @@ endif()
 project(piconix C CXX ASM)
 set(CMAKE_C_STANDARD 11)
 pico_sdk_init()
+# PicoNIXの56 KiBカーネル領域はSDK 2.3.1でのビルドを基準とする．
+# 2.1.1ではカーネルが期待したサイズに収まらない事例があるため拒否する．
+if(NOT DEFINED PICO_SDK_VERSION_STRING)
+  message(FATAL_ERROR "Cannot determine Pico SDK version; PicoNIX requires SDK 2.3.1 or newer")
+endif()
+if(PICO_SDK_VERSION_STRING VERSION_LESS "2.3.1")
+  message(FATAL_ERROR "PicoNIX requires Pico SDK 2.3.1 or newer for compact kernel builds (found ${PICO_SDK_VERSION_STRING}). Remove the existing build-pico/build-pico_w directory after upgrading the SDK.")
+endif()
+message(STATUS "PicoNIX Pico SDK version: ${PICO_SDK_VERSION_STRING}")
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 # ファームウェア生成前に，登録されたRAMアプリのIDが容量内にあるか検査する．
 execute_process(

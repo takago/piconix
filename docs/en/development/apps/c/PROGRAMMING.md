@@ -79,7 +79,7 @@ From the repository root, after completing the SDK/toolchain setup:
 
 ```sh
 PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 

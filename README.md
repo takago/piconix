@@ -39,6 +39,8 @@ PicoNIX is an educational system rather than a POSIX-compliant or security-harde
 
 Install the Pico SDK, toolchain, and prerequisites by following the **[English setup guide](docs/en/setup/SETUP.md)** or **[日本語セットアップ手順](docs/ja/setup/SETUP.md)**. The guides cover environment preparation, firmware builds, flashing and serial/network connections.
 
+**Recommended SDK: 2.3.1 or newer.** SDK 2.1.1 has been observed to produce a kernel that is not compact enough for the intended memory layout. Remove any existing `build-pico/` or `build-pico_w/` directory when upgrading the SDK, then reconfigure.
+
 After setup, build from the repository root:
 
 ```sh

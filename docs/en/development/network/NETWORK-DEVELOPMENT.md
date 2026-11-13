@@ -61,11 +61,11 @@ Record baseline behavior before modifying code. Use [Network connection](../../r
 python3 tools/run_tests.py
 
 # Compile Pico W without flashing (requires Pico SDK and toolchain)
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
   ./tools/build_sdk.sh --no-flash -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 
 # Check that the ordinary Pico build still works
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
   ./tools/build_sdk.sh --no-flash -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 

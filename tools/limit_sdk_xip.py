@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Derive PicoNIX RP2040 XIP linker layout from Pico SDK 2.1.1 default script.
+"""Derive PicoNIX RP2040 XIP linker layout from legacy Pico SDK default script.
 
 Only writable kernel allocations use the first 56 KiB of main SRAM.
 Task slots and the Pico W networking reservation remain outside this region.

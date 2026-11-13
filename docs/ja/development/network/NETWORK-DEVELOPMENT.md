@@ -61,11 +61,11 @@
 python3 tools/run_tests.py
 
 # SDKがある場合，書き込みを行わずPico W用にビルドする
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
   ./tools/build_sdk.sh --no-flash -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 
 # 通常Picoにも影響しないか確認
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
   ./tools/build_sdk.sh --no-flash -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 

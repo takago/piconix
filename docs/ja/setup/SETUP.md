@@ -26,16 +26,18 @@ sudo apt install clang lld llvm
 
 ARM GCCはRP2040向けのビルドに使用します．Clang，LLD，LLVMは主にRAMアプリケーションのPIC検証で使用します．
 
-## 2．Pico SDK 2.1.1の取得
+## 2．Pico SDK 2.3.1の取得
+
+**推奨SDKは2.3.1です．** PicoNIXではSDK 2.1.1を使用するとカーネルのサイズが期待どおりに小さくならないことが確認されています．SDKを切り替えた場合は，古いCMakeキャッシュを使わずにビルドディレクトリを作り直してください．
 
 ```sh
 mkdir -p ~/.pico-sdk/sdk
 cd ~/.pico-sdk/sdk
 
-git clone --branch 2.1.1 \
-    https://github.com/raspberrypi/pico-sdk.git 2.1.1
+git clone --branch 2.3.1 \
+    https://github.com/raspberrypi/pico-sdk.git 2.3.1
 
-cd 2.1.1
+cd 2.3.1
 git submodule update --init --recursive
 ```
 
@@ -60,7 +62,7 @@ Gitから取得した場合は，PicoNIXリポジトリのルートディレク�
 UbuntuのパッケージでインストールしたARM GCCを使う場合は，次のコマンドでビルドします．
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
@@ -69,7 +71,7 @@ LC_ALL=C LANG=C \
 
 ```sh
 PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
@@ -77,14 +79,14 @@ LC_ALL=C LANG=C \
 **Pico W向け**には，どちらのコマンドでも`-DPICO_BOARD=pico`を`-DPICO_BOARD=pico_w`に置き換えてください．
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
 実機では，**Pico W向けにビルドしたファームウェアが通常のPicoでも起動・動作することを確認しています**．ただし通常のPicoにはWi-Fiチップがないため，Wi-Fi機能は利用できません．この互換動作は現在の実装で確認されたものであり，すべての将来の版で保証されるものではありません．ボードごとの正式なビルド指定は上記のとおりです．
 
-`MinSizeRel`を指定してください．ファームウェアのカーネル部分は通常`-Os`で最適化されます．全ユーザアプリケーションはCMakeが選択したARMコンパイラで別途`-Oz`と`-fPIC`を付けてビルドします．Clang／LLDは独立したPIC回帰テストで使用します．ビルドスクリプトはホスト側の監査とPIC検証も実行します．別のツールチェーンに切り替えた場合は，CMakeのキャッシュを避けるため該当する`build-pico/`または`build-pico_w/`を削除してから再ビルドしてください．
+`MinSizeRel`を指定してください．ファームウェアのカーネル部分は通常`-Os`で最適化されます．全ユーザアプリケーションはCMakeが選択したARMコンパイラで別途`-Oz`と`-fPIC`を付けてビルドします．Clang／LLDは独立したPIC回帰テストで使用します．ビルドスクリプトはホスト側の監査とPIC検証も実行します．**SDKのバージョンを切り替えた場合も**，CMakeのキャッシュやSDKのリンク設定が残らないよう，該当する`build-pico/`または`build-pico_w/`を削除してから再ビルドしてください．ツールチェーン変更時も同様です．
 
 ビルド成果物は，Pico向けでは`build-pico/piconix.uf2`と`build-pico/piconix.elf`，Pico W向けでは`build-pico_w/piconix.uf2`と`build-pico_w/piconix.elf`です．
 
@@ -93,7 +95,7 @@ LC_ALL=C LANG=C \
 通常ビルドには選抜したカーネル関数のトレース機能が組み込まれます（**ビルド時の既定値はON**）．ただし，**起動時のイベント記録はOFF**です．`trace run hello`で関数階層を，`trace run -s hello`でシステムコールのみを観察できます．ビルド時にONを明示する必要はありません．
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel \
     -DPICONIX_KERNEL_FUNCTION_TRACE=ON
 ```

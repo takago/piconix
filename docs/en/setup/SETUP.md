@@ -26,16 +26,18 @@ sudo apt install clang lld llvm
 
 ARM GCC builds the RP2040 firmware. Clang, LLD, and LLVM are used mainly for host-side PIC checks of RAM applications.
 
-## 2. Get Pico SDK 2.1.1
+## 2. Get Pico SDK 2.3.1
+
+**Use Pico SDK 2.3.1.** With SDK 2.1.1, the PicoNIX kernel has been observed not to achieve the expected compact size. When changing SDK versions, recreate the build directory to avoid stale CMake and linker configuration.
 
 ```sh
 mkdir -p ~/.pico-sdk/sdk
 cd ~/.pico-sdk/sdk
 
-git clone --branch 2.1.1 \
-    https://github.com/raspberrypi/pico-sdk.git 2.1.1
+git clone --branch 2.3.1 \
+    https://github.com/raspberrypi/pico-sdk.git 2.3.1
 
-cd 2.1.1
+cd 2.3.1
 git submodule update --init --recursive
 ```
 
@@ -60,7 +62,7 @@ Select the board with `-DPICO_BOARD=pico` or `-DPICO_BOARD=pico_w`. The followin
 To use the ARM GCC toolchain installed by the distribution packages:
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
@@ -69,7 +71,7 @@ LC_ALL=C LANG=C \
 
 ```sh
 PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
@@ -77,14 +79,14 @@ LC_ALL=C LANG=C \
 **For Pico W**, replace `-DPICO_BOARD=pico` with `-DPICO_BOARD=pico_w` in either command. For example:
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```
 
 Hardware testing has confirmed that **the current Pico W firmware also boots and runs on a regular Pico**. However, the regular Pico has no Wi-Fi hardware, so networking is unavailable. This observed compatibility is not a guarantee for future versions; use the board-specific options above for supported builds.
 
-Use `MinSizeRel` for the firmware (kernel normally optimized with `-Os`). All user applications are compiled separately with `-Oz` and `-fPIC` using the ARM compiler selected by CMake. Clang/LLD are used for the independent host-side PIC regression tests. The build script also runs host-side audits and PIC checks. If switching toolchains, delete the corresponding `build-pico/` or `build-pico_w/` directory first to avoid stale CMake configuration.
+Use `MinSizeRel` for the firmware (kernel normally optimized with `-Os`). All user applications are compiled separately with `-Oz` and `-fPIC` using the ARM compiler selected by CMake. Clang/LLD are used for the independent host-side PIC regression tests. The build script also runs host-side audits and PIC checks. **When switching SDK versions**, delete the corresponding `build-pico/` or `build-pico_w/` directory before rebuilding to avoid stale CMake and linker configuration. Do the same when switching toolchains.
 
 Outputs are `build-pico/piconix.uf2` and `build-pico/piconix.elf` for Pico, or `build-pico_w/piconix.uf2` and `build-pico_w/piconix.elf` for Pico W.
 
@@ -93,7 +95,7 @@ Outputs are `build-pico/piconix.uf2` and `build-pico/piconix.elf` for Pico, or `
 The standard build includes selected kernel function instrumentation (**ON by default**), but **event capture is OFF at boot**. `trace run hello` shows nested function calls; `trace run -s hello` records syscalls alone. Explicitly passing ON is optional:
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 ./tools/build_sdk.sh -DPICO_BOARD=pico -DCMAKE_BUILD_TYPE=MinSizeRel \
     -DPICONIX_KERNEL_FUNCTION_TRACE=ON
 ```

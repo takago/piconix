@@ -63,7 +63,7 @@ register_image(54, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image
 63 and 54 are unused in the current source tree (52 = `sudoku`, 53 = `samegame`). **Recheck all registrations in `kernel/main.c` before using them, especially if other applications were registered.** See the [C application development reference](PROGRAMMING.md) for the PIC/RAM-slot model and flashing instructions.
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```

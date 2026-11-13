@@ -1,5 +1,10 @@
 # PicoNIX Development Diary
 
+### 2026-11-13 — Set Pico SDK 2.3.1 as the supported build baseline
+
+The developer observed that SDK 2.1.1 does not produce the intended compact kernel, while 2.3.1 produces an acceptably small build. Updated Japanese and English setup/development examples to use SDK 2.3.1. CMake now rejects SDK versions older than 2.3.1 at configuration time, and setup instructions require recreating the build directory when upgrading the SDK. No kernel logic, optimization flags, or SRAM allocation changes. The firmware was not rebuilt or size-compared during this documentation update.
+
+
 ### 2026-11-13 — Align TTY names, PTY tests and source comments
 
 Use `ttyS1` instead of `uart1` for the UART1 terminal in `/proc/tasks`. Add missing function comments for PTY endpoint checks and TTY mode restoration. Correct the MCP screen comment to `/dev/pts/N.screen` and update the PTY cursor host test for both PTY slots. Terminal behavior, buffer sizes and the ABI are unchanged.

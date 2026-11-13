@@ -6,10 +6,10 @@ The Pico W build defaults to Wi-Fi AP mode with a small DHCP server; it can also
 
 ## Build
 
-With Pico SDK 2.1.1 installed:
+With Pico SDK 2.3.1 installed:
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```

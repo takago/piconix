@@ -8,10 +8,10 @@ STAモードのビルド設定，mDNSホスト名と定期GARPの説明は[Wi-Fi
 
 ## ビルド
 
-Pico SDK 2.1.1とツールチェーンを用意し，リポジトリのルートで実行します．
+Pico SDK 2.3.1とツールチェーンを用意し，リポジトリのルートで実行します．
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 LC_ALL=C LANG=C \
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```

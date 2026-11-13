@@ -66,7 +66,7 @@ register_image(54, "tcp_get", piconix_tcp_get_image_start, piconix_tcp_get_image
 新しいコマンドを登録する仕組み，PIC，RAMスロットの意味は[Cアプリケーション開発](PROGRAMMING.md)の第3～4節を参照してください．`-Oz`で生成したユーザアプリが24 KiBスロットに収まることもビルド時に検査されます．
 
 ```sh
-PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.1.1" \
+PICO_SDK_PATH="$HOME/.pico-sdk/sdk/2.3.1" \
 PICO_TOOLCHAIN_PATH="$HOME/.pico-sdk/toolchain/14_2_Rel1" \
 ./tools/build_sdk.sh -DPICO_BOARD=pico_w -DCMAKE_BUILD_TYPE=MinSizeRel
 ```

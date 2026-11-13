@@ -14,7 +14,7 @@ def transform(source):
     pat = re.compile(r"(?m)^(?P<pre>[ \t]*RAM[ \t]*\([ \t]*rwx[ \t]*\)[ \t]*:[ \t]*ORIGIN[ \t]*=[ \t]*0x20000000[ \t]*,[ \t]*LENGTH[ \t]*=[ \t]*)(?P<size>256[ \t]*[kK]|0x40000|262144)(?P<post>[ \t]*)$")
     if len(list(pat.finditer(source))) != 1:
         raise ValueError('expected exactly one 256-KiB RP2040 RAM declaration')
-    # Pico SDK 2.1.1はINCLUDEでFlash領域を宣言する．
+    # 旧形式のPico SDKはINCLUDEでFlash領域を宣言する．
     # 既定のINCLUDE形式と明示的なMEMORY定義の両方を受け付ける．
     if not (re.search(r'(?m)^\s*INCLUDE\s+["\']?pico_flash_region\.ld', source)
             or re.search(r'(?m)^\s*FLASH\s*\(', source)):
