@@ -30,6 +30,7 @@ Registered user programs are stored as PIC images in Flash and copied into RAM s
 |---|---|
 | `kernel/main.c` | Startup and embedded app registration |
 | `kernel/kernel.c` | Tasks, FDs, pipes, VFS, TTY, SVC handling |
+| `kernel/screen.c`, `kernel/screen.h` | Kernel-side ANSI screen state, PTY screen/key decoding, CDC repaint and control-key parsing |
 | `kernel/context.S` | Context switching |
 | `kernel/gpio.c`, `fb.c`, `adc.c`, `pwm.c` | Device drivers |
 | `kernel/net.c`, `net_socket.c` | Network and socket infrastructure |
@@ -44,7 +45,7 @@ Registered user programs are stored as PIC images in Flash and copied into RAM s
 
 - `/bin` exposes embedded apps, `/tmp` and `/etc` are simple RAM-file directories, `/dev` provides devices, and `/proc` exposes runtime state and symbol data. See [Filesystem](FILESYSTEM.md).
 - Standard FDs are normally 0, 1, and 2. Files, devices, pipes, and sockets use descriptor-based interfaces, without full POSIX compatibility. See [Pipes](commands/PIPE.md) and [System calls](SYSCALLS.md).
-- The kernel manages TTY input settings and ONLCR; applications and host terminal emulators manage cursors, alternate screen, and display effects. See [TTY](commands/TTY.md) and [Terminal](commands/TERMINAL.md).
+- The kernel handles TTY input settings and ONLCR. Applications and host terminal emulators generally handle display effects, but PicoNIX also maintains an 80×24 screen for CDC virtual consoles and PTY `.screen` through `kernel/screen.c`, interpreting a subset of ANSI controls. See [TTY](commands/TTY.md), [Terminal](commands/TERMINAL.md), and [Screen Management](../development/kernel/SCREEN-MANAGEMENT.md).
 - On Pico W, Telnet (TCP 23) and UDP device control (UDP 2000) are kernel services; HTTP (TCP 80) is provided by user-space `httpd`. Availability depends on build configuration. See [Networking](network/NETWORK.md).
 
 ## 4. Implementation references

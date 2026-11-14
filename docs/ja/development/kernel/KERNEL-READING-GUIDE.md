@@ -206,4 +206,8 @@ Research UNIX V5/V6では，カーネル内の`sleep()`で待機したプロセ�
 
 ## CDC仮想コンソールの画面再描画
 
+画面管理の責務・PTYの`.screen`／`.key`・CDCのキー解析は[スクリーン管理モジュール](SCREEN-MANAGEMENT.md)にまとめています．
+
+
+
 `kernel/screen.c`の`screen_cdc_begin_repaint()`が再描画を開始し，`screen_cdc_poll()`がアイドル周期ごとに最大96バイト分の表示データを生成します．USB送信リングへの登録は`kernel/kernel.c`の`console_queue()`が担当し，空きがなければ次の周期まで保留します．画面の選択状態は`cdc_active`と`cdc_dual_mode`で管理します．CDCの特殊キー列の判定と単独ESCのタイムアウト管理は`screen.c`の`screen_cdc_key_feed()`・`screen_cdc_key_timeout()`が担当します．`kernel.c`は解析結果に従ってTTYへ文字を配送し，画面切替や必要時のシェル生成を行います．

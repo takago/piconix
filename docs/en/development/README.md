@@ -24,6 +24,7 @@ These documents describe current APIs, implementation details, extension procedu
 
 - [Kernel source and call-path reference](kernel/KERNEL-READING-GUIDE.md)
 - [Kernel Development Guide](kernel/KERNEL-DEVELOPMENT.md)
+- [Screen Management Module (ANSI, CDC and PTY)](kernel/SCREEN-MANAGEMENT.md)
 
 ## System calls
 

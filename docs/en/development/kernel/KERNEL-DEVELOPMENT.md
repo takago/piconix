@@ -2,7 +2,7 @@
 
 *Development guide*
 
-For the kernel structure, see the [kernel reading guide](KERNEL-READING-GUIDE.md).
+For the kernel structure, see the [kernel reading guide](KERNEL-READING-GUIDE.md) and the [screen management module guide](SCREEN-MANAGEMENT.md).
 
 ## Before you start
 

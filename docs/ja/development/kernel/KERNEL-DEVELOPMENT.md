@@ -2,7 +2,7 @@
 
 *開発ガイド*
 
-カーネルの構造を調べる場合は[カーネル読解ガイド](KERNEL-READING-GUIDE.md)を利用してください．
+カーネルの構造を調べる場合は[カーネル読解ガイド](KERNEL-READING-GUIDE.md)・[スクリーン管理モジュール](SCREEN-MANAGEMENT.md)を利用してください．
 
 ## 読み始める前に
 

@@ -30,6 +30,7 @@
 |---|---|
 | `kernel/main.c` | 起動・組込みアプリの登録 |
 | `kernel/kernel.c` | タスク，FD，パイプ，VFS，TTY，SVCの主処理 |
+| `kernel/screen.c`，`kernel/screen.h` | カーネル内のANSI画面解析，PTY画面取得・入力命令解釈，CDC再描画・操作キー判定 |
 | `kernel/context.S` | コンテキスト切替 |
 | `kernel/gpio.c`，`fb.c`，`adc.c`，`pwm.c` | デバイス実装 |
 | `kernel/net.c`，`net_socket.c` | ネットワークとソケットの基盤 |
@@ -44,7 +45,7 @@
 
 - `/bin`はFlashに埋め込んだアプリ一覧，`/tmp`と`/etc`は簡易RAMファイル領域，`/dev`はデバイス，`/proc`は状態・シンボル情報を提供します．詳細は[ファイルシステム](FILESYSTEM.md)を参照してください．
 - 標準FDは通常0，1，2です．デバイス・ファイル・パイプ・ソケットをFDとして扱いますが，POSIXとの完全互換性はありません．詳細は[パイプ](commands/PIPE.md)と[システムコール](SYSCALLS.md)を参照してください．
-- TTYの入力設定・ONLCR等はカーネル，画面のカーソル・代替画面等はアプリとホスト端末が管理します．[TTY](commands/TTY.md)と[画面制御](commands/TERMINAL.md)を参照してください．
+- TTYの入力設定・ONLCR等はカーネルが担当します．一般の端末表示はアプリとホスト端末が管理しますが，PicoNIXのCDC仮想コンソールとPTYの`.screen`用には，カーネルの`screen.c`が80×24画面を保持しANSI制御の一部を解釈します．[TTY](commands/TTY.md)，[画面制御](commands/TERMINAL.md)，[スクリーン管理](../development/kernel/SCREEN-MANAGEMENT.md)を参照してください．
 - Pico WのTelnet（TCP 23）とUDPデバイス制御（UDP 2000）はカーネル側，HTTP（TCP 80）はユーザ空間の`httpd`です．Wi-Fi動作はビルド構成に依存します．[ネットワーク](network/NETWORK.md)を参照してください．
 
 ## 4．実装ファイルの参照先

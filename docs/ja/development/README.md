@@ -24,6 +24,7 @@
 
 - [PicoNIX カーネルソース・処理経路索引](kernel/KERNEL-READING-GUIDE.md)
 - [カーネル拡張ガイド](kernel/KERNEL-DEVELOPMENT.md)
+- [スクリーン管理モジュール（ANSI解析・CDC・PTY）](kernel/SCREEN-MANAGEMENT.md)
 
 ## システムコール
 

@@ -115,3 +115,6 @@ echo 'text:ls\n' > /dev/pts/0.key
 ```
 
 `key:` accepts one printable ASCII character or the existing named keys (`UP`, `DOWN`, `ENTER`, `ESC`, `CTRL_A` through `CTRL_Z`, etc.). `text:` accepts literal text with `\n` representing LF and `\\` representing a backslash. The final LF appended by `echo` (and a preceding CR) terminates the command; it is not sent to the slave. Output is limited to 127 decoded bytes per write. Writes are independent commands and cannot be split across calls. Invalid commands are rejected before any input is sent; PTY backpressure can still result in a partial transfer. The MCP `terminal_send` interface remains unchanged.
+
+
+[Screen Management Module](../../development/kernel/SCREEN-MANAGEMENT.md)

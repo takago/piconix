@@ -82,6 +82,10 @@ piconix# pty_test tty
 
 ## 仮想画面とキー入力
 
+**内部実装：** [スクリーン管理モジュール](../../development/kernel/SCREEN-MANAGEMENT.md)．
+
+
+
 ```sh
 cat /dev/pts/0.screen
 echo 'key:DOWN' > /dev/pts/0.key

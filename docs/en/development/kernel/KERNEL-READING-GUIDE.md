@@ -151,3 +151,6 @@ Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../refe
 ## CDC virtual-console repaint
 
 `screen_cdc_begin_repaint()` starts a repaint, and `screen_cdc_poll()` produces at most 96 bytes per idle poll via a callback into `kernel.c`'s USB TX queue. When the queue is full, rendering resumes on a later poll. The active screen and dual-pane display state are stored in `cdc_active` and `cdc_dual_mode`. `screen_cdc_key_feed()` and `screen_cdc_key_timeout()` parse CDC control keys and preserve incomplete ESC sequences. `kernel.c` routes ordinary bytes to TTY input, performs console switching, and retains lazy shell startup.
+
+
+For screen-module internals, see [Screen Management](SCREEN-MANAGEMENT.md).
