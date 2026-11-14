@@ -243,3 +243,8 @@ The test prints the request number, elapsed time, and exception on failure; it s
 Compare `cat /proc/net/memory` before and after testing on the device. `TCP_PCB_POOL` and `TCP_SEG_POOL` show lwIP pool usage (current/peak/allocation errors); `TCP_ACCEPT_BUSY` counts rejected connections while the single slot is occupied; `TCP_WRITE_BACKPRESSURE` indicates a full send queue; `TCP_CLOSE_DEFERRED` and `TCP_CLOSE_RETRY` record deferred close; and `TCP_ASYNC_ERROR` counts asynchronous lwIP errors. The `mcpd` console separately reports an HTTP send timeout (bytes still unsent) or a negative socket error. Correlate these with the existing `trace` output for `write`, `close`, and `select` syscalls. All counters are cumulative since boot: examine deltas.
 
 Combining small HTTP chunks and adding diagnostics **does not prove that intermittent failures are fixed on hardware**. Keep the host failure number and the corresponding device-side observations.
+
+
+### Mapping to `.key` input
+
+The `terminal_send` key argument is sent internally using the prefixed `key:` protocol. The public MCP JSON schema is unchanged. The text argument is decoded as JSON and then written directly to the PTY master; actual LF bytes are preserved and are not subject to the `.key` echo-terminator rule.

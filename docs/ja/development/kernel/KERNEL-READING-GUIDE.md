@@ -19,6 +19,7 @@ UNIX/Linuxのプロセス・FD・システムコール，C言語，Cortex-M0+の
 | SVC | システムコール | `userland/lib/syscalls.c`，`kernel/context.S`，`kernel/kernel.c` | SVCとカーネルへの入口 |
 | VFS | ファイル・FD | `kernel/kernel.c` | open/read/write/close，VFS，/tmp，/proc |
 | 端末・IPC | TTY・パイプ | `kernel/kernel.c`，`userland/apps/shell.c` | 入力待ち，FDの複製，EOF，起床 |
+| 画面管理 | ANSI画面解釈・PTY画面取得 | `kernel/screen.c`，`kernel/screen.h`，`kernel/kernel.c` | `screen_byte()`，`screen_read()`，`screen_key_decode()`，`screen_cdc_poll()`，`screen_cdc_key_feed()`とUSB送信キュー・TTYの境界 |
 | デバイス | デバイス | `kernel/gpio.c`，`kernel/fb.c`など | VFSとデバイスドライバの役割分担 |
 | ネットワーク | ネットワーク（Pico W） | `kernel/net.c`，`kernel/net_socket.c`など | Wi-Fi，lwIP，ソケットの役割分担 |
 
@@ -202,3 +203,7 @@ Research UNIX V5/V6では，カーネル内の`sleep()`で待機したプロセ�
 ---
 
 **関連リンク：** [開発ガイド一覧](../README.md) ｜ [文書案内](../../README.md) ｜ [English](../../../en/development/kernel/KERNEL-READING-GUIDE.md)
+
+## CDC仮想コンソールの画面再描画
+
+`kernel/screen.c`の`screen_cdc_begin_repaint()`が再描画を開始し，`screen_cdc_poll()`がアイドル周期ごとに最大96バイト分の表示データを生成します．USB送信リングへの登録は`kernel/kernel.c`の`console_queue()`が担当し，空きがなければ次の周期まで保留します．画面の選択状態は`cdc_active`と`cdc_dual_mode`で管理します．CDCの特殊キー列の判定と単独ESCのタイムアウト管理は`screen.c`の`screen_cdc_key_feed()`・`screen_cdc_key_timeout()`が担当します．`kernel.c`は解析結果に従ってTTYへ文字を配送し，画面切替や必要時のシェル生成を行います．

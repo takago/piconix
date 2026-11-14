@@ -9,7 +9,7 @@ PicoNIXは，MCPだけに依存しない**汎用PTYを最大2組**提供しま�
 | `/dev/ptmx` | `open(..., O_RDWR)` | Master．空き番号0・1を順に確保し，3組目は`OS_EBUSY` |
 | `/dev/pts/0` | `open(..., O_RDWR)`など | Slave．Masterのopen後に利用可能 |
 | `/dev/pts/0.screen` | `O_RDONLY` | 80×24の文字とANSI反転・カーソル属性（可変長ストリーム） |
-| `/dev/pts/0.key` | `O_WRONLY` | `UP`，`ENTER`，`CTRL_C`などのキー名を入力 |
+| `/dev/pts/0.key` | `O_WRONLY` | `key:`・`text:`による特殊キー・通常文字の入力 |
 | `/dev/pts/1`，`/dev/pts/1.screen`，`/dev/pts/1.key` | 同上 | 2組目のSlave・画面・キー入力 |
 
 - Masterの`write()`がSlaveへの入力になり，TTYのcanonical入力・echo・Ctrl+Cなどの行規律を通ります．Masterの`read()`はSlaveからの出力を受け取ります．
@@ -84,13 +84,21 @@ piconix# pty_test tty
 
 ```sh
 cat /dev/pts/0.screen
-echo DOWN > /dev/pts/0.key
-echo CTRL_C > /dev/pts/0.key
+echo 'key:DOWN' > /dev/pts/0.key
+echo 'key:CTRL_C' > /dev/pts/0.key
+echo 'text:ls\n' > /dev/pts/0.key
 ```
 
 `/dev/pts/0`と`/dev/pts/1`および各`.screen`・`.key`は，それぞれのMasterが開かれている間だけ`ls /dev/pts`に現れます．Masterを閉じてもSlaveの参照が残る場合は，最後のSlaveを閉じるまでその番号を再利用しません．画面は80列×24行に固定され，履歴やスクロールバックはありません．`.screen`の各行は空白を含む80文字と改行で構成され，`read()`のFD位置に応じて分割取得できます．読み出し中に画面が更新された場合の原子的なスナップショットは保証しません．
 
-`.key`は1回の`write()`につき1個のキー名を受け取り，`UP`・`DOWN`・`LEFT`・`RIGHT`・`ENTER`・`ESC`・`ESCAPE`・`TAB`・`SPACE`・`SP`・`BACKSPACE`・`BS`・`DELETE`・`CTRL_A`〜`CTRL_Z`をサポートします．通常のテキスト入力にはPTY Masterへの`write()`を使います．
+`.key`は**1回の`write()`につき1つの入力命令**を受け取ります．接頭辞なしの旧式キー名は受け付けません．
+
+- `key:X`：1文字キー，または`UP`・`DOWN`・`LEFT`・`RIGHT`・`ENTER`・`ESC`・`ESCAPE`・`TAB`・`SPACE`・`SP`・`BACKSPACE`・`BS`・`DELETE`・`CTRL_A`〜`CTRL_Z`を指定します．
+- `text:...`：通常文字を入力します．`\n`はLF，`\\`はバックスラッシュに変換します．未知のエスケープはエラーとなります．
+- `echo`が付加する末尾のLF（および直前のCR）は命令の終端として除去します．改行を実際に入力したい場合は`text:ls\n`または`key:ENTER`を指定します．
+- 出力は最大127バイトで，長い入力は分割した**独立の**`text:`命令で送信してください．コマンドを複数回の`write()`に分割しても結合されません．
+- 不正な接頭辞・キー・エスケープはPTYへ何も入力せず`OS_EINVAL`となります．PTY入力キューの混雑による部分的な入力受付は従来のPTY送信規則に従います．
+
 
 カーネルのANSI解析は完全な端末エミュレータではありません．基本的なカーソル移動・行消去・画面消去・SGR反転・代替画面切替・CSI 6nの応答を対象としています．日本語などの複数バイト文字・広範な端末制御・ウィンドウサイズの変更は対象外です．通常のPTYバイト中継は維持しています．
 

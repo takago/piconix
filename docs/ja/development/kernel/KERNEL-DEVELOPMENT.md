@@ -18,6 +18,7 @@
 | ファイル | 役割 |
 |---|---|
 | `kernel/kernel.c` | タスク，SVCディスパッチ，FD，VFS，デバイスI/O，TTY |
+| `kernel/screen.c`, `kernel/screen.h` | 80×24画面状態，ANSI解析，PTY画面取得，キー名変換，CDC再描画・CDC特殊キー解析（USB送信キュー，TTYへの配送，シェル生成は`kernel.c`） |
 | `kernel/main.c` | Flash内のユーザプログラムの登録，起動 |
 | `kernel/context.S` | 例外・コンテキスト切替 |
 | `userland/lib/syscalls.c` | C側のSVCラッパー，BSD風アダプター |

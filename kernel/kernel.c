@@ -27,6 +27,7 @@
 #include "pico/stdio_usb.h"
 #include "tusb.h"
 #include "manual.h"
+#include "screen.h"
 
 /* 関数トレース対象以外にはコンパイラの計測フックを挿入しない． */
 #define NO_TRACE __attribute__((no_instrument_function))
@@ -253,44 +254,6 @@ typedef struct {
     uint8_t ever_slave;       /* Slaveが一度でも開かれたことを示すフラグ． */
     uint8_t screen_only;      /* 画面取得を主とする利用状態のフラグ． */
 } pty_t;
-/* 80x24の仮想画面．TTY/PTYのバイト転送とは独立した表示状態である． */
-#define VT_COLS 80u
-#define VT_ROWS 24u
-typedef struct {
-    char cells[VT_ROWS][VT_COLS];              /* 画面内の文字セル． */
-    uint8_t inverse[VT_ROWS][(VT_COLS+7u)/8u]; /* 反転表示セルのビット列． */
-    uint8_t row;            /* カーソル行． */
-    uint8_t col;            /* カーソル列． */
-    uint8_t esc;            /* エスケープシーケンスの解析状態． */
-    uint8_t params;         /* 解析中のパラメータ数・位置の管理． */
-    uint8_t private_csi;    /* 私用CSIシーケンスの解析状態． */
-    uint8_t reverse;        /* 現在の反転表示属性． */
-    uint8_t cursor_hidden;  /* カーソル非表示の状態． */
-    uint8_t clipped;        /* 画面外への描画を抑制する状態． */
-    uint16_t arg[3];        /* CSIシーケンスの数値引数． */
-    uint32_t revision;      /* 画面更新を追跡する世代番号． */
-} vt_screen_t;
-static vt_screen_t pty_screen[PTY_COUNT];
-/* CDC is one physical port with two independent virtual 80x24 displays. */
-static vt_screen_t cdc_screen[2];
-static uint8_t cdc_active;
-/* Dual mode displays both 80x24 screens vertically on a >=80x51 host terminal. */
-static uint8_t cdc_dual_mode;
-static uint32_t cdc_shown_revision[2];
-/* In-progress repaint suppresses interleaved foreground writes to the USB queue. */
-static struct {
-    uint8_t phase;           /* 再描画の進行段階． */
-    uint8_t row;             /* 再描画中の行． */
-    uint8_t col;             /* 再描画中の列． */
-    uint8_t reverse;         /* 出力中の反転表示状態． */
-    uint8_t pending;         /* 未送信の制御列があることを示す状態． */
-    uint8_t seq_at;          /* 制御列の送信位置． */
-    uint8_t panel;           /* 再描画対象の画面． */
-    uint32_t revision;       /* 対象画面の更新世代． */
-    uint32_t revision_other; /* もう一方の画面の更新世代． */
-    char seq[80];            /* 送信途中の画面制御列． */
-} cdc_repaint;
-static void cdc_vconsole_draw(void);
 static void cdc_vconsole_switch(void);
 static void wake_readers(int dev);
 static void pty_screen_byte(int slot,uint8_t c);
@@ -1000,7 +963,7 @@ NO_TRACE static void pty_ref(int dev, int delta) {
     if(!pt->master_refs && !pt->slave_refs) {
         int tty=pty_tty(slot);
         memset(pt,0,sizeof *pt);
-        memset(&pty_screen[slot],0,sizeof pty_screen[slot]);
+        screen_reset(&pty_screen[slot]);
         tty_mode_reset(tty);
         foreground_pid[tty]=tty_shell_pid[tty]=tty_claim_pid[tty]=0;
         tty_restore_pid[tty]=0;
@@ -1010,28 +973,11 @@ NO_TRACE static void pty_ref(int dev, int delta) {
 
 static void tty_raw_enqueue(int dev,uint8_t c);
 NO_TRACE static int pty_master_rw(int slot,void *p,size_t n,int writing);
-/* 仮想画面の最小ANSI解釈．通常のPTY出力は加工せず，画面だけを更新する． */
-NO_TRACE static void vt_clear(vt_screen_t *screen) {
-    memset(screen->cells,' ',sizeof screen->cells);
-    memset(screen->inverse,0,sizeof screen->inverse);
-}
-/* 最下行を空けながら仮想画面を1行スクロールする． */
-NO_TRACE static void vt_scroll(vt_screen_t *screen) {
-    memmove(screen->cells[0],screen->cells[1],(VT_ROWS-1u)*VT_COLS);
-    memmove(screen->inverse[0],screen->inverse[1],(VT_ROWS-1u)*sizeof screen->inverse[0]);
-    memset(screen->cells[VT_ROWS-1u],' ',VT_COLS);
-    memset(screen->inverse[VT_ROWS-1u],0,sizeof screen->inverse[0]);
-}
-/* 改行時に下端を超えた場合は1行スクロールする． */
-NO_TRACE static void vt_lf(vt_screen_t *screen) {
-    if(++screen->row>=VT_ROWS) { vt_scroll(screen); screen->row=VT_ROWS-1u; }
-}
-/* ESC[6nへの応答はPTYの入力キューに入れる．端末サイズのプローブにも対応する． */
-NO_TRACE static void vt_cursor_report(vt_screen_t *screen, int tty) {
-    /* The selected physical CDC terminal answers CSI 6n itself; synthesize
-     * replies only for PTY or an off-screen/repainting CDC virtual console. */
+/* ESC[6nの応答を，必要なTTYの入力キューへ渡す． */
+NO_TRACE static void screen_cursor_report(const vt_screen_t *screen, int tty) {
+    /* 選択中のCDC端末は物理端末自身が返答する． */
     if(tty!=PTY_TTY && tty!=PTY_TTY1 && !cdc_dual_mode &&
-       (tty==CDC_VCONSOLE_TTY ? 1 : 0)==cdc_active && !cdc_repaint.phase) return;
+       (tty==CDC_VCONSOLE_TTY ? 1 : 0)==cdc_active && !screen_cdc_repainting()) return;
     char reply[16];
     int n=snprintf(reply,sizeof reply,"\033[%u;%uR",(unsigned)screen->row+1u,(unsigned)screen->col+1u);
     if(n>0 && (unsigned)n<sizeof reply) {
@@ -1039,151 +985,29 @@ NO_TRACE static void vt_cursor_report(vt_screen_t *screen, int tty) {
         if(tty==CDC_VCONSOLE_TTY || tty==0) wake_readers(tty);
     }
 }
-/* ANSIのパラメータが省略された場合に既定値を返す． */
-NO_TRACE static unsigned vt_arg(vt_screen_t *screen,unsigned i,unsigned fallback) {
-    return i<3u && screen->arg[i] ? screen->arg[i] : fallback;
-}
-/* TTYとは独立した画面エミュレータ．幅を超えた文字は改行まで捨てる． */
-NO_TRACE static void vt_screen_byte(vt_screen_t *screen, int tty, uint8_t c) {
-    if(screen->esc==1) {
-        screen->esc=0;
-        if(c=='[') {
-            screen->esc=2; screen->params=0; screen->private_csi=0;
-            memset(screen->arg,0,sizeof screen->arg);
-        } else if(c=='c') { vt_clear(screen); screen->row=screen->col=0; screen->clipped=0; screen->cursor_hidden=0; }
-        return;
-    }
-    if(screen->esc==2) {
-        if(c=='?' && !screen->params && !screen->arg[0]) {screen->private_csi=1;return;}
-        if(c>='0' && c<='9') {
-            unsigned i=screen->params;
-            if(i<3 && screen->arg[i]<1000u) screen->arg[i]=(uint16_t)(screen->arg[i]*10u+c-'0');
-            return;
-        }
-        if(c==';') {if(screen->params<2) screen->params++;return;}
-        unsigned n=vt_arg(screen,0,1);
-        if(c=='H'||c=='f') {
-            unsigned r=n-1u,col=vt_arg(screen,1,1)-1u;
-            screen->row=(uint8_t)(r<VT_ROWS?r:VT_ROWS-1u);
-            screen->col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);
-            screen->clipped=0;
-        } else if(c=='A') { screen->clipped=0; screen->row=(uint8_t)(n>screen->row?0:screen->row-n); }
-        else if(c=='B') { screen->clipped=0; screen->row=(uint8_t)(screen->row+n<VT_ROWS?screen->row+n:VT_ROWS-1u); }
-        else if(c=='C') { screen->clipped=0; screen->col=(uint8_t)(screen->col+n<VT_COLS?screen->col+n:VT_COLS-1u); }
-        else if(c=='D') { screen->clipped=0; screen->col=(uint8_t)(n>screen->col?0:screen->col-n); }
-        else if(c=='G') { screen->clipped=0; screen->col=(uint8_t)(n-1u<VT_COLS?n-1u:VT_COLS-1u); }
-        else if(c=='J' && (screen->arg[0]==2 || screen->arg[0]==3)) vt_clear(screen);
-        else if(c=='K') {
-            unsigned start=screen->arg[0]==1 ? 0 : screen->col;
-            unsigned end=screen->arg[0]==1 ? (unsigned)screen->col+1u : VT_COLS;
-            if(screen->arg[0]==2) {start=0;end=VT_COLS;}
-            memset(screen->cells[screen->row]+start,' ',end-start);
-            for(unsigned j=start;j<end;j++) screen->inverse[screen->row][j>>3]&=(uint8_t)~(1u<<(j&7u));
-        } else if(c=='m') {
-            for(unsigned i=0;i<=screen->params;i++) {
-                if(screen->arg[i]==0 || screen->arg[i]==27) screen->reverse=0;
-                if(screen->arg[i]==7) screen->reverse=1;
-            }
-        } else if(c=='n' && screen->arg[0]==6) vt_cursor_report(screen,tty);
-        else if(screen->private_csi && (c=='h'||c=='l') && screen->arg[0]==25) {
-            screen->cursor_hidden=(c=='l');
-        } else if(screen->private_csi && (c=='h'||c=='l') && screen->arg[0]==1049) {
-            if(c=='h' || (c=='l' && tty!=PTY_TTY && tty!=PTY_TTY1)) {
-                vt_clear(screen);screen->row=screen->col=screen->clipped=0;
-            }
-        }
-        screen->esc=0;
-        screen->revision++;
-        return;
-    }
-    if(c==27) {screen->esc=1;return;}
-    if(c=='\r') screen->col=screen->clipped=0;
-    else if(c=='\n') {screen->clipped=0;vt_lf(screen);}
-    else if(c=='\b') {if(screen->clipped) screen->clipped=0;else if(screen->col) screen->col--;}
-    else if(c=='\t' && !screen->clipped) {unsigned col=((unsigned)screen->col+8u)&~7u;screen->col=(uint8_t)(col<VT_COLS?col:VT_COLS-1u);if(col>=VT_COLS) screen->clipped=1;}
-    else if(c>=32 && c<127 && !screen->clipped) {
-        screen->cells[screen->row][screen->col]=(char)c;
-        uint8_t *attr=&screen->inverse[screen->row][screen->col>>3];
-        uint8_t bit=(uint8_t)(1u<<(screen->col&7u));
-        if(screen->reverse) *attr|=bit; else *attr&=(uint8_t)~bit;
-        if(screen->col==VT_COLS-1u) screen->clipped=1;
-        else screen->col++;
-    }
-    screen->revision++;
-}
-/* 共有ANSI画面パーサをPTYから利用するための入口． */
+/* PTYのスクリーンを更新し，必要ならカーソル位置を入力へ返す． */
 NO_TRACE static void pty_screen_byte(int slot,uint8_t c) {
-    vt_screen_byte(&pty_screen[slot],pty_tty(slot),c);
+    int tty=pty_tty(slot);
+    if(screen_byte(&pty_screen[slot],1,c)) screen_cursor_report(&pty_screen[slot],tty);
 }
-/* 80x24の反転表示を再生成し，可視カーソルだけをSGR 4/24で示す． */
-/* カーソル属性は画面セルへ保存せず，FD位置は可変長ストリーム上のバイト位置とする． */
+/* FDの画面ストリーム位置はカーネルが保持する． */
 NO_TRACE static int pty_screen_read(int fd, void *p, size_t n) {
-    unsigned pos=tasks[current].fd_pos[fd],at=0,out=0;
-    const vt_screen_t *screen=&pty_screen[pty_slot(tasks[current].fd[fd])];
-    char *dst=p;
-    unsigned reverse=0;
-#define VT_EMIT(ch) do { \
-    if(at>=pos && out<n) dst[out++]=(char)(ch); \
-    at++; \
-} while(0)
-    for(unsigned row=0;row<VT_ROWS && out<n;row++) {
-        for(unsigned col=0;col<VT_COLS && out<n;col++) {
-            unsigned inv=(screen->inverse[row][col>>3]>>(col&7u))&1u;
-            if(inv!=reverse) {
-                const char *seq=inv ? "\033[7m" : "\033[0m";
-                for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
-                reverse=inv;
-            }
-            if(!screen->cursor_hidden && row==screen->row && col==screen->col) {
-                const char *seq="\033[4m";
-                for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
-            }
-            VT_EMIT(screen->cells[row][col]);
-            if(!screen->cursor_hidden && row==screen->row && col==screen->col) {
-                const char *seq="\033[24m";
-                for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
-            }
-        }
-        if(out<n) VT_EMIT('\n');
-    }
-    if(reverse && out<n) {
-        const char *seq="\033[0m";
-        for(unsigned i=0;seq[i];i++) VT_EMIT(seq[i]);
-    }
-#undef VT_EMIT
-    tasks[current].fd_pos[fd]=pos+out;
-    return (int)out;
+    unsigned pos=tasks[current].fd_pos[fd];
+    int result=screen_read(&pty_screen[pty_slot(tasks[current].fd[fd])],&pos,p,n);
+    tasks[current].fd_pos[fd]=pos;
+    return result;
 }
-/* 名前による特殊キー入力．Masterと同じ行規律に渡す． */
+/* .keyの入力命令解析はscreenへ，PTYへの配送はカーネルへ委譲する． */
 NO_TRACE static int pty_key_write(int slot,const void *p,size_t n) {
     if(!pty[slot].master_refs || !pty[slot].slave_refs) return OS_EIO;
     if(!n) return 0;
-    if(n>16u) return OS_EINVAL;
-    char key[17];memcpy(key,p,n);key[n]=0;
-    unsigned requested=(unsigned)n;
-    while(n && (key[n-1]=='\n'||key[n-1]=='\r'))key[--n]=0;
-    if(!n) return (int)requested; /* echoが改行を別writeする場合 */
-    const char *seq=0;
-    if(!strcmp(key,"UP")) seq="\033[A";
-    else if(!strcmp(key,"DOWN")) seq="\033[B";
-    else if(!strcmp(key,"RIGHT")) seq="\033[C";
-    else if(!strcmp(key,"LEFT")) seq="\033[D";
-    else if(!strcmp(key,"ENTER")) seq="\r";
-    else if(!strcmp(key,"ESC") || !strcmp(key,"ESCAPE")) seq="\033";
-    else if(!strcmp(key,"TAB")) seq="\t";
-    else if(!strcmp(key,"SPACE") || !strcmp(key,"SP")) seq=" ";
-    else if(!strcmp(key,"BACKSPACE") || !strcmp(key,"BS")) seq="\177";
-    else if(!strcmp(key,"DELETE")) seq="\033[3~";
-    char control[2]={0,0};
-    if(!seq && n==6 && !memcmp(key,"CTRL_",5) && key[5]>='A' && key[5]<='Z') {
-        control[0]=(char)(key[5]-'A'+1);seq=control;
-    }
-    if(!seq) return OS_EINVAL;
-    size_t len=strlen(seq);
-    int written=pty_master_rw(slot,(void *)seq,len,1);
-    return written==(int)len ? (int)requested : written<0 ? written : OS_EAGAIN;
+    char sequence[128]; size_t length=0;
+    int requested=screen_key_decode(p,n,sequence,&length);
+    if(requested<0) return OS_EINVAL;
+    if(!length) return requested;
+    int written=pty_master_rw(slot,sequence,length,1);
+    return written==(int)length ? requested : written<0 ? written : OS_EAGAIN;
 }
-
 /* Masterが読み取るSlave出力を，1024バイトのリングへ欠落させずに追加する． */
 NO_TRACE static int pty_output_put(int slot,uint8_t c) {
     pty_t *pt=&pty[slot];
@@ -1293,142 +1117,10 @@ NO_TRACE static size_t console_queue(const uint8_t *p, size_t n) {
     return done;
 }
 
-/* A switch first drops queued bytes from the previous console; repaint is
- * incremental so the scheduler is never blocked by USB backpressure. */
+/* USB送信キューを捨ててから，再描画状態をscreenモジュールに要求する． */
 NO_TRACE static void cdc_vconsole_begin_repaint(void) {
-    cdc_repaint.phase=1;
-    cdc_repaint.row=cdc_repaint.col=cdc_repaint.reverse=cdc_repaint.panel=0;
-    cdc_repaint.pending=cdc_repaint.seq_at=0;
-    cdc_repaint.revision=cdc_screen[cdc_active].revision;
-    cdc_repaint.revision_other=cdc_screen[cdc_active^1u].revision;
+    screen_cdc_begin_repaint();
     console_tx_tail=console_tx_head;
-}
-
-/* Queue an ANSI control sequence; its cursor is retained across poll cycles. */
-NO_TRACE static void cdc_repaint_seq(const char *s) {
-    unsigned n=(unsigned)strlen(s);
-    if(n>=sizeof cdc_repaint.seq) n=sizeof cdc_repaint.seq-1u;
-    memcpy(cdc_repaint.seq,s,n);
-    cdc_repaint.pending=(uint8_t)n;
-    cdc_repaint.seq_at=0;
-}
-
-/* Generate at most 96 bytes per idle poll, without a 2-KiB scratch buffer. */
-NO_TRACE static void cdc_vconsole_draw(void) {
-    unsigned budget=96;
-    vt_screen_t *screen=&cdc_screen[cdc_dual_mode ? cdc_repaint.panel : cdc_active];
-    while(cdc_repaint.phase && budget) {
-        if(cdc_repaint.seq_at<cdc_repaint.pending) {
-            if(!console_queue((const uint8_t *)&cdc_repaint.seq[cdc_repaint.seq_at],1)) return;
-            cdc_repaint.seq_at++;
-            budget--;
-            continue;
-        }
-        cdc_repaint.pending=cdc_repaint.seq_at=0;
-        if(cdc_repaint.phase==1) {
-            /* Redraw without changing the host's alternate-screen mode. */
-            cdc_repaint_seq("\033[?25l\033[?7l\033[0m\033[2J\033[H");
-            cdc_repaint.phase=cdc_dual_mode ? 7 : 2;
-        } else if(cdc_repaint.phase==2) {
-            if(cdc_repaint.row>=VT_ROWS) {cdc_repaint.phase=4;continue;}
-            snprintf(cdc_repaint.seq,sizeof cdc_repaint.seq,
-                     "\033[%u;1H",(unsigned)cdc_repaint.row+1u+
-                     (cdc_dual_mode ? (cdc_repaint.panel ? 26u : 1u) : 0u));
-            cdc_repaint.pending=(uint8_t)strlen(cdc_repaint.seq);
-            cdc_repaint.phase=3;
-        } else if(cdc_repaint.phase==3) {
-            if(cdc_repaint.col>=VT_COLS) {
-                cdc_repaint.col=0;
-                cdc_repaint.row++;
-                cdc_repaint.phase=2;
-                continue;
-            }
-            unsigned row=cdc_repaint.row,col=cdc_repaint.col;
-            unsigned inv=(screen->inverse[row][col>>3]>>(col&7u))&1u;
-            if(inv!=cdc_repaint.reverse) {
-                cdc_repaint_seq(inv?"\033[7m":"\033[0m");
-                cdc_repaint.reverse=(uint8_t)inv;
-                continue;
-            }
-            if(!console_queue((const uint8_t *)&screen->cells[row][col],1)) return;
-            cdc_repaint.col++;
-            budget--;
-        } else if(cdc_repaint.phase==11) {
-            /* Hide cursor before refreshing either panel. */
-            cdc_repaint_seq("\033[?25l\033[0m");
-            cdc_repaint.phase=7;
-        } else if(cdc_repaint.phase==7) {
-            /* Full-width reverse-video title bar; never touch the saved screen. */
-            unsigned active=cdc_repaint.panel==cdc_active;
-            snprintf(cdc_repaint.seq,sizeof cdc_repaint.seq,
-                     "\033[%u;1H\033[7m%s[/dev/ttyV%u]%s",
-                     cdc_repaint.panel ? 26u : 1u,
-                     active ? "\033[1m" : "",
-                     (unsigned)cdc_repaint.panel,active ? " ACTIVE" : "");
-            cdc_repaint.pending=(uint8_t)strlen(cdc_repaint.seq);
-            cdc_repaint.col=(uint8_t)(12u+(active ? 7u : 0u));
-            cdc_repaint.phase=8;
-        } else if(cdc_repaint.phase==8 || cdc_repaint.phase==9) {
-            /* Fill the rest of the 80-column bar without another screen buffer. */
-            if(cdc_repaint.col<VT_COLS) {
-                const uint8_t space=' ';
-                if(!console_queue(&space,1)) return;
-                cdc_repaint.col++;
-                budget--;
-                continue;
-            }
-            cdc_repaint_seq("\033[0m");
-            if(cdc_repaint.phase==8) {
-                cdc_repaint.row=cdc_repaint.col=cdc_repaint.reverse=0;
-                cdc_repaint.phase=2;
-            } else cdc_repaint.phase=5;
-        } else if(cdc_repaint.phase==4) {
-            if(cdc_dual_mode && !cdc_repaint.panel) {
-                cdc_repaint.panel=1;
-                cdc_repaint.row=cdc_repaint.col=cdc_repaint.reverse=0;
-                screen=&cdc_screen[1];
-                cdc_repaint.phase=7;
-                continue;
-            }
-            if(cdc_dual_mode) {
-                cdc_repaint_seq("\033[51;1H\033[7mC-Left/Right: V0/V1/Dual  C-Up/Down: Focus (Dual)  C-T/G: Legacy");
-                cdc_repaint.col=(uint8_t)(sizeof("C-Left/Right: V0/V1/Dual  C-Up/Down: Focus (Dual)  C-T/G: Legacy")-1u);
-                cdc_repaint.phase=9;
-            } else {
-                cdc_repaint_seq("\033[0m\033[?7h");
-                cdc_repaint.phase=5;
-            }
-        } else if(cdc_repaint.phase==5) {
-            /* Keep the cursor hidden while further repaints are necessary. */
-            screen=&cdc_screen[cdc_active];
-            if(screen->revision!=cdc_repaint.revision ||
-               (cdc_dual_mode && cdc_screen[cdc_active^1u].revision!=cdc_repaint.revision_other)) {
-                cdc_repaint.phase=cdc_dual_mode ? 7 : 1;
-                cdc_repaint.row=cdc_repaint.col=cdc_repaint.reverse=cdc_repaint.panel=0;
-                cdc_repaint.revision=screen->revision;
-                cdc_repaint.revision_other=cdc_screen[cdc_active^1u].revision;
-                continue;
-            }
-            cdc_repaint.phase=10;
-        } else if(cdc_repaint.phase==10) {
-            screen=&cdc_screen[cdc_active];
-            snprintf(cdc_repaint.seq,sizeof cdc_repaint.seq,
-                     "\033[%u;%uH\033[?25%c%s",
-                     (unsigned)screen->row+1u+(cdc_dual_mode ? (cdc_active ? 26u : 1u) : 0u),
-                     (unsigned)screen->col+1u,
-                     screen->cursor_hidden?'l':'h',
-                     screen->reverse?"\033[7m":"");
-            cdc_repaint.pending=(uint8_t)strlen(cdc_repaint.seq);
-            cdc_repaint.phase=6;
-        } else {
-            /* Cursor restoration is the last queued operation in this redraw. */
-            cdc_repaint.phase=0;
-            if(cdc_dual_mode) {
-                cdc_shown_revision[0]=cdc_screen[0].revision;
-                cdc_shown_revision[1]=cdc_screen[1].revision;
-            }
-        }
-    }
 }
 
 /* アイドルタスク側でUSB送信リングを少量ずつ空にする．USB切断時は古い出力を溜め続けない． */
@@ -1438,18 +1130,7 @@ NO_TRACE static void console_tx_poll(void) {
         console_tx_tail=console_tx_head;
         return;
     }
-    if(cdc_dual_mode && !cdc_repaint.phase &&
-       (cdc_shown_revision[0]!=cdc_screen[0].revision ||
-        cdc_shown_revision[1]!=cdc_screen[1].revision))
-        {
-        /* Background screen changes need no full-screen erase. */
-        cdc_repaint.phase=11;
-        cdc_repaint.row=cdc_repaint.col=cdc_repaint.reverse=cdc_repaint.panel=0;
-        cdc_repaint.pending=cdc_repaint.seq_at=0;
-        cdc_repaint.revision=cdc_screen[cdc_active].revision;
-        cdc_repaint.revision_other=cdc_screen[cdc_active^1u].revision;
-    }
-    if(cdc_repaint.phase) cdc_vconsole_draw();
+    screen_cdc_poll(console_queue);
     /* TinyUSBのTX FIFOが満杯なら書かない．実際の送信はアイドル側だけで行い，USB割込みを動作可能に保つ． */
     unsigned budget=64;
     while(budget-- && console_tx_tail!=console_tx_head &&
@@ -1466,8 +1147,8 @@ NO_TRACE static void tty_put(uint8_t c) {
 /* Both CDC logical TTYs retain their own display; only the selected one emits bytes. */
 NO_TRACE static void cdc_put(int tty,uint8_t c) {
     int index=tty==CDC_VCONSOLE_TTY ? 1 : 0;
-    vt_screen_byte(&cdc_screen[index],tty,c);
-    if(index==cdc_active && !cdc_dual_mode && !cdc_repaint.phase)
+    if(screen_byte(&cdc_screen[index],0,c)) screen_cursor_report(&cdc_screen[index],tty);
+    if(index==cdc_active && !cdc_dual_mode && !screen_cdc_repainting())
         tty_put(c);
 }
 
@@ -1491,7 +1172,7 @@ NO_TRACE static int tty_tx_char(int dev, uint8_t c, int insert_cr) {
         return pty_output_put(slot,c);
     }
     if(dev==0 || dev==CDC_VCONSOLE_TTY) {
-        if((dev==0 ? 0 : 1)==cdc_active && !cdc_dual_mode && !cdc_repaint.phase) {
+        if((dev==0 ? 0 : 1)==cdc_active && !cdc_dual_mode && !screen_cdc_repainting()) {
             unsigned used=(console_tx_head+CONSOLE_TX_CAP-console_tx_tail)%CONSOLE_TX_CAP;
             if(CONSOLE_TX_CAP-1u-used < (unsigned)(1+insert_cr)) return 0;
         }
@@ -1698,53 +1379,43 @@ NO_TRACE static void cdc_vconsole_cycle(int direction) {
         cdc_vconsole_begin_repaint();
     }
 }
-/* Decode xterm Ctrl+arrows on USB CDC only.  Incomplete ESC sequences are
- * returned to the active TTY after a short timeout; ordinary ANSI keys pass
- * through unchanged.  The parser owns only six bytes of static state. */
-static uint8_t cdc_key_bytes[6],cdc_key_len,cdc_key_tty;
-static uint32_t cdc_key_time;
-/* 未完成のESCシーケンスを元のTTY入力へ戻す． */
-NO_TRACE static void cdc_key_flush(int *received) {
-    for(unsigned i=0;i<cdc_key_len;i++)
-        tty_input_char(cdc_key_tty,cdc_key_bytes[i]);
-    if(cdc_key_len) *received=1;
-    cdc_key_len=0;
-}
-/* CDCの制御キーと通常入力を分離して処理する． */
-NO_TRACE static void cdc_key_input(uint8_t ch,int *received) {
-    static const char prefix[]="\033[1;5";
-    if(cdc_key_len) {
-        if(cdc_key_len<5u && ch==(uint8_t)prefix[cdc_key_len]) {
-            cdc_key_bytes[cdc_key_len++]=ch;
-            return;
-        }
-        if(cdc_key_len==5u && ch>='A' && ch<='D') {
-            cdc_key_len=0;
-            if(ch=='A' || ch=='B') { /* In dual mode, Up/Down select input. */
-                unsigned target=ch=='B';
-                if(cdc_dual_mode && cdc_active!=target)
-                    cdc_vconsole_switch();
-            } else { /* Left/Right cycle V0 -> V1 -> Dual. */
-                cdc_vconsole_cycle(ch=='C' ? 1 : -1);
-            }
-            return;
-        }
-        cdc_key_flush(received);
-    }
-    if(ch==0x1b) {
-        cdc_key_bytes[0]=ch;
-        cdc_key_len=1;
-        cdc_key_tty=cdc_active ? CDC_VCONSOLE_TTY : 0;
-        cdc_key_time=time_us_32();
-    } else if(ch==0x14) {
-        cdc_vconsole_switch();
-    } else if(ch==0x07) {
-        cdc_dual_mode^=1u;
-        cdc_vconsole_begin_repaint();
-    } else {
-        tty_input_char(cdc_active ? CDC_VCONSOLE_TTY : 0,ch);
+/* CDC入力のキー操作はscreen側で解析し，TTYへの配送とタスク操作はここで行う． */
+NO_TRACE static void cdc_key_dispatch(const screen_cdc_key_result_t *result, int *received) {
+    for(unsigned i=0;i<result->flushed_count;i++)
+        tty_input_char(result->flushed_tty,result->flushed[i]);
+    if(result->flushed_count) *received=1;
+    if(result->pass) {
+        tty_input_char(result->pass_tty,result->pass_byte);
         *received=1;
     }
+    switch(result->action) {
+    case SCREEN_CDC_SWITCH:
+        cdc_vconsole_switch();
+        break;
+    case SCREEN_CDC_DUAL_TOGGLE:
+        cdc_dual_mode^=1u;
+        cdc_vconsole_begin_repaint();
+        break;
+    case SCREEN_CDC_FOCUS_UP:
+    case SCREEN_CDC_FOCUS_DOWN: {
+        unsigned target=result->action==SCREEN_CDC_FOCUS_DOWN;
+        if(cdc_dual_mode && cdc_active!=target)
+            cdc_vconsole_switch();
+        break;
+    }
+    case SCREEN_CDC_CYCLE_LEFT:
+    case SCREEN_CDC_CYCLE_RIGHT:
+        cdc_vconsole_cycle(result->action==SCREEN_CDC_CYCLE_RIGHT ? 1 : -1);
+        break;
+    default:
+        break;
+    }
+}
+/* 受信した1バイトをscreenモジュールでキー操作またはTTY入力へ分類する． */
+NO_TRACE static void cdc_key_input(uint8_t ch,int *received) {
+    screen_cdc_key_result_t result;
+    screen_cdc_key_feed(ch,time_us_32(),cdc_active ? CDC_VCONSOLE_TTY : 0,&result);
+    cdc_key_dispatch(&result,received);
 }
 /* Ctrl+T toggles between independent CDC TTY0 and TTY4; the second shell
  * consumes an existing user task slot only after its first activation. */
@@ -1783,8 +1454,9 @@ NO_TRACE void os_console_poll(void) {
         cdc_key_input((uint8_t)ch,&received);
     }
     /* Avoid swallowing a standalone ESC or an incomplete arrow sequence. */
-    if(cdc_key_len && (uint32_t)(time_us_32()-cdc_key_time)>100000u)
-        cdc_key_flush(&received);
+    screen_cdc_key_result_t timeout_result;
+    if(screen_cdc_key_timeout(time_us_32(),&timeout_result))
+        cdc_key_dispatch(&timeout_result,&received);
     if(received) {
         wake_readers(0);
         wake_readers(CDC_VCONSOLE_TTY);
@@ -1892,9 +1564,8 @@ NO_TRACE void os_init(void) {
     memset(rx, 0, sizeof(rx));
     memset(pty,0,sizeof pty);
     memset(cdc_screen,0,sizeof cdc_screen);
-    for(unsigned i=0;i<2;i++) vt_clear(&cdc_screen[i]);
-    cdc_active=cdc_dual_mode=0;
-    memset(&cdc_repaint,0,sizeof cdc_repaint);
+    for(unsigned i=0;i<2;i++) screen_clear(&cdc_screen[i]);
+    screen_cdc_init();
     console_tx_head=console_tx_tail=0;
     if (!stdio_usb_init())
         panic("PicoNIX: USB CDC initialization failed");
@@ -2631,8 +2302,8 @@ static int vfs_open(const char *p, int flags) {
             if(!pty[slot].master_refs && !pty[slot].slave_refs) break;
         if(slot==PTY_COUNT) return OS_EBUSY;
         dev=slot ? DEV_PTY_MASTER1 : DEV_PTY_MASTER;
-        memset(&pty_screen[slot],0,sizeof pty_screen[slot]);
-        vt_clear(&pty_screen[slot]);
+        screen_reset(&pty_screen[slot]);
+        screen_clear(&pty_screen[slot]);
     }
     if(pty_slot(dev)>=0 && !pty_master_dev(dev) && !pty[pty_slot(dev)].master_refs) return OS_ENOENT;
     if(pty_screen_dev(dev) && (flags & 3)!=OS_O_RDONLY) return OS_EINVAL;

@@ -15,7 +15,7 @@ PicoNIX provides **up to two general-purpose master/slave PTY pairs**, independe
 | `/dev/ptmx` | `open(..., O_RDWR)` | Allocates the first free pair (0 or 1); a third open returns `OS_EBUSY` |
 | `/dev/pts/0` | `open(..., O_RDWR)` or other appropriate mode | Slave; available while the master is open |
 | `/dev/pts/0.screen` | `O_RDONLY` | 80x24 screen with ANSI inverse/cursor markers (variable-length stream) |
-| `/dev/pts/0.key` | `O_WRONLY` | Named-key input (e.g. `DOWN`, `CTRL_C`) |
+| `/dev/pts/0.key` | `O_WRONLY` | Prefixed `key:` or `text:` input |
 | `/dev/pts/1`, `/dev/pts/1.screen`, `/dev/pts/1.key` | As above | Second slave, screen, and named-key input |
 
 - Writing to the master supplies terminal input to the slave, including canonical input, echo, and Ctrl+C handling. Reading the master receives slave output.
@@ -93,12 +93,25 @@ TTY interprets Ctrl+C as an interrupt. The default is 1 (enabled); 0 passes
 
 ```sh
 cat /dev/pts/0.screen
-echo DOWN > /dev/pts/0.key
-echo CTRL_C > /dev/pts/0.key
+echo 'key:DOWN' > /dev/pts/0.key
+echo 'key:CTRL_C' > /dev/pts/0.key
+echo 'text:ls\n' > /dev/pts/0.key
 ```
 
 The screen and key nodes require an open PTY master. MCP `terminal_read` forwards the screen with its embedded SGR 4/24 cursor marker; no separate cursor-coordinate device is provided. Visible cursor movement changes the screen data. CSI ?25l hides the cursor marker; CSI ?25h restores it. The screen is fixed at 80 columns and 24 rows, with no scrollback. Each row contains 80 character cells plus LF, with optional ANSI SGR sequences. `ESC[7m` and `ESC[0m` mark reversed cells; `ESC[4m` and `ESC[24m` mark the single cursor cell (underline on/off), including a blank cell, but emit no marker when the cursor is hidden. Reads advance the FD offset and may split an escape sequence. The display is not an atomic snapshot if the screen changes while reading. The cursor marker is synthesized on read, not stored as a cell attribute.
 
-`.key` accepts one named key per `write()`: `UP`, `DOWN`, `LEFT`, `RIGHT`, `ENTER`, `ESC`, `ESCAPE`, `TAB`, `SPACE`, `SP`, `BACKSPACE`, `BS`, `DELETE`, or `CTRL_A` through `CTRL_Z`. Use the master FD for ordinary text.
+`.key` accepts one prefixed `key:` or `text:` command per `write()`; see the input protocol below. The PTY master FD also accepts ordinary text directly.
 
 This is a deliberately minimal ANSI interpreter, supporting basic cursor movement, erasure, reverse video, alternate-screen switching, and CSI 6n. It does not implement a full terminal, multibyte glyph layout, or resizes. PTY byte forwarding remains unchanged. See [MCP](../commands/MCP.md) for remote access.
+
+## `.key` input protocol
+
+Each `write()` carries one command and must start with `key:` or `text:`. Bare legacy key names are rejected.
+
+```sh
+echo 'key:CTRL_C' > /dev/pts/0.key
+echo 'key:ENTER' > /dev/pts/0.key
+echo 'text:ls\n' > /dev/pts/0.key
+```
+
+`key:` accepts one printable ASCII character or the existing named keys (`UP`, `DOWN`, `ENTER`, `ESC`, `CTRL_A` through `CTRL_Z`, etc.). `text:` accepts literal text with `\n` representing LF and `\\` representing a backslash. The final LF appended by `echo` (and a preceding CR) terminates the command; it is not sent to the slave. Output is limited to 127 decoded bytes per write. Writes are independent commands and cannot be split across calls. Invalid commands are rejected before any input is sent; PTY backpressure can still result in a partial transfer. The MCP `terminal_send` interface remains unchanged.

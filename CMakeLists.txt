@@ -234,7 +234,7 @@ configure_file("${CMAKE_CURRENT_LIST_DIR}/cmake/embed_manual.S.in"
 set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/embed_manual.S"
   PROPERTIES OBJECT_DEPENDS "${PICONIX_MAN_BIN}")
 list(APPEND PICONIX_EMBED_SOURCES "${CMAKE_CURRENT_BINARY_DIR}/embed_manual.S")
-add_executable(piconix kernel/net.c kernel/net_capture.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
+add_executable(piconix kernel/net.c kernel/net_capture.c kernel/net_service_telnet.c kernel/net_service_remote_devctl.c kernel/net_socket.c kernel/kernel.c kernel/screen.c kernel/gpio.c kernel/fb.c kernel/adc.c kernel/i2c.c kernel/pwm.c kernel/context.S kernel/main.c
                    ${PICONIX_EMBED_SOURCES})
 set_source_files_properties(kernel/kernel.c PROPERTIES OBJECT_DEPENDS "${PICONIX_INITIAL_FS_HEADER}")
 # 選抜カーネル関数の計測は標準で組み込む．イベント記録は起動時OFF．

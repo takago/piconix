@@ -720,8 +720,14 @@ static int process_json(int fd, const char *body, unsigned body_len, const char 
                 if(*value=='"' && len>0 && len<sizeof key) {
                     memcpy(key,value+1,len);key[len]=0;
                     char path[32];snprintf(path,sizeof path,"/dev/pts/%d.key",term_index);
+                    char command[24]="key:";
+                    memcpy(command+4,key,len);
                     int fdkey=open(path,O_WRONLY);
-                    if(fdkey>=0) {written=write(fdkey,key,len);close(fdkey);}
+                    if(fdkey>=0) {
+                        written=write(fdkey,command,len+4);
+                        close(fdkey);
+                        if(written>=0) written=(int)len;
+                    }
                 }
             } else {
                 const char *text_end,*content=args?member(args,args_end,"text",&text_end):0;

@@ -18,6 +18,7 @@ This guide is for contributors **extending the PicoNIX kernel**. For adding a us
 | File | Responsibility |
 |---|---|
 | `kernel/kernel.c` | Tasks, SVC dispatch, FDs, VFS, device I/O, TTY |
+| `kernel/screen.c`, `kernel/screen.h` | 80×24 screen state, ANSI parsing, PTY snapshots, key decoding, and incremental CDC repaint and CDC control-key parsing (USB TX queue, TTY routing and shell startup remain in `kernel.c`) |
 | `kernel/main.c` | Registering and starting embedded user programs |
 | `kernel/context.S` | Exceptions and context switching |
 | `userland/lib/syscalls.c` | C-side SVC wrappers and BSD-like adapters |

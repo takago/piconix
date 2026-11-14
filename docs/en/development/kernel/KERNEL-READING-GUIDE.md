@@ -39,6 +39,8 @@ Use `trace run hello`, then connect a visible `write` event to `write()` and `ca
 
 Compare `cat /proc/uptime`, `ls /dev`, and `lsof`. Follow FD lookup and VFS dispatch to the RAM file, `/proc`, or device backend. For pipelines, try `echo hello | grep hello | cat`, then locate shell pipe construction, `SYS_PIPE`, `SYS_DUP2`, `pipe_transfer()` and wake-up handling. See [Pipes](../../reference/commands/PIPE.md) and [TTY](../../reference/commands/TTY.md).
 
+Screen handling is implemented in `kernel/screen.c` / `kernel/screen.h`: `screen_byte()` parses ANSI output, `screen_read()` serializes PTY screen state, and `screen_key_decode()` converts key names. `screen_cdc_poll()` in `screen.c` now owns incremental CDC repaint generation. `kernel.c` retains FD ownership, TTY input queues, the USB TX queue, CDC key-action dispatch, TTY input routing, and console/shell switching. CDC escape-sequence parsing is in `screen.c`.
+
 ### Device I/O
 
 Begin at VFS device dispatch in `kernel/kernel.c`, then follow a selected backend such as `kernel/gpio.c`. Separate path/device identification from the read/write/ioctl operation and hardware-specific code. Consult [Device reference](../../reference/devices/README.md) and [Driver development](../drivers/DRIVER-DEVELOPMENT.md).
@@ -145,3 +147,7 @@ Further reading: [Internals](../../reference/INTERNAL.md), [Syscalls](../../refe
 ---
 
 **Related links:** [Development guide index](../README.md) | [Documentation](../../README.md) | [日本語](../../../ja/development/kernel/KERNEL-READING-GUIDE.md)
+
+## CDC virtual-console repaint
+
+`screen_cdc_begin_repaint()` starts a repaint, and `screen_cdc_poll()` produces at most 96 bytes per idle poll via a callback into `kernel.c`'s USB TX queue. When the queue is full, rendering resumes on a later poll. The active screen and dual-pane display state are stored in `cdc_active` and `cdc_dual_mode`. `screen_cdc_key_feed()` and `screen_cdc_key_timeout()` parse CDC control keys and preserve incomplete ESC sequences. `kernel.c` routes ordinary bytes to TTY input, performs console switching, and retains lazy shell startup.
